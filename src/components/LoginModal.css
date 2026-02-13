@@ -1,0 +1,591 @@
+/* Login Modal Styles */
+
+.login-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(45, 52, 54, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  padding: 1rem;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.login-modal-container {
+  background: white;
+  border-radius: 24px;
+  max-width: 900px;
+  width: 100%;
+  position: relative;
+  box-shadow: 0 25px 80px rgba(122, 158, 126, 0.3);
+  animation: slideUp 0.3s ease;
+  overflow: hidden;
+  display: flex;
+  min-height: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.login-modal-container::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.login-modal-close {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #8B9A9E;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.login-modal-close:hover {
+  background: #E8F0E8;
+  color: #2D3436;
+}
+
+.login-modal-content {
+  display: flex;
+  width: 100%;
+}
+
+.login-modal-left {
+  flex: 1;
+  background: #7A9E7E;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 3rem 2rem;
+  text-align: center;
+  color: white;
+}
+
+.login-modal-left svg {
+  color: white;
+  width: 80px;
+  height: 80px;
+  margin-bottom: 1.5rem;
+}
+
+.login-modal-left h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: white;
+  font-weight: 700;
+}
+
+.login-modal-left p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.login-modal-right {
+  flex: 1;
+  padding: 3rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.login-modal-right::-webkit-scrollbar {
+  display: none;
+}
+
+.login-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: auto 0;
+}
+
+.login-error-message {
+  background: #F8D7DA;
+  color: #721C24;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.login-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.login-form-group label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2D3436;
+}
+
+.login-form-group input,
+.login-form-group select {
+  padding: 0.875rem 1rem;
+  border: 2px solid #D4E4D4;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.3s ease;
+  background: #FAFBFA;
+  text-transform: none;
+  width: 100%;
+}
+
+.login-form-group input:focus,
+.login-form-group select:focus {
+  outline: none;
+  border-color: #7A9E7E;
+  background: white;
+}
+
+.login-form-group input::placeholder {
+  color: #8B9A9E;
+}
+
+.login-form-group select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238B9A9E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 1.25rem;
+  padding-right: 3rem;
+}
+
+.login-form-group select option {
+  padding: 0.5rem;
+}
+
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  width: 100%;
+  padding-right: 3rem;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #8B9A9E;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.3s ease;
+}
+
+.password-toggle:hover {
+  color: #7A9E7E;
+}
+
+.login-form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.login-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  color: #5C6B73;
+}
+
+.login-checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #7A9E7E;
+  cursor: pointer;
+}
+
+.login-forgot-password {
+  color: #7A9E7E;
+  font-weight: 500;
+  transition: color 0.3s ease;
+  text-decoration: none;
+}
+
+.login-forgot-password:hover {
+  color: #4A6B4E;
+}
+
+.login-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: #7A9E7E;
+  color: white;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.login-btn-primary:hover {
+  background: #4A6B4E;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(122, 158, 126, 0.3);
+}
+
+.login-modal-submit {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.login-modal-footer {
+  text-align: center;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #D4E4D4;
+}
+
+.login-modal-footer p {
+  color: #5C6B73;
+  font-size: 0.9rem;
+}
+
+.login-modal-footer a {
+  color: #7A9E7E;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.login-modal-footer a:hover {
+  color: #4A6B4E;
+}
+
+.login-toggle-link {
+  background: none;
+  border: none;
+  color: #7A9E7E;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.3s ease;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+  font-family: inherit;
+}
+
+.login-toggle-link:hover {
+  color: #4A6B4E;
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .login-modal-container {
+    max-width: 100%;
+    min-height: auto;
+    max-height: 95vh;
+    flex-direction: column;
+  }
+
+  .login-modal-content {
+    flex-direction: column;
+  }
+
+  .login-modal-left {
+    padding: 2rem 1.5rem;
+    min-height: 200px;
+  }
+
+  .login-modal-left svg {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 1rem;
+  }
+
+  .login-modal-left h2 {
+    font-size: 1.5rem;
+  }
+
+  .login-modal-right {
+    padding: 2rem 1.5rem;
+    max-height: 60vh;
+  }
+
+  .login-form-options {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-modal-left {
+    padding: 1.5rem 1rem;
+  }
+  
+  .login-modal-right {
+    padding: 1.5rem 1rem;
+  }
+  
+  .login-modal-left h2 {
+    font-size: 1.25rem;
+  }
+}
+
+/* Password Validation Styles */
+.password-error-message {
+  color: #D32F2F;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  line-height: 1.4;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.password-error-message::before {
+  content: "⚠";
+  color: #D32F2F;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.password-input-wrapper input.error {
+  border-color: #D32F2F;
+  box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.1);
+}
+
+.password-input-wrapper input.error:focus {
+  border-color: #D32F2F;
+  box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.2);
+}
+
+/* Registration Success Modal */
+.success-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.success-modal-container {
+  background: white;
+  border-radius: 16px;
+  padding: 2.5rem;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+}
+
+.success-icon {
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.success-icon svg {
+  animation: checkmark 0.6s ease;
+}
+
+.success-modal-container h2 {
+  color: #388E3C;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+}
+
+.success-modal-container p {
+  color: #5C6B73;
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0 0 1.5rem 0;
+}
+
+.success-timer {
+  height: 4px;
+  background: #E8F0E8;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 1rem;
+}
+
+.timer-bar {
+  height: 100%;
+  background: #388E3C;
+  border-radius: 2px;
+  animation: timer 3s linear;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes checkmark {
+  0% { 
+    transform: scale(0) rotate(-45deg);
+  }
+  50% { 
+    transform: scale(1.2) rotate(-45deg);
+  }
+  100% { 
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes timer {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+/* Gmail Validation Styles */
+.gmail-error-message {
+  color: #D32F2F;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  line-height: 1.4;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.gmail-error-message::before {
+  content: "⚠";
+  color: #D32F2F;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+/* OTP Styles */
+.otp-error-message {
+  color: #D32F2F;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  line-height: 1.4;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.otp-error-message::before {
+  content: "⚠";
+  color: #D32F2F;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.resend-otp-btn {
+  background: none;
+  border: none;
+  color: #7A9E7E;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  margin-top: 0.5rem;
+  transition: color 0.3s ease;
+}
+
+.resend-otp-btn:hover {
+  color: #4A6B4E;
+}
+
+#otp {
+  letter-spacing: 0.2rem;
+  text-align: center;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+}
+
+.send-otp-btn {
+  background: #7A9E7E;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.send-otp-btn:hover {
+  background: #4A6B4E;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(122, 158, 126, 0.3);
+}
+
+.send-otp-btn:active {
+  transform: translateY(0);
+}

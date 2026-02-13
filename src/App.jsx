@@ -1,0 +1,134 @@
+import { useState, useEffect } from 'react'
+import LandingPage from './components/LandingPage'
+import AdminDashboard from './components/admindashboard'
+import ReviewerDashboard from './components/reviewerdashboard'
+import StudentDashboard from './components/studentdashboard'
+import { authenticateUser } from './services/api'
+
+function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [userRole, setUserRole] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Check for existing authentication on app load
+  useEffect(() => {
+    const checkAuth = () => {
+      const savedAuth = localStorage.getItem('ureb_auth');
+      const savedRole = localStorage.getItem('ureb_role');
+      
+      if (savedAuth === 'true' && savedRole) {
+        setIsAuthenticated(true);
+        setUserRole(savedRole);
+      }
+      setIsLoading(false);
+    };
+    
+    // Small delay to ensure localStorage is ready
+    setTimeout(checkAuth, 100);
+  }, []);
+
+  const handleLogin = async (email, password) => {
+    try {
+      const result = await authenticateUser(email, password);
+      if (result.success) {
+        setIsAuthenticated(true);
+        setUserRole(result.user.role);
+
+        // Save to localStorage for persistence
+        localStorage.setItem('ureb_auth', 'true');
+        localStorage.setItem('ureb_role', result.user.role);
+        localStorage.setItem('ureb_user', JSON.stringify(result.user));
+
+        return { success: true };
+      } else {
+        // Return error message to be displayed in modal
+        return { success: false, error: result.error || 'Login failed' };
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      // Return error message to be displayed in modal
+      return { success: false, error: 'Login failed. Please try again.' };
+    }
+  }
+
+  const handleRegister = async (registrationData) => {
+    try {
+      const response = await fetch('http://localhost:5001/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(registrationData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Optionally auto-login the user after registration
+        // Or just return success and let them log in manually
+        return { success: true, message: 'Registration successful! Please log in.' };
+      } else {
+        return { success: false, error: result.error || 'Registration failed' };
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      return { success: false, error: 'Registration failed. Please try again.' };
+    }
+  }
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setUserRole(null);
+
+    // Clear localStorage
+    localStorage.removeItem('ureb_auth');
+    localStorage.removeItem('ureb_role');
+    localStorage.removeItem('ureb_user');
+  }
+
+  return (
+    <>
+      {isLoading ? (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          backgroundColor: '#F5F8F5',
+          fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              border: '4px solid #E8F0E8',
+              borderTop: '4px solid #7A9E7E',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 1rem'
+            }}></div>
+            <p style={{ color: '#5C6B73', margin: 0 }}>Loading...</p>
+          </div>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      ) : isAuthenticated ? (
+        userRole === 'admin' ? (
+          <AdminDashboard onLogout={handleLogout} />
+        ) : userRole === 'student' ? (
+          <StudentDashboard onLogout={handleLogout} />
+        ) : (
+          <ReviewerDashboard onLogout={handleLogout} />
+        )
+      ) : (
+        <LandingPage onLogin={handleLogin} onRegister={handleRegister} />
+      )}
+    </>
+  )
+}
+
+export default App
