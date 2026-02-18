@@ -39,6 +39,11 @@ function App() {
         localStorage.setItem('ureb_role', result.user.role);
         localStorage.setItem('ureb_user', JSON.stringify(result.user));
 
+        // Dispatch custom event to notify components of user change
+        window.dispatchEvent(new CustomEvent('userChanged', { 
+          detail: { action: 'login', user: result.user } 
+        }));
+
         return { success: true };
       } else {
         // Return error message to be displayed in modal
@@ -84,6 +89,11 @@ function App() {
     localStorage.removeItem('ureb_auth');
     localStorage.removeItem('ureb_role');
     localStorage.removeItem('ureb_user');
+
+    // Dispatch custom event to notify components of user change
+    window.dispatchEvent(new CustomEvent('userChanged', { 
+      detail: { action: 'logout' } 
+    }));
   }
 
   return (
@@ -117,7 +127,7 @@ function App() {
           `}</style>
         </div>
       ) : isAuthenticated ? (
-        userRole === 'admin' ? (
+        (userRole === 'admin' || userRole === 'superadmin' || userRole === 'super-admin' || userRole === 'root' || userRole === 'administrator') ? (
           <AdminDashboard onLogout={handleLogout} />
         ) : userRole === 'student' ? (
           <StudentDashboard onLogout={handleLogout} />

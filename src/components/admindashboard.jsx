@@ -5,6 +5,41 @@ import './AddAdminModal.css';
 
 
 
+// Helper to format reviewer name with title prefix/suffix
+const formatReviewerName = (reviewer) => {
+  const firstName = reviewer.firstName || '';
+  const middleName = reviewer.middleName || '';
+  const lastName = reviewer.lastName || '';
+  const title = reviewer.title || '';
+
+  const baseName = [firstName, middleName, lastName].filter(Boolean).join(' ');
+  const fallbackName = reviewer.name || baseName;
+
+  if (!title) return fallbackName;
+
+  // Prefix titles: Doctor, Engineer, Professor
+  const prefixMap = { Doctor: 'Dr.', Engineer: 'Engr.', Professor: 'Prof.' };
+  if (prefixMap[title]) {
+    const prefix = prefixMap[title];
+    // Check if name already starts with the prefix to avoid duplication
+    if (fallbackName.startsWith(prefix + ' ')) {
+      return fallbackName;
+    }
+    return `${prefix} ${fallbackName}`;
+  }
+
+  // Suffix titles: RN, LPT, MSN, RN/LPT, RN/MSN
+  if (title === 'RN' || title === 'LPT' || title === 'MSN' || title === 'RN/LPT' || title === 'RN/MSN') {
+    // Check if name already ends with the title to avoid duplication
+    if (fallbackName.endsWith(', ' + title)) {
+      return fallbackName;
+    }
+    return `${fallbackName}, ${title}`;
+  }
+
+  return fallbackName;
+};
+
 // Rich Text Editor Component
 const RichTextEditor = ({ placeholder, content, onChange }) => {
   const [editorContent, setEditorContent] = useState(content || '');
@@ -291,6 +326,24 @@ const MessageIcon = () => (
 
 );
 
+const ReviewsIcon = () => (
+
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+
+    <polyline points="14,2 14,8 20,8"/>
+
+    <line x1="16" y1="13" x2="8" y2="13"/>
+
+    <line x1="16" y1="17" x2="8" y2="17"/>
+
+    <polyline points="10,9 9,9 8,9"/>
+
+  </svg>
+
+);
+
 const SearchIcon = () => (
 
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -350,11 +403,15 @@ const AdminDashboard = ({ onLogout }) => {
 
     { id: 'assign-file', label: 'Assign File', icon: <AssignIcon /> },
 
+    { id: 'message-researcher', label: 'Message Student', icon: <MessageIcon /> },
+
     { id: 'add-reviewer', label: 'Add Reviewer', icon: <UserPlusIcon /> },
 
     { id: 'manage-users', label: 'Manage Users', icon: <UsersIcon /> },
 
     { id: 'notification', label: 'Notification (File)', icon: <NotificationIcon /> },
+
+    { id: 'reviews-file', label: 'Reviews File', icon: <ReviewsIcon /> },
 
     { id: 'messages-inbox', label: 'Messages Inbox', icon: <MessageIcon /> },
 
@@ -395,13 +452,21 @@ const AdminDashboard = ({ onLogout }) => {
 
         return <AssignFileContent />;
 
+      case 'message-researcher':
+
+        return <MessageResearcherContent />;
+
       case 'manage-users':
 
         return <ManageUsersContent />;
 
       case 'notification':
 
-        return <NotificationContent />;
+        return <NotificationContent setActiveTab={setActiveTab} />;
+
+      case 'reviews-file':
+
+        return <ReviewsFileContent />;
 
       case 'messages-inbox':
 
@@ -922,10 +987,10 @@ const AddReviewerContent = () => {
       firstName: '',
       middleName: '',
       lastName: '',
+      title: '',
       email: '',
       password: '',
-      department: '',
-      specialization: ''
+      department: ''
     };
   };
 
@@ -972,6 +1037,27 @@ const AddReviewerContent = () => {
     e.preventDefault();
     setLoading(true);
 
+    // Validation: Check if department is selected
+    if (!formData.department || formData.department.trim() === '') {
+      setErrorMessage('Please select a department.');
+      setShowErrorModal(true);
+      setLoading(false);
+      return;
+    }
+
+    // Validation: Check if department value is valid (not random string)
+    const validDepartments = [
+      'FALS', 'FTED', 'FAIS', 'FNAS', 'FBM', 'FCJE', 'FACET',
+      'FHUSOCOM', 'SEIC', 'BEC', 'CEC', 'BGEC', 'TEC', 
+      'NSTP', 'ICS', 'Community Representatives'
+    ];
+    if (!validDepartments.includes(formData.department)) {
+      setErrorMessage('Please select a valid department from the list.');
+      setShowErrorModal(true);
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch('http://localhost:5001/api/users/detailed', {
         method: 'POST',
@@ -982,11 +1068,11 @@ const AddReviewerContent = () => {
           firstName: formData.firstName,
           middleName: formData.middleName || '',
           lastName: formData.lastName,
+          title: formData.title || '',
           email: formData.email,
           password: formData.password,
           role: 'reviewer',
-          department: formData.department,
-          specialization: formData.specialization
+          department: formData.department
         }),
       });
 
@@ -995,10 +1081,10 @@ const AddReviewerContent = () => {
           firstName: '',
           middleName: '',
           lastName: '',
+          title: '',
           email: '',
           password: '',
-          department: '',
-          specialization: ''
+          department: ''
         });
         localStorage.removeItem('addReviewerForm');
         setShowSuccessModal(true);
@@ -1022,10 +1108,10 @@ const AddReviewerContent = () => {
       firstName: '',
       middleName: '',
       lastName: '',
+      title: '',
       email: '',
       password: '',
-      department: '',
-      specialization: ''
+      department: ''
     });
     localStorage.removeItem('addReviewerForm');
   };
@@ -1058,13 +1144,31 @@ const AddReviewerContent = () => {
             </div>
             <div className="form-group">
               <label>Last Name</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 name="lastName"
-                placeholder="Enter last name" 
+                placeholder="Enter last name"
                 value={formData.lastName}
                 onChange={handleInputChange}
               />
+            </div>
+            <div className="form-group">
+              <label>Title (optional)</label>
+              <select
+                name="title"
+                value={formData.title || ''}
+                onChange={handleInputChange}
+              >
+                <option value="">None</option>
+                <option value="Doctor">Doctor (Dr.)</option>
+                <option value="Engineer">Engineer (Engr.)</option>
+                <option value="Professor">Professor (Prof.)</option>
+                <option value="RN">RN</option>
+                <option value="LPT">LPT</option>
+                <option value="MSN">MSN</option>
+                <option value="RN/LPT">RN/LPT</option>
+                <option value="RN/MSN">RN/MSN</option>
+              </select>
             </div>
           </div>
           <div className="form-group">
@@ -1106,23 +1210,15 @@ const AddReviewerContent = () => {
                 <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
                 <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
                 <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
-                <option value="SIEC">SIEC-San Isidro Campus</option>
+                <option value="SEIC">SEIC- San Isidro Extension Campus</option>
                 <option value="BEC">BEC-BanayBanay Extension Campus</option>
                 <option value="CEC">CEC-Cateel Extension Campus</option>
                 <option value="BGEC">BGEC-Baganga Extension Campus</option>
                 <option value="TEC">TEC-Tarragona Extension Campus</option>
+                <option value="NSTP">NSTP-National Service Training Program</option>
+                <option value="ICS">ICS- Indigenous Community Studies</option>
                 <option value="Community Representatives">Community Representatives</option>
               </select>
-            </div>
-            <div className="form-group">
-              <label>Specialization</label>
-              <input 
-                type="text" 
-                name="specialization"
-                placeholder="e.g., Ethics, Methodology" 
-                value={formData.specialization}
-                onChange={handleInputChange}
-              />
             </div>
           </div>
           <div className="form-actions">
@@ -1320,7 +1416,7 @@ const AssignFileContent = () => {
         <h2>Assign Files to Reviewer</h2>
         <form className="assign-form" onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Protocol Code *</label>
+            <label>Protocol Code </label>
             <input 
               type="text" 
               name="protocolCode"
@@ -1332,7 +1428,7 @@ const AssignFileContent = () => {
             {validationErrors.protocolCode && <span className="error-text">{validationErrors.protocolCode}</span>}
           </div>
           <div className="form-group">
-            <label>Reviewer Username *</label>
+            <label>Reviewer Username </label>
             <select 
               name="reviewerUsername"
               value={formData.reviewerUsername}
@@ -1345,7 +1441,7 @@ const AssignFileContent = () => {
               ) : (
                 reviewers.map(reviewer => (
                   <option key={reviewer.id} value={reviewer.username}>
-                    {reviewer.name} ({reviewer.username})
+                    {formatReviewerName(reviewer)} ({reviewer.username})
                   </option>
                 ))
               )}
@@ -1353,7 +1449,7 @@ const AssignFileContent = () => {
             {validationErrors.reviewerUsername && <span className="error-text">{validationErrors.reviewerUsername}</span>}
           </div>
           <div className="form-group">
-            <label>Review Period (Philippine Time) *</label>
+            <label>Review Period (Philippine Time) </label>
             <div className="form-row">
               <div className="form-group">
                 <label>Start Date</label>
@@ -1456,6 +1552,298 @@ const AssignFileContent = () => {
 
 
 
+const MessageResearcherContent = () => {
+  const [students, setStudents] = useState([]);
+  const [filteredStudents, setFilteredStudents] = useState([]);
+  const [selectedStudent, setSelectedStudent] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [message, setMessage] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const response = await fetch('http://localhost:5001/api/students');
+        const data = await response.json();
+        setStudents(data);
+        setFilteredStudents(data);
+      } catch (error) {
+        console.error('Error fetching students:', error);
+        setError('Failed to fetch students');
+      }
+    };
+    fetchStudents();
+  }, []);
+
+  // Filter students
+  useEffect(() => {
+    let filtered = students.filter(student => {
+      const searchLower = searchQuery.toLowerCase();
+      const name = (student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim()).toLowerCase();
+      const email = (student.email || '').toLowerCase();
+      const department = (student.department || '').toLowerCase();
+      const studentId = (student.studentId || '').toLowerCase();
+      
+      return name.includes(searchLower) || 
+             email.includes(searchLower) || 
+             department.includes(searchLower) ||
+             studentId.includes(searchLower);
+    });
+
+    setFilteredStudents(filtered);
+  }, [students, searchQuery]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!selectedStudent || !message) {
+      setError('Please select a student and enter a message');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('studentEmail', selectedStudent);
+      formDataToSend.append('message', message);
+      
+      // Add files
+      attachedFiles.forEach((file, index) => {
+        formDataToSend.append(`file${index}`, file);
+      });
+
+      const response = await fetch('http://localhost:5001/api/send-message-to-student', {
+        method: 'POST',
+        body: formDataToSend,
+      });
+
+      // Check if response is OK before trying to parse JSON
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('Message sending endpoint not found. Please restart the server.');
+        } else if (response.status === 500) {
+          throw new Error('Server error occurred while sending message.');
+        } else {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+      }
+
+      // Check if response content type is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Invalid server response. Please restart the server.');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setSuccess(`Message sent successfully to ${result.recipientName || 'student'}!`);
+        setSelectedStudent('');
+        setMessage('');
+        setAttachedFiles([]);
+      } else {
+        setError(result.error || 'Failed to send message');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      
+      // Handle different types of errors
+      if (error.message.includes('SyntaxError') || error.message.includes('<!DOCTYPE')) {
+        setError('Server returned invalid response. Please restart the server and try again.');
+      } else if (error.message.includes('404') || error.message.includes('endpoint not found')) {
+        setError('Message sending feature not available. Please restart the server to load the new endpoint.');
+      } else if (error.message.includes('Failed to fetch')) {
+        setError('Cannot connect to server. Please check if the server is running.');
+      } else {
+        setError(error.message || 'Failed to send message');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    setAttachedFiles(prev => [...prev, ...files]);
+  };
+
+  const handleRemoveFile = (index) => {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    const validFiles = files.filter(file => {
+      const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'image/jpeg', 'image/jpg', 'image/png'];
+      return validTypes.includes(file.type) && file.size <= 10 * 1024 * 1024; // 10MB limit
+    });
+    
+    if (validFiles.length > 0) {
+      setAttachedFiles(prev => [...prev, ...validFiles]);
+    }
+    
+    if (validFiles.length !== files.length) {
+      setError('Some files were invalid or too large and were not added');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  return (
+    <div className="form-content full-width">
+      <div className="form-card">
+        <h2>Message Student</h2>
+        <form className="message-form" onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Select Student</label>
+            <div className="student-selector">
+              <div className="student-controls">
+                <input
+                  type="text"
+                  placeholder="Search by name, email, department, or student ID..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="student-search"
+                />
+              </div>
+              
+              {searchQuery && (
+                <div className="search-results-info">
+                  Found <span className="results-count">{filteredStudents.length}</span> students matching "{searchQuery}"
+                  {filteredStudents.length === 0 && " - Try different keywords"}
+                </div>
+              )}
+              
+              <div className="student-dropdown">
+                <select
+                  value={selectedStudent}
+                  onChange={(e) => setSelectedStudent(e.target.value)}
+                  required
+                  className="student-select"
+                >
+                  <option value="">
+                    {filteredStudents.length === 0 
+                      ? 'No students found - adjust your search' 
+                      : `Select a student (${filteredStudents.length} available)`
+                    }
+                  </option>
+                  {filteredStudents.map((student) => (
+                    <option key={student._id} value={student.email}>
+                      {student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || student.email}
+                      {student.department && ` - ${student.department}`}
+                      {student.studentId && ` - ${student.studentId}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Attached Files</label>
+            <div 
+              className={`file-upload-area ${isDragOver ? 'dragover' : ''}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => document.getElementById('message-file-upload').click()}
+            >
+              <input 
+                type="file" 
+                multiple
+                onChange={handleFileChange}
+                accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                style={{ display: 'none' }}
+                id="message-file-upload"
+              />
+              <div className="file-upload-label">
+                <FilePlusIcon />
+                <p>{isDragOver ? 'Drop files here' : 'Click to upload files or drag and drop'}</p>
+                <span>PDF, DOC, DOCX, TXT, JPG, PNG (MAX. 10MB per file)</span>
+              </div>
+            </div>
+          </div>
+          
+          {attachedFiles.length > 0 && (
+            <div className="uploaded-files">
+              <h4>Attached Files:</h4>
+              <ul>
+                {attachedFiles.map((file, index) => (
+                  <li key={index}>
+                    <span>{file.name}</span>
+                    <span>({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                    <button 
+                      type="button" 
+                      className="remove-file-btn"
+                      onClick={() => handleRemoveFile(index)}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="form-group">
+            <label>Message</label>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Enter your message here..."
+              rows="6"
+              required
+            />
+          </div>
+
+          {error && <div className="error-message">{error}</div>}
+          {success && <div className="success-message">{success}</div>}
+
+          <div className="form-actions">
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading ? 'Sending...' : 'Send Message'}
+            </button>
+            <button 
+              type="button" 
+              className="btn-secondary" 
+              onClick={() => {
+                setSelectedStudent('');
+                setSearchQuery('');
+                setMessage('');
+                setAttachedFiles([]);
+                setIsDragOver(false);
+                setError('');
+                setSuccess('');
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const ManageUsersContent = () => {
 
   const [users, setUsers] = useState([]);
@@ -1470,9 +1858,180 @@ const ManageUsersContent = () => {
 
   const [isAddAdminModalOpen, setIsAddAdminModalOpen] = useState(false);
 
+  // Edit and Delete states
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isEditSuccessModalOpen, setIsEditSuccessModalOpen] = useState(false);
+  const [isEditErrorModalOpen, setIsEditErrorModalOpen] = useState(false);
+  const [isDeleteSuccessModalOpen, setIsDeleteSuccessModalOpen] = useState(false);
+  const [isDeleteErrorModalOpen, setIsDeleteErrorModalOpen] = useState(false);
+  const [editErrorMessage, setEditErrorMessage] = useState('');
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState('');
+  const [editingUser, setEditingUser] = useState(null);
+  const [deletingUser, setDeletingUser] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
+  const [editLoading, setEditLoading] = useState(false);
+
+  // Search and sort states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('name');
+  const [sortOrder, setSortOrder] = useState('asc');
+
   const openAddAdminModal = () => setIsAddAdminModalOpen(true);
 
   const closeAddAdminModal = () => setIsAddAdminModalOpen(false);
+
+  // Edit handlers
+  const handleEdit = (user, userType) => {
+    setEditingUser({ ...user, userType });
+    setEditFormData({
+      firstName: user.firstName || '',
+      middleName: user.middleName || '',
+      lastName: user.lastName || '',
+      title: user.title || '',
+      name: user.name || '',
+      email: user.email || '',
+      department: user.department || '',
+      role: user.role || '',
+      studentId: user.studentId || '',
+      program: user.program || ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditingUser(null);
+    setEditFormData({});
+  };
+
+  const closeEditSuccessModal = () => {
+    setIsEditSuccessModalOpen(false);
+  };
+
+  const closeEditErrorModal = () => {
+    setIsEditErrorModalOpen(false);
+    setEditErrorMessage('');
+  };
+
+  const closeDeleteSuccessModal = () => {
+    setIsDeleteSuccessModalOpen(false);
+  };
+
+  const closeDeleteErrorModal = () => {
+    setIsDeleteErrorModalOpen(false);
+    setDeleteErrorMessage('');
+  };
+
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setEditLoading(true);
+
+    try {
+      const { updateUser, updateReviewer, updateStudent } = await import('../services/api.js');
+      let result;
+
+      if (editingUser.userType === 'admin') {
+        result = await updateUser(editingUser._id, editFormData);
+      } else if (editingUser.userType === 'reviewer') {
+        result = await updateReviewer(editingUser._id, editFormData);
+      } else if (editingUser.userType === 'student') {
+        result = await updateStudent(editingUser._id, editFormData);
+      }
+
+      if (result.success) {
+        // Refresh the data
+        const fetchUsers = async () => {
+          const { getAllUsers, getAllReviewers, getAllStudents } = await import('../services/api.js');
+          const [userList, reviewerList, studentList] = await Promise.all([
+            getAllUsers(),
+            getAllReviewers(),
+            getAllStudents()
+          ]);
+          const nonReviewerUsers = userList.filter(user => user.role !== 'reviewer');
+          setUsers(nonReviewerUsers);
+          setReviewers(reviewerList);
+          setStudents(studentList);
+        };
+        fetchUsers();
+        
+        closeEditModal();
+        setIsEditSuccessModalOpen(true);
+      } else {
+        setEditErrorMessage(result.error || 'Failed to update user');
+        setIsEditErrorModalOpen(true);
+      }
+    } catch (error) {
+      console.error('Error updating user:', error);
+      setEditErrorMessage('Error updating user. Please try again.');
+      setIsEditErrorModalOpen(true);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // Delete handlers
+  const handleDelete = (user, userType) => {
+    setDeletingUser({ ...user, userType });
+    setIsDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setDeletingUser(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingUser) return;
+
+    try {
+      const { deleteUser, deleteReviewer, deleteStudent } = await import('../services/api.js');
+      let result;
+
+      if (deletingUser.userType === 'admin') {
+        result = await deleteUser(deletingUser._id);
+      } else if (deletingUser.userType === 'reviewer') {
+        result = await deleteReviewer(deletingUser._id);
+      } else if (deletingUser.userType === 'student') {
+        result = await deleteStudent(deletingUser._id);
+      }
+
+      if (result.success) {
+        // Refresh the data
+        const fetchUsers = async () => {
+          const { getAllUsers, getAllReviewers, getAllStudents } = await import('../services/api.js');
+          const [userList, reviewerList, studentList] = await Promise.all([
+            getAllUsers(),
+            getAllReviewers(),
+            getAllStudents()
+          ]);
+          const nonReviewerUsers = userList.filter(user => user.role !== 'reviewer');
+          setUsers(nonReviewerUsers);
+          setReviewers(reviewerList);
+          setStudents(studentList);
+        };
+        fetchUsers();
+        
+        closeDeleteModal();
+        setIsDeleteSuccessModalOpen(true);
+      } else {
+        setDeleteErrorMessage(result.error || 'Failed to delete user');
+        setIsDeleteErrorModalOpen(true);
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      setDeleteErrorMessage('Error deleting user. Please try again.');
+      setIsDeleteErrorModalOpen(true);
+    }
+  };
 
   const tabs = [
     { id: 'admins', label: 'Admin' },
@@ -1520,6 +2079,100 @@ const ManageUsersContent = () => {
 
   }, []);
 
+
+  // Search and filter functions
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const filterAndSortData = (data, type) => {
+    let filteredData = data;
+
+    // Search functionality
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filteredData = filteredData.filter(item => {
+        if (type === 'reviewer') {
+          return (
+            (item.firstName && item.firstName.toLowerCase().includes(query)) ||
+            (item.lastName && item.lastName.toLowerCase().includes(query)) ||
+            (item.department && item.department.toLowerCase().includes(query)) ||
+            (item.name && item.name.toLowerCase().includes(query))
+          );
+        } else if (type === 'student') {
+          return (
+            (item.firstName && item.firstName.toLowerCase().includes(query)) ||
+            (item.lastName && item.lastName.toLowerCase().includes(query)) ||
+            (item.department && item.department.toLowerCase().includes(query)) ||
+            (item.name && item.name.toLowerCase().includes(query))
+          );
+        } else {
+          return (
+            (item.name && item.name.toLowerCase().includes(query)) ||
+            (item.email && item.email.toLowerCase().includes(query))
+          );
+        }
+      });
+    }
+
+    // Sort functionality
+    filteredData.sort((a, b) => {
+      let aValue, bValue;
+
+      if (type === 'reviewer') {
+        if (sortBy === 'name') {
+          aValue = a.name || `${a.firstName || ''} ${a.lastName || ''}`.trim();
+          bValue = b.name || `${b.firstName || ''} ${b.lastName || ''}`.trim();
+        } else if (sortBy === 'firstName') {
+          aValue = a.firstName || '';
+          bValue = b.firstName || '';
+        } else if (sortBy === 'lastName') {
+          aValue = a.lastName || '';
+          bValue = b.lastName || '';
+        } else if (sortBy === 'department') {
+          aValue = a.department || '';
+          bValue = b.department || '';
+        }
+      } else if (type === 'student') {
+        if (sortBy === 'name') {
+          aValue = a.name || `${a.firstName || ''} ${a.lastName || ''}`.trim();
+          bValue = b.name || `${b.firstName || ''} ${b.lastName || ''}`.trim();
+        } else if (sortBy === 'firstName') {
+          aValue = a.firstName || '';
+          bValue = b.firstName || '';
+        } else if (sortBy === 'lastName') {
+          aValue = a.lastName || '';
+          bValue = b.lastName || '';
+        } else if (sortBy === 'department') {
+          aValue = a.department || '';
+          bValue = b.department || '';
+        }
+      } else {
+        if (sortBy === 'name') {
+          aValue = a.name || '';
+          bValue = b.name || '';
+        }
+      }
+
+      // Handle empty values for proper sorting
+      if (aValue === undefined || aValue === null) aValue = '';
+      if (bValue === undefined || bValue === null) bValue = '';
+
+      const comparison = aValue.localeCompare(bValue);
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    return filteredData;
+  };
 
 
   const renderTable = () => {
@@ -1573,10 +2226,15 @@ const ManageUsersContent = () => {
                       <span className="status-badge active">Active</span>
                     </td>
                     <td>
-                      <div className="action-buttons">
-                        <button className="btn-secondary">Edit</button>
-                        <button className="btn-danger">Remove</button>
-                      </div>
+                      {user.role !== 'superadmin' && (
+                        <div className="action-buttons">
+                          <button className="btn-secondary" onClick={() => handleEdit(user, 'admin')}>Edit</button>
+                          <button className="btn-danger" onClick={() => handleDelete(user, 'admin')}>Remove</button>
+                        </div>
+                      )}
+                      {user.role === 'superadmin' && (
+                        <span style={{color: '#636e72', fontSize: '0.85rem', fontStyle: 'italic'}}>No actions available</span>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -1586,98 +2244,198 @@ const ManageUsersContent = () => {
         );
 
       case 'reviewers':
+        const filteredReviewers = filterAndSortData(reviewers, 'reviewer');
         return (
-          <table className="users-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Department</th>
-                <th>Specialization</th>
-                <th>Created Date</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reviewers.length === 0 ? (
+          <div>
+            {/* Search and Sort Controls */}
+            <div className="search-sort-controls" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <div className="group">
+                <svg className="icon" aria-hidden="true" viewBox="0 0 24 24">
+                  <g>
+                    <path d="M21.53 20.47l-3.66-3.66C19.195 15.24 20 13.214 20 11c0-4.97-4.03-9-9-9s-9 4.03-9 9 4.03 9 9 9c2.215 0 4.24-.804 5.808-2.13l3.66 3.66c.147.146.34.22.53.22s.385-.073.53-.22c.295-.293.295-.767.002-1.06zM3.5 11c0-4.135 3.365-7.5 7.5-7.5s7.5 3.365 7.5 7.5-3.365 7.5-7.5 7.5-7.5-3.365-7.5-7.5z"></path>
+                  </g>
+                </svg>
+                <input 
+                  placeholder="Search" 
+                  type="search" 
+                  className="input"
+                  value={searchQuery}
+                  onChange={handleSearch}
+                />
+              </div>
+              <div className="sort-controls" style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  className={`btn-secondary ${sortBy === 'name' ? 'active' : ''}`}
+                  onClick={() => handleSort('name')}
+                  title="Sort by Name"
+                >
+                  Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </button>
+                <button
+                  className={`btn-secondary ${sortBy === 'firstName' ? 'active' : ''}`}
+                  onClick={() => handleSort('firstName')}
+                  title="Sort by First Name"
+                >
+                  First Name {sortBy === 'firstName' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </button>
+                <button
+                  className={`btn-secondary ${sortBy === 'lastName' ? 'active' : ''}`}
+                  onClick={() => handleSort('lastName')}
+                  title="Sort by Last Name"
+                >
+                  Last Name {sortBy === 'lastName' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </button>
+                <button
+                  className={`btn-secondary ${sortBy === 'department' ? 'active' : ''}`}
+                  onClick={() => handleSort('department')}
+                  title="Sort by Department"
+                >
+                  Department {sortBy === 'department' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </button>
+              </div>
+            </div>
+            
+            <table className="users-table">
+              <thead>
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-medium)' }}>
-                    No reviewers found.
-                  </td>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Department</th>
+                  <th>Created Date</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
-              ) : (
-                reviewers.map((reviewer, index) => (
-                  <tr key={index}>
-                    <td>{reviewer.name || `${reviewer.firstName} ${reviewer.lastName}`}</td>
-                    <td>{reviewer.email}</td>
-                    <td>{reviewer.department || 'Not specified'}</td>
-                    <td>{reviewer.specialization || 'Not specified'}</td>
-                    <td>
-                      {reviewer.createdAt ? 
-                        new Date(reviewer.createdAt).toLocaleDateString()
-                        : 'Unknown'
-                      }
-                    </td>
-                    <td>
-                      <span className="status-badge active">Active</span>
-                    </td>
-                    <td>
-                      <div className="action-buttons">
-                        <button className="btn-secondary">Edit</button>
-                        <button className="btn-danger">Remove</button>
-                      </div>
+              </thead>
+              <tbody>
+                {filteredReviewers.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-medium)' }}>
+                      No reviewers found.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filteredReviewers.map((reviewer, index) => (
+                    <tr key={index}>
+                      <td>{formatReviewerName(reviewer)}</td>
+                      <td>{reviewer.email}</td>
+                      <td>{reviewer.department || 'Not specified'}</td>
+                      <td>
+                        {reviewer.createdAt ? 
+                          new Date(reviewer.createdAt).toLocaleDateString()
+                          : 'Unknown'
+                        }
+                      </td>
+                      <td>
+                        <span className="status-badge active">Active</span>
+                      </td>
+                      <td>
+                        <div className="action-buttons">
+                          <button className="btn-secondary" onClick={() => handleEdit(reviewer, 'reviewer')}>Edit</button>
+                          <button className="btn-danger" onClick={() => handleDelete(reviewer, 'reviewer')}>Remove</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         );
 
       case 'students':
+        const filteredStudents = filterAndSortData(students, 'student');
         return (
-          <table className="users-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Student ID</th>
-                <th>Email</th>
-                <th>Department</th>
-                <th>Program</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.length === 0 ? (
+          <div>
+            {/* Search and Sort Controls */}
+            <div className="search-sort-controls" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <div className="group">
+                <svg className="icon" aria-hidden="true" viewBox="0 0 24 24">
+                  <g>
+                    <path d="M21.53 20.47l-3.66-3.66C19.195 15.24 20 13.214 20 11c0-4.97-4.03-9-9-9s-9 4.03-9 9 4.03 9 9 9c2.215 0 4.24-.804 5.808-2.13l3.66 3.66c.147.146.34.22.53.22s.385-.073.53-.22c.295-.293.295-.767.002-1.06zM3.5 11c0-4.135 3.365-7.5 7.5-7.5s7.5 3.365 7.5 7.5-3.365 7.5-7.5 7.5-7.5-3.365-7.5-7.5z"></path>
+                  </g>
+                </svg>
+                <input 
+                  placeholder="Search" 
+                  type="search" 
+                  className="input"
+                  value={searchQuery}
+                  onChange={handleSearch}
+                />
+              </div>
+              <div className="sort-controls" style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  className={`btn-secondary ${sortBy === 'name' ? 'active' : ''}`}
+                  onClick={() => handleSort('name')}
+                  title="Sort by Name"
+                >
+                  Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </button>
+                <button
+                  className={`btn-secondary ${sortBy === 'firstName' ? 'active' : ''}`}
+                  onClick={() => handleSort('firstName')}
+                  title="Sort by First Name"
+                >
+                  First Name {sortBy === 'firstName' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </button>
+                <button
+                  className={`btn-secondary ${sortBy === 'lastName' ? 'active' : ''}`}
+                  onClick={() => handleSort('lastName')}
+                  title="Sort by Last Name"
+                >
+                  Last Name {sortBy === 'lastName' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </button>
+                <button
+                  className={`btn-secondary ${sortBy === 'department' ? 'active' : ''}`}
+                  onClick={() => handleSort('department')}
+                  title="Sort by Department"
+                >
+                  Department {sortBy === 'department' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </button>
+              </div>
+            </div>
+            
+            <table className="users-table">
+              <thead>
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-medium)' }}>
-                    No students found.
-                  </td>
+                  <th>Name</th>
+                  <th>Student ID</th>
+                  <th>Email</th>
+                  <th>Department</th>
+                  <th>Program</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
-              ) : (
-                students.map((student, index) => (
-                  <tr key={index}>
-                    <td>{student.name || `${student.firstName} ${student.lastName}`}</td>
-                    <td>{student.studentId}</td>
-                    <td>{student.email}</td>
-                    <td>{student.department}</td>
-                    <td>{student.program}</td>
-                    <td>
-                      <span className="status-badge active">Active</span>
-                    </td>
-                    <td>
-                      <div className="action-buttons">
-                        <button className="btn-secondary">Edit</button>
-                        <button className="btn-danger">Remove</button>
-                      </div>
+              </thead>
+              <tbody>
+                {filteredStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-medium)' }}>
+                      No students found.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filteredStudents.map((student, index) => (
+                    <tr key={index}>
+                      <td>{student.name || `${student.firstName} ${student.lastName}`}</td>
+                      <td>{student.studentId}</td>
+                      <td>{student.email}</td>
+                      <td>{student.department}</td>
+                      <td>{student.program}</td>
+                      <td>
+                        <span className="status-badge active">Active</span>
+                      </td>
+                      <td>
+                        <div className="action-buttons">
+                          <button className="btn-secondary" onClick={() => handleEdit(student, 'student')}>Edit</button>
+                          <button className="btn-danger" onClick={() => handleDelete(student, 'student')}>Remove</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         );
 
       default:
@@ -1736,6 +2494,274 @@ const ManageUsersContent = () => {
           fetchUsers();
         }} 
       />
+
+      {/* Edit User Modal */}
+      {isEditModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-container">
+            <div className="modal-header">
+              <h2>Edit {editingUser?.userType === 'admin' ? 'Admin' : editingUser?.userType === 'reviewer' ? 'Reviewer' : 'Student'}</h2>
+              <button className="modal-close" onClick={closeEditModal}>
+                <XIcon />
+              </button>
+            </div>
+            
+            <form onSubmit={handleEditSubmit} className="admin-form">
+              <div className="form-group">
+                <label>First Name</label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={editFormData.firstName || ''}
+                  onChange={handleEditInputChange}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Middle Name (optional)</label>
+                <input
+                  type="text"
+                  name="middleName"
+                  value={editFormData.middleName || ''}
+                  onChange={handleEditInputChange}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Last Name</label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={editFormData.lastName || ''}
+                  onChange={handleEditInputChange}
+                  required
+                />
+              </div>
+
+              {editingUser?.userType === 'reviewer' && (
+                <div className="form-group">
+                  <label>Title (optional)</label>
+                  <select
+                    name="title"
+                    value={editFormData.title || ''}
+                    onChange={handleEditInputChange}
+                  >
+                    <option value="">None</option>
+                    <option value="Doctor">Doctor (Dr.)</option>
+                    <option value="Engineer">Engineer (Engr.)</option>
+                    <option value="Professor">Professor (Prof.)</option>
+                    <option value="RN">RN</option>
+                    <option value="LPT">LPT</option>
+                    <option value="MSN">MSN</option>
+                    <option value="RN/LPT">RN/LPT</option>
+                    <option value="RN/MSN">RN/MSN</option>
+                  </select>
+                </div>
+              )}
+
+              {editingUser?.userType === 'student' && (
+                <div className="form-group">
+                  <label>Student ID</label>
+                  <input
+                    type="text"
+                    name="studentId"
+                    value={editFormData.studentId || ''}
+                    onChange={handleEditInputChange}
+                  />
+                </div>
+              )}
+
+              <div className="form-group">
+                <label>Email Address</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={editFormData.email || ''}
+                  onChange={handleEditInputChange}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Department</label>
+                <select
+                  name="department"
+                  value={editFormData.department || ''}
+                  onChange={handleEditInputChange}
+                  required
+                >
+                  <option value="">Select Department</option>
+                  <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
+                  <option value="FTED">FTED- Faculty of Teacher Education</option>
+                  <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
+                  <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
+                  <option value="FBM">FBM-Faculty of Business Management</option>
+                  <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
+                  <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
+                  <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
+                  <option value="SEIC">SEIC- San Isidro Extension Campus</option>
+                  <option value="BEC">BEC-BanayBanay Extension Campus</option>
+                  <option value="CEC">CEC-Cateel Extension Campus</option>
+                  <option value="BGEC">BGEC-Baganga Extension Campus</option>
+                  <option value="TEC">TEC-Tarragona Extension Campus</option>
+                  <option value="NSTP">NSTP-National Service Training Program</option>
+                  <option value="ICS">ICS- Indigenous Community Studies</option>
+                  <option value="Community Representatives">Community Representatives</option>
+                </select>
+              </div>
+
+              {editingUser?.userType === 'student' && (
+                <div className="form-group">
+                  <label>Program</label>
+                  <input
+                    type="text"
+                    name="program"
+                    value={editFormData.program || ''}
+                    onChange={handleEditInputChange}
+                  />
+                </div>
+              )}
+
+              {editingUser?.userType === 'admin' && (
+                <div className="form-group">
+                  <label>Role</label>
+                  <select
+                    name="role"
+                    value={editFormData.role || ''}
+                    onChange={handleEditInputChange}
+                    required
+                  >
+                    <option value="admin">Administrator</option>
+                    <option value="superadmin">Super Administrator</option>
+                  </select>
+                </div>
+              )}
+
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={closeEditModal}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" disabled={editLoading}>
+                  {editLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="logout-modal-overlay" onClick={(e) => e.target === e.currentTarget && closeDeleteModal()}>
+          <div className="logout-modal-container">
+            <div className="logout-modal-header">
+              <h2>Confirm Delete</h2>
+            </div>
+            <div className="logout-modal-body">
+              <p>Are you sure you want to delete this {deletingUser?.userType}?</p>
+              <p><strong>{deletingUser?.name || deletingUser?.email}</strong></p>
+              <p style={{ color: '#DC3545', marginTop: '1rem' }}>
+                This action cannot be undone.
+              </p>
+            </div>
+            <div className="logout-modal-footer">
+              <button className="logout-modal-btn-secondary" onClick={closeDeleteModal}>
+                Cancel
+              </button>
+              <button className="logout-modal-btn-primary" onClick={confirmDelete}>
+                Delete {deletingUser?.userType}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Success Modal */}
+      {isEditSuccessModalOpen && (
+        <div className="success-modal-overlay" onClick={(e) => e.target === e.currentTarget && closeEditSuccessModal()}>
+          <div className="success-modal-container">
+            <div className="success-modal-content">
+              <div className="success-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              </div>
+              <h3>User Updated Successfully!</h3>
+              <p>The user information has been updated.</p>
+              <button className="success-modal-btn" onClick={closeEditSuccessModal}>
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Error Modal */}
+      {isEditErrorModalOpen && (
+        <div className="error-modal-overlay" onClick={(e) => e.target === e.currentTarget && closeEditErrorModal()}>
+          <div className="error-modal-container">
+            <div className="error-modal-content">
+              <div className="error-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#F44336" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="15" y1="9" x2="9" y2="15"/>
+                  <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+              </div>
+              <h3>Update Failed!</h3>
+              <p>{editErrorMessage}</p>
+              <button className="error-modal-btn" onClick={closeEditErrorModal}>
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Success Modal */}
+      {isDeleteSuccessModalOpen && (
+        <div className="success-modal-overlay" onClick={(e) => e.target === e.currentTarget && closeDeleteSuccessModal()}>
+          <div className="success-modal-container">
+            <div className="success-modal-content">
+              <div className="success-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              </div>
+              <h3>User Deleted Successfully!</h3>
+              <p>The user has been removed from the system.</p>
+              <button className="success-modal-btn" onClick={closeDeleteSuccessModal}>
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Error Modal */}
+      {isDeleteErrorModalOpen && (
+        <div className="error-modal-overlay" onClick={(e) => e.target === e.currentTarget && closeDeleteErrorModal()}>
+          <div className="error-modal-container">
+            <div className="error-modal-content">
+              <div className="error-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#F44336" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="15" y1="9" x2="9" y2="15"/>
+                  <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+              </div>
+              <h3>Delete Failed!</h3>
+              <p>{deleteErrorMessage}</p>
+              <button className="error-modal-btn" onClick={closeDeleteErrorModal}>
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
 
@@ -1888,31 +2914,451 @@ const AddAdminModal = ({ isOpen, onClose, onAdminAdded }) => {
 };
 
 
-const NotificationContent = () => (
+const NotificationContent = ({ setActiveTab }) => {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  <div className="notification-content">
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
 
-    <div className="notification-header">
+  const fetchNotifications = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:5001/api/notifications');
+      const data = await response.json();
+      setNotifications(data);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      <h2>Notifications</h2>
+  const handleMarkAsRead = async (id) => {
+    try {
+      await fetch(`http://localhost:5001/api/notifications/${id}/read`, { method: 'PUT' });
+      setNotifications(notifications.map(n => n._id === id ? { ...n, read: true } : n));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
 
-      <button className="btn-primary">Mark All as Read</button>
+  const handleMarkAllAsRead = async () => {
+    try {
+      await fetch('http://localhost:5001/api/notifications/read-all', { method: 'PUT' });
+      setNotifications(notifications.map(n => ({ ...n, read: true })));
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
+  };
 
-    </div>
+  const handleNotificationClick = (notification) => {
+    // Mark as read
+    if (!notification.read) {
+      handleMarkAsRead(notification._id);
+    }
+    
+    // Handle review notifications
+    if (notification.type === 'review_submitted' && notification.reviewId) {
+      // Navigate to Reviews File tab
+      setActiveTab('reviews-file');
+      // Store the selected review ID to display specific review
+      localStorage.setItem('selectedReviewId', notification.reviewId);
+    }
+  };
 
-    <div className="notification-list">
+  const formatTimeAgo = (dateString) => {
+    if (!dateString) return 'Unknown';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays === 1) return '1 day ago';
+    return `${diffInDays} days ago`;
+  };
 
-      <div className="notification-item" style={{justifyContent: 'center', padding: '2rem'}}>
+  const getNotificationIcon = (type) => {
+    if (type === 'review_submitted') {
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+      );
+    }
+    return <NotificationIcon />;
+  };
 
-        <p style={{color: 'var(--text-medium)'}}>No notifications yet</p>
+  const unreadCount = notifications.filter(n => !n.read).length;
 
+  return (
+    <div className="notification-content">
+      <div className="notification-header">
+        <h2>Notifications {unreadCount > 0 && <span className="unread-badge">{unreadCount}</span>}</h2>
+        {unreadCount > 0 && (
+          <button className="btn-primary" onClick={handleMarkAllAsRead}>Mark All as Read</button>
+        )}
       </div>
-
+      <div className="notification-list">
+        {loading ? (
+          <div className="notification-item" style={{justifyContent: 'center', padding: '2rem'}}>
+            <p style={{color: 'var(--text-medium)'}}>Loading notifications...</p>
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="notification-item" style={{justifyContent: 'center', padding: '2rem'}}>
+            <p style={{color: 'var(--text-medium)'}}>No notifications yet</p>
+          </div>
+        ) : (
+          notifications.map((notification) => (
+            <div
+              key={notification._id}
+              className={`notification-item ${!notification.read ? 'unread' : ''}`}
+              onClick={() => handleNotificationClick(notification)}
+              style={{ cursor: notification.type === 'review_submitted' ? 'pointer' : (!notification.read ? 'pointer' : 'default') }}
+            >
+              <div className="notification-icon assigned">
+                {getNotificationIcon(notification.type)}
+              </div>
+              <div className="notification-info">
+                <h4>{notification.title}</h4>
+                <p>{notification.message}</p>
+                <span className="activity-time">{formatTimeAgo(notification.createdAt)}</span>
+              </div>
+              {!notification.read && <span className="unread-badge">New</span>}
+            </div>
+          ))
+        )}
+      </div>
     </div>
+  );
+};
 
-  </div>
+const ReviewsFileContent = () => {
+  const [reviews, setReviews] = useState([]);
+  const [selectedReview, setSelectedReview] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [downloadStatus, setDownloadStatus] = useState({});
 
-);
+  useEffect(() => {
+    fetchReviews();
+    checkForSelectedReview();
+  }, []);
+
+  const checkForSelectedReview = () => {
+    const selectedReviewId = localStorage.getItem('selectedReviewId');
+    if (selectedReviewId) {
+      fetchReviewById(selectedReviewId);
+      localStorage.removeItem('selectedReviewId'); // Clear after using
+    }
+  };
+
+  const fetchReviews = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:5001/api/reviews');
+      const data = await response.json();
+      setReviews(data);
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchReviewById = async (reviewId) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`http://localhost:5001/api/reviews/${reviewId}`);
+      const data = await response.json();
+      setSelectedReview(data);
+    } catch (error) {
+      console.error('Error fetching review:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReviewClick = (review) => {
+    setSelectedReview(review);
+  };
+
+  const handleBackToList = () => {
+    setSelectedReview(null);
+  };
+
+  const handleDownloadFile = async (file, fileKey) => {
+    if (!file || !file.filename) return;
+    
+    const downloadKey = `${selectedReview._id}-${fileKey}`;
+    setDownloadStatus(prev => ({ ...prev, [downloadKey]: 'downloading' }));
+    
+    try {
+      const { downloadReviewerFile } = await import('../services/api.js');
+      const result = await downloadReviewerFile(file.filename, file.originalname);
+      
+      if (result.success) {
+        setDownloadStatus(prev => ({ ...prev, [downloadKey]: 'success' }));
+        setTimeout(() => {
+          setDownloadStatus(prev => ({ ...prev, [downloadKey]: null }));
+        }, 2000);
+      } else {
+        setDownloadStatus(prev => ({ ...prev, [downloadKey]: 'error' }));
+        setTimeout(() => {
+          setDownloadStatus(prev => ({ ...prev, [downloadKey]: null }));
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      setDownloadStatus(prev => ({ ...prev, [downloadKey]: 'error' }));
+      setTimeout(() => {
+        setDownloadStatus(prev => ({ ...prev, [downloadKey]: null }));
+      }, 3000);
+    }
+  };
+
+  const getReviewerRole = (reviewer) => {
+    if (reviewer.role === 'preliminary') return 'Preliminary Reviewer';
+    if (reviewer.role === 'secondary') return 'Secondary Reviewer';
+    return 'Reviewer';
+  };
+
+  if (selectedReview) {
+    return (
+      <div className="review-detail-content">
+        <div className="review-detail-header">
+          <button className="btn-secondary" onClick={handleBackToList}>
+            ← Back to Reviews
+          </button>
+          <h2>
+            <svg className="review-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14,2 14,8 20,8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10,9 9,9 8,9"/>
+            </svg>
+            {selectedReview.title || 'Review Details'}
+          </h2>
+        </div>
+        
+        <div className="review-detail-card">
+          <div className="reviewer-info">
+            <h3>
+              <svg className="reviewer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              Reviewer Information
+            </h3>
+            <div className="reviewer-details">
+              <p>
+                <svg className="reviewer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+                <strong>Name:</strong> {selectedReview.reviewer?.name || selectedReview.reviewerName || 'N/A'}
+              </p>
+              <p>
+                <svg className="reviewer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <strong>Email:</strong> {selectedReview.reviewer?.email || selectedReview.reviewerEmail || 'N/A'}
+              </p>
+              <p>
+                <svg className="reviewer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="8.5" cy="7" r="4"/>
+                  <line x1="20" y1="8" x2="20" y2="14"/>
+                  <line x1="23" y1="11" x2="17" y2="11"/>
+                </svg>
+                <strong>Role:</strong> 
+                <span className="role-badge">
+                  {getReviewerRole(selectedReview.reviewer || {})}
+                </span>
+              </p>
+              <p>
+                <svg className="reviewer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                  <polyline points="9,22 9,12 15,12 15,22"/>
+                </svg>
+                <strong>Department:</strong> {selectedReview.reviewer?.department || selectedReview.department || 'N/A'}
+              </p>
+            </div>
+          </div>
+
+          <div className="review-content">
+            <h3>
+              <svg className="document-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14,2 14,8 20,8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10,9 9,9 8,9"/>
+              </svg>
+              Review Content
+            </h3>
+
+            {/* Review Info */}
+            <div className="review-info-grid">
+              <div className="review-info-item">
+                <span className="review-info-label">Protocol Code</span>
+                <span className="review-info-value">{selectedReview.protocolCode || 'N/A'}</span>
+              </div>
+              <div className="review-info-item">
+                <span className="review-info-label">Research Title</span>
+                <span className="review-info-value">{selectedReview.researchTitle || selectedReview.title || 'N/A'}</span>
+              </div>
+              <div className="review-info-item">
+                <span className="review-info-label">Submission Date</span>
+                <span className="review-info-value">{selectedReview.createdAt ? new Date(selectedReview.createdAt).toLocaleDateString() : 'N/A'}</span>
+              </div>
+            </div>
+
+            {/* Review Decision */}
+            <div className="review-decision-section">
+              <h4>Review Decision</h4>
+              <span className={`decision-badge ${(selectedReview.decision || selectedReview.overallRating || '').toLowerCase()}`}>
+                {selectedReview.decision || selectedReview.overallRating || 'Pending'}
+              </span>
+            </div>
+
+            {/* Reviewer Comments */}
+            {(selectedReview.comments || selectedReview.comment) && (
+              <div className="review-comments-section">
+                <h4>Reviewer's Comments</h4>
+                <div className="comments-box">
+                  {selectedReview.comments || selectedReview.comment}
+                </div>
+              </div>
+            )}
+
+            {/* Submitted Files */}
+            <div className="review-files-section">
+              <h4>Submitted Documents</h4>
+              <div className="review-files-grid">
+                {[
+                  { key: 'proposal', label: 'Proposal' },
+                  { key: 'approvalSheet', label: 'Approval Sheet' },
+                  { key: 'urebForm2', label: 'UREB Form 2' },
+                  { key: 'applicationForm6', label: 'Application for Research Ethics Review Form 6' },
+                  { key: 'accomplishedForm8', label: 'Accomplished Form 8' },
+                  { key: 'accomplishForm10A', label: 'Accomplish Form 10 A' },
+                  { key: 'copyOfInstrument', label: 'Copy of Instrument/Tool' },
+                  { key: 'ethicsReviewFee', label: 'Ethics Review Fee (Receipt)' },
+                  { key: 'form7', label: 'Form 7' }
+                ].map(({ key, label }) => {
+                  const file = selectedReview.files?.[key] || 
+                    (typeof selectedReview.files === 'object' && selectedReview.files[key]);
+                  return (
+                    <div key={key} className={`review-file-item ${file ? 'has-file' : 'no-file'}`}>
+                      <div className="review-file-info">
+                        <svg className="review-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                          <polyline points="14,2 14,8 20,8"/>
+                        </svg>
+                        <div className="review-file-details">
+                          <span className="review-file-label">{label}</span>
+                          <span className="review-file-name">
+                            {file ? file.originalname : 'No file submitted'}
+                          </span>
+                        </div>
+                      </div>
+                      {file && (
+                        <button
+                          className="review-file-download"
+                          onClick={() => handleDownloadFile(file, key)}
+                          disabled={downloadStatus[`${selectedReview._id}-${key}`] === 'downloading'}
+                        >
+                          {downloadStatus[`${selectedReview._id}-${key}`] === 'downloading' ? (
+                            <>
+                              <svg className="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                              </svg>
+                              Downloading...
+                            </>
+                          ) : downloadStatus[`${selectedReview._id}-${key}`] === 'success' ? (
+                            <>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polyline points="20,6 9,17 4,12"></polyline>
+                              </svg>
+                              Downloaded!
+                            </>
+                          ) : downloadStatus[`${selectedReview._id}-${key}`] === 'error' ? (
+                            <>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                              </svg>
+                              Retry
+                            </>
+                          ) : (
+                            <>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7,10 12,15 17,10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                              </svg>
+                              Download
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="reviews-content">
+      <div className="reviews-header">
+        <h2>Reviews File</h2>
+      </div>
+      <div className="reviews-list">
+        {loading ? (
+          <div className="review-item" style={{justifyContent: 'center', padding: '2rem'}}>
+            <p style={{color: 'var(--text-medium)'}}>Loading reviews...</p>
+          </div>
+        ) : reviews.length === 0 ? (
+          <div className="review-item" style={{justifyContent: 'center', padding: '2rem'}}>
+            <p style={{color: 'var(--text-medium)'}}>No reviews yet</p>
+          </div>
+        ) : (
+          reviews.map((review) => (
+            <div 
+              key={review._id} 
+              className="review-item clickable"
+              onClick={() => handleReviewClick(review)}
+              style={{ cursor: 'pointer' }}
+            >
+              <div className="review-info">
+                <h4>{review.title || review.researchTitle || 'Untitled Review'}</h4>
+                <p>{review.description || review.comments || 'No description available'}</p>
+                <div className="review-meta">
+                  <span className="reviewer-name">
+                    {review.reviewer?.name || review.reviewerName || 'Unknown Reviewer'}
+                  </span>
+                  <span className="activity-time">
+                    {review.createdAt ? new Date(review.createdAt).toLocaleDateString() : 'N/A'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
 
 
 
@@ -2534,81 +3980,113 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
 };
 
 const ViewReviewerSubmissionsModal = ({ isOpen, onClose }) => {
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchAllReviews();
+    }
+  }, [isOpen]);
+
+  const fetchAllReviews = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:5001/api/reviews/all');
+      const data = await res.json();
+      setReviews(data);
+    } catch (error) {
+      console.error('Error fetching reviewer submissions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (date) => {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
+  const formatTime = (date) => {
+    if (!date) return '';
+    return new Date(date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getDecisionStyle = (decision) => {
+    const d = (decision || '').toLowerCase();
+    if (d === 'approve' || d === 'approved') return { backgroundColor: '#388E3C', color: '#fff' };
+    if (d === 'revision' || d === 'needs revision') return { backgroundColor: '#F57C00', color: '#fff' };
+    if (d === 'reject' || d === 'rejected') return { backgroundColor: '#D32F2F', color: '#fff' };
+    return { backgroundColor: '#757575', color: '#fff' };
+  };
+
+  const getDecisionLabel = (decision) => {
+    const d = (decision || '').toLowerCase();
+    if (d === 'approve' || d === 'approved') return 'Approved';
+    if (d === 'revision' || d === 'needs revision') return 'Request Revision';
+    if (d === 'reject' || d === 'rejected') return 'Rejected';
+    return decision || 'Pending';
+  };
 
   if (!isOpen) return null;
 
-
-
   return (
-
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-
       <div className="modal-container large">
-
         <button className="modal-close" onClick={onClose} aria-label="Close modal">
-
           <XIcon />
-
         </button>
-
         <div className="modal-header">
-
           <h2>Reviewer Submissions</h2>
-
           <p>View all reviewer submissions and their status</p>
-
         </div>
-
         <div className="modal-body">
-
-          <table className="submissions-table">
-
-            <thead>
-
-              <tr>
-
-                <th>Protocol Code</th>
-
-                <th>Reviewer</th>
-
-                <th>File</th>
-
-                <th>Comments</th>
-
-                <th>Upload Date</th>
-
-                <th>Status</th>
-
-                <th>Actions</th>
-
-              </tr>
-
-            </thead>
-
-            <tbody>
-
-              <tr>
-
-                <td colSpan="7" style={{textAlign: 'center', padding: '2rem', color: 'var(--text-medium)'}}>
-
-                  No submissions found.
-
-                </td>
-
-              </tr>
-
-            </tbody>
-
-          </table>
-
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '2rem' }}>Loading submissions...</div>
+          ) : (
+            <table className="submissions-table">
+              <thead>
+                <tr>
+                  <th>Protocol Code</th>
+                  <th>Reviewer</th>
+                  <th>Decision</th>
+                  <th>Comments</th>
+                  <th>Date Submitted</th>
+                  <th>Time Submitted</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reviews.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-medium)' }}>
+                      No submissions found.
+                    </td>
+                  </tr>
+                ) : (
+                  reviews.map((review) => (
+                    <tr key={review._id}>
+                      <td>{review.protocolCode || 'N/A'}</td>
+                      <td>{review.reviewerName || review.reviewerEmail}</td>
+                      <td>
+                        <span style={{ ...getDecisionStyle(review.decision), padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: '600' }}>
+                          {getDecisionLabel(review.decision)}
+                        </span>
+                      </td>
+                      <td style={{ maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {review.comment || review.comments || 'No comments'}
+                      </td>
+                      <td>{formatDate(review.completedDate || review.createdAt)}</td>
+                      <td>{formatTime(review.completedDate || review.createdAt)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
-
       </div>
-
     </div>
-
   );
-
 };
 
 

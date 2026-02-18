@@ -56,12 +56,53 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpValue, setOtpValue] = useState('');
   const [otpError, setOtpError] = useState('');
+  const [gmailExists, setGmailExists] = useState(false);
+  const [checkingGmail, setCheckingGmail] = useState(false);
+
+  // Debounce function to avoid too many API calls
+  const debounce = (func, delay) => {
+    let timeoutId;
+    return (...args) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => func.apply(this, args), delay);
+    };
+  };
 
   // Gmail validation function
   const validateGmail = (gmail) => {
     const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
     return gmailRegex.test(gmail);
   };
+
+  // Check if Gmail exists in system
+  const checkGmailExists = async (gmail) => {
+    if (!validateGmail(gmail)) {
+      setGmailExists(false);
+      return;
+    }
+
+    setCheckingGmail(true);
+    try {
+      const response = await fetch('http://localhost:5001/api/check-gmail-exists', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ gmail }),
+      });
+
+      const result = await response.json();
+      setGmailExists(result.exists);
+    } catch (error) {
+      console.error('Error checking Gmail:', error);
+      setGmailExists(false);
+    } finally {
+      setCheckingGmail(false);
+    }
+  };
+
+  // Debounced version of checkGmailExists
+  const debouncedCheckGmail = debounce(checkGmailExists, 500);
 
   // Password validation function
   const validatePassword = (password) => {
@@ -312,7 +353,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       studentId,
       department,
       program,
-      gmail: regGmail,
+      email: regGmail,  // Changed from gmail to email
       password: regPassword,
       role: 'student'
     };
@@ -491,6 +532,11 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                       setOtpVerified(false);
                       setOtpValue('');
                       setOtpError('');
+                      setGmailExists(false); // Reset existence check
+                      // Check if Gmail exists in real-time (debounced)
+                      if (value) {
+                        debouncedCheckGmail(value);
+                      }
                     }}
                     placeholder="Enter your Gmail address"
                     required
@@ -500,7 +546,13 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                   {regGmail && !validateGmail(regGmail) && (
                     <div className="gmail-error-message">Please enter a valid Gmail address</div>
                   )}
-                  {regGmail && validateGmail(regGmail) && !otpSent && (
+                  {checkingGmail && (
+                    <div className="gmail-checking-message">Checking...</div>
+                  )}
+                  {gmailExists && validateGmail(regGmail) && (
+                    <div className="gmail-exists-message">This Gmail address is already registered in the system</div>
+                  )}
+                  {regGmail && validateGmail(regGmail) && !otpSent && !gmailExists && (
                     <button
                       type="button"
                       className="send-otp-btn"

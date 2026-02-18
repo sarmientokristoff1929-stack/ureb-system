@@ -66,12 +66,28 @@ const UploadIcon = () => (
   </svg>
 );
 
+const ProfileIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+    <circle cx="12" cy="7" r="4"/>
+  </svg>
+);
+
+const MailIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="4" width="20" height="16" rx="2"/>
+    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+  </svg>
+);
+
 const StudentDashboard = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [userInfo, setUserInfo] = useState({ name: 'Student', email: 'student@ureb.edu' });
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [submittedFiles, setSubmittedFiles] = useState([]);
+  const [userInfo, setUserInfo] = useState(null);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-  const [showWelcomeModal, setShowWelcomeModal] = useState(true);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('ureb_user');
@@ -84,14 +100,31 @@ const StudentDashboard = ({ onLogout }) => {
     if (welcomeShown) {
       setShowWelcomeModal(false);
     }
+
+    // Reset to dashboard tab on page refresh
+    const currentTab = sessionStorage.getItem('activeTab');
+    if (!currentTab) {
+      setActiveTab('dashboard');
+      sessionStorage.setItem('activeTab', 'dashboard');
+    } else {
+      setActiveTab(currentTab);
+    }
   }, []);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     { id: 'notifications', label: 'Notifications', icon: <BellIcon /> },
     { id: 'add-files', label: 'Add Files', icon: <FilePlusIcon /> },
+    { id: 'messages', label: 'Messages', icon: <MailIcon /> },
     { id: 'history', label: 'History', icon: <HistoryIcon /> },
+    { id: 'profile', label: 'Profile', icon: <ProfileIcon /> },
   ];
+
+  // Handle tab changes and save to sessionStorage
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    sessionStorage.setItem('activeTab', tabId);
+  };
 
   const handleLogout = () => {
     setIsLogoutModalOpen(true);
@@ -111,24 +144,36 @@ const StudentDashboard = ({ onLogout }) => {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <DashboardContent userInfo={userInfo} />;
+        return <DashboardContent userInfo={userInfo} onTabChange={handleTabChange} />;
       case 'notifications':
         return <NotificationsContent />;
       case 'add-files':
         return <AddFilesContent />;
+      case 'messages':
+        return <MessagesContent userInfo={userInfo} />;
       case 'history':
         return <HistoryContent />;
+      case 'profile':
+        return <ProfileContent userInfo={userInfo} />;
       default:
-        return <DashboardContent userInfo={userInfo} />;
+        return <DashboardContent userInfo={userInfo} onTabChange={handleTabChange} />;
     }
   };
 
   const getFirstName = () => {
-    return userInfo.name.split(' ')[0];
+    return userInfo?.name ? userInfo.name.split(' ')[0] : 'Student';
   };
 
   return (
     <div className="student-dashboard">
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <SuccessModal
+          onClose={() => setShowSuccessModal(false)}
+          submittedFiles={submittedFiles}
+        />
+      )}
+
       {/* Welcome Modal */}
       {showWelcomeModal && activeTab === 'dashboard' && (
         <WelcomeModal
@@ -150,7 +195,7 @@ const StudentDashboard = ({ onLogout }) => {
             <button
               key={item.id}
               className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => handleTabChange(item.id)}
             >
               {item.icon}
               <span>{item.label}</span>
@@ -176,8 +221,8 @@ const StudentDashboard = ({ onLogout }) => {
           </button>
           <h1>{menuItems.find(item => item.id === activeTab)?.label || 'Dashboard'}</h1>
           <div className="user-info">
-            <span>Welcome, {userInfo.name}</span>
-            <div className="user-avatar">{userInfo.name.charAt(0).toUpperCase()}</div>
+            <span>Welcome, {userInfo?.name || 'Student'}</span>
+            <div className="user-avatar">{userInfo?.name?.charAt(0).toUpperCase() || 'S'}</div>
           </div>
         </header>
 
@@ -191,7 +236,311 @@ const StudentDashboard = ({ onLogout }) => {
 };
 
 // Content Components
-const DashboardContent = ({ userInfo }) => {
+const ProfileContent = ({ userInfo }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedInfo, setEditedInfo] = useState({
+    firstName: '',
+    middleName: '',
+    lastName: '',
+    studentId: '',
+    department: '',
+    program: '',
+    gmail: '',
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [studentData, setStudentData] = useState(null);
+
+  useEffect(() => {
+    // Fetch actual student data from API
+    const fetchStudentData = async () => {
+      try {
+        const response = await fetch(`http://localhost:5001/api/student/profile?email=${encodeURIComponent(userInfo.email)}`);
+        const result = await response.json();
+        
+        if (result.success) {
+          setStudentData(result.student);
+          setEditedInfo({
+            firstName: result.student.firstName || '',
+            middleName: result.student.middleName || '',
+            lastName: result.student.lastName || '',
+            studentId: result.student.studentId || '',
+            department: result.student.department || '',
+            program: result.student.program || '',
+            gmail: result.student.gmail || '',
+          });
+        } else {
+          setError(result.error || 'Failed to fetch profile data');
+        }
+      } catch (error) {
+        console.error('Error fetching student data:', error);
+        setError('Failed to fetch profile data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStudentData();
+  }, [userInfo]);
+
+  const handleEdit = () => {
+    setIsEditing(true);
+    setError('');
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setError('');
+    // Reset to original values from database
+    if (studentData) {
+      setEditedInfo({
+        firstName: studentData.firstName || '',
+        middleName: studentData.middleName || '',
+        lastName: studentData.lastName || '',
+        studentId: studentData.studentId || '',
+        department: studentData.department || '',
+        program: studentData.program || '',
+        gmail: studentData.gmail || '',
+      });
+    }
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      const response = await fetch('http://localhost:5001/api/student/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: userInfo.email,
+          firstName: editedInfo.firstName,
+          middleName: editedInfo.middleName,
+          lastName: editedInfo.lastName,
+          studentId: editedInfo.studentId,
+          department: editedInfo.department,
+          program: editedInfo.program,
+          gmail: editedInfo.gmail,
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Update local state with new data
+        setStudentData(result.student);
+        setUserInfo(prev => ({
+          ...prev,
+          firstName: result.student.firstName,
+          middleName: result.student.middleName,
+          lastName: result.student.lastName,
+          email: result.student.gmail,
+          studentId: result.student.studentId,
+          department: result.student.department,
+          program: result.student.program,
+        }));
+        setIsEditing(false);
+      } else {
+        setError(result.error || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setError('Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setEditedInfo(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  if (loading) {
+    return (
+      <div className="content-section">
+        <h2>Student Profile</h2>
+        <div className="loading-state">Loading profile data...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="content-section">
+        <h2>Student Profile</h2>
+        <div className="error-message">{error}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="profile-content">
+      <div className="content-section">
+        <h2>Student Profile</h2>
+        
+        {!isEditing ? (
+          <div className="profile-view">
+            {studentData && (
+              <>
+                <div className="profile-header">
+                  <div className="profile-avatar">
+                    {studentData.name ? studentData.name.charAt(0).toUpperCase() : 'S'}
+                  </div>
+                  <div className="profile-name">
+                    <h3>{studentData.name || 'Student Name'}</h3>
+                    <p className="profile-email">{studentData.gmail || 'Not specified'}</p>
+                  </div>
+                </div>
+                
+                <div className="profile-details">
+                  <div className="detail-group">
+                    <label>Student ID</label>
+                    <p>{studentData.studentId || 'Not specified'}</p>
+                  </div>
+                  
+                  <div className="detail-group">
+                    <label>Department</label>
+                    <p>{studentData.department || 'Not specified'}</p>
+                  </div>
+                  
+                  <div className="detail-group">
+                    <label>Program</label>
+                    <p>{studentData.program || 'Not specified'}</p>
+                  </div>
+                  
+                  <div className="detail-group">
+                    <label>Gmail Address</label>
+                    <p>{studentData.gmail || 'Not specified'}</p>
+                  </div>
+                </div>
+                
+                <div className="profile-actions">
+                  <button className="edit-profile-btn" onClick={handleEdit}>
+                    Edit Profile
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="profile-edit">
+            <div className="edit-form">
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="firstName">First Name</label>
+                  <input
+                    type="text"
+                    id="firstName"
+                    value={editedInfo.firstName}
+                    onChange={(e) => handleInputChange('firstName', e.target.value)}
+                    placeholder="Enter your first name"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="middleName">Middle Name</label>
+                  <input
+                    type="text"
+                    id="middleName"
+                    value={editedInfo.middleName}
+                    onChange={(e) => handleInputChange('middleName', e.target.value)}
+                    placeholder="Enter your middle name (optional)"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="lastName">Last Name</label>
+                  <input
+                    type="text"
+                    id="lastName"
+                    value={editedInfo.lastName}
+                    onChange={(e) => handleInputChange('lastName', e.target.value)}
+                    placeholder="Enter your last name"
+                  />
+                </div>
+              </div>
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="studentId">Student ID</label>
+                  <input
+                    type="text"
+                    id="studentId"
+                    value={editedInfo.studentId}
+                    onChange={(e) => handleInputChange('studentId', e.target.value)}
+                    placeholder="Enter your student ID"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="department">Department</label>
+                  <input
+                    type="text"
+                    id="department"
+                    value={editedInfo.department}
+                    onChange={(e) => handleInputChange('department', e.target.value)}
+                    placeholder="Enter your department"
+                  />
+                </div>
+              </div>
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="program">Program</label>
+                  <input
+                    type="text"
+                    id="program"
+                    value={editedInfo.program}
+                    onChange={(e) => handleInputChange('program', e.target.value)}
+                    placeholder="Enter your program"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="gmail">Gmail Address</label>
+                  <input
+                    type="email"
+                    id="gmail"
+                    value={editedInfo.gmail}
+                    onChange={(e) => handleInputChange('gmail', e.target.value)}
+                    placeholder="Enter your Gmail address"
+                    pattern="[a-zA-Z0-9._%+-]+@gmail\.com"
+                    title="Please enter a valid Gmail address"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="edit-actions">
+              <button 
+                className="save-profile-btn" 
+                onClick={handleSave}
+                disabled={loading}
+              >
+                {loading ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button 
+                className="cancel-profile-btn" 
+                onClick={handleCancel}
+                disabled={loading}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const DashboardContent = ({ userInfo, onTabChange }) => {
   const [stats, setStats] = useState({
     totalProposals: 0,
     pendingReviews: 0,
@@ -203,20 +552,58 @@ const DashboardContent = ({ userInfo }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading dashboard data
-    setTimeout(() => {
-      setStats({
-        totalProposals: 0,
-        pendingReviews: 0,
-        approvedProposals: 0,
-        notifications: 0
-      });
+    const fetchDashboardData = async () => {
+      if (!userInfo?.email) return;
       
-      setRecentActivity([]);
-      setProposals([]);
-      setLoading(false);
-    }, 1000);
-  }, []);
+      try {
+        // Fetch real data from APIs
+        const [proposalsResponse, reviewsResponse, notificationsResponse] = await Promise.all([
+          fetch(`http://localhost:5001/api/proposals/student/${encodeURIComponent(userInfo.email)}`),
+          fetch(`http://localhost:5001/api/reviews/student/${encodeURIComponent(userInfo.email)}`),
+          fetch(`http://localhost:5001/api/messages/${encodeURIComponent(userInfo.email)}`)
+        ]);
+
+        // Check responses are OK before parsing
+        if (!proposalsResponse.ok || !reviewsResponse.ok || !notificationsResponse.ok) {
+          throw new Error('Failed to fetch dashboard data');
+        }
+
+        const proposalsData = await proposalsResponse.json();
+        const reviewsData = await reviewsResponse.json();
+        const notificationsData = await notificationsResponse.json();
+
+        // Calculate actual stats
+        const pendingReviews = reviewsData.filter(review => review.status === 'pending').length;
+        const approvedProposals = proposalsData.filter(proposal => proposal.status === 'approved').length;
+        const notificationsCount = notificationsData.filter(msg => msg.type === 'admin_to_student').length;
+
+        setStats({
+          totalProposals: proposalsData.length,
+          pendingReviews: pendingReviews,
+          approvedProposals: approvedProposals,
+          notifications: notificationsCount
+        });
+        
+        setProposals(proposalsData);
+        setRecentActivity([]);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        // Set default values on error
+        setStats({
+          totalProposals: 0,
+          pendingReviews: 0,
+          approvedProposals: 0,
+          notifications: 0
+        });
+        setRecentActivity([]);
+        setProposals([]);
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [userInfo]);
 
   if (loading) {
     return (
@@ -269,63 +656,81 @@ const DashboardContent = ({ userInfo }) => {
       </div>
       
       <div className="dashboard-sections">
-        <div className="proposals-section">
-          <h2>Uploaded Proposals</h2>
-          <div className="proposals-table-container">
-            {proposals.length === 0 ? (
-              <div className="loading-state">No proposals uploaded yet</div>
-            ) : (
-              <table className="proposals-table">
-                <thead>
-                  <tr>
-                    <th>Proposal Title</th>
-                    <th>Department</th>
-                    <th>Preliminary Reviewer</th>
-                    <th>Upload Date</th>
-                    <th>Status</th>
-                    <th>Files</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {proposals.map((proposal, index) => (
-                    <tr key={index}>
-                      <td>{proposal.title || 'Untitled Proposal'}</td>
-                      <td>{proposal.department || 'N/A'}</td>
-                      <td>{proposal.preliminaryReviewer || 'N/A'}</td>
-                      <td>{new Date(proposal.uploadDate).toLocaleDateString()}</td>
-                      <td>
-                        <span className={`status-badge ${proposal.status?.toLowerCase() || 'pending'}`}>
-                          {proposal.status || 'Pending'}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="file-list">
-                          {proposal.files && proposal.files.length > 0 ? (
-                            proposal.files.map((file, fileIndex) => (
-                              <span key={fileIndex} className="file-tag">
-                                {file.name}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="no-files">No files</span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <div className="up-section">
+          <div className="up-header">
+            <div>
+              <h2 className="up-title">Uploaded Proposals</h2>
+              <p className="up-subtitle">Track all your submitted research proposals</p>
+            </div>
+            {proposals.length > 0 && (
+              <span className="up-count">{proposals.length} proposal{proposals.length !== 1 ? 's' : ''}</span>
             )}
           </div>
-        </div>
-        
-        <div className="quick-actions">
-          <h2>Quick Actions</h2>
-          <div className="action-buttons">
-            <button className="action-btn primary">Submit New Proposal</button>
-            <button className="action-btn secondary">View Guidelines</button>
-            <button className="action-btn secondary">Contact Reviewer</button>
-          </div>
+
+          {proposals.length === 0 ? (
+            <div className="up-empty">
+              <div className="up-empty-icon"><FilePlusIcon /></div>
+              <h3>No proposals submitted yet</h3>
+              <p>Your submitted research proposals will appear here once uploaded.</p>
+              <button className="up-cta-btn" onClick={() => onTabChange('add-files')}>
+                Submit Your First Proposal
+              </button>
+            </div>
+          ) : (
+            <div className="up-list">
+              {proposals.map((proposal) => {
+                const status = (proposal.status || 'Pending').toLowerCase();
+                const fileCount = proposal.files ? Object.keys(proposal.files).length : 0;
+                const submittedDate = new Date(proposal.createdAt || proposal.uploadDate || Date.now());
+                return (
+                  <div key={proposal._id} className={`up-card up-card--${status}`}>
+                    <div className="up-card-accent" />
+                    <div className="up-card-body">
+                      <div className="up-card-top">
+                        <div className="up-card-title-group">
+                          <h3 className="up-card-title">{proposal.researchTitle || 'Untitled Proposal'}</h3>
+                          <span className="up-card-id">#{proposal._id?.slice(-8) || 'N/A'}</span>
+                        </div>
+                        <span className={`up-status up-status--${status}`}>
+                          {proposal.status || 'Pending'}
+                        </span>
+                      </div>
+
+                      <div className="up-card-meta">
+                        <div className="up-meta-item">
+                          <span className="up-meta-label">Department</span>
+                          <span className="up-meta-value up-dept">{proposal.department || 'N/A'}</span>
+                        </div>
+                        <div className="up-meta-item">
+                          <span className="up-meta-label">Reviewer</span>
+                          <span className="up-meta-value">{proposal.preliminaryReviewer || 'Not assigned'}</span>
+                        </div>
+                        <div className="up-meta-item">
+                          <span className="up-meta-label">Submitted</span>
+                          <span className="up-meta-value">
+                            {submittedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </div>
+                        <div className="up-meta-item">
+                          <span className="up-meta-label">Time</span>
+                          <span className="up-meta-value">
+                            {submittedDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="up-card-footer">
+                        <span className="up-files-chip">
+                          <FileIcon />
+                          {fileCount > 0 ? `${fileCount} file${fileCount !== 1 ? 's' : ''} attached` : 'No files'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -378,6 +783,21 @@ const NotificationsContent = () => {
   );
 };
 
+const DEPARTMENT_REVIEWERS = {
+  FAIS: ['Helina Jean P. Dupa'],
+  FALS: ['Henzel P. Bongas', 'Jefferson A. Centro', 'Harvy B. Desales'],
+  FTED: ['Emellie D. Careña'],
+  FBM: ['Gary L. Bastidan', 'Catharine G. Cabellero'],
+  FCJE: ['Ruther P. Manaopanao', 'Jessa Mae P. Macapanas'],
+  FACET: ['Rod Ryan B. Mendoza', 'Emmanuel B. Barbas'],
+  SIEC: ['Lester B. Argawanon', 'Elven Bugwak', 'Hepsiva T. Albizo', 'Aldan G. Namis', 'Jenet Grace B. Fuentes'],
+  FHUSOCOM: ['Renato Valdez'],
+  BEC: ['Niel A. Mutia', 'Cherime P. Bautista', 'Jenny Lou A. Milagrosa'],
+  CEC: ['Kevin P. Banudan', 'Judy Mae C. Apostol', 'Jhanny S. Bongo', 'Mary Ann Mabagod'],
+  BGEC: ['Purisima N. Tampus', 'Jerel M. Menendez'],
+  TEC: ['Aileen R. Artazo', 'Janennica Q. Manaytay'],
+};
+
 const AddFilesContent = () => {
   const [formData, setFormData] = useState({
     proposal: null,
@@ -389,9 +809,12 @@ const AddFilesContent = () => {
     instrumentTool: null,
     ethicsReviewFee: null,
     preliminaryReviewer: '',
-    department: ''
+    department: '',
+    proposalTitle: ''
   });
   const [uploading, setUploading] = useState(false);
+
+  const filteredReviewers = DEPARTMENT_REVIEWERS[formData.department] || [];
 
   const handleFileChange = (fieldName, file) => {
     setFormData(prev => ({
@@ -409,7 +832,7 @@ const AddFilesContent = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Check if at least one file is uploaded
     const hasFiles = Object.values(formData).some(value => value instanceof File);
     if (!hasFiles) {
@@ -418,24 +841,66 @@ const AddFilesContent = () => {
     }
 
     setUploading(true);
-    // Simulate file upload
-    setTimeout(() => {
-      setUploading(false);
-      alert('Files uploaded successfully!');
-      // Reset form
-      setFormData({
-        proposal: null,
-        approvalSheet: null,
-        urebForm2: null,
-        applicationForm6: null,
-        accomplishedForm8: null,
-        accomplishedForm10A: null,
-        instrumentTool: null,
-        ethicsReviewFee: null,
-        preliminaryReviewer: '',
-        department: ''
+    try {
+      const savedUser = localStorage.getItem('ureb_user');
+      const user = savedUser ? JSON.parse(savedUser) : null;
+
+      const submitData = new FormData();
+      // Append files
+      const fileFields = ['proposal', 'approvalSheet', 'urebForm2', 'applicationForm6', 'accomplishedForm8', 'accomplishedForm10A', 'instrumentTool', 'ethicsReviewFee'];
+      fileFields.forEach(field => {
+        if (formData[field] instanceof File) {
+          submitData.append(field, formData[field]);
+        }
       });
-    }, 2000);
+
+      // Append text fields
+      submitData.append('department', formData.department);
+      submitData.append('preliminaryReviewer', formData.preliminaryReviewer);
+      submitData.append('proposalTitle', formData.proposalTitle);
+      submitData.append('studentEmail', user?.email || '');
+      submitData.append('studentName', user?.name || '');
+
+      const response = await fetch('http://localhost:5001/api/student/submit-files', {
+        method: 'POST',
+        body: submitData
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Collect submitted files for modal display
+        const submittedFilesList = fileFields.filter(field => formData[field] instanceof File)
+          .map(field => ({
+            name: formData[field].name,
+            size: (formData[field].size / 1024).toFixed(1) + ' KB'
+          }));
+        
+        setSubmittedFiles(submittedFilesList);
+        setShowSuccessModal(true);
+        
+        setFormData({
+          proposal: null,
+          approvalSheet: null,
+          urebForm2: null,
+          applicationForm6: null,
+          accomplishedForm8: null,
+          accomplishedForm10A: null,
+          instrumentTool: null,
+          ethicsReviewFee: null,
+          preliminaryReviewer: '',
+          department: '',
+          proposalTitle: ''
+        });
+      } else {
+        alert('Error uploading files: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error submitting files:', error);
+      alert('Error uploading files. Please try again.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const renderFileInput = (fieldName, label, description) => (
@@ -462,7 +927,19 @@ const AddFilesContent = () => {
     <div className="content-section">
       <h2>Add Files</h2>
       <form className="add-files-form" onSubmit={handleSubmit}>
-        
+
+        <div className="form-group">
+          <label htmlFor="proposalTitle">Proposal Title</label>
+          <input
+            type="text"
+            id="proposalTitle"
+            value={formData.proposalTitle}
+            onChange={(e) => handleInputChange('proposalTitle', e.target.value)}
+            placeholder="Enter your proposal title"
+            required
+          />
+        </div>
+
         {renderFileInput('proposal', 'Proposal')}
         {renderFileInput('approvalSheet', 'Approval Sheet')}
         {renderFileInput('urebForm2', 'UREB Form 2')}
@@ -477,7 +954,10 @@ const AddFilesContent = () => {
           <select
             id="department"
             value={formData.department}
-            onChange={(e) => handleInputChange('department', e.target.value)}
+            onChange={(e) => {
+              handleInputChange('department', e.target.value);
+              handleInputChange('preliminaryReviewer', '');
+            }}
             required
           >
             <option value="">Select Department</option>
@@ -494,12 +974,11 @@ const AddFilesContent = () => {
             <option value="CEC">CEC-Cateel Extension Campus</option>
             <option value="BGEC">BGEC-Baganga Extension Campus</option>
             <option value="TEC">TEC-Tarragona Extension Campus</option>
-            <option value="Community Representatives">Community Representatives</option>
           </select>
         </div>
         
         <div className="form-group">
-          <label htmlFor="preliminaryReviewer">Preliminary Reviewer </label>
+          <label htmlFor="preliminaryReviewer">Preliminary Reviewer</label>
           <select
             id="preliminaryReviewer"
             value={formData.preliminaryReviewer}
@@ -507,11 +986,15 @@ const AddFilesContent = () => {
             required
           >
             <option value="">Select a reviewer</option>
-            <option value="dr-smith">Dr. Smith</option>
-            <option value="dr-johnson">Dr. Johnson</option>
-            <option value="dr-brown">Dr. Brown</option>
-            <option value="dr-davis">Dr. Davis</option>
-            <option value="dr-wilson">Dr. Wilson</option>
+            {filteredReviewers.length > 0 ? (
+              filteredReviewers.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))
+            ) : (
+              <option value="" disabled>No reviewers available for this department</option>
+            )}
           </select>
         </div>
 
@@ -537,7 +1020,8 @@ const AddFilesContent = () => {
                 instrumentTool: null,
                 ethicsReviewFee: null,
                 preliminaryReviewer: '',
-                department: ''
+                department: '',
+                proposalTitle: ''
               });
             }}
           >
@@ -549,53 +1033,378 @@ const AddFilesContent = () => {
   );
 };
 
-const HistoryContent = () => {
-  const [history, setHistory] = useState([]);
+const DownloadIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+    <polyline points="7 10 12 15 17 10"/>
+    <line x1="12" y1="15" x2="12" y2="3"/>
+  </svg>
+);
 
-  const getStatusClass = (status) => {
-    switch (status.toLowerCase()) {
-      case 'approved': return 'approved';
-      case 'under review': return 'pending';
-      case 'rejected': return 'rejected';
-      default: return 'pending';
-    }
+const FileIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+  </svg>
+);
+
+const MessagesContent = ({ userInfo }) => {
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!userInfo?.email) return;
+      try {
+        const response = await fetch(`http://localhost:5001/api/messages/${encodeURIComponent(userInfo.email)}`);
+        const data = await response.json();
+        const adminMessages = data
+          .filter((m) => m.recipientEmail === userInfo.email && m.type === 'admin_to_student')
+          .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));
+        setMessages(adminMessages);
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMessages();
+  }, [userInfo]);
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+      + ' · '
+      + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
+
+  const getStoredFilename = (filePath) => {
+    if (!filePath) return null;
+    return filePath.split(/[\\/]/).pop();
+  };
+
+  if (loading) {
+    return (
+      <div className="content-section">
+        <div className="sm-loading">
+          <div className="sm-loading-spinner" />
+          <span>Loading messages...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="content-section">
-      <h2>History</h2>
-      <div className="history-list">
-        {history.length === 0 ? (
-          <div className="loading-state">No history available</div>
-        ) : (
-          history.map((item) => (
-            <div className="history-item" key={item.id}>
-              <div className="history-header">
-                <h3>{item.title}</h3>
-                <span className={`status-badge ${getStatusClass(item.status)}`}>
-                  {item.status}
-                </span>
+      <div className="sm-page-header">
+        <div>
+          <h2 className="sm-page-title">Messages</h2>
+          <p className="sm-page-subtitle">Messages received from the UREB Administrator</p>
+        </div>
+        {messages.length > 0 && (
+          <span className="sm-count-badge">{messages.length} message{messages.length !== 1 ? 's' : ''}</span>
+        )}
+      </div>
+
+      {messages.length === 0 ? (
+        <div className="sm-empty">
+          <div className="sm-empty-icon"><MailIcon /></div>
+          <h3>No messages yet</h3>
+          <p>When the administrator sends you a message, it will appear here.</p>
+        </div>
+      ) : (
+        <div className="sm-list">
+          {messages.map((msg) => (
+            <div key={msg._id} className="sm-card">
+              <div className="sm-card-top">
+                <div className="sm-avatar">A</div>
+                <div className="sm-sender-info">
+                  <span className="sm-sender-name">UREB Administrator</span>
+                  <span className="sm-sender-date">{formatDate(msg.sentAt)}</span>
+                </div>
               </div>
-              <div className="history-content">
-                <p><strong>Date:</strong> {new Date(item.date).toLocaleDateString()}</p>
-                <p><strong>Reviewer:</strong> {item.reviewer}</p>
-                <p><strong>Files:</strong> {item.files.join(', ')}</p>
-                <div className="action-timeline">
-                  <strong>Actions:</strong>
-                  <div className="timeline">
-                    {item.actions.map((action, index) => (
-                      <div className="timeline-item" key={index}>
-                        <div className="timeline-dot"></div>
-                        <span>{action}</span>
-                      </div>
-                    ))}
+
+              <div className="sm-card-body">
+                <p className="sm-message-text">{msg.message}</p>
+              </div>
+
+              {msg.files && msg.files.length > 0 && (
+                <div className="sm-attachments">
+                  <span className="sm-attachments-label">
+                    <FileIcon /> Attachments ({msg.files.length})
+                  </span>
+                  <div className="sm-attachments-list">
+                    {msg.files.map((file, i) => {
+                      const storedName = getStoredFilename(file.path);
+                      const downloadUrl = storedName
+                        ? `http://localhost:5001/api/download/${storedName}?name=${encodeURIComponent(file.filename)}`
+                        : null;
+                      return (
+                        <div key={i} className="sm-file-chip">
+                          <FileIcon />
+                          <span className="sm-file-name">{file.filename}</span>
+                          <span className="sm-file-size">({(file.size / 1024).toFixed(1)} KB)</span>
+                          {downloadUrl && (
+                            <a
+                              href={downloadUrl}
+                              download={file.filename}
+                              className="sm-download-btn"
+                              title="Download file"
+                            >
+                              <DownloadIcon />
+                              Download
+                            </a>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const HistoryContent = () => {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [userInfo, setUserInfo] = useState(null);
+
+  useEffect(() => {
+    // Get user info from localStorage (using ureb_user like other parts of the app)
+    const userData = JSON.parse(localStorage.getItem('ureb_user') || '{}');
+    setUserInfo(userData);
+  }, []);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (!userInfo?.email) return;
+      
+      try {
+        // Fetch student's proposals and reviews
+        const [proposalsResponse, reviewsResponse] = await Promise.all([
+          fetch(`http://localhost:5001/api/proposals/student/${encodeURIComponent(userInfo.email)}`),
+          fetch(`http://localhost:5001/api/reviews/student/${encodeURIComponent(userInfo.email)}`)
+        ]);
+
+        // Check if responses are OK before parsing JSON
+        if (!proposalsResponse.ok || !reviewsResponse.ok) {
+          throw new Error('Server endpoints not available. Please restart the server.');
+        }
+
+        // Check if responses are JSON
+        const proposalsContentType = proposalsResponse.headers.get('content-type');
+        const reviewsContentType = reviewsResponse.headers.get('content-type');
+        
+        if (!proposalsContentType?.includes('application/json') || !reviewsContentType?.includes('application/json')) {
+          throw new Error('Invalid server response. Please restart the server.');
+        }
+
+        const proposals = await proposalsResponse.json();
+        const reviews = await reviewsResponse.json();
+
+        // Combine and format activities
+        const activities = [];
+
+        // Add proposal submissions
+        proposals.forEach(proposal => {
+          activities.push({
+            id: proposal._id,
+            type: 'proposal',
+            title: proposal.researchTitle || 'Untitled Proposal',
+            action: 'Submitted research proposal',
+            date: proposal.createdAt || proposal.submittedAt || new Date(),
+            status: proposal.status || 'pending',
+            details: {
+              department: proposal.department || 'Unknown',
+              abstract: 'Research proposal submitted for review'
+            }
+          });
+        });
+
+        // Add review submissions
+        reviews.forEach(review => {
+          activities.push({
+            id: review._id,
+            type: 'review',
+            title: review.proposalTitle || 'Research Proposal',
+            action: `Submitted file for review`,
+            date: review.createdAt || review.submittedAt,
+            status: review.status || 'pending',
+            details: {
+              reviewer: review.reviewerName || review.reviewerEmail,
+              files: review.files ? Object.keys(review.files).length : 0,
+              feedback: review.feedback ? 'Feedback provided' : 'No feedback yet'
+            }
+          });
+        });
+
+        // Sort by date (most recent first)
+        activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+        setHistory(activities);
+      } catch (error) {
+        console.error('Error fetching history:', error);
+        // Don't set error state, just log it and show empty state
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (userInfo) {
+      fetchHistory();
+    }
+  }, [userInfo]);
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'Unknown date';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'approved':
+        return '#10b981';
+      case 'pending':
+        return '#f59e0b';
+      case 'rejected':
+        return '#ef4444';
+      case 'completed':
+        return '#10b981';
+      case 'in_review':
+        return '#3b82f6';
+      default:
+        return '#6b7280';
+    }
+  };
+
+  const getStatusIcon = (type) => {
+    switch (type) {
+      case 'proposal':
+        return (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+        );
+      case 'review':
+        return (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+        );
+      default:
+        return (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        );
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="content-section">
+        <div className="sm-loading">
+          <div className="sm-loading-spinner" />
+          <span>Loading history...</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="content-section">
+      <div className="sm-page-header">
+        <div>
+          <h2 className="sm-page-title">Activity History</h2>
+          <p className="sm-page-subtitle">Your recent activity and submissions</p>
+        </div>
+        {history.length > 0 && (
+          <span className="sm-count-badge">{history.length} activities</span>
+        )}
+      </div>
+
+      {history.length === 0 ? (
+        <div className="sm-empty">
+          <div className="sm-empty-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <h3>No activity yet</h3>
+          <p>When you submit proposals or files, your activity will appear here.</p>
+        </div>
+      ) : (
+        <div className="sm-timeline">
+          {history.map((activity, index) => (
+            <div key={activity.id} className="sm-timeline-item">
+              <div className="sm-timeline-marker" style={{ color: getStatusColor(activity.status) }}>
+                {getStatusIcon(activity.type)}
+              </div>
+              
+              <div className="sm-timeline-content">
+                <div className="sm-timeline-header">
+                  <div>
+                    <h4 className="sm-timeline-title">{activity.title}</h4>
+                    <p className="sm-timeline-action">{activity.action}</p>
+                  </div>
+                  <div className="sm-timeline-meta">
+                    <span className="sm-timeline-date">{formatDate(activity.date)}</span>
+                    <span 
+                      className="sm-status-badge" 
+                      style={{ 
+                        backgroundColor: getStatusColor(activity.status) + '20',
+                        color: getStatusColor(activity.status),
+                        border: `1px solid ${getStatusColor(activity.status)}40`
+                      }}
+                    >
+                      {activity.status}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="sm-timeline-details">
+                  {activity.type === 'proposal' && (
+                    <div className="sm-proposal-details">
+                      <p><strong>Department:</strong> {activity.details.department}</p>
+                      <p><strong>Abstract:</strong> {activity.details.abstract}</p>
+                    </div>
+                  )}
+                  
+                  {activity.type === 'review' && (
+                    <div className="sm-review-details">
+                      <p><strong>Reviewer:</strong> {activity.details.reviewer}</p>
+                      <p><strong>Files Submitted:</strong> {activity.details.files} file(s)</p>
+                      <p><strong>Status:</strong> {activity.details.feedback}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -663,6 +1472,78 @@ const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
         <div className="logout-modal-footer">
           <button className="logout-modal-btn-secondary" onClick={onClose}>Cancel</button>
           <button className="logout-modal-btn-primary" onClick={onConfirm}>Logout</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SuccessModal = ({ onClose, submittedFiles }) => {
+  const [confetti, setConfetti] = useState([]);
+
+  useEffect(() => {
+    // Generate confetti pieces for success celebration
+    const pieces = [];
+    for (let i = 0; i < 30; i++) {
+      pieces.push({
+        id: i,
+        left: Math.random() * 100,
+        delay: Math.random() * 2,
+        duration: 2 + Math.random() * 1.5,
+        color: ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#22c55e', '#16a34a'][Math.floor(Math.random() * 6)]
+      });
+    }
+    setConfetti(pieces);
+  }, []);
+
+  return (
+    <div className="success-modal-overlay">
+      <div className="confetti-container">
+        {confetti.map((piece) => (
+          <div
+            key={piece.id}
+            className="confetti"
+            style={{
+              left: `${piece.left}%`,
+              animationDelay: `${piece.delay}s`,
+              animationDuration: `${piece.duration}s`,
+              backgroundColor: piece.color
+            }}
+          />
+        ))}
+      </div>
+      <div className="success-modal-container">
+        <div className="success-content">
+          <div className="success-icon">✓</div>
+          <h2>Files Submitted Successfully!</h2>
+          <p>Your files have been uploaded and submitted for review.</p>
+          
+          {submittedFiles.length > 0 && (
+            <div className="submitted-files-summary">
+              <h4>Files Submitted:</h4>
+              <div className="files-list">
+                {submittedFiles.map((file, index) => (
+                  <div key={index} className="file-item">
+                    <span className="file-name">{file.name}</span>
+                    <span className="file-size">{file.size}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <div className="success-message">
+            <p><strong>Next Steps:</strong></p>
+            <ul>
+              <li>Your files will be reviewed by the assigned reviewer</li>
+              <li>You will receive notifications about the review status</li>
+              <li>Track your submission progress in the History tab</li>
+            </ul>
+          </div>
+          
+          <button className="success-close-btn" onClick={onClose}>
+            Continue
+          </button>
         </div>
       </div>
     </div>
