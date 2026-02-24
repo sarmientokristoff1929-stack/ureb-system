@@ -3204,6 +3204,45 @@
   margin: 0;
 }
 
+/* Assigned files section */
+.assigned-files-section {
+  border-top: 1px solid #eef2ee;
+  padding-top: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.assigned-files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.assigned-file-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  background: var(--off-white, #fafbfa);
+  border: 1px solid #e4e9e4;
+  border-radius: 7px;
+  flex-wrap: wrap;
+}
+
+.assigned-file-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--dark-green, #4A6B4E);
+  min-width: 140px;
+  flex-shrink: 0;
+}
+
+.assigned-file-name {
+  font-size: 0.85rem;
+  color: var(--text-dark, #2D3436);
+  flex: 1;
+  word-break: break-word;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .sr-stats {

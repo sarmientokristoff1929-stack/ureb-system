@@ -401,7 +401,7 @@ const AdminDashboard = ({ onLogout }) => {
 
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
 
-    { id: 'assign-file', label: 'Assign File', icon: <AssignIcon /> },
+    { id: 'assign-file', label: 'Submit File', icon: <AssignIcon /> },
 
     { id: 'message-researcher', label: 'Message Student', icon: <MessageIcon /> },
 
@@ -990,7 +990,8 @@ const AddReviewerContent = () => {
       title: '',
       email: '',
       password: '',
-      department: ''
+      department: '',
+      reviewerType: ''
     };
   };
 
@@ -1027,6 +1028,7 @@ const AddReviewerContent = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -1220,6 +1222,19 @@ const AddReviewerContent = () => {
                 <option value="Community Representatives">Community Representatives</option>
               </select>
             </div>
+            <div className="form-group">
+              <label>Reviewer Type</label>
+              <select 
+                name="reviewerType"
+                value={formData.reviewerType}
+                onChange={handleInputChange}
+                required
+              >
+                <option value="">Select Reviewer Type</option>
+                <option value="preliminary">Preliminary Reviewer</option>
+                <option value="secondary">Secondary Reviewer</option>
+              </select>
+            </div>
           </div>
           <div className="form-actions">
             <button type="submit" className="btn-primary" disabled={loading}>
@@ -1281,10 +1296,21 @@ const AssignFileContent = () => {
     }
     return {
       protocolCode: '',
-      reviewerUsername: '',
+      secondaryReviewer1: '',
+      secondaryReviewer2: '',
       startDate: '',
       endDate: '',
-      files: []
+      urebForm16: null,
+      urebForm10B: null,
+      urebForm11: null,
+      urebForm2: null,
+      urebForm6: null,
+      urebForm7: null,
+      urebForm8A: null,
+      urebForm10A: null,
+      approvedProposal: null,
+      questionnaire: null,
+      cvOfProponent: null
     };
   };
 
@@ -1292,7 +1318,88 @@ const AssignFileContent = () => {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [reviewers, setReviewers] = useState([]);
-  const [reviewersLoading, setReviewersLoading] = useState(true);
+  const [loadingReviewers, setLoadingReviewers] = useState(true);
+
+  // Fetch reviewers from database on component mount
+  useEffect(() => {
+    const fetchReviewers = async () => {
+      try {
+        const { getAllReviewers } = await import('../services/api.js');
+        const reviewersData = await getAllReviewers();
+        console.log('All reviewers from database:', reviewersData);
+        console.log('Reviewers with reviewerType:', reviewersData.map(r => ({ name: r.name || `${r.firstName} ${r.lastName}`, reviewerType: r.reviewerType })));
+        setReviewers(reviewersData);
+      } catch (error) {
+        console.error('Error fetching reviewers:', error);
+        setReviewers([]);
+      } finally {
+        setLoadingReviewers(false);
+      }
+    };
+    
+    fetchReviewers();
+  }, []);
+
+  // Filter secondary reviewers from database
+  const secondaryReviewers = reviewers.filter(reviewer => {
+    console.log('Checking reviewer:', reviewer);
+    console.log('Reviewer reviewerType:', reviewer.reviewerType);
+    console.log('Reviewer name:', reviewer.name || `${reviewer.firstName} ${reviewer.lastName}`);
+    
+    // Handle different possible values for reviewerType (case-insensitive)
+    const reviewerType = (reviewer.reviewerType || '').toString().toLowerCase().trim();
+    const reviewerName = (reviewer.name || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim()).toLowerCase();
+    
+    // Known secondary reviewer names (for debugging)
+    const knownSecondaryNames = [
+      'dr. emily s. antonio',
+      'dr. jeralyn n. hemillan', 
+      'dr. rose anelyn v. ceniza',
+      'dr. roselyn v. regino',
+      'dr. maria gloria r. lugo',
+      'prof. djoanna s. mama',
+      'dr. sharmaine anne c. argawanon'
+    ];
+    
+    const isSecondaryByType = reviewerType === 'secondary' || 
+                              reviewerType === 'secondary reviewer' ||
+                              reviewerType.includes('secondary');
+    
+    const isSecondaryByName = knownSecondaryNames.includes(reviewerName);
+    
+    const isSecondary = isSecondaryByType || isSecondaryByName;
+    
+    console.log('Is secondary?', isSecondary, 'byType:', isSecondaryByType, 'byName:', isSecondaryByName);
+    return isSecondary;
+  })
+    .map(reviewer => {
+      // Handle different name field formats
+      const name = reviewer.name || 
+                  `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim() ||
+                  `${reviewer.first_name || ''} ${reviewer.last_name || ''}`.trim() ||
+                  reviewer.email || 'Unknown';
+      console.log('Mapped reviewer name:', name);
+      return name;
+    });
+  
+  console.log('Total reviewers fetched:', reviewers.length);
+  console.log('Filtered secondary reviewers:', secondaryReviewers);
+
+  const documentTypes = [
+    { key: 'urebForm16', label: 'UREB Form 16' },
+    { key: 'urebForm10B', label: 'UREB Form 10-B' },
+    { key: 'urebForm11', label: 'UREB Form 11' },
+    { key: 'urebForm2', label: 'UREB Form 2' },
+    { key: 'urebForm6', label: 'UREB Form 6' },
+    { key: 'urebForm7', label: 'UREB Form 7' },
+    { key: 'urebForm8A', label: 'UREB Form 8(A)' },
+    { key: 'urebForm10A', label: 'UREB Form 10(A)' },
+    { key: 'approvedProposal', label: 'Approved Proposal' },
+    { key: 'questionnaire', label: 'Questionnaire' },
+    { key: 'cvOfProponent', label: 'CV of Proponent' }
+  ];
+
+  const [reviewersLoading, setReviewersLoading] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
 
@@ -1300,24 +1407,6 @@ const AssignFileContent = () => {
   useEffect(() => {
     localStorage.setItem('assignFileForm', JSON.stringify(formData));
   }, [formData]);
-
-  // Fetch reviewers on component mount
-  useEffect(() => {
-    const fetchReviewers = async () => {
-      try {
-        const { getAllUsers } = await import('../services/api.js');
-        const userList = await getAllUsers();
-        // Filter only reviewers
-        const reviewerUsers = userList.filter(user => user.role === 'reviewer');
-        setReviewers(reviewerUsers);
-      } catch (error) {
-        console.error('Error fetching reviewers:', error);
-      } finally {
-        setReviewersLoading(false);
-      }
-    };
-    fetchReviewers();
-  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -1327,14 +1416,40 @@ const AssignFileContent = () => {
     }));
   };
 
-  const handleFileChange = (e) => {
-    const selectedFiles = Array.from(e.target.files);
-    setFiles(prev => [...prev, ...selectedFiles]);
+  const handleFileChange = (fieldName, file) => {
+    setFormData(prev => ({
+      ...prev,
+      [fieldName]: file
+    }));
   };
 
-  const handleRemoveFile = (index) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
+  const handleRemoveFile = (fieldName) => {
+    setFormData(prev => ({
+      ...prev,
+      [fieldName]: null
+    }));
   };
+
+  const renderFileInput = (fieldName, label) => (
+    <div className="form-group">
+      <label htmlFor={fieldName}>{label}</label>
+      <div className="file-upload-area">
+        <input
+          type="file"
+          id={fieldName}
+          onChange={(e) => handleFileChange(fieldName, e.target.files[0])}
+          accept=".pdf,.doc,.docx,.txt"
+        />
+        <div className="file-upload-label">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+          </svg>
+          <p>{formData[fieldName] ? formData[fieldName].name : 'Click to upload file'}</p>
+          <span>PDF, DOC, DOCX, TXT (MAX. 10MB)</span>
+        </div>
+      </div>
+    </div>
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1342,10 +1457,14 @@ const AssignFileContent = () => {
     // Validation
     const errors = {};
     if (!formData.protocolCode.trim()) errors.protocolCode = 'Protocol Code is required';
-    if (!formData.reviewerUsername.trim()) errors.reviewerUsername = 'Reviewer Username is required';
+    if (!formData.secondaryReviewer1.trim()) errors.secondaryReviewer1 = 'Secondary Reviewer 1 is required';
+    if (!formData.secondaryReviewer2.trim()) errors.secondaryReviewer2 = 'Secondary Reviewer 2 is required';
     if (!formData.startDate) errors.startDate = 'Start Date is required';
     if (!formData.endDate) errors.endDate = 'End Date is required';
-    if (files.length === 0) errors.files = 'At least one file must be uploaded';
+    
+    // Check if at least one file is uploaded
+    const hasFiles = documentTypes.some(docType => formData[docType.key] instanceof File);
+    if (!hasFiles) errors.files = 'At least one document must be uploaded';
     
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
@@ -1361,13 +1480,16 @@ const AssignFileContent = () => {
       
       // Add form fields
       formDataToSend.append('protocolCode', formData.protocolCode);
-      formDataToSend.append('reviewerUsername', formData.reviewerUsername);
+      formDataToSend.append('secondaryReviewer1', formData.secondaryReviewer1);
+      formDataToSend.append('secondaryReviewer2', formData.secondaryReviewer2);
       formDataToSend.append('startDate', formData.startDate);
       formDataToSend.append('endDate', formData.endDate);
       
-      // Add files
-      files.forEach((file, index) => {
-        formDataToSend.append(`file${index}`, file);
+      // Add document files
+      documentTypes.forEach(docType => {
+        if (formData[docType.key] instanceof File) {
+          formDataToSend.append(docType.key, formData[docType.key]);
+        }
       });
       
       // Import and call API
@@ -1379,10 +1501,21 @@ const AssignFileContent = () => {
         // Reset form
         setFormData({
           protocolCode: '',
-          reviewerUsername: '',
+          secondaryReviewer1: '',
+          secondaryReviewer2: '',
           startDate: '',
           endDate: '',
-          files: []
+          urebForm16: null,
+          urebForm10B: null,
+          urebForm11: null,
+          urebForm2: null,
+          urebForm6: null,
+          urebForm7: null,
+          urebForm8A: null,
+          urebForm10A: null,
+          approvedProposal: null,
+          questionnaire: null,
+          cvOfProponent: null
         });
         setFiles([]);
         localStorage.removeItem('assignFileForm');
@@ -1401,10 +1534,21 @@ const AssignFileContent = () => {
     // Clear form and localStorage
     setFormData({
       protocolCode: '',
-      reviewerUsername: '',
+      secondaryReviewer1: '',
+      secondaryReviewer2: '',
       startDate: '',
       endDate: '',
-      files: []
+      urebForm16: null,
+      urebForm10B: null,
+      urebForm11: null,
+      urebForm2: null,
+      urebForm6: null,
+      urebForm7: null,
+      urebForm8A: null,
+      urebForm10A: null,
+      approvedProposal: null,
+      questionnaire: null,
+      cvOfProponent: null
     });
     setFiles([]);
     localStorage.removeItem('assignFileForm');
@@ -1428,25 +1572,48 @@ const AssignFileContent = () => {
             {validationErrors.protocolCode && <span className="error-text">{validationErrors.protocolCode}</span>}
           </div>
           <div className="form-group">
-            <label>Reviewer Username </label>
+            <label>Secondary Reviewer 1</label>
             <select 
-              name="reviewerUsername"
-              value={formData.reviewerUsername}
+              name="secondaryReviewer1"
+              value={formData.secondaryReviewer1}
               onChange={handleInputChange}
-              required
             >
               <option value="">Select Reviewer</option>
-              {reviewersLoading ? (
-                <option>Loading reviewers...</option>
-              ) : (
-                reviewers.map(reviewer => (
-                  <option key={reviewer.id} value={reviewer.username}>
-                    {formatReviewerName(reviewer)} ({reviewer.username})
+              {loadingReviewers ? (
+                <option value="" disabled>Loading reviewers...</option>
+              ) : secondaryReviewers.length > 0 ? (
+                secondaryReviewers.map((reviewer, index) => (
+                  <option key={index} value={reviewer}>
+                    {reviewer}
                   </option>
                 ))
+              ) : (
+                <option value="" disabled>No secondary reviewers available</option>
               )}
             </select>
-            {validationErrors.reviewerUsername && <span className="error-text">{validationErrors.reviewerUsername}</span>}
+            {validationErrors.secondaryReviewer1 && <span className="error-text">{validationErrors.secondaryReviewer1}</span>}
+          </div>
+          <div className="form-group">
+            <label>Secondary Reviewer 2</label>
+            <select 
+              name="secondaryReviewer2"
+              value={formData.secondaryReviewer2}
+              onChange={handleInputChange}
+            >
+              <option value="">Select Reviewer</option>
+              {loadingReviewers ? (
+                <option value="" disabled>Loading reviewers...</option>
+              ) : secondaryReviewers.length > 0 ? (
+                secondaryReviewers.map((reviewer, index) => (
+                  <option key={index} value={reviewer}>
+                    {reviewer}
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>No secondary reviewers available</option>
+              )}
+            </select>
+            {validationErrors.secondaryReviewer2 && <span className="error-text">{validationErrors.secondaryReviewer2}</span>}
           </div>
           <div className="form-group">
             <label>Review Period (Philippine Time) </label>
@@ -1475,50 +1642,21 @@ const AssignFileContent = () => {
               </div>
             </div>
           </div>
-          <div className="form-group">
-            <label>Upload Files</label>
-            <div className="file-upload-area">
-              <input 
-                type="file" 
-                multiple
-                onChange={handleFileChange}
-                accept=".pdf,.doc,.docx,.txt"
-                style={{ display: 'none' }}
-                id="file-upload"
-              />
-              <div className="file-upload-label" onClick={() => document.getElementById('file-upload').click()}>
-                <FilePlusIcon />
-                <p>Click to upload files or drag and drop</p>
-                <span>PDF, DOC, DOCX, TXT (MAX. 10MB per file)</span>
+          
+          {/* Individual Document Upload Areas */}
+          <div className="documents-section">
+            <h3>Upload Documents</h3>
+            {documentTypes.map(docType => (
+              <div key={docType.key}>
+                {renderFileInput(docType.key, docType.label)}
               </div>
-            </div>
+            ))}
             {validationErrors.files && <span className="error-text">{validationErrors.files}</span>}
           </div>
           
-          {files.length > 0 && (
-            <div className="uploaded-files">
-              <h4>Selected Files:</h4>
-              <ul>
-                {files.map((file, index) => (
-                  <li key={index}>
-                    <span>{file.name}</span>
-                    <span>({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                    <button 
-                      type="button" 
-                      className="remove-file-btn"
-                      onClick={() => handleRemoveFile(index)}
-                    >
-                      ×
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          
           <div className="form-actions">
             <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? 'Assigning...' : 'Assign Files'}
+              {loading ? 'Submitting...' : 'Submit File'}
             </button>
             <button type="button" className="btn-secondary" onClick={handleCancel}>Cancel</button>
           </div>
@@ -1527,21 +1665,25 @@ const AssignFileContent = () => {
       
       {/* Success Modal */}
       {isSuccessModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-container small">
-            <div className="modal-header">
-              <h2>Assignment Status</h2>
-            </div>
-            <div className="modal-body">
-              <p>Files have been successfully assigned to the reviewer!</p>
-            </div>
-            <div className="modal-footer">
-              <button 
-                className="btn-primary" 
-                onClick={() => setIsSuccessModalOpen(false)}
-              >
-                OK
-              </button>
+        <div className="success-modal-overlay">
+          <div className="success-modal-container minimal">
+            <div className="success-content minimal">
+              <div className="success-icon-minimal">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              </div>
+              <h2>Files Assigned Successfully</h2>
+              <p>Documents have been assigned to reviewers. They will receive notifications shortly.</p>
+              <div className="success-actions minimal">
+                <button 
+                  className="success-btn-done" 
+                  onClick={() => setIsSuccessModalOpen(false)}
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -3430,6 +3572,17 @@ const MessagesInboxContent = () => {
 
   }, [userInfo.email]);
 
+  const formatInboxDate = (dateStr) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (date.toDateString() === now.toDateString())
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+
   const openMessageModal = (message) => {
     setSelectedMessage(message);
     setIsMessageModalOpen(true);
@@ -3445,109 +3598,137 @@ const MessagesInboxContent = () => {
       try {
         // Here you would add API call to mark message as read
         // For now, just update local state
-        setMessages(messages.map(msg => 
-          msg._id === selectedMessage._id ? { ...msg, read: true } : msg
-        ));
-        setSelectedMessage({ ...selectedMessage, read: true });
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg._id === selectedMessage._id ? { ...msg, read: true } : msg
+          )
+        );
+        setSelectedMessage(prev => ({ ...prev, read: true }));
       } catch (error) {
         console.error('Error marking message as read:', error);
       }
     }
   };
 
+  const markAllAsRead = async () => {
+    try {
+      // Call API to mark all messages as read on server
+      const { markAllMessagesAsRead } = await import('../services/api.js');
+      const result = await markAllMessagesAsRead(userInfo.email);
+      
+      if (result.success) {
+        // Update local state to reflect the change
+        setMessages(prevMessages => 
+          prevMessages.map(msg => ({ ...msg, read: true }))
+        );
+        console.log(`Marked ${result.modifiedCount} messages as read`);
+      } else {
+        console.error('Failed to mark messages as read:', result.error);
+      }
+    } catch (error) {
+      console.error('Error marking all messages as read:', error);
+    }
+  };
+
+  const markSingleAsRead = (e, msg) => {
+    e.stopPropagation();
+    setMessages(prev => prev.map(m => m._id === msg._id ? { ...m, read: true } : m));
+  };
+
+  const unreadCount = messages.filter(m => !m.read).length;
+
   return (
     <>
-      <div className="messages-content">
+      <div className="inbox-wrapper">
 
-        <div className="messages-header">
-
-          <h2>Messages Inbox</h2>
-
-          <div className="messages-actions">
-
-            <button className="btn-primary">Compose New</button>
-
-            <button className="btn-secondary">Mark All Read</button>
-
+        {/* Header */}
+        <div className="inbox-header">
+          <div className="inbox-title-group">
+            <h2>Messages Inbox</h2>
+            {unreadCount > 0 && (
+              <span className="inbox-unread-count">{unreadCount} unread</span>
+            )}
           </div>
-
+          {unreadCount > 0 && (
+            <button className="inbox-mark-all-btn" onClick={markAllAsRead}>
+              Mark all as read
+            </button>
+          )}
         </div>
 
-        <div className="messages-list">
-
+        {/* Message List */}
+        <div className="inbox-list">
           {loading ? (
-
-            <div className="message-item" style={{justifyContent: 'center', padding: '2rem'}}>
-
-              <p style={{color: 'var(--text-medium)'}}>Loading messages...</p>
-
-            </div>
-
-          ) : messages.length === 0 ? (
-
-            <div className="message-item" style={{justifyContent: 'center', padding: '2rem'}}>
-
-              <p style={{color: 'var(--text-medium)'}}>No messages yet</p>
-
-            </div>
-
-          ) : (
-
-            messages.map((message, index) => (
-
-              <div key={index} className={`message-item ${!message.read ? 'unread' : ''}`} onClick={() => openMessageModal(message)} style={{ cursor: 'pointer' }}>
-
-                <div className="message-header">
-
-                  <div className="message-sender">
-
-                    <div className="sender-avatar">
-
-                      {message.senderEmail === userInfo.email ? 'Me' : message.senderEmail.charAt(0).toUpperCase()}
-
-                    </div>
-
-                    <div className="sender-info">
-
-                      <h4>{message.senderEmail === userInfo.email ? 'Me' : message.senderEmail}</h4>
-
-                      <span>{new Date(message.createdAt).toLocaleDateString()}</span>
-
-                    </div>
-
-                  </div>
-
-                  {!message.read && <span className="unread-badge">New</span>}
-
-                </div>
-
-                <div className="message-content">
-
-                  <h4>{message.subject}</h4>
-
-                  <p>{message.message}</p>
-
-                </div>
-
-                <div className="message-actions">
-
-                  {!message.read && <button className="btn-primary" onClick={(e) => { e.stopPropagation(); markAsRead(); }}>Mark as Read</button>}
-
-                </div>
-
+            <div className="inbox-empty">
+              <div className="inbox-empty-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
               </div>
+              <p>Loading messages...</p>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="inbox-empty">
+              <div className="inbox-empty-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              </div>
+              <p>Your inbox is empty</p>
+              <span>Student messages and file submissions will appear here.</span>
+            </div>
+          ) : (
+            messages.map((message, index) => (
+              <div
+                key={index}
+                className={`inbox-row ${!message.read ? 'unread' : ''}`}
+                onClick={() => openMessageModal(message)}
+              >
+                {/* Unread indicator column */}
+                <div className="inbox-unread-indicator">
+                  {!message.read && <span className="inbox-unread-dot" />}
+                </div>
 
+                {/* Avatar */}
+                <div className="inbox-avatar">
+                  {(message.senderName || message.senderEmail).charAt(0).toUpperCase()}
+                </div>
+
+                {/* Content */}
+                <div className="inbox-row-content">
+                  <div className="inbox-row-top">
+                    <span className="inbox-sender-name">
+                      {message.senderName || message.senderEmail}
+                    </span>
+                    <div className="inbox-row-actions">
+                      {!message.read && (
+                        <button
+                          className="inbox-mark-read-btn"
+                          onClick={(e) => markSingleAsRead(e, message)}
+                          title="Mark as read"
+                        >
+                          Mark as read
+                        </button>
+                      )}
+                      <span className="inbox-row-date">
+                        {formatInboxDate(message.createdAt)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="inbox-row-bottom">
+                    <span className="inbox-subject">{message.subject}</span>
+                    {message.submissionType === 'resubmission' && (
+                      <span className="inbox-badge resubmission">Resubmission</span>
+                    )}
+                    <span className="inbox-preview"> — {message.message}</span>
+                  </div>
+                </div>
+              </div>
             ))
-
           )}
-
         </div>
 
       </div>
 
-      <MessageViewModal 
-        isOpen={isMessageModalOpen} 
-        onClose={closeMessageModal} 
+      <MessageViewModal
+        isOpen={isMessageModalOpen}
+        onClose={closeMessageModal}
         message={selectedMessage}
         userInfo={userInfo}
         onMarkAsRead={markAsRead}
@@ -3555,8 +3736,8 @@ const MessagesInboxContent = () => {
         setIsSuccessModalOpen={setIsSuccessModalOpen}
         setMessages={setMessages}
       />
-      
-      <SuccessModal 
+
+      <SuccessModal
         isOpen={isSuccessModalOpen}
         onClose={() => setIsSuccessModalOpen(false)}
         message={successMessage}
@@ -3569,10 +3750,40 @@ const MessagesInboxContent = () => {
 
 
 const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, setSuccessMessage, setIsSuccessModalOpen, setMessages }) => {
-  if (!isOpen || !message) return null;
-
   const [isReplying, setIsReplying] = useState(false);
   const [replyMessage, setReplyMessage] = useState('');
+  const [proposalFiles, setProposalFiles] = useState(null);
+  const [filesLoading, setFilesLoading] = useState(false);
+
+  // Fetch proposal files when message is a resubmission
+  useEffect(() => {
+    const fetchProposalFiles = async () => {
+      if (message && message.submissionType === 'resubmission' && message.relatedProposalId) {
+        setFilesLoading(true);
+        try {
+          const { getProposalById } = await import('../services/api.js');
+          const proposal = await getProposalById(message.relatedProposalId);
+          
+          if (proposal && proposal.files) {
+            setProposalFiles(proposal.files);
+          } else {
+            setProposalFiles({});
+          }
+        } catch (error) {
+          console.error('Error fetching proposal files:', error);
+          setProposalFiles({});
+        } finally {
+          setFilesLoading(false);
+        }
+      } else {
+        setProposalFiles(null);
+      }
+    };
+
+    fetchProposalFiles();
+  }, [message]);
+
+  if (!isOpen || !message) return null;
 
   const handleMarkAsRead = () => {
     onMarkAsRead();
@@ -3643,61 +3854,148 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, se
     setReplyMessage('');
   };
 
+  const handleDownloadFile = async (fileKey, fileData) => {
+    try {
+      const { downloadFile } = await import('../services/api.js');
+      downloadFile(fileData.filename);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      alert('Failed to download file. Please try again.');
+    }
+  };
+
+  const fmtDate = (d) => new Date(d).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+  const fmtTime = (d) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal-container large">
-        <button className="modal-close" onClick={onClose} aria-label="Close modal">
-          <XIcon />
-        </button>
-        <div className="modal-header">
-          <h2>Message Details</h2>
-        </div>
-        <div className="modal-body">
-          <div className="message-detail">
-            <div className="message-detail-header">
-              <div className="message-detail-sender">
-                <div className="sender-avatar">
-                  {message.senderEmail === userInfo.email ? 'Me' : message.senderEmail.charAt(0).toUpperCase()}
-                </div>
-                <div className="sender-info">
-                  <h4>{message.senderEmail === userInfo.email ? 'Me' : message.senderEmail}</h4>
-                  <span>{new Date(message.createdAt).toLocaleDateString()} at {new Date(message.createdAt).toLocaleTimeString()}</span>
-                </div>
-              </div>
-              {!message.read && <span className="unread-badge">New</span>}
-            </div>
-            
-            <div className="message-detail-content">
-              <h3>{message.subject}</h3>
-              <div className="message-detail-body">
-                <p>{message.message}</p>
-              </div>
-            </div>
+      <div className="msg-modal">
 
-            {isReplying && (
-              <div className="reply-section">
-                <h4>Reply to {message.senderEmail}</h4>
-                <textarea
-                  value={replyMessage}
-                  onChange={(e) => setReplyMessage(e.target.value)}
-                  placeholder="Type your reply here..."
-                  className="reply-textarea"
-                  rows="6"
-                />
-                <div className="reply-actions">
-                  <button className="btn-secondary" onClick={cancelReply}>Cancel</button>
-                  <button className="btn-primary" onClick={sendReply} disabled={!replyMessage.trim()}>
-                    Send Reply
-                  </button>
+        {/* ── Header: sender info ── */}
+        <div className="msg-modal-header">
+          <div className="msg-modal-sender">
+            <div className="msg-modal-avatar">
+              {(message.senderName || message.senderEmail).charAt(0).toUpperCase()}
+            </div>
+            <div className="msg-modal-sender-info">
+              <span className="msg-modal-sender-name">{message.senderName || message.senderEmail}</span>
+              <span className="msg-modal-sender-email">{message.senderEmail}</span>
+              <span className="msg-modal-date">{fmtDate(message.createdAt)} · {fmtTime(message.createdAt)}</span>
+            </div>
+          </div>
+          <div className="msg-modal-header-right">
+            {!message.read && <span className="msg-modal-badge new">New</span>}
+            {message.submissionType === 'resubmission' && <span className="msg-modal-badge resubmit">Resubmission</span>}
+            <button className="msg-modal-close" onClick={onClose} aria-label="Close">
+              <XIcon />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Subject bar ── */}
+        <div className="msg-modal-subject-bar">
+          <h3 className="msg-modal-subject">{message.subject}</h3>
+        </div>
+
+        {/* ── Scrollable body ── */}
+        <div className="msg-modal-body">
+
+          {/* Message text */}
+          <div className="msg-modal-message">
+            <p>{message.message}</p>
+          </div>
+
+          {/* Attached files (resubmission) */}
+          {message.submissionType === 'resubmission' && (
+            <div className="msg-modal-files">
+              <p className="msg-modal-files-label">Attached Files</p>
+              {filesLoading ? (
+                <p className="msg-modal-files-note">Loading files...</p>
+              ) : proposalFiles && Object.keys(proposalFiles).length > 0 ? (
+                <div className="msg-modal-files-list">
+                  {Object.entries(proposalFiles).map(([fileKey, fileData]) => (
+                    <div key={fileKey} className="msg-file-card">
+                      <div className="msg-file-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                          <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                      </div>
+                      <div className="msg-file-info">
+                        <span className="msg-file-name">{fileData.originalname || fileKey}</span>
+                        <span className="msg-file-meta">{(fileData.size / 1024).toFixed(1)} KB · {fileData.mimetype || 'Unknown'}</span>
+                      </div>
+                      <button className="msg-file-download" onClick={() => handleDownloadFile(fileKey, fileData)}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                        </svg>
+                        Download
+                      </button>
+                    </div>
+                  ))}
                 </div>
+              ) : (
+                <p className="msg-modal-files-note">No files found for this resubmission.</p>
+              )}
+            </div>
+          )}
+
+          {/* Reply composer */}
+          {isReplying && (
+            <div className="msg-reply-composer">
+              <div className="msg-reply-composer-top">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="9 17 4 12 9 7"/><line x1="20" y1="12" x2="4" y2="12"/>
+                </svg>
+                <span>Replying to <strong>{message.senderEmail}</strong></span>
               </div>
+              <textarea
+                value={replyMessage}
+                onChange={(e) => setReplyMessage(e.target.value)}
+                placeholder="Write your reply…"
+                className="msg-reply-textarea"
+                rows="5"
+                autoFocus
+              />
+              <div className="msg-reply-actions">
+                <button className="msg-btn-ghost" onClick={cancelReply}>Cancel</button>
+                <button className="msg-btn-primary" onClick={sendReply} disabled={!replyMessage.trim()}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                  </svg>
+                  Send Reply
+                </button>
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* ── Footer ── */}
+        <div className="msg-modal-footer">
+          <div className="msg-modal-footer-left">
+            {!message.read && (
+              <button className="msg-btn-ghost" onClick={handleMarkAsRead}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Mark as Read
+              </button>
+            )}
+          </div>
+          <div className="msg-modal-footer-right">
+            <button className="msg-btn-ghost" onClick={onClose}>Close</button>
+            {!isReplying && message.submissionType !== 'resubmission' && (
+              <button className="msg-btn-primary" onClick={handleReply}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="9 17 4 12 9 7"/><line x1="20" y1="12" x2="4" y2="12"/>
+                </svg>
+                Reply
+              </button>
             )}
           </div>
         </div>
-        <div className="modal-footer">
-          {!message.read && <button className="btn-primary" onClick={handleMarkAsRead}>Mark as Read</button>}
-          {!isReplying && <button className="btn-primary" onClick={handleReply}>Reply</button>}
-        </div>
+
       </div>
     </div>
   );

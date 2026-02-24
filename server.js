@@ -91,12 +91,34 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: function (req, file, cb) {
     // Accept all file types for now
     cb(null, true);
+  }
+});
+
+// Profile picture multer config (images only, 2 MB)
+const profilePicsDir = path.join(uploadsDir, 'profile-pictures');
+if (!fs.existsSync(profilePicsDir)) fs.mkdirSync(profilePicsDir, { recursive: true });
+
+const profilePicStorage = multer.diskStorage({
+  destination: function (req, file, cb) { cb(null, profilePicsDir); },
+  filename: function (req, file, cb) {
+    const suffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, 'avatar-' + suffix + path.extname(file.originalname));
+  }
+});
+
+const uploadProfilePic = multer({
+  storage: profilePicStorage,
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: function (req, file, cb) {
+    const ok = /jpeg|jpg|png|webp|gif/.test(path.extname(file.originalname).toLowerCase())
+            && /image\//.test(file.mimetype);
+    ok ? cb(null, true) : cb(new Error('Only image files are allowed'));
   }
 });
 
@@ -124,7 +146,8 @@ export const collections = {
   proposals: 'proposals',
   reviews: 'reviews',
   messages: 'messages',
-  notifications: 'notifications'
+  notifications: 'notifications',
+  assignments: 'assignments'
 };
 
 // API Routes
@@ -712,6 +735,33 @@ app.get('/api/proposals/student/:studentEmail', async (req, res) => {
   }
 });
 
+// Get proposal by ID
+app.get('/api/proposals/:proposalId', async (req, res) => {
+  try {
+    const { proposalId } = req.params;
+    const db = getDatabase();
+    const proposals = db.collection(collections.proposals);
+    
+    let objectId;
+    try {
+      objectId = new ObjectId(proposalId);
+    } catch (error) {
+      return res.status(400).json({ success: false, error: 'Invalid proposal ID format' });
+    }
+    
+    const proposal = await proposals.findOne({ _id: objectId });
+    
+    if (!proposal) {
+      return res.status(404).json({ success: false, error: 'Proposal not found' });
+    }
+    
+    res.json(proposal);
+  } catch (error) {
+    console.error('Error fetching proposal:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Get reviews by student email
 app.get('/api/reviews/student/:studentEmail', async (req, res) => {
   try {
@@ -869,6 +919,71 @@ app.post('/api/student/submit-files', upload.fields([
     });
   } catch (error) {
     console.error('Error submitting student files:', error);
+    res.status(500).json({ success: false, error: 'Server error: ' + error.message });
+  }
+});
+
+// Student file resubmission
+app.post('/api/student/resubmit-files', upload.array('files'), async (req, res) => {
+  try {
+    const db = getDatabase();
+    const proposals = db.collection(collections.proposals);
+    const messages = db.collection(collections.messages);
+
+    const { resubmissionReason, studentEmail, studentName, submissionType } = req.body;
+
+    // Process uploaded files
+    const files = {};
+    if (req.files && req.files.length > 0) {
+      req.files.forEach((file, index) => {
+        files[`file${index + 1}`] = {
+          filename: file.filename,
+          originalname: file.originalname,
+          path: file.path,
+          size: file.size,
+          mimetype: file.mimetype
+        };
+      });
+    }
+
+    // Create resubmission record
+    const newResubmission = {
+      researchTitle: 'Resubmitted Files',
+      proponent: studentName || 'Unknown',
+      studentEmail: studentEmail || '',
+      resubmissionReason: resubmissionReason || '',
+      files,
+      status: 'Resubmitted',
+      submissionType: submissionType || 'resubmission',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    // Save resubmission to proposals collection
+    const result = await proposals.insertOne(newResubmission);
+
+    // Send message to admin about resubmission
+    const messageRecord = {
+      senderEmail: studentEmail || 'student',
+      recipientEmail: process.env.GMAIL_EMAIL || 'admin',
+      subject: 'Files Resubmitted',
+      message: `${studentName || 'Student'} has resubmitted files with the following reason: ${resubmissionReason}`,
+      senderName: studentName || 'Student',
+      type: 'student_to_admin',
+      submissionType: 'resubmission',
+      relatedProposalId: result.insertedId.toString(),
+      read: false,
+      createdAt: new Date()
+    };
+
+    await messages.insertOne(messageRecord);
+
+    res.json({
+      success: true,
+      resubmission: { _id: result.insertedId, ...newResubmission }
+    });
+  } catch (error) {
+    console.error('Error resubmitting student files:', error);
     res.status(500).json({ success: false, error: 'Server error: ' + error.message });
   }
 });
@@ -1155,6 +1270,42 @@ app.put('/api/notifications/:id/read', async (req, res) => {
   }
 });
 
+// Get notifications for a specific user
+app.get('/api/notifications/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    const db = getDatabase();
+    const notifications = db.collection(collections.notifications);
+    
+    const notificationList = await notifications.find({ 
+      recipientEmail: email 
+    }).sort({ createdAt: -1 }).toArray();
+    
+    res.json(notificationList);
+  } catch (error) {
+    console.error('Error fetching notifications for user:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get assignments for a specific reviewer
+app.get('/api/assignments/:reviewerEmail', async (req, res) => {
+  try {
+    const { reviewerEmail } = req.params;
+    const db = getDatabase();
+    const assignments = db.collection(collections.assignments);
+    
+    const assignmentList = await assignments.find({ 
+      reviewerEmail: reviewerEmail 
+    }).sort({ createdAt: -1 }).toArray();
+    
+    res.json(assignmentList);
+  } catch (error) {
+    console.error('Error fetching assignments for reviewer:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Mark all notifications as read
 app.put('/api/notifications/read-all', async (req, res) => {
   try {
@@ -1344,20 +1495,31 @@ app.post('/api/verify-otp', (req, res) => {
 app.get('/api/student/profile', async (req, res) => {
   try {
     const { email } = req.query;
-    
+
     if (!email) {
       return res.status(400).json({ success: false, error: 'Email is required' });
     }
-    
+
     const db = getDatabase();
     const students = db.collection(collections.students);
-    
+
     const student = await students.findOne({ email });
-    
+
     if (!student) {
-      return res.status(404).json({ success: false, error: 'Student not found' });
+      // Return 200 so the browser doesn't log a "Failed to load resource" 404
+      return res.json({ success: false, error: 'Student not found' });
     }
-    
+
+    // Auto-clear profilePicture if the file no longer exists on disk
+    let profilePicture = student.profilePicture || null;
+    if (profilePicture) {
+      const picFile = path.join(profilePicsDir, path.basename(profilePicture));
+      if (!fs.existsSync(picFile)) {
+        profilePicture = null;
+        await students.updateOne({ email }, { $set: { profilePicture: null } });
+      }
+    }
+
     res.json({
       success: true,
       student: {
@@ -1368,6 +1530,7 @@ app.get('/api/student/profile', async (req, res) => {
         department: student.department || '',
         program: student.program || '',
         gmail: student.email || '',
+        profilePicture,
         createdAt: student.createdAt
       }
     });
@@ -1436,6 +1599,106 @@ app.put('/api/student/profile', async (req, res) => {
   }
 });
 
+// Upload student profile picture
+app.post('/api/student/profile/picture', uploadProfilePic.single('profilePicture'), async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || !req.file) {
+      return res.status(400).json({ success: false, error: 'Email and image are required' });
+    }
+    const db = getDatabase();
+    const students = db.collection(collections.students);
+    const student = await students.findOne({ email });
+    if (!student) {
+      return res.status(404).json({ success: false, error: 'Student not found' });
+    }
+    // Delete old picture file if it exists
+    if (student.profilePicture) {
+      const oldFile = path.join(profilePicsDir, path.basename(student.profilePicture));
+      if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile);
+    }
+    const pictureUrl = `/uploads/profile-pictures/${req.file.filename}`;
+    await students.updateOne({ email }, { $set: { profilePicture: pictureUrl, updatedAt: new Date() } });
+    res.json({ success: true, profilePicture: pictureUrl });
+  } catch (error) {
+    console.error('Error uploading profile picture:', error);
+    res.status(500).json({ success: false, error: error.message || 'Server error' });
+  }
+});
+
+// Delete student profile picture
+app.delete('/api/student/profile/picture', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'Email is required' });
+    }
+    const db = getDatabase();
+    const students = db.collection(collections.students);
+    const student = await students.findOne({ email });
+    if (!student) {
+      return res.status(404).json({ success: false, error: 'Student not found' });
+    }
+    if (student.profilePicture) {
+      const picFile = path.join(profilePicsDir, path.basename(student.profilePicture));
+      if (fs.existsSync(picFile)) fs.unlinkSync(picFile);
+    }
+    await students.updateOne({ email }, { $set: { profilePicture: null, updatedAt: new Date() } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting profile picture:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Change student password endpoint
+app.put('/api/student/change-password', async (req, res) => {
+  try {
+    const { email, currentPassword, newPassword } = req.body;
+    if (!email || !currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, error: 'All fields are required' });
+    }
+    const db = getDatabase();
+    const students = db.collection(collections.students);
+    const student = await students.findOne({ email });
+    if (!student) {
+      return res.status(404).json({ success: false, error: 'Student not found' });
+    }
+    if (student.password !== currentPassword) {
+      return res.status(400).json({ success: false, error: 'Current password is incorrect' });
+    }
+    await students.updateOne({ email }, { $set: { password: newPassword, updatedAt: new Date() } });
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Delete student account endpoint
+app.delete('/api/student/account', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email and password are required' });
+    }
+    const db = getDatabase();
+    const students = db.collection(collections.students);
+    const student = await students.findOne({ email });
+    if (!student) {
+      return res.status(404).json({ success: false, error: 'Student not found' });
+    }
+    if (student.password !== password) {
+      return res.status(400).json({ success: false, error: 'Password is incorrect' });
+    }
+    await students.deleteOne({ email });
+    res.json({ success: true, message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // Message operations
 app.post('/api/messages', async (req, res) => {
   try {
@@ -1472,13 +1735,39 @@ app.get('/api/messages/:userId', async (req, res) => {
     const { userId } = req.params;
     const db = getDatabase();
     const messages = db.collection(collections.messages);
-    const messageList = await messages.find({ 
-      $or: [
-        { recipientEmail: userId },
-        { senderEmail: userId }
-      ]
-    }).sort({ createdAt: -1 }).toArray();
-    res.json(messageList);
+    const students = db.collection(collections.students);
+    const users = db.collection(collections.users);
+
+    // Determine if the requesting user is an admin:
+    // Admins are NOT in the students or reviewers collections.
+    const reviewers = db.collection(collections.reviewers);
+    const isStudent = await students.findOne({ email: userId }, { projection: { _id: 1 } });
+    const isReviewer = !isStudent && await reviewers.findOne({ email: userId }, { projection: { _id: 1 } });
+    const isAdmin = !isStudent && !isReviewer;
+
+    const query = isAdmin
+      ? { $or: [{ recipientEmail: userId }, { senderEmail: userId }, { type: 'student_to_admin' }] }
+      : { $or: [{ recipientEmail: userId }, { senderEmail: userId }] };
+
+    const messageList = await messages.find(query).sort({ createdAt: -1 }).toArray();
+
+    // Enrich messages with actual sender name from students/users collections
+    const enriched = await Promise.all(messageList.map(async (msg) => {
+      if (!msg.senderName || msg.senderName === 'Student') {
+        const student = await students.findOne({ email: msg.senderEmail }, { projection: { firstName: 1, lastName: 1, name: 1 } });
+        if (student) {
+          msg.senderName = student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || msg.senderEmail;
+        } else {
+          const user = await users.findOne({ email: msg.senderEmail }, { projection: { firstName: 1, lastName: 1, name: 1 } });
+          if (user) {
+            msg.senderName = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || msg.senderEmail;
+          }
+        }
+      }
+      return msg;
+    }));
+
+    res.json(enriched);
   } catch (error) {
     console.error('Error fetching messages:', error);
     res.status(500).json({ error: 'Server error' });
@@ -1513,6 +1802,262 @@ app.delete('/api/messages/:messageId', async (req, res) => {
     res.json({ success: true, message: 'Message deleted successfully' });
   } catch (error) {
     console.error('Error deleting message:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Mark all messages as read for a user
+app.put('/api/messages/read-all', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'Email is required' });
+    }
+    
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+    const students = db.collection(collections.students);
+    const users = db.collection(collections.users);
+    const reviewers = db.collection(collections.reviewers);
+
+    // Determine if the requesting user is an admin:
+    // Admins are NOT in the students or reviewers collections.
+    const isStudent = await students.findOne({ email: email }, { projection: { _id: 1 } });
+    const isReviewer = !isStudent && await reviewers.findOne({ email: email }, { projection: { _id: 1 } });
+    const isAdmin = !isStudent && !isReviewer;
+
+    // Use the same query logic as the get messages endpoint
+    const query = isAdmin
+      ? { 
+          $or: [
+            { recipientEmail: email, read: { $ne: true } }, 
+            { senderEmail: email, read: { $ne: true } }, 
+            { type: 'student_to_admin', read: { $ne: true } }
+          ]
+        }
+      : { 
+          $or: [
+            { recipientEmail: email, read: { $ne: true } }, 
+            { senderEmail: email, read: { $ne: true } }
+          ]
+        };
+    
+    const result = await messages.updateMany(
+      query,
+      { $set: { read: true } }
+    );
+    
+    console.log(`Marked ${result.modifiedCount} messages as read for user: ${email}`);
+    res.json({ 
+      success: true, 
+      message: `Marked ${result.modifiedCount} messages as read`,
+      modifiedCount: result.modifiedCount 
+    });
+  } catch (error) {
+    console.error('Error marking all messages as read:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Assign file to reviewer
+app.post('/api/assign-file-to-reviewer', upload.fields([
+  { name: 'protocolCode', maxCount: 1 },
+  { name: 'secondaryReviewer1', maxCount: 1 },
+  { name: 'secondaryReviewer2', maxCount: 1 },
+  { name: 'startDate', maxCount: 1 },
+  { name: 'endDate', maxCount: 1 },
+  { name: 'urebForm16', maxCount: 1 },
+  { name: 'urebForm10B', maxCount: 1 },
+  { name: 'urebForm11', maxCount: 1 },
+  { name: 'urebForm2', maxCount: 1 },
+  { name: 'urebForm6', maxCount: 1 },
+  { name: 'urebForm7', maxCount: 1 },
+  { name: 'urebForm8A', maxCount: 1 },
+  { name: 'urebForm10A', maxCount: 1 },
+  { name: 'approvedProposal', maxCount: 1 },
+  { name: 'questionnaire', maxCount: 1 },
+  { name: 'cvOfProponent', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    const {
+      protocolCode,
+      secondaryReviewer1,
+      secondaryReviewer2,
+      startDate,
+      endDate
+    } = req.body;
+    
+    // Collect all uploaded files
+    const uploadedFiles = {};
+    const documentKeys = [
+      'urebForm16', 'urebForm10B', 'urebForm11', 'urebForm2', 'urebForm6', 
+      'urebForm7', 'urebForm8A', 'urebForm10A', 'approvedProposal', 
+      'questionnaire', 'cvOfProponent'
+    ];
+    
+    documentKeys.forEach(key => {
+      const files = req.files && req.files[key];
+      if (files && files.length > 0) {
+        uploadedFiles[key] = {
+          filename: files[0].filename,
+          originalname: files[0].originalname,
+          path: files[0].path,
+          size: files[0].size,
+          mimetype: files[0].mimetype
+        };
+      }
+    });
+    
+    // Validation
+    if (!protocolCode || !secondaryReviewer1 || !secondaryReviewer2 || !startDate || !endDate) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+    
+    if (Object.keys(uploadedFiles).length === 0) {
+      return res.status(400).json({ success: false, error: 'At least one document must be uploaded' });
+    }
+    
+    const db = getDatabase();
+    const proposals = db.collection(collections.proposals);
+    
+    // Create a new proposal document for the assigned files
+    const newProposal = {
+      protocolCode,
+      researchTitle: `Assigned Files - ${protocolCode}`,
+      proponent: secondaryReviewer1, // Use first secondary reviewer as primary
+      dateOfApplication: new Date(),
+      status: 'under_review',
+      reviewers: {
+        reviewer1: secondaryReviewer1,
+        reviewer2: secondaryReviewer2,
+        reviewer3: null
+      },
+      reviewPeriod: {
+        startDate: new Date(startDate),
+        endDate: new Date(endDate)
+      },
+      files: uploadedFiles,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    const result = await proposals.insertOne(newProposal);
+    console.log('Files assigned to reviewers:', result.insertedId);
+    
+    // Create assignments for each reviewer to access these files
+    const assignments = db.collection(collections.assignments);
+    const reviewerEmails = [secondaryReviewer1, secondaryReviewer2].filter(Boolean);
+    
+    for (const reviewerName of reviewerEmails) {
+      // Find reviewer by name (handle both Secondary and Preliminary reviewers)
+      // Try multiple approaches to find reviewer
+      let reviewer = null;
+      
+      // Try exact name match first in reviewers collection
+      reviewer = await db.collection(collections.reviewers).findOne({
+        $or: [
+          { name: reviewerName },
+          { email: reviewerName }
+        ]
+      });
+      
+      // If not found, try splitting by name parts
+      if (!reviewer && reviewerName.includes(' ')) {
+        const nameParts = reviewerName.split(' ');
+        const firstName = nameParts[0];
+        const lastName = nameParts[nameParts.length - 1];
+        
+        reviewer = await db.collection(collections.reviewers).findOne({
+          $or: [
+            { firstName: firstName, lastName: lastName },
+            { firstName: firstName },
+            { lastName: lastName }
+          ]
+        });
+      }
+      
+      // If still not found, try partial matching
+      if (!reviewer) {
+        reviewer = await db.collection(collections.reviewers).findOne({
+          $or: [
+            { firstName: { $regex: reviewerName.split(' ')[0], $options: 'i' } },
+            { lastName: { $regex: reviewerName.split(' ').slice(-1)[0], $options: 'i' } },
+            { name: { $regex: reviewerName, $options: 'i' } }
+          ]
+        });
+      }
+      
+      // If still not found in reviewers collection, check if it's a student (for Preliminary reviewers)
+      if (!reviewer) {
+        const students = db.collection(collections.students);
+        reviewer = await students.findOne({
+          $or: [
+            { name: reviewerName },
+            { email: reviewerName },
+            { firstName: reviewerName.split(' ')[0], lastName: reviewerName.split(' ').slice(-1)[0] }
+          ]
+        });
+      }
+      
+      console.log(`Looking for reviewer: ${reviewerName}, found:`, reviewer);
+      
+      if (reviewer) {
+        const assignment = {
+          proposalId: result.insertedId,
+          reviewerId: reviewer._id,
+          reviewerEmail: reviewer.email,
+          reviewerName: reviewerName,
+          protocolCode: protocolCode,
+          assignedFiles: uploadedFiles,
+          reviewPeriod: {
+            startDate: new Date(startDate),
+            endDate: new Date(endDate)
+          },
+          status: 'pending',
+          assignedBy: 'admin',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        await assignments.insertOne(assignment);
+        console.log(`Assignment created for reviewer: ${reviewerName}`);
+        
+        // Create notification for the reviewer
+        const notifications = db.collection(collections.notifications);
+        const notification = {
+          recipientEmail: reviewer.email,
+          recipientName: reviewerName,
+          title: 'New Files Assigned for Review',
+          message: `You have been assigned ${Object.keys(uploadedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
+          type: 'assignment',
+          protocolCode: protocolCode,
+          proposalId: result.insertedId,
+          assignmentId: assignment._id,
+          reviewPeriod: {
+            startDate: new Date(startDate),
+            endDate: new Date(endDate)
+          },
+          assignedFiles: Object.keys(uploadedFiles),
+          read: false,
+          createdAt: new Date()
+        };
+        
+        await notifications.insertOne(notification);
+        console.log(`Notification sent to reviewer: ${reviewerName}`);
+      } else {
+        console.warn(`Reviewer not found for name: ${reviewerName}`);
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Files successfully assigned to reviewers',
+      proposalId: result.insertedId.toString(),
+      assignedReviewers: reviewerEmails.length
+    });
+  } catch (error) {
+    console.error('Error assigning files to reviewer:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 import './reviewerdashboard.css';
 
-import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview } from '../services/api';
+import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, getReviewerAssignments } from '../services/api';
 
 
 
@@ -429,9 +429,9 @@ const DashboardContent = () => {
 
     try {
 
-      const [proposals, reviews, messages] = await Promise.all([
+      const [assignments, reviews, messages] = await Promise.all([
 
-        getProposalsByReviewer(userEmail),
+        getReviewerAssignments(userEmail),
 
         getReviewsByReviewer(userEmail),
 
@@ -449,13 +449,13 @@ const DashboardContent = () => {
 
 
 
-      const activities = generateRecentActivity(proposals, reviews, messages);
+      const activities = generateRecentActivity(assignments, reviews, messages);
 
 
 
       setStats({
 
-        assignedProposals: proposals.length,
+        assignedProposals: assignments.length,
 
         pendingReviews,
 
@@ -1097,200 +1097,147 @@ const ReviewModal = ({ isOpen, onClose, proposal }) => {
 
 
 const AssignedProposalsContent = () => {
-  const [proposals, setProposals] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedProposal, setSelectedProposal] = useState(null);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const [currentUserEmail, setCurrentUserEmail] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
-
     const savedUser = localStorage.getItem('ureb_user');
-
     if (savedUser) {
-
       const user = JSON.parse(savedUser);
-
-      setCurrentUserEmail(user.email);
-
-      fetchProposals(user.email);
-
+      fetchAssignments(user.email);
     }
-
   }, []);
 
-
-
-  const fetchProposals = async (userEmail) => {
-
+  const fetchAssignments = async (userEmail) => {
     if (!userEmail) return;
-
     setLoading(true);
-
     try {
-
-      const data = await getProposalsByReviewer(userEmail);
-
-      setProposals(data);
-
+      const data = await getReviewerAssignments(userEmail);
+      setAssignments(data);
     } catch (error) {
-
-      console.error('Error fetching proposals:', error);
-
+      console.error('Error fetching assignments:', error);
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
-
-
-  const handleViewDetails = (proposal) => {
-
-    setSelectedProposal(proposal);
-
-    setIsViewModalOpen(true);
-
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
-
-
-  const handleCloseModal = () => {
-    setIsViewModalOpen(false);
-    setSelectedProposal(null);
+  const getDownloadUrl = (file) => {
+    if (!file?.filename) return null;
+    return `http://localhost:5001/api/download/${file.filename}?name=${encodeURIComponent(file.originalname || file.filename)}`;
   };
 
-  const handleStartReview = (proposal) => {
-    setSelectedProposal(proposal);
-    setIsReviewModalOpen(true);
+  const formatFileLabel = (key) => {
+    const labels = {
+      urebForm16: 'UREB Form 16',
+      urebForm10B: 'UREB Form 10-B',
+      urebForm11: 'UREB Form 11',
+      urebForm2: 'UREB Form 2',
+      urebForm6: 'UREB Form 6',
+      urebForm7: 'UREB Form 7',
+      urebForm8A: 'UREB Form 8-A',
+      urebForm10A: 'UREB Form 10-A',
+      approvedProposal: 'Approved Proposal',
+      questionnaire: 'Questionnaire',
+      cvOfProponent: 'CV of Proponent',
+    };
+    return labels[key] || key;
   };
-
-  const handleCloseReviewModal = () => {
-    setIsReviewModalOpen(false);
-    setSelectedProposal(null);
-  };
-
-
 
   if (loading) {
-
     return (
-
       <div className="content-section">
-
         <h2>Assigned Proposals</h2>
-
-        <div className="loading-state">Loading proposals...</div>
-
+        <div className="loading-state">Loading assigned proposals...</div>
       </div>
-
     );
-
   }
 
-
-
-  if (proposals.length === 0) {
-
+  if (assignments.length === 0) {
     return (
-
       <div className="content-section">
-
         <h2>Assigned Proposals</h2>
-
-        <div className="empty-state">No proposals assigned to you yet.</div>
-
+        <div className="empty-state">No proposals have been assigned to you yet.</div>
       </div>
-
     );
-
   }
-
-
 
   return (
-
     <div className="content-section">
-
       <h2>Assigned Proposals</h2>
-
       <div className="proposals-list">
+        {assignments.map((assignment) => {
+          const files = assignment.assignedFiles || {};
+          const fileEntries = Object.entries(files);
+          const isExpanded = expandedId === String(assignment._id);
 
-        {proposals.map((proposal) => (
-
-          <div className="proposal-card" key={proposal._id || proposal.id}>
-
-            <div className="proposal-header">
-
-              <div className="proposal-header-left">
-                <h3>{proposal.protocolCode || proposal._id}</h3>
-                {proposal.preliminaryReviewer === currentUserEmail && (
-                  <span className="preliminary-badge">Preliminary</span>
-                )}
+          return (
+            <div className="proposal-card" key={String(assignment._id)}>
+              <div className="proposal-header">
+                <div className="proposal-header-left">
+                  <h3>{assignment.protocolCode || 'No Protocol Code'}</h3>
+                </div>
+                <span className={`status-badge ${(assignment.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
+                  {assignment.status || 'Pending'}
+                </span>
               </div>
 
-              <span className={`status-badge ${proposal.status?.toLowerCase().replace(' ', '-') || 'pending'}`}>
-
-                {proposal.status || 'Pending Review'}
-
-              </span>
-
-            </div>
-
-            <div className="proposal-content">
-
-              <h4>{proposal.researchTitle || 'Untitled Proposal'}</h4>
-
-              <p><strong>Proponent:</strong> {proposal.proponent || 'N/A'}</p>
-
-              <div className="proposal-meta">
-
-                <span>Submitted: {proposal.submissionDate ? new Date(proposal.submissionDate).toLocaleDateString() : 'N/A'}</span>
-
-                <span>Date of Application: {proposal.dateOfApplication ? new Date(proposal.dateOfApplication).toLocaleDateString() : 'N/A'}</span>
-
+              <div className="proposal-content">
+                <p><strong>Assigned by:</strong> {assignment.assignedBy || 'Admin'}</p>
+                <div className="proposal-meta">
+                  <span><strong>Review Start:</strong> {formatDate(assignment.reviewPeriod?.startDate)}</span>
+                  <span><strong>Review End:</strong> {formatDate(assignment.reviewPeriod?.endDate)}</span>
+                  <span><strong>Assigned:</strong> {formatDate(assignment.createdAt)}</span>
+                  <span><strong>Files:</strong> {fileEntries.length} document{fileEntries.length !== 1 ? 's' : ''}</span>
+                </div>
               </div>
 
+              {fileEntries.length > 0 && (
+                <div className="assigned-files-section">
+                  <button
+                    className="btn-secondary"
+                    style={{ marginBottom: '0.75rem' }}
+                    onClick={() => setExpandedId(isExpanded ? null : String(assignment._id))}
+                  >
+                    {isExpanded ? 'Hide Files' : `View Files (${fileEntries.length})`}
+                  </button>
+
+                  {isExpanded && (
+                    <div className="assigned-files-list">
+                      {fileEntries.map(([key, file]) => {
+                        const downloadUrl = getDownloadUrl(file);
+                        return (
+                          <div key={key} className="assigned-file-item">
+                            <span className="assigned-file-label">{formatFileLabel(key)}</span>
+                            <span className="assigned-file-name">{file.originalname || file.filename}</span>
+                            {downloadUrl && (
+                              <a
+                                href={downloadUrl}
+                                download={file.originalname || file.filename}
+                                className="btn-primary"
+                                style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem', textDecoration: 'none' }}
+                              >
+                                Download
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-
-            <div className="proposal-actions">
-
-              <button className="btn-primary" onClick={() => handleStartReview(proposal)}>
-                {proposal.status === 'In Progress' ? 'Continue Review' : 'Start Review'}
-              </button>
-
-              <button className="btn-secondary" onClick={() => handleViewDetails(proposal)}>View Details</button>
-
-            </div>
-
-          </div>
-
-        ))}
-
+          );
+        })}
       </div>
-
-      <ProposalDetailsModal
-
-        isOpen={isViewModalOpen}
-
-        onClose={handleCloseModal}
-
-        proposal={selectedProposal}
-
-      />
-      <ReviewModal
-        isOpen={isReviewModalOpen}
-        onClose={handleCloseReviewModal}
-        proposal={selectedProposal}
-      />
-
     </div>
-
   );
-
 };
 
 

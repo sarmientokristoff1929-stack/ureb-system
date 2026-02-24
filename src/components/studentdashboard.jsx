@@ -154,7 +154,7 @@ const StudentDashboard = ({ onLogout }) => {
       case 'history':
         return <HistoryContent />;
       case 'profile':
-        return <ProfileContent userInfo={userInfo} />;
+        return <ProfileContent userInfo={userInfo} setUserInfo={setUserInfo} onLogout={onLogout} />;
       default:
         return <DashboardContent userInfo={userInfo} onTabChange={handleTabChange} />;
     }
@@ -236,28 +236,36 @@ const StudentDashboard = ({ onLogout }) => {
 };
 
 // Content Components
-const ProfileContent = ({ userInfo }) => {
+const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedInfo, setEditedInfo] = useState({
-    firstName: '',
-    middleName: '',
-    lastName: '',
-    studentId: '',
-    department: '',
-    program: '',
-    gmail: '',
+    firstName: '', middleName: '', lastName: '',
+    studentId: '', department: '', program: '', gmail: '',
   });
   const [loading, setLoading] = useState(true);
+  const [saveLoading, setSaveLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [studentData, setStudentData] = useState(null);
 
+  // Password change state
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [pwdData, setPwdData] = useState({ current: '', newPwd: '', confirm: '' });
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [pwdError, setPwdError] = useState('');
+  const [pwdSuccess, setPwdSuccess] = useState('');
+
+  // Delete account state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
   useEffect(() => {
-    // Fetch actual student data from API
     const fetchStudentData = async () => {
       try {
         const response = await fetch(`http://localhost:5001/api/student/profile?email=${encodeURIComponent(userInfo.email)}`);
         const result = await response.json();
-        
         if (result.success) {
           setStudentData(result.student);
           setEditedInfo({
@@ -272,26 +280,27 @@ const ProfileContent = ({ userInfo }) => {
         } else {
           setError(result.error || 'Failed to fetch profile data');
         }
-      } catch (error) {
-        console.error('Error fetching student data:', error);
+      } catch (err) {
+        console.error('Error fetching student data:', err);
         setError('Failed to fetch profile data');
       } finally {
         setLoading(false);
       }
     };
-
     fetchStudentData();
   }, [userInfo]);
 
-  const handleEdit = () => {
-    setIsEditing(true);
-    setError('');
+  const getFullName = () => {
+    if (!studentData) return userInfo?.name || 'Student';
+    const parts = [studentData.firstName, studentData.middleName, studentData.lastName].filter(Boolean);
+    return parts.length > 0 ? parts.join(' ') : (studentData.name || userInfo?.name || 'Student');
   };
+
+  const handleEdit = () => { setIsEditing(true); setError(''); setSuccessMsg(''); };
 
   const handleCancel = () => {
     setIsEditing(false);
     setError('');
-    // Reset to original values from database
     if (studentData) {
       setEditedInfo({
         firstName: studentData.firstName || '',
@@ -306,34 +315,20 @@ const ProfileContent = ({ userInfo }) => {
   };
 
   const handleSave = async () => {
-    setLoading(true);
+    setSaveLoading(true);
     setError('');
-    
     try {
       const response = await fetch('http://localhost:5001/api/student/profile', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: userInfo.email,
-          firstName: editedInfo.firstName,
-          middleName: editedInfo.middleName,
-          lastName: editedInfo.lastName,
-          studentId: editedInfo.studentId,
-          department: editedInfo.department,
-          program: editedInfo.program,
-          gmail: editedInfo.gmail,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userInfo.email, ...editedInfo }),
       });
-
       const result = await response.json();
-      
       if (result.success) {
-        // Update local state with new data
         setStudentData(result.student);
-        setUserInfo(prev => ({
-          ...prev,
+        const updatedUser = {
+          ...userInfo,
+          name: result.student.name || `${result.student.firstName} ${result.student.lastName}`.trim(),
           firstName: result.student.firstName,
           middleName: result.student.middleName,
           lastName: result.student.lastName,
@@ -341,201 +336,312 @@ const ProfileContent = ({ userInfo }) => {
           studentId: result.student.studentId,
           department: result.student.department,
           program: result.student.program,
-        }));
+        };
+        setUserInfo(updatedUser);
+        localStorage.setItem('ureb_user', JSON.stringify(updatedUser));
         setIsEditing(false);
+        setSuccessMsg('Profile updated successfully.');
+        setTimeout(() => setSuccessMsg(''), 4000);
       } else {
         setError(result.error || 'Failed to update profile');
       }
-    } catch (error) {
-      console.error('Error updating profile:', error);
+    } catch (err) {
       setError('Failed to update profile');
     } finally {
-      setLoading(false);
+      setSaveLoading(false);
     }
   };
 
-  const handleInputChange = (field, value) => {
-    setEditedInfo(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const handlePasswordChange = async () => {
+    setPwdError('');
+    if (!pwdData.current || !pwdData.newPwd || !pwdData.confirm) {
+      setPwdError('All password fields are required.');
+      return;
+    }
+    if (pwdData.newPwd !== pwdData.confirm) {
+      setPwdError('New passwords do not match.');
+      return;
+    }
+    if (pwdData.newPwd.length < 6) {
+      setPwdError('New password must be at least 6 characters.');
+      return;
+    }
+    setPwdLoading(true);
+    try {
+      const response = await fetch('http://localhost:5001/api/student/change-password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userInfo.email, currentPassword: pwdData.current, newPassword: pwdData.newPwd }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setPwdSuccess('Password changed successfully.');
+        setPwdData({ current: '', newPwd: '', confirm: '' });
+        setShowPasswordForm(false);
+        setTimeout(() => setPwdSuccess(''), 4000);
+      } else {
+        setPwdError(result.error || 'Failed to change password.');
+      }
+    } catch (err) {
+      setPwdError('Failed to change password.');
+    } finally {
+      setPwdLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleteError('');
+    if (!deletePassword) { setDeleteError('Please enter your password to confirm.'); return; }
+    setDeleteLoading(true);
+    try {
+      const response = await fetch('http://localhost:5001/api/student/account', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userInfo.email, password: deletePassword }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        localStorage.removeItem('ureb_user');
+        sessionStorage.removeItem('welcome_shown');
+        onLogout();
+      } else {
+        setDeleteError(result.error || 'Failed to delete account.');
+      }
+    } catch (err) {
+      setDeleteError('Failed to delete account.');
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   if (loading) {
     return (
-      <div className="content-section">
-        <h2>Student Profile</h2>
-        <div className="loading-state">Loading profile data...</div>
+      <div className="sp-loading">
+        <div className="sp-spinner" />
+        <span>Loading profile...</span>
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="content-section">
-        <h2>Student Profile</h2>
-        <div className="error-message">{error}</div>
-      </div>
-    );
+  if (error && !studentData) {
+    return <div className="sp-error-state">{error}</div>;
   }
+
+  const fullName = getFullName();
+  const initials = fullName.charAt(0).toUpperCase();
 
   return (
-    <div className="profile-content">
-      <div className="content-section">
-        <h2>Student Profile</h2>
-        
+    <div className="sp-wrapper">
+
+      {/* ── Hero Card ── */}
+      <div className="sp-hero-card">
+        <div className="sp-avatar">{initials}</div>
+        <div className="sp-hero-info">
+          <h2 className="sp-hero-name">{fullName}</h2>
+          {studentData?.studentId && (
+            <span className="sp-id-badge">ID&nbsp;{studentData.studentId}</span>
+          )}
+          <p className="sp-hero-email">{studentData?.gmail || userInfo?.email || '—'}</p>
+        </div>
+        {!isEditing && (
+          <button className="sp-btn sp-btn--outline sp-edit-trigger" onClick={handleEdit}>
+            Edit Profile
+          </button>
+        )}
+      </div>
+
+      {/* ── Global feedback ── */}
+      {successMsg && <div className="sp-banner sp-banner--success">{successMsg}</div>}
+      {error && <div className="sp-banner sp-banner--error">{error}</div>}
+
+      {/* ── Account Information Card ── */}
+      <div className="sp-card">
+        <div className="sp-card-header">
+          <h3 className="sp-card-title">Account Information</h3>
+          {!isEditing && (
+            <button className="sp-btn sp-btn--ghost sp-btn--sm" onClick={handleEdit}>Edit</button>
+          )}
+        </div>
+
         {!isEditing ? (
-          <div className="profile-view">
-            {studentData && (
-              <>
-                <div className="profile-header">
-                  <div className="profile-avatar">
-                    {studentData.name ? studentData.name.charAt(0).toUpperCase() : 'S'}
-                  </div>
-                  <div className="profile-name">
-                    <h3>{studentData.name || 'Student Name'}</h3>
-                    <p className="profile-email">{studentData.gmail || 'Not specified'}</p>
-                  </div>
-                </div>
-                
-                <div className="profile-details">
-                  <div className="detail-group">
-                    <label>Student ID</label>
-                    <p>{studentData.studentId || 'Not specified'}</p>
-                  </div>
-                  
-                  <div className="detail-group">
-                    <label>Department</label>
-                    <p>{studentData.department || 'Not specified'}</p>
-                  </div>
-                  
-                  <div className="detail-group">
-                    <label>Program</label>
-                    <p>{studentData.program || 'Not specified'}</p>
-                  </div>
-                  
-                  <div className="detail-group">
-                    <label>Gmail Address</label>
-                    <p>{studentData.gmail || 'Not specified'}</p>
-                  </div>
-                </div>
-                
-                <div className="profile-actions">
-                  <button className="edit-profile-btn" onClick={handleEdit}>
-                    Edit Profile
-                  </button>
-                </div>
-              </>
-            )}
+          <div className="sp-info-list">
+            {[
+              { label: 'Full Name',   value: fullName },
+              { label: 'Student ID',  value: studentData?.studentId },
+              { label: 'Department',  value: studentData?.department },
+              { label: 'Program',     value: studentData?.program },
+              { label: 'Gmail',       value: studentData?.gmail },
+            ].map(({ label, value }) => (
+              <div className="sp-info-row" key={label}>
+                <span className="sp-info-label">{label}</span>
+                <span className="sp-info-value">{value || <em className="sp-not-set">Not set</em>}</span>
+              </div>
+            ))}
           </div>
         ) : (
-          <div className="profile-edit">
-            <div className="edit-form">
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="firstName">First Name</label>
-                  <input
-                    type="text"
-                    id="firstName"
-                    value={editedInfo.firstName}
-                    onChange={(e) => handleInputChange('firstName', e.target.value)}
-                    placeholder="Enter your first name"
-                  />
+          <div className="sp-edit-form">
+            <p className="sp-edit-hint">Update your personal information below.</p>
+
+            <div className="sp-field-row sp-field-row--3">
+              {[
+                { id: 'sp-fn', key: 'firstName',  label: 'First Name',  ph: 'First name' },
+                { id: 'sp-mn', key: 'middleName', label: 'Middle Name', ph: 'Middle name (optional)' },
+                { id: 'sp-ln', key: 'lastName',   label: 'Last Name',   ph: 'Last name' },
+              ].map(({ id, key, label, ph }) => (
+                <div className="sp-field" key={key}>
+                  <label htmlFor={id}>{label}</label>
+                  <input id={id} type="text" value={editedInfo[key]}
+                    onChange={e => setEditedInfo(p => ({ ...p, [key]: e.target.value }))}
+                    placeholder={ph} />
                 </div>
-                
-                <div className="form-group">
-                  <label htmlFor="middleName">Middle Name</label>
-                  <input
-                    type="text"
-                    id="middleName"
-                    value={editedInfo.middleName}
-                    onChange={(e) => handleInputChange('middleName', e.target.value)}
-                    placeholder="Enter your middle name (optional)"
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="lastName">Last Name</label>
-                  <input
-                    type="text"
-                    id="lastName"
-                    value={editedInfo.lastName}
-                    onChange={(e) => handleInputChange('lastName', e.target.value)}
-                    placeholder="Enter your last name"
-                  />
-                </div>
+              ))}
+            </div>
+
+            <div className="sp-field-row sp-field-row--2">
+              <div className="sp-field">
+                <label htmlFor="sp-sid">Student ID</label>
+                <input id="sp-sid" type="text" value={editedInfo.studentId}
+                  onChange={e => setEditedInfo(p => ({ ...p, studentId: e.target.value }))}
+                  placeholder="e.g. 2023-00001" />
               </div>
-              
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="studentId">Student ID</label>
-                  <input
-                    type="text"
-                    id="studentId"
-                    value={editedInfo.studentId}
-                    onChange={(e) => handleInputChange('studentId', e.target.value)}
-                    placeholder="Enter your student ID"
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="department">Department</label>
-                  <input
-                    type="text"
-                    id="department"
-                    value={editedInfo.department}
-                    onChange={(e) => handleInputChange('department', e.target.value)}
-                    placeholder="Enter your department"
-                  />
-                </div>
-              </div>
-              
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="program">Program</label>
-                  <input
-                    type="text"
-                    id="program"
-                    value={editedInfo.program}
-                    onChange={(e) => handleInputChange('program', e.target.value)}
-                    placeholder="Enter your program"
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="gmail">Gmail Address</label>
-                  <input
-                    type="email"
-                    id="gmail"
-                    value={editedInfo.gmail}
-                    onChange={(e) => handleInputChange('gmail', e.target.value)}
-                    placeholder="Enter your Gmail address"
-                    pattern="[a-zA-Z0-9._%+-]+@gmail\.com"
-                    title="Please enter a valid Gmail address"
-                  />
-                </div>
+              <div className="sp-field">
+                <label htmlFor="sp-gmail">Gmail Address</label>
+                <input id="sp-gmail" type="email" value={editedInfo.gmail}
+                  onChange={e => setEditedInfo(p => ({ ...p, gmail: e.target.value }))}
+                  placeholder="example@gmail.com" />
               </div>
             </div>
-            
-            <div className="edit-actions">
-              <button 
-                className="save-profile-btn" 
-                onClick={handleSave}
-                disabled={loading}
-              >
-                {loading ? 'Saving...' : 'Save Changes'}
+
+            <div className="sp-field-row sp-field-row--2">
+              <div className="sp-field">
+                <label htmlFor="sp-dept">Department</label>
+                <input id="sp-dept" type="text" value={editedInfo.department}
+                  onChange={e => setEditedInfo(p => ({ ...p, department: e.target.value }))}
+                  placeholder="e.g. Faculty of Teacher Education" />
+              </div>
+              <div className="sp-field">
+                <label htmlFor="sp-prog">Program</label>
+                <input id="sp-prog" type="text" value={editedInfo.program}
+                  onChange={e => setEditedInfo(p => ({ ...p, program: e.target.value }))}
+                  placeholder="e.g. BS Computer Science" />
+              </div>
+            </div>
+
+            <div className="sp-form-actions">
+              <button className="sp-btn sp-btn--primary" onClick={handleSave} disabled={saveLoading}>
+                {saveLoading ? 'Saving…' : 'Save Changes'}
               </button>
-              <button 
-                className="cancel-profile-btn" 
-                onClick={handleCancel}
-                disabled={loading}
-              >
+              <button className="sp-btn sp-btn--ghost" onClick={handleCancel} disabled={saveLoading}>
                 Cancel
               </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* ── Security Card ── */}
+      <div className="sp-card">
+        <div className="sp-card-header">
+          <h3 className="sp-card-title">Security</h3>
+          {!showPasswordForm && (
+            <button className="sp-btn sp-btn--outline sp-btn--sm"
+              onClick={() => { setShowPasswordForm(true); setPwdError(''); }}>
+              Change Password
+            </button>
+          )}
+        </div>
+
+        {pwdSuccess && <div className="sp-banner sp-banner--success">{pwdSuccess}</div>}
+
+        {showPasswordForm ? (
+          <div className="sp-edit-form">
+            <div className="sp-field-row sp-field-row--3">
+              <div className="sp-field">
+                <label>Current Password</label>
+                <input type="password" value={pwdData.current}
+                  onChange={e => setPwdData(p => ({ ...p, current: e.target.value }))}
+                  placeholder="Current password" />
+              </div>
+              <div className="sp-field">
+                <label>New Password</label>
+                <input type="password" value={pwdData.newPwd}
+                  onChange={e => setPwdData(p => ({ ...p, newPwd: e.target.value }))}
+                  placeholder="New password (min. 6 chars)" />
+              </div>
+              <div className="sp-field">
+                <label>Confirm New Password</label>
+                <input type="password" value={pwdData.confirm}
+                  onChange={e => setPwdData(p => ({ ...p, confirm: e.target.value }))}
+                  placeholder="Repeat new password" />
+              </div>
+            </div>
+            {pwdError && <div className="sp-banner sp-banner--error">{pwdError}</div>}
+            <div className="sp-form-actions">
+              <button className="sp-btn sp-btn--primary" onClick={handlePasswordChange} disabled={pwdLoading}>
+                {pwdLoading ? 'Updating…' : 'Update Password'}
+              </button>
+              <button className="sp-btn sp-btn--ghost"
+                onClick={() => { setShowPasswordForm(false); setPwdData({ current: '', newPwd: '', confirm: '' }); setPwdError(''); }}
+                disabled={pwdLoading}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="sp-security-hint">
+            Keep your account secure with a strong, unique password.
+          </p>
+        )}
+      </div>
+
+      {/* ── Danger Zone Card ── */}
+      <div className="sp-card sp-card--danger">
+        <div className="sp-card-header">
+          <h3 className="sp-card-title sp-card-title--danger">Danger Zone</h3>
+        </div>
+        <div className="sp-danger-row">
+          <div className="sp-danger-text">
+            <p className="sp-danger-label">Delete Account</p>
+            <p className="sp-danger-desc">
+              Permanently remove your account and all associated data. This action cannot be undone.
+            </p>
+          </div>
+          <button className="sp-btn sp-btn--danger"
+            onClick={() => { setShowDeleteModal(true); setDeleteError(''); setDeletePassword(''); }}>
+            Delete Account
+          </button>
+        </div>
+      </div>
+
+      {/* ── Delete Confirm Modal ── */}
+      {showDeleteModal && (
+        <div className="sp-modal-overlay" onClick={() => !deleteLoading && setShowDeleteModal(false)}>
+          <div className="sp-modal" onClick={e => e.stopPropagation()}>
+            <div className="sp-modal-icon">⚠</div>
+            <h3 className="sp-modal-title">Delete Your Account?</h3>
+            <p className="sp-modal-desc">
+              This will permanently delete your account and all your submitted research data.
+              This action <strong>cannot</strong> be undone.
+            </p>
+            <div className="sp-field sp-modal-field">
+              <label>Enter your password to confirm</label>
+              <input type="password" value={deletePassword}
+                onChange={e => setDeletePassword(e.target.value)}
+                placeholder="Your current password" />
+            </div>
+            {deleteError && <div className="sp-banner sp-banner--error">{deleteError}</div>}
+            <div className="sp-modal-actions">
+              <button className="sp-btn sp-btn--danger" onClick={handleDeleteAccount} disabled={deleteLoading}>
+                {deleteLoading ? 'Deleting…' : 'Yes, Delete My Account'}
+              </button>
+              <button className="sp-btn sp-btn--ghost"
+                onClick={() => setShowDeleteModal(false)} disabled={deleteLoading}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -796,6 +902,7 @@ const DEPARTMENT_REVIEWERS = {
   CEC: ['Kevin P. Banudan', 'Judy Mae C. Apostol', 'Jhanny S. Bongo', 'Mary Ann Mabagod'],
   BGEC: ['Purisima N. Tampus', 'Jerel M. Menendez'],
   TEC: ['Aileen R. Artazo', 'Janennica Q. Manaytay'],
+  FNAS: ['FNAS Reviewer 1', 'FNAS Reviewer 2'] // Temporary placeholder for FNAS
 };
 
 const AddFilesContent = () => {
@@ -813,8 +920,43 @@ const AddFilesContent = () => {
     proposalTitle: ''
   });
   const [uploading, setUploading] = useState(false);
+  const [reviewers, setReviewers] = useState([]);
+  const [loadingReviewers, setLoadingReviewers] = useState(true);
 
-  const filteredReviewers = DEPARTMENT_REVIEWERS[formData.department] || [];
+  // Fetch reviewers from database on component mount
+  useEffect(() => {
+    const fetchReviewers = async () => {
+      try {
+        const { getAllReviewers } = await import('../services/api.js');
+        const reviewersData = await getAllReviewers();
+        setReviewers(reviewersData);
+      } catch (error) {
+        console.error('Error fetching reviewers:', error);
+        setReviewers([]);
+      } finally {
+        setLoadingReviewers(false);
+      }
+    };
+    
+    fetchReviewers();
+  }, []);
+
+  // Reviewers excluded from the preliminary reviewer dropdown
+  const EXCLUDED_REVIEWERS = [
+    'Dr. Emily S. Antonio',
+    'Dr. Jeralyn N. Hemillan',
+    'Dr. Rose Anelyn V. Ceniza',
+    'Dr. Roselyn V. Regino',
+    'Dr. Maria Gloria R. Lugo',
+    'Prof. Djoanna S. Mama',
+    'Dr. Sharmaine Anne C. Argawanon',
+  ];
+
+  // Filter reviewers based on selected department, excluding specific names
+  const filteredReviewers = reviewers.filter(reviewer =>
+    reviewer.department === formData.department && reviewer.role === 'reviewer'
+  ).map(reviewer => reviewer.name || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim())
+   .filter(name => !EXCLUDED_REVIEWERS.includes(name));
 
   const handleFileChange = (fieldName, file) => {
     setFormData(prev => ({
@@ -986,7 +1128,9 @@ const AddFilesContent = () => {
             required
           >
             <option value="">Select a reviewer</option>
-            {filteredReviewers.length > 0 ? (
+            {loadingReviewers ? (
+              <option value="" disabled>Loading reviewers...</option>
+            ) : filteredReviewers.length > 0 ? (
               filteredReviewers.map((name) => (
                 <option key={name} value={name}>
                   {name}

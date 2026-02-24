@@ -177,7 +177,7 @@ export const markAllNotificationsAsRead = async () => {
 // Messages
 export const getMessagesByUser = async (userId) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/messages/${userId}`);
+    const response = await fetch(`${API_BASE_URL}/messages/${encodeURIComponent(userId)}`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -230,6 +230,23 @@ export const deleteMessage = async (messageId) => {
   } catch (error) {
     console.error('Error deleting message:', error);
     return { success: false, error: 'Failed to delete message' };
+  }
+};
+
+export const markAllMessagesAsRead = async (userEmail) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/read-all`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email: userEmail }),
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error marking all messages as read:', error);
+    return { success: false, error: 'Failed to mark messages as read' };
   }
 };
 
@@ -408,6 +425,18 @@ export const deleteStudent = async (id) => {
   }
 };
 
+// Get proposal by ID
+export const getProposalById = async (proposalId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/proposals/${proposalId}`);
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching proposal:', error);
+    return null;
+  }
+};
+
 // File download
 export const downloadFile = (filename) => {
   const link = document.createElement('a');
@@ -417,6 +446,45 @@ export const downloadFile = (filename) => {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+};
+
+// Get notifications for a specific user
+export const getUserNotifications = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/notifications/${email}`);
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching user notifications:', error);
+    return [];
+  }
+};
+
+// Get assignments for a specific reviewer
+export const getReviewerAssignments = async (reviewerEmail) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/assignments/${reviewerEmail}`);
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching reviewer assignments:', error);
+    return [];
+  }
+};
+
+// Assign file to reviewer
+export const assignFileToReviewer = async (formData) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/assign-file-to-reviewer`, {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error assigning file to reviewer:', error);
+    return { success: false, error: 'Failed to assign file to reviewer' };
+  }
 };
 
 // Download reviewer submitted file
