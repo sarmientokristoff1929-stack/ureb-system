@@ -31,14 +31,35 @@
 .logo {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1.25rem;
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--dark-green);
 }
 
+.logo span {
+  background: linear-gradient(
+    to right,
+    #8B1BE8,
+    #D91B8C,
+    #F4720A,
+    #2AABEA,
+    #00C170,
+    #C94C12
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .logo svg {
   color: var(--primary-green);
+}
+
+.navbar-logo-img {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
 }
 
 .nav-links {

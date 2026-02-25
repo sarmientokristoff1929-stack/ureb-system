@@ -879,8 +879,10 @@ app.post('/api/student/submit-files', upload.fields([
   try {
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
+    const assignments = db.collection(collections.assignments);
+    const reviewers = db.collection(collections.reviewers);
 
-    const { department, preliminaryReviewer, studentEmail, studentName, proposalTitle } = req.body;
+    const { department, preliminaryReviewer, preliminaryReviewerName, studentEmail, studentName, proposalTitle } = req.body;
 
     // Process uploaded files
     const files = {};
@@ -905,6 +907,7 @@ app.post('/api/student/submit-files', upload.fields([
       studentEmail: studentEmail || '',
       department: department || '',
       preliminaryReviewer: preliminaryReviewer || '',
+      preliminaryReviewerName: preliminaryReviewerName || '',
       files,
       status: 'Pending',
       createdAt: new Date(),
@@ -912,6 +915,33 @@ app.post('/api/student/submit-files', upload.fields([
     };
 
     const result = await proposals.insertOne(newProposal);
+
+    // Create an assignment record for the preliminary reviewer so it appears
+    // in their "Assigned Proposals" tab — same structure as admin assignments
+    if (preliminaryReviewer) {
+      const reviewer = await reviewers.findOne({ email: preliminaryReviewer });
+
+      const assignment = {
+        proposalId: result.insertedId,
+        reviewerId: reviewer?._id || null,
+        reviewerEmail: preliminaryReviewer,
+        reviewerName: preliminaryReviewerName || reviewer?.name || preliminaryReviewer,
+        protocolCode: null,
+        researchTitle: proposalTitle || 'Untitled Proposal',
+        assignedFiles: files,
+        reviewPeriod: {
+          startDate: new Date(),
+          endDate: null
+        },
+        status: 'Pending',
+        assignedBy: studentName || studentEmail || 'Student',
+        studentEmail: studentEmail || '',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      await assignments.insertOne(assignment);
+    }
 
     res.json({
       success: true,
@@ -1294,11 +1324,11 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
     const { reviewerEmail } = req.params;
     const db = getDatabase();
     const assignments = db.collection(collections.assignments);
-    
-    const assignmentList = await assignments.find({ 
-      reviewerEmail: reviewerEmail 
+
+    const assignmentList = await assignments.find({
+      reviewerEmail: reviewerEmail
     }).sort({ createdAt: -1 }).toArray();
-    
+
     res.json(assignmentList);
   } catch (error) {
     console.error('Error fetching assignments for reviewer:', error);
@@ -1947,114 +1977,68 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
     
     // Create assignments for each reviewer to access these files
     const assignments = db.collection(collections.assignments);
-    const reviewerEmails = [secondaryReviewer1, secondaryReviewer2].filter(Boolean);
-    
-    for (const reviewerName of reviewerEmails) {
-      // Find reviewer by name (handle both Secondary and Preliminary reviewers)
-      // Try multiple approaches to find reviewer
-      let reviewer = null;
-      
-      // Try exact name match first in reviewers collection
-      reviewer = await db.collection(collections.reviewers).findOne({
-        $or: [
-          { name: reviewerName },
-          { email: reviewerName }
-        ]
+    const reviewerCollection = db.collection(collections.reviewers);
+    const reviewerValues = [secondaryReviewer1, secondaryReviewer2].filter(Boolean);
+
+    for (const reviewerEmail of reviewerValues) {
+      // Look up the reviewer by email — direct, guaranteed match
+      const reviewer = await reviewerCollection.findOne({ email: reviewerEmail });
+
+      if (!reviewer) {
+        console.warn(`Reviewer not found for email: ${reviewerEmail}`);
+        continue;
+      }
+
+      const resolvedName = reviewer.name ||
+        `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim() ||
+        reviewer.email;
+
+      const assignment = {
+        proposalId: result.insertedId,
+        reviewerId: reviewer._id,
+        reviewerEmail: reviewer.email,
+        reviewerName: resolvedName,
+        protocolCode: protocolCode,
+        assignedFiles: uploadedFiles,
+        reviewPeriod: {
+          startDate: new Date(startDate),
+          endDate: new Date(endDate)
+        },
+        status: 'pending',
+        assignedBy: 'admin',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      await assignments.insertOne(assignment);
+      console.log(`Assignment created for reviewer: ${resolvedName} (${reviewer.email})`);
+
+      // Notify the reviewer
+      const notifications = db.collection(collections.notifications);
+      await notifications.insertOne({
+        recipientEmail: reviewer.email,
+        recipientName: resolvedName,
+        title: 'New Files Assigned for Review',
+        message: `You have been assigned ${Object.keys(uploadedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
+        type: 'assignment',
+        protocolCode: protocolCode,
+        proposalId: result.insertedId,
+        reviewPeriod: {
+          startDate: new Date(startDate),
+          endDate: new Date(endDate)
+        },
+        assignedFiles: Object.keys(uploadedFiles),
+        read: false,
+        createdAt: new Date()
       });
-      
-      // If not found, try splitting by name parts
-      if (!reviewer && reviewerName.includes(' ')) {
-        const nameParts = reviewerName.split(' ');
-        const firstName = nameParts[0];
-        const lastName = nameParts[nameParts.length - 1];
-        
-        reviewer = await db.collection(collections.reviewers).findOne({
-          $or: [
-            { firstName: firstName, lastName: lastName },
-            { firstName: firstName },
-            { lastName: lastName }
-          ]
-        });
-      }
-      
-      // If still not found, try partial matching
-      if (!reviewer) {
-        reviewer = await db.collection(collections.reviewers).findOne({
-          $or: [
-            { firstName: { $regex: reviewerName.split(' ')[0], $options: 'i' } },
-            { lastName: { $regex: reviewerName.split(' ').slice(-1)[0], $options: 'i' } },
-            { name: { $regex: reviewerName, $options: 'i' } }
-          ]
-        });
-      }
-      
-      // If still not found in reviewers collection, check if it's a student (for Preliminary reviewers)
-      if (!reviewer) {
-        const students = db.collection(collections.students);
-        reviewer = await students.findOne({
-          $or: [
-            { name: reviewerName },
-            { email: reviewerName },
-            { firstName: reviewerName.split(' ')[0], lastName: reviewerName.split(' ').slice(-1)[0] }
-          ]
-        });
-      }
-      
-      console.log(`Looking for reviewer: ${reviewerName}, found:`, reviewer);
-      
-      if (reviewer) {
-        const assignment = {
-          proposalId: result.insertedId,
-          reviewerId: reviewer._id,
-          reviewerEmail: reviewer.email,
-          reviewerName: reviewerName,
-          protocolCode: protocolCode,
-          assignedFiles: uploadedFiles,
-          reviewPeriod: {
-            startDate: new Date(startDate),
-            endDate: new Date(endDate)
-          },
-          status: 'pending',
-          assignedBy: 'admin',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
-        
-        await assignments.insertOne(assignment);
-        console.log(`Assignment created for reviewer: ${reviewerName}`);
-        
-        // Create notification for the reviewer
-        const notifications = db.collection(collections.notifications);
-        const notification = {
-          recipientEmail: reviewer.email,
-          recipientName: reviewerName,
-          title: 'New Files Assigned for Review',
-          message: `You have been assigned ${Object.keys(uploadedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
-          type: 'assignment',
-          protocolCode: protocolCode,
-          proposalId: result.insertedId,
-          assignmentId: assignment._id,
-          reviewPeriod: {
-            startDate: new Date(startDate),
-            endDate: new Date(endDate)
-          },
-          assignedFiles: Object.keys(uploadedFiles),
-          read: false,
-          createdAt: new Date()
-        };
-        
-        await notifications.insertOne(notification);
-        console.log(`Notification sent to reviewer: ${reviewerName}`);
-      } else {
-        console.warn(`Reviewer not found for name: ${reviewerName}`);
-      }
+      console.log(`Notification sent to: ${resolvedName} (${reviewer.email})`);
     }
     
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Files successfully assigned to reviewers',
       proposalId: result.insertedId.toString(),
-      assignedReviewers: reviewerEmails.length
+      assignedReviewers: reviewerValues.length
     });
   } catch (error) {
     console.error('Error assigning files to reviewer:', error);

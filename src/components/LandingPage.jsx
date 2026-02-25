@@ -79,7 +79,7 @@ const Navbar = ({ onLoginClick }) => {
     <nav className={`navbar ${isScrolled ? 'scrolled' : ''}`}>
       <div className="navbar-container">
         <a href="#home" className="logo">
-          <ShieldIcon />
+          <img src="/UREBLOGO.png" alt="UREB Logo" className="navbar-logo-img" />
           <span>University Research Ethics Board</span>
         </a>
         

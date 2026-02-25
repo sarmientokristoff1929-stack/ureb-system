@@ -833,7 +833,7 @@ const ProposalDetailsModal = ({ isOpen, onClose, proposal }) => {
             <div className="detail-row">
               <span className="detail-label">Preliminary Reviewer:</span>
               <span className="detail-value">
-                {proposal.preliminaryReviewer}
+                {proposal.preliminaryReviewerName || proposal.preliminaryReviewer}
                 <span className="preliminary-badge" style={{ marginLeft: '0.5rem' }}>Preliminary</span>
               </span>
             </div>
@@ -1247,6 +1247,19 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
   const [loading, setLoading] = useState(true);
   const [selectedProposal, setSelectedProposal] = useState(null);
   
+  // List of Secondary Reviewers
+  const secondaryReviewers = [
+    'Dr. Emily S. Antonio',
+    'Dr. Jeralyn N. Hemillan', 
+    'Dr. Rose Anelyn V. Ceniza',
+    'Dr. Roselyn V. Regino',
+    'Dr. Maria Gloria R. Lugo',
+    'Dr. Sharmaine Anne C. Argawanon'
+  ];
+  
+  // Check if current user is a Secondary Reviewer
+  const [isSecondaryReviewer, setIsSecondaryReviewer] = useState(false);
+  
   // Load saved data from localStorage on component mount
   const [reviewData, setReviewData] = useState(() => {
     const savedData = localStorage.getItem('reviewDraftData');
@@ -1259,6 +1272,8 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
           proposal: null,
           approvalSheet: null,
           urebForm2: null,
+          urebForm10B: null,
+          urebForm11: null,
           applicationForm6: null,
           accomplishedForm8: null,
           accomplishForm10A: null,
@@ -1274,6 +1289,8 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
       proposal: null,
       approvalSheet: null,
       urebForm2: null,
+      urebForm10B: null,
+      urebForm11: null,
       applicationForm6: null,
       accomplishedForm8: null,
       accomplishForm10A: null,
@@ -1296,6 +1313,8 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
       proposalFileName: reviewData.proposal?.name || null,
       approvalSheetFileName: reviewData.approvalSheet?.name || null,
       urebForm2FileName: reviewData.urebForm2?.name || null,
+      urebForm10BFileName: reviewData.urebForm10B?.name || null,
+      urebForm11FileName: reviewData.urebForm11?.name || null,
       applicationForm6FileName: reviewData.applicationForm6?.name || null,
       accomplishedForm8FileName: reviewData.accomplishedForm8?.name || null,
       accomplishForm10AFileName: reviewData.accomplishForm10A?.name || null,
@@ -1310,6 +1329,13 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
     const savedUser = localStorage.getItem('ureb_user');
     if (savedUser) {
       const user = JSON.parse(savedUser);
+      
+      // Check if current user is a Secondary Reviewer by name
+      const userIsSecondary = secondaryReviewers.includes(user.name);
+      setIsSecondaryReviewer(userIsSecondary);
+      
+      console.log('User:', user.name, 'isSecondaryReviewer:', userIsSecondary);
+      
       fetchProposals(user.email);
     }
   }, []);
@@ -1355,6 +1381,8 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
         proposal: reviewData.proposal,
         approvalSheet: reviewData.approvalSheet,
         urebForm2: reviewData.urebForm2,
+        urebForm10B: reviewData.urebForm10B,
+        urebForm11: reviewData.urebForm11,
         applicationForm6: reviewData.applicationForm6,
         accomplishedForm8: reviewData.accomplishedForm8,
         accomplishForm10A: reviewData.accomplishForm10A,
@@ -1378,6 +1406,8 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
         proposal: null,
         approvalSheet: null,
         urebForm2: null,
+        urebForm10B: null,
+        urebForm11: null,
         applicationForm6: null,
         accomplishedForm8: null,
         accomplishForm10A: null,
@@ -1507,101 +1537,120 @@ const FileUploadComponent = ({ label, field, accept = ".pdf,.doc,.docx" }) => {
       <h2>Submit Review</h2>
       
       <form onSubmit={handleSubmit} className="review-form">
-        {/* Always show document upload section */}
+        {/* Document upload section - conditional based on reviewer type */}
         <div className="form-section">
-          <div className="documents-grid">
-            <FileUploadComponent 
-              label="Proposal" 
-              field="proposal" 
-            />
-            <FileUploadComponent 
-              label="Approval Sheet" 
-              field="approvalSheet" 
-            />
-            <FileUploadComponent 
-              label="UREB Form 2" 
-              field="urebForm2" 
-            />
-            <FileUploadComponent 
-              label="Application for Research Ethics Review Form 6" 
-              field="applicationForm6" 
-            />
-            <FileUploadComponent 
-              label="Accomplished Form 8" 
-              field="accomplishedForm8" 
-            />
-            <FileUploadComponent 
-              label="Accomplish Form 10 A" 
-              field="accomplishForm10A" 
-            />
-            <FileUploadComponent 
-              label="Copy of instrument/tool" 
-              field="copyOfInstrument" 
-            />
-            <FileUploadComponent 
-              label="Ethics Review Fee (Receipt)" 
-              field="ethicsReviewFee" 
-              accept=".pdf,.jpg,.jpeg,.png"
-            />
-            <FileUploadComponent 
-              label="Form 7" 
-              field="form7" 
-            />
-          </div>
+          {isSecondaryReviewer ? (
+            // Secondary Reviewer Layout - Only UREB Form 10B and UREB Form 11
+            <div className="documents-grid secondary-reviewer-layout">
+              <FileUploadComponent 
+                label="UREB Form 10B" 
+                field="urebForm10B" 
+              />
+              <FileUploadComponent 
+                label="UREB Form 11" 
+                field="urebForm11" 
+              />
+            </div>
+          ) : (
+            // Preliminary Reviewer Layout - All existing documents
+            <div className="documents-grid preliminary-reviewer-layout">
+              <FileUploadComponent 
+                label="Proposal" 
+                field="proposal" 
+              />
+              <FileUploadComponent 
+                label="Approval Sheet" 
+                field="approvalSheet" 
+              />
+              <FileUploadComponent 
+                label="UREB Form 2" 
+                field="urebForm2" 
+              />
+              <FileUploadComponent 
+                label="Application for Research Ethics Review Form 6" 
+                field="applicationForm6" 
+              />
+              <FileUploadComponent 
+                label="Accomplished Form 8" 
+                field="accomplishedForm8" 
+              />
+              <FileUploadComponent 
+                label="Accomplish Form 10 A" 
+                field="accomplishForm10A" 
+              />
+              <FileUploadComponent 
+                label="Copy of instrument/tool" 
+                field="copyOfInstrument" 
+              />
+              <FileUploadComponent 
+                label="Ethics Review Fee (Receipt)" 
+                field="ethicsReviewFee" 
+                accept=".pdf,.jpg,.jpeg,.png"
+              />
+              <FileUploadComponent 
+                label="Form 7" 
+                field="form7" 
+              />
+            </div>
+          )}
         </div>
 
-        {/* Always show decision section */}
-        <div className="form-section">
-          <h3>Review Decision</h3>
-          <div className="decision-options">
-            <label className="decision-option">
-              <input
-                type="radio"
-                name="decision"
-                value="approve"
-                checked={reviewData.decision === 'approve'}
-                onChange={(e) => setReviewData(prev => ({ ...prev, decision: e.target.value }))}
-              />
-              <span className="decision-label approve">Approve</span>
-            </label>
-            <label className="decision-option">
-              <input
-                type="radio"
-                name="decision"
-                value="revision"
-                checked={reviewData.decision === 'revision'}
-                onChange={(e) => setReviewData(prev => ({ ...prev, decision: e.target.value }))}
-              />
-              <span className="decision-label revision">Request Revision</span>
-            </label>
-            <label className="decision-option">
-              <input
-                type="radio"
-                name="decision"
-                value="reject"
-                checked={reviewData.decision === 'reject'}
-                onChange={(e) => setReviewData(prev => ({ ...prev, decision: e.target.value }))}
-              />
-              <span className="decision-label reject">Reject</span>
-            </label>
+        {/* Decision section - only for Preliminary Reviewers */}
+        {!isSecondaryReviewer && (
+          <div className="form-section">
+            <h3>Review Decision</h3>
+            <div className="decision-options">
+              <label className="decision-option">
+                <input
+                  type="radio"
+                  name="decision"
+                  value="approve"
+                  checked={reviewData.decision === 'approve'}
+                  onChange={(e) => setReviewData(prev => ({ ...prev, decision: e.target.value }))}
+                />
+                <span className="decision-label approve">Approve</span>
+              </label>
+              <label className="decision-option">
+                <input
+                  type="radio"
+                  name="decision"
+                  value="revision"
+                  checked={reviewData.decision === 'revision'}
+                  onChange={(e) => setReviewData(prev => ({ ...prev, decision: e.target.value }))}
+                />
+                <span className="decision-label revision">Request Revision</span>
+              </label>
+              <label className="decision-option">
+                <input
+                  type="radio"
+                  name="decision"
+                  value="reject"
+                  checked={reviewData.decision === 'reject'}
+                  onChange={(e) => setReviewData(prev => ({ ...prev, decision: e.target.value }))}
+                />
+                <span className="decision-label reject">Reject</span>
+              </label>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Always show comment section */}
-        <div className="form-section">
-          <h3>Leave Comment</h3>
-          <div className="form-group">
-            <label className="form-label"></label>
-            <textarea
-              className="form-textarea"
-              value={reviewData.comment}
-              onChange={(e) => setReviewData(prev => ({ ...prev, comment: e.target.value }))}
-              placeholder="Please provide your comments and feedback..."
-              rows="5"
-              required
-            />
+        {/* Comment section - only for Preliminary Reviewers */}
+        {!isSecondaryReviewer && (
+          <div className="form-section">
+            <h3>Leave Comment</h3>
+            <div className="form-group">
+              <label className="form-label"></label>
+              <textarea
+                className="form-textarea"
+                value={reviewData.comment}
+                onChange={(e) => setReviewData(prev => ({ ...prev, comment: e.target.value }))}
+                placeholder="Please provide your comments and feedback..."
+                rows="5"
+                required
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Show proposal info only when a proposal is selected */}
         {selectedProposal && (
@@ -1629,6 +1678,8 @@ const FileUploadComponent = ({ label, field, accept = ".pdf,.doc,.docx" }) => {
                 proposal: null,
                 approvalSheet: null,
                 urebForm2: null,
+                urebForm10B: null,
+                urebForm11: null,
                 applicationForm6: null,
                 accomplishedForm8: null,
                 accomplishForm10A: null,
@@ -2169,25 +2220,18 @@ const SubmittedReviewsContent = () => {
 const SuccessModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
-  const SuccessCheckIcon = () => (
-    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12"></polyline>
-    </svg>
-  );
-
   return (
-    <div className="success-modal-overlay" onClick={onClose}>
-      <div className="success-modal-container" onClick={(e) => e.stopPropagation()}>
-        <div className="success-content">
-          <div className="success-icon">
-            <SuccessCheckIcon />
-          </div>
-          <h2>Review Submitted Successfully!</h2>
-          <p>Your review has been submitted and sent to the admin for review.</p>
-          <button className="success-close-btn" onClick={onClose}>
-            Continue
-          </button>
+    <div className="success-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="success-modal-container">
+        <div className="success-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" className="success-check-svg">
+            <circle cx="12" cy="12" r="11" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M7 12.5l3.5 3.5 6.5-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </div>
+        <h2 className="success-modal-title">Review Submitted</h2>
+        <p className="success-modal-subtitle">Your review has been submitted and sent to the admin successfully.</p>
+        <button className="success-done-btn" onClick={onClose}>Done</button>
       </div>
     </div>
   );

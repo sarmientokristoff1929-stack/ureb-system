@@ -1340,50 +1340,9 @@ const AssignFileContent = () => {
     fetchReviewers();
   }, []);
 
-  // Filter secondary reviewers from database
-  const secondaryReviewers = reviewers.filter(reviewer => {
-    console.log('Checking reviewer:', reviewer);
-    console.log('Reviewer reviewerType:', reviewer.reviewerType);
-    console.log('Reviewer name:', reviewer.name || `${reviewer.firstName} ${reviewer.lastName}`);
-    
-    // Handle different possible values for reviewerType (case-insensitive)
-    const reviewerType = (reviewer.reviewerType || '').toString().toLowerCase().trim();
-    const reviewerName = (reviewer.name || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim()).toLowerCase();
-    
-    // Known secondary reviewer names (for debugging)
-    const knownSecondaryNames = [
-      'dr. emily s. antonio',
-      'dr. jeralyn n. hemillan', 
-      'dr. rose anelyn v. ceniza',
-      'dr. roselyn v. regino',
-      'dr. maria gloria r. lugo',
-      'prof. djoanna s. mama',
-      'dr. sharmaine anne c. argawanon'
-    ];
-    
-    const isSecondaryByType = reviewerType === 'secondary' || 
-                              reviewerType === 'secondary reviewer' ||
-                              reviewerType.includes('secondary');
-    
-    const isSecondaryByName = knownSecondaryNames.includes(reviewerName);
-    
-    const isSecondary = isSecondaryByType || isSecondaryByName;
-    
-    console.log('Is secondary?', isSecondary, 'byType:', isSecondaryByType, 'byName:', isSecondaryByName);
-    return isSecondary;
-  })
-    .map(reviewer => {
-      // Handle different name field formats
-      const name = reviewer.name || 
-                  `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim() ||
-                  `${reviewer.first_name || ''} ${reviewer.last_name || ''}`.trim() ||
-                  reviewer.email || 'Unknown';
-      console.log('Mapped reviewer name:', name);
-      return name;
-    });
-  
-  console.log('Total reviewers fetched:', reviewers.length);
-  console.log('Filtered secondary reviewers:', secondaryReviewers);
+  // Show all reviewers (both Preliminary and Secondary) in the dropdown
+  // This allows Preliminary Reviewers to be selected as Secondary Reviewers when needed
+  const allReviewers = reviewers;
 
   const documentTypes = [
     { key: 'urebForm16', label: 'UREB Form 16' },
@@ -1573,7 +1532,7 @@ const AssignFileContent = () => {
           </div>
           <div className="form-group">
             <label>Secondary Reviewer 1</label>
-            <select 
+            <select
               name="secondaryReviewer1"
               value={formData.secondaryReviewer1}
               onChange={handleInputChange}
@@ -1581,21 +1540,27 @@ const AssignFileContent = () => {
               <option value="">Select Reviewer</option>
               {loadingReviewers ? (
                 <option value="" disabled>Loading reviewers...</option>
-              ) : secondaryReviewers.length > 0 ? (
-                secondaryReviewers.map((reviewer, index) => (
-                  <option key={index} value={reviewer}>
-                    {reviewer}
-                  </option>
-                ))
+              ) : allReviewers.length > 0 ? (
+                allReviewers.filter(r => r.email).map((reviewer, index) => {
+                  const reviewerName = reviewer.name ||
+                    `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim() ||
+                    reviewer.email;
+
+                  return (
+                    <option key={reviewer._id || index} value={reviewer.email}>
+                      {reviewerName}
+                    </option>
+                  );
+                })
               ) : (
-                <option value="" disabled>No secondary reviewers available</option>
+                <option value="" disabled>No reviewers available</option>
               )}
             </select>
             {validationErrors.secondaryReviewer1 && <span className="error-text">{validationErrors.secondaryReviewer1}</span>}
           </div>
           <div className="form-group">
             <label>Secondary Reviewer 2</label>
-            <select 
+            <select
               name="secondaryReviewer2"
               value={formData.secondaryReviewer2}
               onChange={handleInputChange}
@@ -1603,14 +1568,20 @@ const AssignFileContent = () => {
               <option value="">Select Reviewer</option>
               {loadingReviewers ? (
                 <option value="" disabled>Loading reviewers...</option>
-              ) : secondaryReviewers.length > 0 ? (
-                secondaryReviewers.map((reviewer, index) => (
-                  <option key={index} value={reviewer}>
-                    {reviewer}
-                  </option>
-                ))
+              ) : allReviewers.length > 0 ? (
+                allReviewers.filter(r => r.email).map((reviewer, index) => {
+                  const reviewerName = reviewer.name ||
+                    `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim() ||
+                    reviewer.email;
+
+                  return (
+                    <option key={reviewer._id || index} value={reviewer.email}>
+                      {reviewerName}
+                    </option>
+                  );
+                })
               ) : (
-                <option value="" disabled>No secondary reviewers available</option>
+                <option value="" disabled>No reviewers available</option>
               )}
             </select>
             {validationErrors.secondaryReviewer2 && <span className="error-text">{validationErrors.secondaryReviewer2}</span>}

@@ -148,7 +148,7 @@ const StudentDashboard = ({ onLogout }) => {
       case 'notifications':
         return <NotificationsContent />;
       case 'add-files':
-        return <AddFilesContent />;
+        return <AddFilesContent setSubmittedFiles={setSubmittedFiles} setShowSuccessModal={setShowSuccessModal} />;
       case 'messages':
         return <MessagesContent userInfo={userInfo} />;
       case 'history':
@@ -905,7 +905,7 @@ const DEPARTMENT_REVIEWERS = {
   FNAS: ['FNAS Reviewer 1', 'FNAS Reviewer 2'] // Temporary placeholder for FNAS
 };
 
-const AddFilesContent = () => {
+const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
   const [formData, setFormData] = useState({
     proposal: null,
     approvalSheet: null,
@@ -955,8 +955,11 @@ const AddFilesContent = () => {
   // Filter reviewers based on selected department, excluding specific names
   const filteredReviewers = reviewers.filter(reviewer =>
     reviewer.department === formData.department && reviewer.role === 'reviewer'
-  ).map(reviewer => reviewer.name || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim())
-   .filter(name => !EXCLUDED_REVIEWERS.includes(name));
+  ).map(reviewer => ({
+    name: reviewer.name || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim(),
+    email: reviewer.email || ''
+  }))
+  .filter(r => !EXCLUDED_REVIEWERS.includes(r.name) && r.email);
 
   const handleFileChange = (fieldName, file) => {
     setFormData(prev => ({
@@ -998,7 +1001,9 @@ const AddFilesContent = () => {
 
       // Append text fields
       submitData.append('department', formData.department);
-      submitData.append('preliminaryReviewer', formData.preliminaryReviewer);
+      submitData.append('preliminaryReviewer', formData.preliminaryReviewer); // email
+      const selectedReviewerName = filteredReviewers.find(r => r.email === formData.preliminaryReviewer)?.name || '';
+      submitData.append('preliminaryReviewerName', selectedReviewerName);
       submitData.append('proposalTitle', formData.proposalTitle);
       submitData.append('studentEmail', user?.email || '');
       submitData.append('studentName', user?.name || '');
@@ -1131,9 +1136,9 @@ const AddFilesContent = () => {
             {loadingReviewers ? (
               <option value="" disabled>Loading reviewers...</option>
             ) : filteredReviewers.length > 0 ? (
-              filteredReviewers.map((name) => (
-                <option key={name} value={name}>
-                  {name}
+              filteredReviewers.map((reviewer) => (
+                <option key={reviewer.email} value={reviewer.email}>
+                  {reviewer.name}
                 </option>
               ))
             ) : (
@@ -1623,72 +1628,34 @@ const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
 };
 
 const SuccessModal = ({ onClose, submittedFiles }) => {
-  const [confetti, setConfetti] = useState([]);
-
-  useEffect(() => {
-    // Generate confetti pieces for success celebration
-    const pieces = [];
-    for (let i = 0; i < 30; i++) {
-      pieces.push({
-        id: i,
-        left: Math.random() * 100,
-        delay: Math.random() * 2,
-        duration: 2 + Math.random() * 1.5,
-        color: ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#22c55e', '#16a34a'][Math.floor(Math.random() * 6)]
-      });
-    }
-    setConfetti(pieces);
-  }, []);
-
   return (
-    <div className="success-modal-overlay">
-      <div className="confetti-container">
-        {confetti.map((piece) => (
-          <div
-            key={piece.id}
-            className="confetti"
-            style={{
-              left: `${piece.left}%`,
-              animationDelay: `${piece.delay}s`,
-              animationDuration: `${piece.duration}s`,
-              backgroundColor: piece.color
-            }}
-          />
-        ))}
-      </div>
+    <div className="success-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="success-modal-container">
-        <div className="success-content">
-          <div className="success-icon">✓</div>
-          <h2>Files Submitted Successfully!</h2>
-          <p>Your files have been uploaded and submitted for review.</p>
-          
-          {submittedFiles.length > 0 && (
-            <div className="submitted-files-summary">
-              <h4>Files Submitted:</h4>
-              <div className="files-list">
-                {submittedFiles.map((file, index) => (
-                  <div key={index} className="file-item">
-                    <span className="file-name">{file.name}</span>
-                    <span className="file-size">{file.size}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          <div className="success-message">
-            <p><strong>Next Steps:</strong></p>
-            <ul>
-              <li>Your files will be reviewed by the assigned reviewer</li>
-              <li>You will receive notifications about the review status</li>
-              <li>Track your submission progress in the History tab</li>
-            </ul>
-          </div>
-          
-          <button className="success-close-btn" onClick={onClose}>
-            Continue
-          </button>
+        <div className="success-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" className="success-check-svg">
+            <circle cx="12" cy="12" r="11" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M7 12.5l3.5 3.5 6.5-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </div>
+        <h2 className="success-modal-title">Submission Received</h2>
+        <p className="success-modal-subtitle">Your files have been submitted successfully and are now pending review.</p>
+
+        {submittedFiles.length > 0 && (
+          <div className="success-files-list">
+            {submittedFiles.map((file, index) => (
+              <div key={index} className="success-file-row">
+                <svg viewBox="0 0 24 24" fill="none" className="success-file-icon">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                  <path d="M14 2v6h6" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                </svg>
+                <span className="success-file-name">{file.name}</span>
+                <span className="success-file-size">{file.size}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button className="success-done-btn" onClick={onClose}>Done</button>
       </div>
     </div>
   );
