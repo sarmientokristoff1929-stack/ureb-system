@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5002;
 
 // Middleware
 app.use(cors());
@@ -139,7 +139,7 @@ app.get('/api/download/:filename', (req, res) => {
 });
 
 // Collections
-export const collections = {
+const collections = {
   users: 'users',
   students: 'students',
   reviewers: 'reviewers',
@@ -1075,6 +1075,8 @@ app.post('/api/reviews', upload.fields([
   { name: 'proposal', maxCount: 1 },
   { name: 'approvalSheet', maxCount: 1 },
   { name: 'urebForm2', maxCount: 1 },
+  { name: 'urebForm10B', maxCount: 1 },
+  { name: 'urebForm11', maxCount: 1 },
   { name: 'applicationForm6', maxCount: 1 },
   { name: 'accomplishedForm8', maxCount: 1 },
   { name: 'accomplishForm10A', maxCount: 1 },
@@ -1171,6 +1173,26 @@ app.post('/api/reviews', upload.fields([
     };
 
     await notifications.insertOne(notification);
+
+    // Create message for admin about submitted review files
+    const messages = db.collection(collections.messages);
+    const messageRecord = {
+      senderEmail: reviewerEmail,
+      recipientEmail: process.env.GMAIL_EMAIL || 'admin',
+      subject: `Review Submitted: ${protocolCode ? protocolCode + ': ' : ''}${proposalTitle}`,
+      message: `${reviewerName || reviewerEmail} submitted a review for "${protocolCode ? protocolCode + ': ' : ''}${proposalTitle}" with decision: ${decision || overallRating}. Files have been uploaded for admin review.`,
+      senderName: reviewerName || reviewerEmail,
+      type: 'reviewer_to_admin',
+      reviewId: result.insertedId.toString(),
+      proposalId,
+      reviewerEmail,
+      decision: decision || overallRating,
+      files: files, // Include uploaded files information
+      read: false,
+      createdAt: new Date()
+    };
+
+    await messages.insertOne(messageRecord);
 
     res.json({
       success: true,
@@ -1760,6 +1782,45 @@ app.post('/api/messages', async (req, res) => {
   }
 });
 
+// Student reply to admin (with optional file attachments)
+app.post('/api/messages/reply', upload.array('files', 10), async (req, res) => {
+  try {
+    const { senderEmail, senderName, message, replyToMessageId } = req.body;
+    const files = req.files || [];
+
+    if (!senderEmail || !message) {
+      return res.status(400).json({ success: false, error: 'Sender email and message are required' });
+    }
+
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const newMessage = {
+      senderEmail,
+      senderName: senderName || 'Student',
+      recipientEmail: process.env.GMAIL_EMAIL || 'admin',
+      message,
+      files: files.map(f => ({
+        filename: f.originalname,
+        size: f.size,
+        mimetype: f.mimetype,
+        path: f.path
+      })),
+      replyToMessageId: replyToMessageId || null,
+      sentAt: new Date(),
+      createdAt: new Date(),
+      type: 'student_to_admin',
+      read: false
+    };
+
+    const result = await messages.insertOne(newMessage);
+    res.json({ success: true, message: { _id: result.insertedId, ...newMessage } });
+  } catch (error) {
+    console.error('Error sending reply:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 app.get('/api/messages/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -1776,7 +1837,7 @@ app.get('/api/messages/:userId', async (req, res) => {
     const isAdmin = !isStudent && !isReviewer;
 
     const query = isAdmin
-      ? { $or: [{ recipientEmail: userId }, { senderEmail: userId }, { type: 'student_to_admin' }] }
+      ? { $or: [{ recipientEmail: userId }, { senderEmail: userId }, { type: 'student_to_admin' }, { type: 'reviewer_to_admin' }] }
       : { $or: [{ recipientEmail: userId }, { senderEmail: userId }] };
 
     const messageList = await messages.find(query).sort({ createdAt: -1 }).toArray();
@@ -1832,6 +1893,39 @@ app.delete('/api/messages/:messageId', async (req, res) => {
     res.json({ success: true, message: 'Message deleted successfully' });
   } catch (error) {
     console.error('Error deleting message:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Mark a single message as read
+app.put('/api/messages/:id/read', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ success: false, error: 'Message ID is required' });
+    }
+    
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+    
+    const result = await messages.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { read: true } }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ success: false, error: 'Message not found' });
+    }
+    
+    console.log(`Marked message ${id} as read`);
+    res.json({ 
+      success: true, 
+      message: 'Message marked as read',
+      modifiedCount: result.modifiedCount 
+    });
+  } catch (error) {
+    console.error('Error marking message as read:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

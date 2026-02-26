@@ -123,7 +123,7 @@ const Hero = () => (
         </p>
         <div className="hero-cta">
           <a href="#apply" className="btn-primary">
-            Submit Application <ArrowRightIcon />
+            Send us message <ArrowRightIcon />
           </a>
           <a href="#services" className="btn-secondary">
             Learn More

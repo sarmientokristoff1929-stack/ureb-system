@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './studentdashboard.css';
+
+const API = 'http://localhost:5001/api';
 
 // Icons as simple SVG components
 const DashboardIcon = () => (
@@ -77,6 +79,24 @@ const MailIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="4" width="20" height="16" rx="2"/>
     <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+  </svg>
+);
+
+const TrashIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 6h18"/>
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+    <line x1="10" y1="11" x2="10" y2="17"/>
+    <line x1="14" y1="11" x2="14" y2="17"/>
+  </svg>
+);
+
+const ReplyIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+    <path d="M12 12v.01"/>
+    <path d="M8 12h8"/>
+    <path d="M12 8l4 4-4 4"/>
   </svg>
 );
 
@@ -1200,12 +1220,22 @@ const FileIcon = () => (
 const MessagesContent = ({ userInfo }) => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [replyModalOpen, setReplyModalOpen] = useState(false);
+  const [replyTargetMsg, setReplyTargetMsg] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  const [replyFiles, setReplyFiles] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const fetchMessages = async () => {
       if (!userInfo?.email) return;
       try {
-        const response = await fetch(`http://localhost:5001/api/messages/${encodeURIComponent(userInfo.email)}`);
+        const response = await fetch(`${API}/messages/${encodeURIComponent(userInfo.email)}`);
         const data = await response.json();
         const adminMessages = data
           .filter((m) => m.recipientEmail === userInfo.email && m.type === 'admin_to_student')
@@ -1231,6 +1261,91 @@ const MessagesContent = ({ userInfo }) => {
   const getStoredFilename = (filePath) => {
     if (!filePath) return null;
     return filePath.split(/[\\/]/).pop();
+  };
+
+  const openDeleteModal = (messageId) => {
+    setDeleteTargetId(messageId);
+    setDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteTargetId(null);
+    setDeleteModalOpen(false);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      const response = await fetch(`${API}/messages/${deleteTargetId}`, { method: 'DELETE' });
+      if (response.ok) {
+        setMessages(prev => prev.filter(msg => msg._id !== deleteTargetId));
+      }
+    } catch (error) {
+      console.error('Error deleting message:', error);
+    } finally {
+      closeDeleteModal();
+    }
+  };
+
+  const handleReply = (message) => {
+    setReplyTargetMsg(message);
+    setReplyText('');
+    setReplyFiles([]);
+    setReplyModalOpen(true);
+  };
+
+  const closeReplyModal = () => {
+    if (submitting) return;
+    setReplyModalOpen(false);
+    setReplyTargetMsg(null);
+    setReplyText('');
+    setReplyFiles([]);
+  };
+
+  const addFiles = (newFiles) => {
+    const arr = Array.from(newFiles);
+    setReplyFiles(prev => {
+      const existing = new Set(prev.map(f => f.name + f.size));
+      return [...prev, ...arr.filter(f => !existing.has(f.name + f.size))];
+    });
+  };
+
+  const removeReplyFile = (index) => {
+    setReplyFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+  };
+
+  const handleReplySubmit = async () => {
+    if (replyFiles.length === 0) return;
+    setSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append('senderEmail', userInfo.email);
+      formData.append('senderName', userInfo.name || userInfo.email);
+      formData.append('message', 'File attachment(s)');
+      if (replyTargetMsg?._id) formData.append('replyToMessageId', replyTargetMsg._id);
+      replyFiles.forEach(f => formData.append('files', f));
+
+      const res = await fetch(`${API}/messages/reply`, { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success) {
+        closeReplyModal();
+        setSuccessModalOpen(true);
+      } else {
+        alert('Failed to send reply. Please try again.');
+      }
+    } catch (err) {
+      console.error('Reply error:', err);
+      alert('Failed to send reply. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -1272,6 +1387,24 @@ const MessagesContent = ({ userInfo }) => {
                   <span className="sm-sender-name">UREB Administrator</span>
                   <span className="sm-sender-date">{formatDate(msg.sentAt)}</span>
                 </div>
+                <div className="sm-card-actions">
+                  <button
+                    className="sm-action-btn sm-reply-btn"
+                    onClick={() => handleReply(msg)}
+                    title="Reply to message"
+                  >
+                    <ReplyIcon />
+                    Reply
+                  </button>
+                  <button
+                    className="sm-action-btn sm-trash-btn"
+                    onClick={() => openDeleteModal(msg._id)}
+                    title="Delete message"
+                  >
+                    <TrashIcon />
+                    Trash
+                  </button>
+                </div>
               </div>
 
               <div className="sm-card-body">
@@ -1287,7 +1420,7 @@ const MessagesContent = ({ userInfo }) => {
                     {msg.files.map((file, i) => {
                       const storedName = getStoredFilename(file.path);
                       const downloadUrl = storedName
-                        ? `http://localhost:5001/api/download/${storedName}?name=${encodeURIComponent(file.filename)}`
+                        ? `${API}/download/${storedName}?name=${encodeURIComponent(file.filename)}`
                         : null;
                       return (
                         <div key={i} className="sm-file-chip">
@@ -1313,6 +1446,119 @@ const MessagesContent = ({ userInfo }) => {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {replyModalOpen && (
+        <div className="rm-overlay" onClick={(e) => { if (e.target.classList.contains('rm-overlay')) closeReplyModal(); }}>
+          <div className="rm-container">
+
+            {/* Header */}
+            <div className="rm-header">
+              <div className="rm-header-left">
+                <div className="rm-header-icon"><ReplyIcon /></div>
+                <div>
+                  <h3 className="rm-title">Reply to Administrator</h3>
+                  <p className="rm-subtitle">Your reply will be sent directly to the UREB Admin</p>
+                </div>
+              </div>
+              <button className="rm-close" onClick={closeReplyModal} disabled={submitting}>✕</button>
+            </div>
+
+            {/* Scrollable body */}
+            <div className="rm-body">
+
+              {/* Original message quote */}
+              {replyTargetMsg && (
+                <div className="rm-quote">
+                  <span className="rm-quote-label">Replying to:</span>
+                  <p className="rm-quote-text">{replyTargetMsg.message}</p>
+                </div>
+              )}
+
+              {/* Drag & drop zone */}
+              <div className="rm-field">
+                <label className="rm-label">Attachments</label>
+                <div
+                  className={`rm-dropzone${isDragging ? ' rm-dropzone--active' : ''}`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <div className="rm-dropzone-icon"><UploadIcon /></div>
+                  <p className="rm-dropzone-text">
+                    Drag &amp; drop files here, or <span className="rm-dropzone-link">browse</span>
+                  </p>
+                  <p className="rm-dropzone-hint">PDF, DOC, DOCX, images — up to 10 MB each</p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="rm-file-input"
+                    onChange={e => { if (e.target.files.length) addFiles(e.target.files); e.target.value = ''; }}
+                    disabled={submitting}
+                  />
+                </div>
+              </div>
+
+              {/* Attached file list */}
+              {replyFiles.length > 0 && (
+                <div className="rm-file-list">
+                  {replyFiles.map((f, i) => (
+                    <div key={i} className="rm-file-item">
+                      <FileIcon />
+                      <span className="rm-file-name">{f.name}</span>
+                      <span className="rm-file-size">{(f.size / 1024).toFixed(1)} KB</span>
+                      <button className="rm-file-remove" onClick={() => removeReplyFile(i)} disabled={submitting}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="rm-footer">
+              <button className="rm-btn rm-btn-cancel" onClick={closeReplyModal} disabled={submitting}>Cancel</button>
+              <button
+                className="rm-btn rm-btn-submit"
+                onClick={handleReplySubmit}
+                disabled={submitting || replyFiles.length === 0}
+              >
+                {submitting ? 'Sending…' : 'Send Reply'}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Success modal */}
+      {successModalOpen && (
+        <div className="mini-modal-overlay" onClick={() => setSuccessModalOpen(false)}>
+          <div className="mini-modal" onClick={e => e.stopPropagation()}>
+            <div className="mini-modal-icon mini-modal-icon--success">✓</div>
+            <h4 className="mini-modal-title">Reply Sent!</h4>
+            <p className="mini-modal-text">Your reply has been sent to the UREB Administrator.</p>
+            <button className="mini-modal-btn mini-modal-btn--primary" onClick={() => setSuccessModalOpen(false)}>Done</button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteModalOpen && (
+        <div className="mini-modal-overlay" onClick={closeDeleteModal}>
+          <div className="mini-modal" onClick={e => e.stopPropagation()}>
+            <div className="mini-modal-icon mini-modal-icon--danger">
+              <TrashIcon />
+            </div>
+            <h4 className="mini-modal-title">Delete Message?</h4>
+            <p className="mini-modal-text">This message will be permanently removed.</p>
+            <div className="mini-modal-actions">
+              <button className="mini-modal-btn mini-modal-btn--ghost" onClick={closeDeleteModal}>Cancel</button>
+              <button className="mini-modal-btn mini-modal-btn--danger" onClick={confirmDelete}>Delete</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

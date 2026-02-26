@@ -142,6 +142,24 @@ const SubmitReviewIcon = () => (
 
 
 
+const SubmitSecondaryFileIcon = () => (
+
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+
+    <polyline points="14 2 14 8 20 8"/>
+
+    <line x1="12" y1="18" x2="12" y2="12"/>
+
+    <line x1="9" y1="15" x2="15" y2="15"/>
+
+  </svg>
+
+);
+
+
+
 const ReviewerDashboard = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState(() => {
     // Restore active tab from localStorage on initial load
@@ -161,12 +179,43 @@ const ReviewerDashboard = ({ onLogout }) => {
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isSecondaryReviewer, setIsSecondaryReviewer] = useState(false);
+
+  // List of Secondary Reviewers
+  const secondaryReviewers = [
+    'Dr. Emily S. Antonio',
+    'Dr. Jeralyn N. Hemillan', 
+    'Dr. Rose Anelyn V. Ceniza',
+    'Dr. Roselyn V. Regino',
+    'Dr. Maria Gloria R. Lugo',
+    'Dr. Sharmaine Anne C. Argawanon'
+  ];
+
+  // Check if current user is a Secondary Reviewer
+  useEffect(() => {
+    const savedUser = localStorage.getItem('ureb_user');
+    if (savedUser) {
+      const user = JSON.parse(savedUser);
+      const userIsSecondary = secondaryReviewers.includes(user.name);
+      setIsSecondaryReviewer(userIsSecondary);
+    }
+  }, []);
 
   const CheckIcon = () => (
     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="20 6 9 17 4 12"></polyline>
     </svg>
   );
+
+  const menuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
+    { id: 'assigned-proposals', label: 'Assigned Proposals', icon: <FileCheckIcon /> },
+    { id: 'pending-reviews', label: 'Submit Review', icon: <ClockIcon /> },
+    // Only show Submit Secondary File for Preliminary Reviewers
+    ...(!isSecondaryReviewer ? [{ id: 'submit-secondary-file', label: 'Submit Secondary File', icon: <SubmitSecondaryFileIcon /> }] : []),
+    { id: 'submitted-reviews', label: 'Submitted Reviews', icon: <CheckIcon /> },
+    { id: 'messages', label: 'Messages', icon: <MessageIcon /> }
+  ];
 
   useEffect(() => {
 
@@ -189,16 +238,6 @@ const ReviewerDashboard = ({ onLogout }) => {
     }
 
   }, []);
-
-
-
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-    { id: 'assigned-proposals', label: 'Assigned Proposals', icon: <FileCheckIcon /> },
-    { id: 'pending-reviews', label: 'Submit Review', icon: <ClockIcon /> },
-    { id: 'submitted-reviews', label: 'Submitted Reviews', icon: <CheckIcon /> },
-    { id: 'messages', label: 'Messages', icon: <MessageIcon /> }
-  ];
 
 
 
@@ -242,6 +281,10 @@ const ReviewerDashboard = ({ onLogout }) => {
       case 'pending-reviews':
 
         return <SubmitReviewContent onShowSuccessModal={() => setShowSuccessModal(true)} onNavigateToSubmitted={() => setActiveTab('submitted-reviews')} />;
+
+      case 'submit-secondary-file':
+
+        return <SubmitSecondaryFileContent onShowSuccessModal={() => setShowSuccessModal(true)} onNavigateToSubmitted={() => setActiveTab('submitted-reviews')} />;
 
       case 'submitted-reviews':
 
@@ -1688,6 +1731,282 @@ const FileUploadComponent = ({ label, field, accept = ".pdf,.doc,.docx" }) => {
                 form7: null,
                 decision: 'approve',
                 comment: ''
+              });
+              setSelectedProposal(null);
+            }}
+          >
+            Clear Form
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+
+
+const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
+  const [proposals, setProposals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedProposal, setSelectedProposal] = useState(null);
+  
+  // Load saved data from localStorage on component mount
+  const [secondaryFileData, setSecondaryFileData] = useState(() => {
+    const savedData = localStorage.getItem('secondaryFileDraftData');
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        // Convert file object references back to null (files can't be stored in localStorage)
+        return {
+          ...parsed,
+          urebForm10B: null,
+          urebForm11: null
+        };
+      } catch (error) {
+        console.error('Error parsing saved secondary file data:', error);
+      }
+    }
+    return {
+      urebForm10B: null,
+      urebForm11: null
+    };
+  });
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Save data to localStorage whenever secondaryFileData changes
+  useEffect(() => {
+    const dataToSave = {
+      urebForm10BFileName: secondaryFileData.urebForm10B?.name || null,
+      urebForm11FileName: secondaryFileData.urebForm11?.name || null
+    };
+    localStorage.setItem('secondaryFileDraftData', JSON.stringify(dataToSave));
+  }, [secondaryFileData]);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('ureb_user');
+    if (savedUser) {
+      const user = JSON.parse(savedUser);
+      fetchProposals(user.email);
+    }
+  }, []);
+
+  const fetchProposals = async (userEmail) => {
+    if (!userEmail) return;
+    setLoading(true);
+    try {
+      const data = await getProposalsByReviewer(userEmail);
+      const assignedProposals = data.filter(p => p.status === 'In Progress' || p.status === 'Assigned');
+      setProposals(assignedProposals);
+    } catch (error) {
+      console.error('Error fetching proposals:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileChange = (field, file) => {
+    setSecondaryFileData(prev => ({
+      ...prev,
+      [field]: file
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    setIsSubmitting(true);
+
+    try {
+      // Get current user info
+      const savedUser = localStorage.getItem('ureb_user');
+      const user = savedUser ? JSON.parse(savedUser) : null;
+
+      // Submit secondary files to the API
+      const result = await submitReview({
+        proposalId: selectedProposal?._id || '',
+        reviewerEmail: user?.email,
+        reviewerName: user?.name || user?.email,
+        decision: 'secondary_file', // Special decision type for secondary files
+        comment: 'Secondary files submitted',
+        urebForm10B: secondaryFileData.urebForm10B,
+        urebForm11: secondaryFileData.urebForm11
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to submit secondary files');
+      }
+
+      // Show success modal
+      onShowSuccessModal();
+
+      // Clear localStorage after successful submission
+      localStorage.removeItem('secondaryFileDraftData');
+
+      // Reset form
+      setSecondaryFileData({
+        urebForm10B: null,
+        urebForm11: null
+      });
+      setSelectedProposal(null);
+
+    } catch (error) {
+      console.error('Error submitting secondary files:', error);
+      alert('Error submitting secondary files. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const FileIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+    <polyline points="14 2 14 8 20 8"></polyline>
+    <line x1="16" y1="13" x2="8" y2="13"></line>
+    <line x1="16" y1="17" x2="8" y2="17"></line>
+    <polyline points="10 9 9 9 8 9"></polyline>
+  </svg>
+);
+
+const CloseIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18"></line>
+    <line x1="6" y1="6" x2="18" y2="18"></line>
+  </svg>
+);
+
+const FileUploadIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+    <polyline points="14 2 14 8 20 8"></polyline>
+    <line x1="16" y1="13" x2="8" y2="13"></line>
+    <line x1="16" y1="17" x2="8" y2="17"></line>
+    <polyline points="10 9 9 9 8 9"></polyline>
+  </svg>
+);
+
+const FileUploadComponent = ({ label, field, accept = ".pdf,.doc,.docx" }) => {
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFileChange(field, files[0]);
+    }
+  };
+
+  return (
+    <div className="form-group">
+      <label className="form-label">{label}</label>
+      <div 
+        className={`file-upload ${isDragging ? 'dragging' : ''}`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <input
+          type="file"
+          id={field}
+          accept={accept}
+          onChange={(e) => handleFileChange(field, e.target.files[0])}
+          className="file-input"
+          style={{ display: 'none' }}
+        />
+        <label htmlFor={field} className="file-upload-label">
+          <div className="file-upload-icon">
+            <FileUploadIcon />
+          </div>
+          <div className="file-upload-text">
+            <p>Attach file or drag and drop here</p>
+            <span>PDF, DOC, DOCX (MAX. 10MB)</span>
+          </div>
+        </label>
+        {secondaryFileData[field] && (
+          <div className="attached-file">
+            <span>
+              <FileIcon /> {secondaryFileData[field].name}
+            </span>
+            <button
+              type="button"
+              onClick={() => handleFileChange(field, null)}
+              className="remove-file"
+            >
+              <CloseIcon />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+  if (loading) {
+    return (
+      <div className="content-section">
+        <h2>Submit Secondary File</h2>
+        <div className="loading-state">Loading proposals...</div>
+      </div>
+    );
+  }
+
+  
+  return (
+    <div className="content-section">
+      <h2>Submit Secondary File</h2>
+      
+      <form onSubmit={handleSubmit} className="review-form">
+        {/* Document upload section - Secondary Reviewer Layout */}
+        <div className="form-section">
+          <div className="documents-grid secondary-reviewer-layout">
+            <FileUploadComponent 
+              label="UREB Form 10B" 
+              field="urebForm10B" 
+            />
+            <FileUploadComponent 
+              label="UREB Form 11" 
+              field="urebForm11" 
+            />
+          </div>
+        </div>
+
+        {/* Show proposal info only when a proposal is selected */}
+        {selectedProposal && (
+          <div className="proposal-info-card">
+            <h3>{selectedProposal.protocolCode}</h3>
+            <p><strong>Title:</strong> {selectedProposal.researchTitle}</p>
+            <p><strong>Proponent:</strong> {selectedProposal.proponent}</p>
+          </div>
+        )}
+
+        {/* Submit Buttons */}
+        <div className="form-actions">
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Submitting...' : 'Submit Secondary Files'}
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => {
+              setSecondaryFileData({
+                urebForm10B: null,
+                urebForm11: null
               });
               setSelectedProposal(null);
             }}

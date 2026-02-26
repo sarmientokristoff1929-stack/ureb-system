@@ -40,12 +40,12 @@
 .logo span {
   background: linear-gradient(
     to right,
-    #8B1BE8,
-    #D91B8C,
-    #F4720A,
-    #2AABEA,
-    #00C170,
-    #C94C12
+    #2e0000,
+    #00272d,
+    #032800,
+    #290000f1,
+    #210000,
+    #1a0000
   );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -654,6 +654,21 @@
 
 .footer-logo svg {
   color: var(--light-green);
+}
+
+.footer-logo span {
+  background: linear-gradient(
+    to right,
+    #1a1a1a,
+    #2d2d2d,
+    #404040,
+    #333333,
+    #1a1a1a,
+    #000000
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .footer-tagline {

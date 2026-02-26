@@ -102,9 +102,9 @@ export const submitReview = async (reviewData) => {
 
     // Append file fields if they exist
     const fileFields = [
-      'proposal', 'approvalSheet', 'urebForm2', 'applicationForm6',
-      'accomplishedForm8', 'accomplishForm10A', 'copyOfInstrument',
-      'ethicsReviewFee', 'form7'
+      'proposal', 'approvalSheet', 'urebForm2', 'urebForm10B', 'urebForm11',
+      'applicationForm6', 'accomplishedForm8', 'accomplishForm10A', 
+      'copyOfInstrument', 'ethicsReviewFee', 'form7'
     ];
     fileFields.forEach(field => {
       if (reviewData[field] instanceof File) {
@@ -116,6 +116,21 @@ export const submitReview = async (reviewData) => {
       method: 'POST',
       body: formData, // No Content-Type header — browser sets it with boundary
     });
+    
+    // Check if response is ok before trying to parse JSON
+    if (!response.ok) {
+      // Try to get error message from response
+      let errorMessage = 'Failed to submit review';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch (jsonError) {
+        // If we can't parse JSON, use status text
+        errorMessage = `Failed to submit review: ${response.statusText} (${response.status})`;
+      }
+      return { success: false, error: errorMessage };
+    }
+    
     const data = await response.json();
     return data;
   } catch (error) {
@@ -233,14 +248,27 @@ export const deleteMessage = async (messageId) => {
   }
 };
 
-export const markAllMessagesAsRead = async (userEmail) => {
+export const markMessageAsRead = async (messageId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}/read`, {
+      method: 'PUT',
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error marking message as read:', error);
+    return { success: false, error: 'Failed to mark message as read' };
+  }
+};
+
+export const markAllMessagesAsRead = async (email) => {
   try {
     const response = await fetch(`${API_BASE_URL}/messages/read-all`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email: userEmail }),
+      body: JSON.stringify({ email: email }),
     });
     const data = await response.json();
     return data;
