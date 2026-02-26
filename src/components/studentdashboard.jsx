@@ -119,6 +119,8 @@ const StudentDashboard = ({ onLogout }) => {
     const welcomeShown = sessionStorage.getItem('welcome_shown');
     if (welcomeShown) {
       setShowWelcomeModal(false);
+    } else {
+      setShowWelcomeModal(true);
     }
 
     // Reset to dashboard tab on page refresh
