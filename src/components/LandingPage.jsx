@@ -131,15 +131,21 @@ const Hero = () => (
         </div>
       </div>
       <div className="hero-visual">
-        <div className="hero-card">
-          <ShieldIcon />
-          <h3>Trusted by Researchers</h3>
-          <p>500+ applications reviewed annually</p>
+        <div className="floating-background">
+          <span className="bg-letter bg-u">U</span>
+          <span className="bg-letter bg-r">R</span>
+          <span className="bg-letter bg-e">E</span>
+          <span className="bg-letter bg-b">B</span>
+          <span className="bg-letter bg-u2">U</span>
+          <span className="bg-letter bg-r2">R</span>
+          <span className="bg-letter bg-e2">E</span>
+          <span className="bg-letter bg-b2">B</span>
         </div>
-        <div className="hero-card card-2">
-          <ClockIcon />
-          <h3>Efficient Process</h3>
-          <p>Average 14-day review time</p>
+        <div className="floating-letters">
+          <span className="floating-letter letter-u">U</span>
+          <span className="floating-letter letter-r">R</span>
+          <span className="floating-letter letter-e">E</span>
+          <span className="floating-letter letter-b">B</span>
         </div>
       </div>
     </div>
@@ -386,8 +392,6 @@ const Footer = () => (
             <a href="#process">Process</a>
           </div>
           <div className="footer-column">
-
-            
             <h4>Resources</h4>
             <a href="#">Guidelines</a>
             <a href="#">Forms</a>
