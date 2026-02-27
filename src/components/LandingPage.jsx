@@ -341,15 +341,15 @@ const Contact = ({ onMessageClick }) => (
           <div className="contact-details">
             <div className="contact-item">
               <strong>Email</strong>
-              <span>ureb@university.edu</span>
+              <span>reod@dorsu.edu.ph</span>
             </div>
             <div className="contact-item">
               <strong>Office Hours</strong>
-              <span>Monday - Friday, 9:00 AM - 5:00 PM</span>
+              <span>Monday - Friday, 8:00 AM - 5:00 PM</span>
             </div>
             <div className="contact-item">
               <strong>Location</strong>
-              <span>Research Administration Building, Room 301</span>
+              <span>Guang-Guang Barangay Dahican City Of Mati, Davao Oriental</span>
             </div>
           </div>
         </div>
@@ -386,6 +386,8 @@ const Footer = () => (
             <a href="#process">Process</a>
           </div>
           <div className="footer-column">
+
+            
             <h4>Resources</h4>
             <a href="#">Guidelines</a>
             <a href="#">Forms</a>
@@ -394,9 +396,7 @@ const Footer = () => (
           </div>
           <div className="footer-column">
             <h4>Contact</h4>
-            <a href="mailto:ureb@university.edu">ureb@university.edu</a>
-            <span>Research Admin Building</span>
-            <span>Room 301</span>
+            <a href="reo@dorsu.edu.ph">reo@dorsu.edu.ph</a>
           </div>
         </div>
       </div>
