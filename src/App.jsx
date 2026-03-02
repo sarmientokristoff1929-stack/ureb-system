@@ -5,6 +5,8 @@ import ReviewerDashboard from './components/reviewerdashboard'
 import StudentDashboard from './components/studentdashboard'
 import { authenticateUser } from './services/api'
 
+const API_URL = import.meta.env.VITE_API_URL
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userRole, setUserRole] = useState(null)
