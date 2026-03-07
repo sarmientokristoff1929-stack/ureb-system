@@ -404,9 +404,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
         </button>
         <div className="login-modal-content">
           <div className="login-modal-left">
-            <ShieldIcon />
-            <h2>{isRegistering ? 'Create Account' : 'Welcome Back'}</h2>
-            <p>{isRegistering ? 'Register to access your research dashboard' : 'Sign in to access your research dashboard'}</p>
+            <h2>{isRegistering ? 'Create Account' : 'Welcome to'}</h2>
+            <img src="/ureb.png" alt="UREB Logo" style={{ width: '100%', maxWidth: '320px', objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.25))' }} />
           </div>
           <div className="login-modal-right">
             {isRegistering ? (

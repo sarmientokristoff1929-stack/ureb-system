@@ -374,11 +374,8 @@ const ReviewerDashboard = ({ onLogout }) => {
         <header className="content-header">
 
           <button
-
-            className="menu-toggle desktop-only"
-
+            className="menu-toggle mobile-only"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-
           >
 
             <MenuIcon />

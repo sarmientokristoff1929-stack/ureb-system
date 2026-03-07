@@ -6,6 +6,8 @@ import './admindashboard.css';
 
 import './AddAdminModal.css';
 
+import './GenerateReportModal.css';
+
 
 
 
@@ -1012,7 +1014,7 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
-            <ShieldIcon />
+            <img src="/logoureb.png" alt="UREB Logo" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
 
 
 
@@ -1886,14 +1888,6 @@ const DashboardContent = () => {
 
 
 
-            <button className="action-btn secondary">Send Reminders</button>
-
-
-
-            <button className="action-btn secondary" onClick={openReviewerModal}>View Reviewer Submissions</button>
-
-
-
             <button className="action-btn secondary" onClick={openStudentModal}>Student Submissions</button>
 
 
@@ -2070,7 +2064,19 @@ const AddReviewerContent = () => {
 
   };
 
-
+  const handleCancel = () => {
+    setFormData({
+      firstName: '',
+      middleName: '',
+      lastName: '',
+      title: '',
+      email: '',
+      password: '',
+      department: '',
+      reviewerType: ''
+    });
+    localStorage.removeItem('addReviewerForm');
+  };
 
   const handleSubmit = async (e) => {
 
@@ -2107,110 +2113,6 @@ const AddReviewerContent = () => {
       'NSTP', 'ICS', 'Community Representatives'
 
     ];
-
-    if (!validDepartments.includes(formData.department)) {
-
-      setErrorMessage('Please select a valid department from the list.');
-
-      setShowErrorModal(true);
-
-      setLoading(false);
-
-      return;
-
-    }
-
-
-
-    try {
-
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/detailed`, {
-
-        method: 'POST',
-
-        headers: {
-
-          'Content-Type': 'application/json',
-
-        },
-
-        body: JSON.stringify({
-
-          firstName: formData.firstName,
-
-          middleName: formData.middleName || '',
-
-          lastName: formData.lastName,
-
-          title: formData.title || '',
-
-          email: formData.email,
-
-          password: formData.password,
-
-          role: 'reviewer',
-
-          department: formData.department
-
-        }),
-
-      });
-
-
-
-      if (response.ok) {
-
-        setFormData({
-
-          firstName: '',
-
-          middleName: '',
-
-          lastName: '',
-
-          title: '',
-
-          email: '',
-
-          password: '',
-
-          department: ''
-
-        });
-
-        localStorage.removeItem('addReviewerForm');
-
-        setShowSuccessModal(true);
-
-      } else {
-
-        const errorData = await response.json();
-
-        setErrorMessage(errorData.error || 'Failed to add reviewer');
-
-        setShowErrorModal(true);
-
-      }
-
-    } catch (error) {
-
-      console.error('Error adding reviewer:', error);
-
-      setErrorMessage('Error adding reviewer. Please try again.');
-
-      setShowErrorModal(true);
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
-  };
-
-
-
-  const handleCancel = () => {
 
     // Clear form and localStorage
 
@@ -8472,14 +8374,6 @@ const PendingProposalsModal = ({ isOpen, onClose }) => {
 
                   </div>
 
-                  <div className="proposal-actions">
-
-                    <button className="btn-primary">Review Details</button>
-
-                    <button className="btn-secondary">View Files</button>
-
-                  </div>
-
                 </div>
 
               ))}
@@ -8510,11 +8404,21 @@ const PendingProposalsModal = ({ isOpen, onClose }) => {
 
 const GenerateReportModal = ({ isOpen, onClose }) => {
 
-  const [proposals, setProposals] = useState([]);
+  const [reviews, setReviews] = useState([]);
+
+  const [reviewerGroups, setReviewerGroups] = useState([]);
 
   const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
+
+  const [selectedReviews, setSelectedReviews] = useState([]);
+
+  const [filterStatus, setFilterStatus] = useState('all');
+
+  const [sortBy, setSortBy] = useState('date');
+
+  const [isExporting, setIsExporting] = useState(false);
 
 
 
@@ -8522,7 +8426,7 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
 
     if (isOpen) {
 
-      fetchAllProposals();
+      fetchAllReviews();
 
     }
 
@@ -8530,21 +8434,88 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
 
 
 
-  const fetchAllProposals = async () => {
+  const fetchAllReviews = async () => {
 
     setLoading(true);
 
     try {
 
-      const { getAllProposals } = await import('../services/api.js');
+      // Fetch reviews and proposals in parallel
+      const [reviewsRes, proposalsRes] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_URL}/api/reviews`),
+        fetch(`${import.meta.env.VITE_API_URL}/api/proposals`),
+      ]);
 
-      const allProposals = await getAllProposals();
+      if (!reviewsRes.ok) {
+        console.error('Error fetching reviews:', reviewsRes.status);
+        setReviews([]);
+        return;
+      }
 
-      setProposals(allProposals);
+      const allReviews = await reviewsRes.json();
+      const allProposals = proposalsRes.ok ? await proposalsRes.json() : [];
+
+      if (!Array.isArray(allReviews)) {
+        console.error('Unexpected reviews format:', allReviews);
+        setReviews([]);
+        setReviewerGroups([]);
+        return;
+      }
+
+      // Build reviewer-type map from proposals:
+      // reviewer1 slot = preliminary, reviewer2/reviewer3 = secondary
+      const reviewerTypeMap = {};
+      if (Array.isArray(allProposals)) {
+        allProposals.forEach(proposal => {
+          const reviewers = proposal.reviewers || {};
+          if (reviewers.reviewer1) {
+            const key = reviewers.reviewer1.trim().toLowerCase();
+            if (!reviewerTypeMap[key]) reviewerTypeMap[key] = 'preliminary';
+          }
+          ['reviewer2', 'reviewer3'].forEach(slot => {
+            if (reviewers[slot]) {
+              const key = reviewers[slot].trim().toLowerCase();
+              if (!reviewerTypeMap[key]) reviewerTypeMap[key] = 'secondary';
+            }
+          });
+        });
+      }
+
+      // Enrich each review with reviewerType
+      const enrichedReviews = allReviews.map(review => {
+        const emailKey = (review.reviewerEmail || '').trim().toLowerCase();
+        const nameKey = (review.reviewerName || '').trim().toLowerCase();
+        const reviewerType = reviewerTypeMap[emailKey] || reviewerTypeMap[nameKey] || 'preliminary';
+        return { ...review, reviewerType };
+      });
+
+      setReviews(enrichedReviews);
+
+      // Group by reviewer for stats
+      const reviewerStats = {};
+      enrichedReviews.forEach(review => {
+        const reviewerName = review.reviewerName || review.reviewer || 'Unknown Reviewer';
+        if (!reviewerStats[reviewerName]) {
+          reviewerStats[reviewerName] = { name: reviewerName, completedReviews: 0, pendingReviews: 0, totalReviews: 0, reviews: [] };
+        }
+        reviewerStats[reviewerName].totalReviews++;
+        reviewerStats[reviewerName].reviews.push(review);
+        if (review.status === 'completed' || review.decision) {
+          reviewerStats[reviewerName].completedReviews++;
+        } else {
+          reviewerStats[reviewerName].pendingReviews++;
+        }
+      });
+      const reviewerGroups = Object.values(reviewerStats).sort((a, b) => b.totalReviews - a.totalReviews);
+      setReviewerGroups(reviewerGroups);
 
     } catch (error) {
 
-      console.error('Error fetching proposals:', error);
+      console.error('Error fetching reviews:', error);
+
+      setReviews([]);
+
+      setReviewerGroups([]);
 
     } finally {
 
@@ -8556,206 +8527,642 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
 
 
 
-  const filteredProposals = proposals.filter(proposal => {
 
+  const filteredReviews = reviews.filter(review => {
     const searchLower = searchQuery.toLowerCase();
-
-    const titleMatch = proposal.researchTitle?.toLowerCase().includes(searchLower);
-
-    const reviewerMatch = 
-
-      (proposal.reviewers?.reviewer1?.toLowerCase().includes(searchLower)) ||
-
-      (proposal.reviewers?.reviewer2?.toLowerCase().includes(searchLower)) ||
-
-      (proposal.reviewers?.reviewer3?.toLowerCase().includes(searchLower));
-
-    const proponentMatch = proposal.proponent?.toLowerCase().includes(searchLower);
-
-    const protocolMatch = proposal.protocolCode?.toLowerCase().includes(searchLower);
-
     
-
-    return titleMatch || reviewerMatch || proponentMatch || protocolMatch;
-
+    // Handle both enriched (from /api/reviews/all) and raw (from /api/reviews) data structures
+    const titleMatch = review.proposalTitle?.toLowerCase().includes(searchLower) || 
+                      review.proposal?.researchTitle?.toLowerCase().includes(searchLower) ||
+                      review.title?.toLowerCase().includes(searchLower);
+    
+    const reviewerMatch = review.reviewerName?.toLowerCase().includes(searchLower) ||
+                        review.reviewer?.toLowerCase().includes(searchLower);
+    
+    const proponentMatch = review.proponent?.toLowerCase().includes(searchLower) ||
+                        review.proposal?.proponent?.toLowerCase().includes(searchLower) ||
+                        review.student?.toLowerCase().includes(searchLower);
+    
+    const protocolMatch = review.protocolCode?.toLowerCase().includes(searchLower) ||
+                        review.proposal?.protocolCode?.toLowerCase().includes(searchLower) ||
+                        review.protocol?.toLowerCase().includes(searchLower);
+    
+    const statusMatch = filterStatus === 'all' || 
+                        review.status?.toLowerCase() === filterStatus.toLowerCase() ||
+                        review.decision?.toLowerCase() === filterStatus.toLowerCase();
+    
+    return (titleMatch || reviewerMatch || proponentMatch || protocolMatch) && statusMatch;
+  }).sort((a, b) => {
+    if (sortBy === 'date') {
+      const dateA = a.completedDate || a.createdAt || a.submissionDate || 0;
+      const dateB = b.completedDate || b.createdAt || b.submissionDate || 0;
+      return new Date(dateB) - new Date(dateA);
+    } else if (sortBy === 'title') {
+      const titleA = a.proposalTitle || a.proposal?.researchTitle || a.title || '';
+      const titleB = b.proposalTitle || b.proposal?.researchTitle || b.title || '';
+      return titleA.localeCompare(titleB);
+    } else if (sortBy === 'status') {
+      const statusA = a.status || a.decision || '';
+      const statusB = b.status || b.decision || '';
+      return statusA.localeCompare(statusB);
+    }
+    return 0;
   });
 
+  const filteredReviewerGroups = reviewerGroups.filter(group => {
+    const searchLower = searchQuery.toLowerCase();
+    const nameMatch = group.name?.toLowerCase().includes(searchLower);
+    const statusMatch = filterStatus === 'all' || group.reviews.some(review => 
+      (review.status?.toLowerCase() === filterStatus.toLowerCase()) ||
+      (review.decision?.toLowerCase() === filterStatus.toLowerCase())
+    );
+    return nameMatch && statusMatch;
+  }).sort((a, b) => {
+    if (sortBy === 'count') {
+      return b.totalReviews - a.totalReviews;
+    } else if (sortBy === 'name') {
+      return a.name.localeCompare(b.name);
+    }
+    return 0;
+  });
 
+  const getReviewerName = (r) => r.reviewerName || r.reviewer || 'Unknown';
+  const getReviewerType = (r) => (r.reviewerType || '').toLowerCase();
+
+  const completedReviews = reviews.filter(review => {
+    const isCompleted = review.status === 'completed' || review.decision;
+    if (!isCompleted) return false;
+    if (!searchQuery) return true;
+    const searchLower = searchQuery.toLowerCase();
+    return getReviewerName(review).toLowerCase().includes(searchLower);
+  });
+
+  const preliminaryCompleted = completedReviews.filter(r => getReviewerType(r) === 'preliminary');
+  const secondaryCompleted = completedReviews.filter(r => getReviewerType(r) === 'secondary');
+  const uniquePreliminary = [...new Map(preliminaryCompleted.map(r => [getReviewerName(r), r])).values()];
+  const uniqueSecondary = [...new Map(secondaryCompleted.map(r => [getReviewerName(r), r])).values()];
+
+  const handleSelectReview = (reviewId) => {
+    setSelectedReviews(prev =>
+      prev.includes(reviewId)
+        ? prev.filter(id => id !== reviewId)
+        : [...prev, reviewId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedReviews.length === filteredReviews.length) {
+      setSelectedReviews([]);
+    } else {
+      setSelectedReviews(filteredReviews.map(r => r._id || r.id));
+    }
+  };
+
+  const handleExport = async (format, specificData = null) => {
+    setIsExporting(true);
+    try {
+      const selectedReviewData = specificData || reviews.filter(review => 
+        selectedReviews.includes(review._id || review.id)
+      );
+
+      if (format === 'excel') {
+        await exportToExcel(selectedReviewData);
+      } else if (format === 'pdf') {
+        await exportToPDF(selectedReviewData);
+      }
+
+
+
+      // Show success message
+      const successMessage = document.createElement('div');
+      successMessage.className = 'grm-export-success-card';
+      successMessage.innerHTML = `
+        <svg class="grm-export-success-wave" viewBox="0 0 1440 320" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M0,256L11.4,240C22.9,224,46,192,69,192C91.4,192,114,224,137,234.7C160,245,183,235,206,213.3C228.6,192,251,160,274,149.3C297.1,139,320,149,343,181.3C365.7,213,389,267,411,282.7C434.3,299,457,277,480,250.7C502.9,224,526,192,549,181.3C571.4,171,594,181,617,208C640,235,663,277,686,256C708.6,235,731,149,754,122.7C777.1,96,800,128,823,165.3C845.7,203,869,245,891,224C914.3,203,937,117,960,112C982.9,107,1006,181,1029,197.3C1051.4,213,1074,171,1097,144C1120,117,1143,107,1166,133.3C1188.6,160,1211,224,1234,218.7C1257.1,213,1280,139,1303,133.3C1325.7,128,1349,192,1371,192C1394.3,192,1417,128,1429,96L1440,64L1440,320L1428.6,320C1417.1,320,1394,320,1371,320C1348.6,320,1326,320,1303,320C1280,320,1257,320,1234,320C1211.4,320,1189,320,1166,320C1142.9,320,1120,320,1097,320C1074.3,320,1051,320,1029,320C1005.7,320,983,320,960,320C937.1,320,914,320,891,320C868.6,320,846,320,823,320C800,320,777,320,754,320C731.4,320,709,320,686,320C662.9,320,640,320,617,320C594.3,320,571,320,549,320C525.7,320,503,320,480,320C457.1,320,434,320,411,320C388.6,320,366,320,343,320C320,320,297,320,274,320C251.4,320,229,320,206,320C182.9,320,160,320,137,320C114.3,320,91,320,69,320C45.7,320,23,320,11,320L0,320Z"
+            fill-opacity="1"
+            fill="#04e4003a"
+          ></path>
+        </svg>
+
+        <div class="grm-export-success-icon-container">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 512 512"
+            stroke-width="0"
+            fill="currentColor"
+            stroke="currentColor"
+            class="grm-export-success-icon"
+          >
+            <path
+              d="M256 48a208 208 0 1 1 0 416 208 208 0 1 1 0-416zm0 464A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM369 209c9.4-9.4 9.4-24.6 0-33.9s-24.6-9.4-33.9 0l-111 111-47-47c-9.4-9.4-24.6-9.4-33.9 0s-9.4 24.6 0 33.9l64 64c9.4 9.4 24.6 9.4 33.9 0L369 209z"
+            ></path>
+          </svg>
+        </div>
+        <div class="grm-export-success-message-text-container">
+          <p class="grm-export-success-message-text">Export Successful!</p>
+          <p class="grm-export-success-sub-text">${selectedReviewData.length} reviews exported to ${format.toUpperCase()}</p>
+        </div>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 15 15"
+          stroke-width="0"
+          fill="none"
+          stroke="currentColor"
+          class="grm-export-success-cross-icon"
+          onclick="this.parentElement.remove()"
+        >
+          <path
+            fill="currentColor"
+            d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z"
+            clip-rule="evenodd"
+            fill-rule="evenodd"
+          ></path>
+        </svg>
+      `;
+
+      successMessage.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        animation: grm-slideIn 0.3s ease;
+      `;
+
+      document.body.appendChild(successMessage);
+
+      // Auto-remove after 5 seconds
+      setTimeout(() => {
+        if (document.body.contains(successMessage)) {
+          successMessage.style.animation = 'grm-slideOut 0.3s ease';
+          setTimeout(() => {
+            if (document.body.contains(successMessage)) {
+              document.body.removeChild(successMessage);
+            }
+          }, 300);
+        }
+      }, 5000);
+
+
+
+    } catch (error) {
+
+      console.error('Export failed:', error);
+
+      
+
+      // Show error message
+
+      const errorMessage = document.createElement('div');
+
+      errorMessage.className = 'export-error-message';
+
+      errorMessage.innerHTML = `
+
+        <div class="error-content">
+
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+
+            <circle cx="12" cy="12" r="10"/>
+
+            <line x1="15" y1="9" x2="9" y2="15"/>
+
+            <line x1="9" y1="9" x2="15" y2="15"/>
+
+          </svg>
+
+          <span>Failed to export proposals. Please try again.</span>
+
+        </div>
+
+      `;
+
+      errorMessage.style.cssText = `
+
+        position: fixed;
+
+        top: 20px;
+
+        right: 20px;
+
+        background: #fef2f2;
+
+        border: 1px solid #fca5a5;
+
+        border-radius: 8px;
+
+        padding: 12px 16px;
+
+        color: #dc2626;
+
+        font-weight: 500;
+
+        z-index: 10000;
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 8px;
+
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+        animation: slideIn 0.3s ease;
+
+      `;
+
+      document.body.appendChild(errorMessage);
+
+
+
+      setTimeout(() => {
+
+        errorMessage.style.animation = 'slideOut 0.3s ease';
+
+        setTimeout(() => {
+
+          document.body.removeChild(errorMessage);
+
+        }, 3000);
+
+      }, 3000);
+
+
+
+    } finally {
+
+      setIsExporting(false);
+
+    }
+
+  };
+
+
+
+  const exportToExcel = async (data) => {
+    // Create CSV content for Excel
+    const headers = [
+      'Protocol Code',
+      'Research Title',
+      'Proponent',
+      'Reviewer Name',
+      'Reviewer Type',
+      'Decision',
+      'Review Date',
+      'Comments'
+    ];
+
+    const csvContent = [
+      headers.join(','),
+      ...data.map(review => [
+        `"${review.protocolCode || review.proposal?.protocolCode || review.protocol || 'N/A'}"`,
+        `"${(review.proposalTitle || review.proposal?.researchTitle || review.title || '').replace(/"/g, '""')}"`,
+        `"${review.proponent || review.proposal?.proponent || review.student || 'N/A'}"`,
+        `"${review.reviewerName || review.reviewer || 'N/A'}"`,
+        `"${review.reviewerType || 'Reviewer'}"`,
+        `"${review.decision || review.status || 'No decision'}"`,
+        `"${(review.completedDate || review.createdAt || review.submissionDate) ? new Date(review.completedDate || review.createdAt || review.submissionDate).toLocaleDateString() : 'N/A'}"`,
+        `"${(review.comment || '').replace(/"/g, '""')}"`
+      ].join(','))
+    ].join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `reviewer_reports_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+
+
+  const exportToPDF = async (data) => {
+    const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    const preliminary = data.filter(r => (r.reviewerType || '').toLowerCase() === 'preliminary');
+    const secondary   = data.filter(r => (r.reviewerType || '').toLowerCase() === 'secondary');
+
+    const renderRows = (reviews) => reviews.map(review => {
+      const decision = review.decision || review.status || 'N/A';
+      const date = (review.completedDate || review.createdAt)
+        ? new Date(review.completedDate || review.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+        : 'N/A';
+      const comment = (review.comment || review.comments || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const recommendations = (review.recommendations || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return `
+        <tr>
+          <td>${(review.reviewerName || review.reviewer || 'N/A').replace(/</g, '&lt;')}</td>
+          <td><span class="badge badge-${decision.toLowerCase().replace(/\s+/g, '-')}">${decision}</span></td>
+          <td>${review.overallRating || '—'}</td>
+          <td>${date}</td>
+          <td>${comment}</td>
+          <td>${recommendations}</td>
+        </tr>`;
+    }).join('');
+
+    const renderSection = (title, reviews) => {
+      if (reviews.length === 0) return `<h2>${title}</h2><p class="empty">No completed reviews.</p>`;
+      return `
+        <h2>${title}</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Reviewer</th><th>Decision</th><th>Overall Rating</th>
+              <th>Date Completed</th><th>Comments</th><th>Recommendations</th>
+            </tr>
+          </thead>
+          <tbody>${renderRows(reviews)}</tbody>
+        </table>`;
+    };
+
+    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Reviewer Report — ${dateStr}</title>
+  <style>
+    @page { size: A4 landscape; margin: 1.5cm; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 11px; color: #1e293b; margin: 0; }
+    header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #1e293b; padding-bottom: 10px; }
+    header h1 { font-size: 18px; margin: 0 0 4px; }
+    header p  { font-size: 11px; color: #64748b; margin: 0; }
+    h2 { font-size: 13px; margin: 20px 0 6px; background: #f1f5f9; padding: 6px 10px; border-left: 4px solid #3b82f6; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; page-break-inside: auto; }
+    th { background: #e2e8f0; font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px;
+         padding: 6px 8px; text-align: left; border: 1px solid #cbd5e1; }
+    td { padding: 5px 8px; border: 1px solid #e2e8f0; vertical-align: top; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+    .badge-approve,.badge-approved { background:#dcfce7; color:#166534; }
+    .badge-revision,.badge-needs-revision { background:#fef3c7; color:#92400e; }
+    .badge-reject,.badge-rejected { background:#fee2e2; color:#991b1b; }
+    .badge-secondary_file { background:#e0e7ff; color:#3730a3; }
+    .badge-completed { background:#d1fae5; color:#065f46; }
+    .empty { color:#94a3b8; font-style:italic; }
+    @media print { h2 { page-break-before: auto; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Reviewer Completed Reviews Report</h1>
+    <p>Generated on ${dateStr} &nbsp;|&nbsp; Total: ${data.length} review(s)</p>
+  </header>
+  ${renderSection('Preliminary Reviewers', preliminary)}
+  ${renderSection('Secondary Reviewers', secondary)}
+</body>
+</html>`;
+
+    const printWindow = window.open('', '_blank', 'width=1100,height=700');
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 600);
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      'pending': '#f59e0b',
+      'under review': '#3b82f6',
+      'approved': '#10b981',
+      'rejected': '#ef4444',
+      'revision required': '#8b5cf6'
+    };
+    return colors[status?.toLowerCase()] || '#6b7280';
+  };
 
   if (!isOpen) return null;
 
+  const sections = [
+    { label: 'Preliminary Reviewers', key: 'preliminary', data: preliminaryCompleted, unique: uniquePreliminary, accent: '#2563eb' },
+    { label: 'Secondary Reviewers',   key: 'secondary',   data: secondaryCompleted,   unique: uniqueSecondary,   accent: '#7c3aed' },
+  ];
 
+  const getDecisionInfo = (decision) => {
+    const d = (decision || '').toLowerCase();
+    if (d === 'approve' || d === 'approved')                return { label: 'Approved',         cls: 'decision-approve' };
+    if (d === 'revision' || d === 'needs revision')         return { label: 'Revision',          cls: 'decision-revision' };
+    if (d === 'reject'   || d === 'rejected')               return { label: 'Rejected',          cls: 'decision-reject' };
+    if (d === 'secondary_file')                             return { label: 'Secondary File',    cls: 'decision-secondary' };
+    return { label: decision || 'Pending', cls: 'decision-default' };
+  };
+
+  const handleSectionSelectAll = (sectionData) => {
+    const filtered = sectionData.filter(r => !searchQuery || getReviewerName(r).toLowerCase().includes(searchQuery.toLowerCase()));
+    const ids = filtered.map(r => r._id || r.id);
+    const allChecked = ids.every(id => selectedReviews.includes(id));
+    if (allChecked) {
+      setSelectedReviews(prev => prev.filter(id => !ids.includes(id)));
+    } else {
+      setSelectedReviews(prev => [...new Set([...prev, ...ids])]);
+    }
+  };
 
   return (
+    <div className="grm-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="grm-modal">
 
-    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-
-      <div className="modal-container large">
-
-        <button className="modal-close" onClick={onClose} aria-label="Close modal">
-
-          <XIcon />
-
-        </button>
-
-        <div className="modal-header">
-
-          <h2>Generate Report</h2>
-
-          <p>View and search all proposals</p>
-
-        </div>
-
-        <div className="modal-body">
-
-          <div className="report-search">
-
-            <div className="search-bar">
-
-              <SearchIcon />
-
-              <input
-
-                type="text"
-
-                placeholder="Search by title, reviewer name, proponent, or protocol code..."
-
-                value={searchQuery}
-
-                onChange={(e) => setSearchQuery(e.target.value)}
-
-              />
-
+        {/* ── Header ── */}
+        <div className="grm-header">
+          <div className="grm-header-left">
+            <div className="grm-header-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
             </div>
-
+            <div>
+              <h2 className="grm-title">Generate Report</h2>
+              <p className="grm-subtitle">Completed reviews by Preliminary and Secondary Reviewers</p>
+            </div>
           </div>
-
-          
-
-          {loading ? (
-
-            <div className="loading-state">Loading proposals...</div>
-
-          ) : filteredProposals.length === 0 ? (
-
-            <div className="empty-state">
-
-              {searchQuery ? 'No proposals found matching your search.' : 'No proposals found.'}
-
+          <div className="grm-stats">
+            <div className="grm-stat">
+              <span className="grm-stat-val">{completedReviews.length}</span>
+              <span className="grm-stat-lbl">Total Reviews</span>
             </div>
-
-          ) : (
-
-            <div className="proposals-table">
-
-              <table className="report-table">
-
-                <thead>
-
-                  <tr>
-
-                    <th>Protocol Code</th>
-
-                    <th>Research Title</th>
-
-                    <th>Proponent</th>
-
-                    <th>Status</th>
-
-                    <th>Assigned Reviewers</th>
-
-                    <th>Submission Date</th>
-
-                    <th>Actions</th>
-
-                  </tr>
-
-                </thead>
-
-                <tbody>
-
-                  {filteredProposals.map((proposal) => (
-
-                    <tr key={proposal._id || proposal.id}>
-
-                      <td>{proposal.protocolCode || 'N/A'}</td>
-
-                      <td>{proposal.researchTitle || 'Untitled'}</td>
-
-                      <td>{proposal.proponent || 'N/A'}</td>
-
-                      <td>
-
-                        <span className={`status-badge ${proposal.status?.toLowerCase().replace(' ', '-') || 'pending'}`}>
-
-                          {proposal.status || 'Pending'}
-
-                        </span>
-
-                      </td>
-
-                      <td>
-
-                        <div className="reviewer-list">
-
-                          {proposal.reviewers?.reviewer1 && <span>{proposal.reviewers.reviewer1}</span>}
-
-                          {proposal.reviewers?.reviewer2 && <span>{proposal.reviewers.reviewer2}</span>}
-
-                          {proposal.reviewers?.reviewer3 && <span>{proposal.reviewers.reviewer3}</span>}
-
-                          {!proposal.reviewers?.reviewer1 && !proposal.reviewers?.reviewer2 && !proposal.reviewers?.reviewer3 && (
-
-                            <span className="no-reviewer">Not assigned</span>
-
-                          )}
-
-                        </div>
-
-                      </td>
-
-                      <td>{proposal.submissionDate ? new Date(proposal.submissionDate).toLocaleDateString() : 'N/A'}</td>
-
-                      <td>
-
-                        <div className="action-buttons">
-
-                          <button className="btn-primary btn-sm">View Details</button>
-
-                          <button className="btn-secondary btn-sm">Download</button>
-
-                        </div>
-
-                      </td>
-
-                    </tr>
-
-                  ))}
-
-                </tbody>
-
-              </table>
-
+            <div className="grm-stat grm-stat--blue">
+              <span className="grm-stat-val">{preliminaryCompleted.length}</span>
+              <span className="grm-stat-lbl">Preliminary</span>
             </div>
-
-          )}
-
+            <div className="grm-stat grm-stat--purple">
+              <span className="grm-stat-val">{secondaryCompleted.length}</span>
+              <span className="grm-stat-lbl">Secondary</span>
+            </div>
+            <div className="grm-stat grm-stat--green">
+              <span className="grm-stat-val">{selectedReviews.length}</span>
+              <span className="grm-stat-lbl">Selected</span>
+            </div>
+          </div>
+          <button className="grm-close" onClick={onClose} aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
 
-        <div className="modal-footer">
+        {/* ── Search ── */}
+        <div className="grm-search-bar">
+          <svg className="grm-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            className="grm-search-input"
+            type="text"
+            placeholder="Search by reviewer name…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button className="grm-search-clear" onClick={() => setSearchQuery('')}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          )}
+        </div>
 
-          <button className="btn-secondary" onClick={onClose}>Close</button>
+        {/* ── Body ── */}
+        <div className="grm-body">
+          {loading ? (
+            <div className="grm-loading">
+              <div className="grm-spinner"/>
+              <p>Loading reviews…</p>
+            </div>
+          ) : completedReviews.length === 0 ? (
+            <div className="grm-empty">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <h3>No completed reviews found</h3>
+              <p>{searchQuery ? 'Try a different search term.' : 'No reviewers have completed reviews yet.'}</p>
+            </div>
+          ) : (
+            <div className="grm-sections">
+              {sections.map(({ label, key, data, unique, accent }) => {
+                const filtered = data.filter(r => !searchQuery || getReviewerName(r).toLowerCase().includes(searchQuery.toLowerCase()));
+                const sectionIds = filtered.map(r => r._id || r.id);
+                const allSectionChecked = sectionIds.length > 0 && sectionIds.every(id => selectedReviews.includes(id));
 
-          <button className="btn-primary">Export to PDF</button>
+                return (
+                  <div key={key} className="grm-section">
+                    <div className="grm-section-header" style={{ borderLeftColor: accent }}>
+                      <div className="grm-section-title-row">
+                        <span className="grm-section-dot" style={{ background: accent }}/>
+                        <h3 className="grm-section-title">{label}</h3>
+                        <span className="grm-section-badge" style={{ background: accent + '1a', color: accent }}>
+                          {filtered.length} {filtered.length === 1 ? 'review' : 'reviews'}
+                        </span>
+                      </div>
+                      {filtered.length > 0 && (
+                        <label className="grm-select-all">
+                          <input
+                            type="checkbox"
+                            checked={allSectionChecked}
+                            onChange={() => handleSectionSelectAll(data)}
+                          />
+                          <span>Select all</span>
+                        </label>
+                      )}
+                    </div>
 
-          <button className="btn-primary">Export to Excel</button>
+                    {unique.length === 0 ? (
+                      <p className="grm-no-data">No {label.toLowerCase()} have completed reviews.</p>
+                    ) : filtered.length === 0 ? (
+                      <p className="grm-no-data">No results match your search.</p>
+                    ) : (
+                      <div className="grm-table-wrap">
+                        <table className="grm-table">
+                          <colgroup>
+                            <col style={{ width: '44px' }} />
+                            <col style={{ width: '200px' }} />
+                            <col style={{ width: '120px' }} />
+                            <col style={{ width: '140px' }} />
+                            <col style={{ width: '200px' }} />
+                            <col style={{ width: '200px' }} />
+                          </colgroup>
+                          <thead>
+                            <tr>
+                              <th/>
+                              <th>Reviewer Name</th>
+                              <th>Decision</th>
+                              <th>Date Completed</th>
+                              <th>Comments</th>
+                              <th>Recommendations</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filtered.map((review, idx) => {
+                              const id = review._id || review.id;
+                              const isChecked = selectedReviews.includes(id);
+                              const { label: decLabel, cls: decCls } = getDecisionInfo(review.decision || review.status);
+                              const dateVal = review.completedDate || review.createdAt;
+                              const dateStr = dateVal ? new Date(dateVal).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+                              return (
+                                <tr key={id} className={`grm-row${isChecked ? ' grm-row--checked' : ''}${idx % 2 === 1 ? ' grm-row--alt' : ''}`}>
+                                  <td className="grm-td-check">
+                                    <input type="checkbox" checked={isChecked} onChange={() => handleSelectReview(id)} />
+                                  </td>
+                                  <td className="grm-td-name">{getReviewerName(review)}</td>
+                                  <td><span className={`grm-badge ${decCls}`}>{decLabel}</span></td>
+                                  <td className="grm-td-date">{dateStr}</td>
+                                  <td className="grm-td-text">{review.comment || review.comments || <span className="grm-muted">—</span>}</td>
+                                  <td className="grm-td-text">{review.recommendations || <span className="grm-muted">—</span>}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
+        {/* ── Footer ── */}
+        <div className="grm-footer">
+          <div className="grm-footer-info">
+            {selectedReviews.length > 0
+              ? <><span className="grm-footer-count">{selectedReviews.length}</span> review{selectedReviews.length !== 1 ? 's' : ''} selected for export</>
+              : 'Select reviews to export'}
+          </div>
+          <div className="grm-footer-actions">
+            <button className="grm-btn grm-btn--ghost" onClick={onClose}>Cancel</button>
+            <button
+              className="grm-btn grm-btn--excel"
+              onClick={() => handleExport('excel')}
+              disabled={selectedReviews.length === 0 || isExporting}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                <line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/>
+              </svg>
+              {isExporting ? 'Exporting…' : `Export CSV`}
+            </button>
+            <button
+              className="grm-btn grm-btn--pdf"
+              onClick={() => handleExport('pdf')}
+              disabled={selectedReviews.length === 0 || isExporting}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                <line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/>
+              </svg>
+              {isExporting ? 'Exporting…' : `Export PDF`}
+            </button>
+          </div>
         </div>
 
       </div>
-
     </div>
-
   );
 
 };
@@ -8987,245 +9394,330 @@ const ViewReviewerSubmissionsModal = ({ isOpen, onClose }) => {
 
 
 const StudentSubmissionsModal = ({ isOpen, onClose }) => {
-
-
-
   const [activeTab, setActiveTab] = useState('payment-receipts');
+  const [proposals, setProposals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewingFile, setViewingFile] = useState(null);
 
+  useEffect(() => {
+    if (isOpen) fetchProposals();
+  }, [isOpen]);
 
-
-
-
-
+  const fetchProposals = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/proposals`);
+      const data = await res.json();
+      setProposals(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error fetching proposals:', err);
+      setProposals([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!isOpen) return null;
 
-
-
-
-
-
-
   const tabs = [
-
-
-
-    { id: 'payment-receipts', label: 'Payment Receipts' },
-
-
-
-    { id: 'resubmitted-manuscripts', label: 'Resubmitted Manuscripts' },
-
-
-
-    { id: 'response-letters', label: 'Response Letters' },
-
-
-
-    { id: 'completed-manuscripts', label: 'Completed Manuscripts' },
-
-
-
+    { id: 'payment-receipts',        label: 'Payment Receipts',        icon: '💳', color: '#2563eb', filter: (p) => p.files?.paymentReceipt },
+    { id: 'resubmitted-manuscripts', label: 'Resubmitted Manuscripts', icon: '📄', color: '#7c3aed', filter: (p) => p.status === 'Resubmitted' || p.submissionType === 'resubmission' },
+    { id: 'response-letters',        label: 'Response Letters',        icon: '✉️',  color: '#0891b2', filter: (p) => p.files?.reviewResults || p.files?.decisionOfInitialReview || p.files?.responseLetter },
+    { id: 'completed-manuscripts',   label: 'Completed Manuscripts',   icon: '✅', color: '#16a34a', filter: (p) => p.files?.ethicalClearance || p.files?.releaseOfCompletedEthicalReview },
   ];
 
-
-
-
-
-
-
-  const renderTable = () => (
-
-
-
-    <table className="submissions-table">
-
-
-
-      <thead>
-
-
-
-        <tr>
-
-
-
-          <th>Protocol Code</th>
-
-
-
-          <th>Proponent</th>
-
-
-
-          <th>Upload Date</th>
-
-
-
-          <th>File</th>
-
-
-
-          <th>Actions</th>
-
-
-
-        </tr>
-
-
-
-      </thead>
-
-
-
-      <tbody>
-
-
-
-        <tr>
-
-
-
-          <td colSpan="5" style={{textAlign: 'center', padding: '2rem', color: 'var(--text-medium)'}}>
-
-
-
-            No submissions found.
-
-
-
-          </td>
-
-
-
-        </tr>
-
-
-
-      </tbody>
-
-
-
-    </table>
-
-
-
-  );
-
-
-
-
-
-
+  const activeTabData = tabs.find((t) => t.id === activeTab);
+
+  const getTabRows = (tab) =>
+    proposals.filter(tab.filter).filter((p) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (p.proponent || '').toLowerCase().includes(q) ||
+             (p.protocolCode || '').toLowerCase().includes(q) ||
+             (p.researchTitle || '').toLowerCase().includes(q);
+    });
+
+  const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+  const formatSize = (b) => {
+    if (!b) return '';
+    if (b < 1024) return `${b} B`;
+    if (b < 1048576) return `${(b / 1024).toFixed(1)} KB`;
+    return `${(b / 1048576).toFixed(1)} MB`;
+  };
+  const getFileIcon = (mime = '') => {
+    if (mime.includes('pdf')) return '📕';
+    if (mime.includes('word') || mime.includes('docx')) return '📘';
+    if (mime.includes('sheet') || mime.includes('excel')) return '📗';
+    if (mime.includes('image')) return '🖼️';
+    return '📎';
+  };
+  const buildDownloadUrl = (file) =>
+    `${import.meta.env.VITE_API_URL}/api/download/${file.filename}?name=${encodeURIComponent(file.originalname || file.filename)}`;
+  const buildViewUrl = (file) =>
+    `${import.meta.env.VITE_API_URL}/api/view/${file.filename}`;
+
+  const getFilesForTab = (tab, proposal) => {
+    if (tab.id === 'resubmitted-manuscripts')
+      return Object.entries(proposal.files || {}).filter(([k]) => k.startsWith('file')).map(([, v]) => v);
+    const keys = {
+      'payment-receipts':      ['paymentReceipt'],
+      'response-letters':      ['reviewResults', 'decisionOfInitialReview', 'responseLetter'],
+      'completed-manuscripts': ['ethicalClearance', 'releaseOfCompletedEthicalReview'],
+    }[tab.id] || [];
+    return keys.map((k) => proposal.files?.[k]).filter(Boolean);
+  };
+
+  const statusColors = {
+    pending:        { bg: '#fef3c7', color: '#92400e' },
+    approved:       { bg: '#dcfce7', color: '#166534' },
+    rejected:       { bg: '#fee2e2', color: '#991b1b' },
+    resubmitted:    { bg: '#ede9fe', color: '#6d28d9' },
+    'under review': { bg: '#dbeafe', color: '#1e40af' },
+  };
+  const getStatusStyle = (s = '') => statusColors[s.toLowerCase()] || { bg: '#f1f5f9', color: '#475569' };
+
+  const rows = getTabRows(activeTabData);
 
   return (
+    <div className="ssm-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="ssm-modal">
 
-
-
-    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-
-
-
-      <div className="modal-container large">
-
-
-
-        <button className="modal-close" onClick={onClose} aria-label="Close modal">
-
-
-
-          <XIcon />
-
-
-
-        </button>
-
-
-
-        <div className="modal-header">
-
-
-
-          <h2>Student Submissions</h2>
-
-
-
-          <p>View all student submissions by category</p>
-
-
-
+        {/* Header */}
+        <div className="ssm-header">
+          <div className="ssm-header-left">
+            <div className="ssm-header-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                <line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/>
+              </svg>
+            </div>
+            <div>
+              <h2 className="ssm-title">Student Submissions</h2>
+              <p className="ssm-subtitle">View and download all student-submitted documents by category</p>
+            </div>
+          </div>
+          <div className="ssm-header-stats">
+            {tabs.map((t) => (
+              <div key={t.id} className="ssm-stat" style={{ borderColor: t.color + '40', background: t.color + '0d' }}>
+                <span className="ssm-stat-val" style={{ color: t.color }}>{proposals.filter(t.filter).length}</span>
+                <span className="ssm-stat-lbl">{t.label.split(' ')[0]}</span>
+              </div>
+            ))}
+          </div>
+          <button className="ssm-close" onClick={onClose} aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
 
+        {/* Tabs */}
+        <div className="ssm-tabs">
+          {tabs.map((tab) => {
+            const count = proposals.filter(tab.filter).length;
+            return (
+              <button
+                key={tab.id}
+                className={`ssm-tab${activeTab === tab.id ? ' ssm-tab--active' : ''}`}
+                style={activeTab === tab.id ? { borderBottomColor: tab.color, color: tab.color } : {}}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+                <span className="ssm-tab-count" style={activeTab === tab.id ? { background: tab.color, color: '#fff' } : {}}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-
-        <div className="modal-tabs">
-
-
-
-          {tabs.map((tab) => (
-
-
-
-            <button
-
-
-
-              key={tab.id}
-
-
-
-              className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-
-
-
-              onClick={() => setActiveTab(tab.id)}
-
-
-
-            >
-
-
-
-              {tab.label}
-
-
-
+        {/* Search */}
+        <div className="ssm-search-bar">
+          <svg className="ssm-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            className="ssm-search-input"
+            type="text"
+            placeholder="Search by proponent, protocol code, or title…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button className="ssm-search-clear" onClick={() => setSearchQuery('')}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
             </button>
-
-
-
-          ))}
-
-
-
+          )}
         </div>
 
-
-
-        <div className="modal-body">
-
-
-
-          {renderTable()}
-
-
-
+        {/* Body */}
+        <div className="ssm-body">
+          {loading ? (
+            <div className="ssm-loading">
+              <div className="ssm-spinner" />
+              <p>Loading submissions…</p>
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="ssm-empty">
+              <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              <h3>No {activeTabData.label.toLowerCase()} found</h3>
+              <p>{searchQuery ? 'Try a different search term.' : 'No submissions in this category yet.'}</p>
+            </div>
+          ) : (
+            <div className="ssm-table-wrap">
+              <table className="ssm-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Protocol Code</th>
+                    <th>Proponent</th>
+                    <th>Research Title</th>
+                    <th>Status</th>
+                    <th>Date Submitted</th>
+                    <th>Files</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((proposal, idx) => {
+                    const files = getFilesForTab(activeTabData, proposal);
+                    const statusStyle = getStatusStyle(proposal.status);
+                    return (
+                      <tr key={proposal._id} className={`ssm-row${idx % 2 === 1 ? ' ssm-row--alt' : ''}`}>
+                        <td className="ssm-td-num">{idx + 1}</td>
+                        <td className="ssm-td-code">
+                          <span className="ssm-protocol-badge">{proposal.protocolCode || '—'}</span>
+                        </td>
+                        <td className="ssm-td-name">{proposal.proponent || '—'}</td>
+                        <td className="ssm-td-title">{proposal.researchTitle || '—'}</td>
+                        <td>
+                          <span className="ssm-status-badge" style={{ background: statusStyle.bg, color: statusStyle.color }}>
+                            {proposal.status || 'Pending'}
+                          </span>
+                        </td>
+                        <td className="ssm-td-date">{formatDate(proposal.submissionDate || proposal.createdAt)}</td>
+                        <td className="ssm-td-files">
+                          {files.length === 0 ? (
+                            <span className="ssm-no-file">No file</span>
+                          ) : (
+                            <div className="ssm-file-list">
+                              {files.map((file, fi) => (
+                                <span key={fi} className="ssm-file-chip">
+                                  <span className="ssm-file-name">{file.originalname || file.filename}</span>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-
+        {/* Footer */}
+        <div className="ssm-footer">
+          <span className="ssm-footer-info">
+            Showing <strong>{rows.length}</strong> {activeTabData.label.toLowerCase()} submission{rows.length !== 1 ? 's' : ''}
+            {searchQuery && ` matching "${searchQuery}"`}
+          </span>
+          <button className="ssm-btn-close" onClick={onClose}>Close</button>
+        </div>
 
       </div>
 
+      {/* ── File Viewer Modal ── */}
+      {viewingFile && (
+        <div className="ssm-viewer-overlay" onClick={(e) => e.target === e.currentTarget && setViewingFile(null)}>
+          <div className="ssm-viewer-modal">
 
+            {/* Viewer Header */}
+            <div className="ssm-viewer-header">
+              <div className="ssm-viewer-file-info">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                <span className="ssm-viewer-filename">{viewingFile.originalname || viewingFile.filename}</span>
+                {viewingFile.size > 0 && <span className="ssm-viewer-filesize">{formatSize(viewingFile.size)}</span>}
+              </div>
+              <div className="ssm-viewer-actions">
+                <a
+                  href={buildDownloadUrl(viewingFile)}
+                  className="ssm-viewer-btn ssm-viewer-btn--download"
+                  download={viewingFile.originalname || viewingFile.filename}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Download
+                </a>
+                <button className="ssm-viewer-close" onClick={() => setViewingFile(null)} aria-label="Close viewer">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Viewer Body */}
+            <div className="ssm-viewer-body">
+              {viewingFile.mimetype?.includes('pdf') ? (
+                <embed
+                  src={buildViewUrl(viewingFile)}
+                  type="application/pdf"
+                  className="ssm-viewer-iframe"
+                />
+              ) : viewingFile.mimetype?.includes('image') ? (
+                <div className="ssm-viewer-image-wrap">
+                  <img
+                    src={buildViewUrl(viewingFile)}
+                    className="ssm-viewer-image"
+                    alt={viewingFile.originalname || viewingFile.filename}
+                  />
+                </div>
+              ) : (
+                <div className="ssm-viewer-unsupported">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.5" strokeLinecap="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                  </svg>
+                  <p className="ssm-viewer-unsupported-title">Preview not available</p>
+                  <p className="ssm-viewer-unsupported-sub">This file type cannot be displayed in the browser.</p>
+                  <a
+                    href={buildDownloadUrl(viewingFile)}
+                    className="ssm-viewer-btn ssm-viewer-btn--download"
+                    download={viewingFile.originalname || viewingFile.filename}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="7 10 12 15 17 10"/>
+                      <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Download File
+                  </a>
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
-
-
-
   );
-
-
-
 };
 
 

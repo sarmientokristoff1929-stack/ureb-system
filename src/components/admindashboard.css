@@ -7728,29 +7728,91 @@
 
 
   .stats-grid {
-
-
-
-    grid-template-columns: 1fr;
-
-
-
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
   }
 
+  .stat-card {
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px;
+    gap: 0.5rem;
+  }
 
+  .stat-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
 
-  
+  .stat-icon svg {
+    width: 14px;
+    height: 14px;
+  }
 
+  .stat-info h3 {
+    font-size: 1rem;
+    line-height: 1.2;
+  }
 
+  .stat-info p {
+    font-size: 0.65rem;
+  }
+
+  .dashboard-search {
+    margin-bottom: 1rem;
+  }
 
   .search-bar {
-
-
-
     padding: 0.6rem 0.8rem;
+  }
 
+  .dashboard-sections {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
 
+  .recent-activity,
+  .quick-actions {
+    padding: 1rem;
+    border-radius: 10px;
+  }
 
+  .recent-activity h2,
+  .quick-actions h2 {
+    font-size: 1rem;
+    margin-bottom: 0.875rem;
+  }
+
+  .activity-item {
+    padding: 0.625rem 0;
+    gap: 0.625rem;
+  }
+
+  .activity-icon {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+  }
+
+  .activity-content h4 {
+    font-size: 0.85rem;
+  }
+
+  .activity-content p,
+  .activity-time {
+    font-size: 0.75rem;
+  }
+
+  .action-buttons {
+    gap: 0.625rem;
+  }
+
+  .action-btn {
+    padding: 0.75rem 0.875rem;
+    font-size: 0.82rem;
+    width: 100%;
   }
 
 
@@ -13631,4 +13693,1382 @@
 }
 
 
+/* ══════════════════════════════════════
+   Student Submissions Modal — ssm-* namespace
+   Palette: #c0392b (red)  #16a34a (green)  #ffffff (white)
+   ══════════════════════════════════════ */
 
+/* Overlay */
+.ssm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+/* Modal shell */
+.ssm-modal {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  max-width: 1080px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e5e5e5;
+}
+
+/* ── Header ── */
+.ssm-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: #ffffff;
+  border-bottom: 1px solid #ebebeb;
+  flex-shrink: 0;
+}
+
+.ssm-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.ssm-header-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #c0392b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.ssm-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 2px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.ssm-subtitle {
+  font-size: 0.775rem;
+  color: #888;
+  margin: 0;
+}
+
+/* Stats */
+.ssm-header-stats {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.ssm-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 0.4rem 0.8rem;
+  min-width: 58px;
+}
+
+.ssm-stat-val {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #c0392b;
+  line-height: 1;
+}
+
+.ssm-stat-lbl {
+  font-size: 0.63rem;
+  font-weight: 600;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+/* Close button */
+.ssm-close {
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #888;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.ssm-close:hover {
+  background: #fff5f5;
+  border-color: #c0392b;
+  color: #c0392b;
+}
+
+/* ── Tabs ── */
+.ssm-tabs {
+  display: flex;
+  padding: 0 1.5rem;
+  background: #ffffff;
+  border-bottom: 1px solid #ebebeb;
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+}
+
+.ssm-tabs::-webkit-scrollbar { display: none; }
+
+/* Hide emoji icons in tabs */
+.ssm-tab > span:first-child { display: none; }
+
+.ssm-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: #777;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+
+.ssm-tab:hover { color: #1a1a1a; }
+
+.ssm-tab--active {
+  color: #c0392b;
+  font-weight: 600;
+  border-bottom-color: #c0392b;
+}
+
+.ssm-tab-count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: 20px;
+  background: #f0f0f0;
+  color: #888;
+  transition: background 0.15s, color 0.15s;
+}
+
+.ssm-tab--active .ssm-tab-count {
+  background: #c0392b;
+  color: #ffffff;
+}
+
+/* ── Search bar ── */
+.ssm-search-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid #ebebeb;
+  background: #fafafa;
+  flex-shrink: 0;
+}
+
+.ssm-search-icon {
+  position: absolute;
+  left: 2.25rem;
+  color: #bbb;
+  pointer-events: none;
+}
+
+.ssm-search-input {
+  width: 100%;
+  padding: 0.55rem 2.25rem 0.55rem 2.1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 7px;
+  font-size: 0.855rem;
+  color: #1a1a1a;
+  background: #ffffff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+.ssm-search-input:focus {
+  border-color: #c0392b;
+  box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.08);
+}
+
+.ssm-search-input::placeholder { color: #bbb; }
+
+.ssm-search-clear {
+  position: absolute;
+  right: 1.75rem;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: #e8e8e8;
+  border-radius: 50%;
+  color: #777;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ssm-search-clear:hover { background: #d4d4d4; }
+
+/* ── Body ── */
+.ssm-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+  background: #fafafa;
+}
+
+/* Loading */
+.ssm-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  gap: 0.875rem;
+  color: #888;
+  font-size: 0.875rem;
+}
+
+.ssm-spinner {
+  width: 32px;
+  height: 32px;
+  border: 2.5px solid #e8e8e8;
+  border-top-color: #c0392b;
+  border-radius: 50%;
+  animation: ssm-spin 0.75s linear infinite;
+}
+
+@keyframes ssm-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Empty */
+.ssm-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  gap: 0.625rem;
+  color: #aaa;
+}
+
+.ssm-empty h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #555;
+  margin: 0;
+}
+
+.ssm-empty p { margin: 0; font-size: 0.855rem; }
+
+/* ── Table ── */
+.ssm-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.ssm-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: 0.845rem;
+}
+
+.ssm-table thead tr {
+  background: #f5f5f5;
+}
+
+.ssm-table th {
+  padding: 0.65rem 1rem;
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.ssm-table th:first-child { padding-left: 1.25rem; }
+
+.ssm-row td {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid #f0f0f0;
+  color: #333;
+  vertical-align: middle;
+}
+
+.ssm-row td:first-child { padding-left: 1.25rem; }
+
+.ssm-row:last-child td { border-bottom: none; }
+
+.ssm-row--alt td { background: #fafafa; }
+
+.ssm-row:hover td {
+  background: #fff8f8;
+}
+
+/* Cells */
+.ssm-td-num {
+  width: 40px;
+  color: #ccc;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.ssm-td-code { white-space: nowrap; }
+
+.ssm-protocol-badge {
+  display: inline-block;
+  padding: 0.18rem 0.55rem;
+  background: #fff5f5;
+  color: #c0392b;
+  border: 1px solid #f5c6c2;
+  border-radius: 5px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+  font-family: monospace;
+  letter-spacing: 0.3px;
+}
+
+.ssm-td-name {
+  font-weight: 600;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+.ssm-td-title {
+  color: #555;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ssm-status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.73rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ssm-td-date {
+  white-space: nowrap;
+  color: #888;
+  font-size: 0.81rem;
+}
+
+/* Files cell */
+.ssm-td-files { min-width: 180px; }
+
+.ssm-no-file {
+  color: #ccc;
+  font-size: 0.79rem;
+}
+
+.ssm-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+
+.ssm-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  background: #f0faf4;
+  border: 1px solid #bbf0d0;
+  border-radius: 6px;
+  font-size: 0.775rem;
+  color: #16a34a;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  max-width: 230px;
+}
+
+.ssm-file-chip:hover {
+  background: #e0f7ea;
+  border-color: #16a34a;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.14);
+}
+
+.ssm-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+}
+
+.ssm-file-size {
+  color: #85c9a0;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Footer ── */
+.ssm-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1.5rem;
+  border-top: 1px solid #ebebeb;
+  background: #ffffff;
+  flex-shrink: 0;
+  gap: 1rem;
+}
+
+.ssm-footer-info {
+  font-size: 0.835rem;
+  color: #888;
+}
+
+.ssm-footer-info strong {
+  color: #c0392b;
+  font-weight: 700;
+}
+
+.ssm-btn-close {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1.1rem;
+  border-radius: 7px;
+  font-size: 0.845rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #e0e0e0;
+  background: #ffffff;
+  color: #555;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.ssm-btn-close:hover {
+  background: #fff5f5;
+  border-color: #c0392b;
+  color: #c0392b;
+}
+
+/* ── File Viewer Modal ── */
+.ssm-viewer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 1rem;
+}
+
+.ssm-viewer-modal {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 920px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e5e5e5;
+}
+
+.ssm-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid #ebebeb;
+  background: #fafafa;
+  flex-shrink: 0;
+  gap: 1rem;
+}
+
+.ssm-viewer-file-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  color: #888;
+}
+
+.ssm-viewer-filename {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 480px;
+}
+
+.ssm-viewer-filesize {
+  font-size: 0.775rem;
+  color: #aaa;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ssm-viewer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.ssm-viewer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.ssm-viewer-btn--download {
+  background: #16a34a;
+  color: #ffffff;
+  border-color: #16a34a;
+}
+
+.ssm-viewer-btn--download:hover {
+  background: #15803d;
+  border-color: #15803d;
+}
+
+.ssm-viewer-close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #888;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.ssm-viewer-close:hover {
+  background: #fff5f5;
+  border-color: #c0392b;
+  color: #c0392b;
+}
+
+.ssm-viewer-body {
+  flex: 1;
+  overflow: hidden;
+  background: #f0f0f0;
+  display: flex;
+  align-items: stretch;
+}
+
+.ssm-viewer-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  min-height: 70vh;
+}
+
+.ssm-viewer-image-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  overflow: auto;
+}
+
+.ssm-viewer-image {
+  max-width: 100%;
+  max-height: 75vh;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.ssm-viewer-unsupported {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 2rem;
+  background: #ffffff;
+  text-align: center;
+}
+
+.ssm-viewer-unsupported-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #555;
+  margin: 0;
+}
+
+.ssm-viewer-unsupported-sub {
+  font-size: 0.855rem;
+  color: #aaa;
+  margin: 0 0 0.5rem;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .ssm-modal {
+    max-height: 97vh;
+    border-radius: 10px;
+  }
+
+  .ssm-header {
+    flex-wrap: wrap;
+    padding: 1rem;
+  }
+
+  .ssm-header-stats {
+    order: 3;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .ssm-stat { flex: 1; }
+
+  .ssm-tabs { padding: 0 1rem; }
+
+  .ssm-search-bar { padding: 0.625rem 1rem; }
+
+  .ssm-search-icon { left: 1.75rem; }
+
+  .ssm-search-clear { right: 1.25rem; }
+
+  .ssm-body { padding: 1rem; }
+
+  .ssm-footer {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0.75rem 1rem;
+    gap: 0.625rem;
+  }
+
+  .ssm-btn-close { justify-content: center; }
+}
+
+
+
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+  .stat-card {
+    padding: 0.55rem 0.65rem !important;
+    border-radius: 8px !important;
+    gap: 0.4rem !important;
+  }
+  .stat-icon {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    border-radius: 6px !important;
+  }
+  .stat-icon svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+  .stat-info h3 {
+    font-size: 0.95rem !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+  }
+  .stat-info p {
+    font-size: 0.62rem !important;
+    margin: 0 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .recent-activity,
+  .quick-actions {
+    padding: 0.75rem !important;
+    border-radius: 8px !important;
+  }
+
+  .recent-activity h2,
+  .quick-actions h2 {
+    font-size: 0.85rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .activity-item {
+    padding: 0.5rem 0.4rem !important;
+    gap: 0.5rem !important;
+    border-radius: 6px !important;
+  }
+
+  .activity-icon {
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    border-radius: 6px !important;
+  }
+
+  .activity-icon svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .activity-content h4 {
+    font-size: 0.78rem !important;
+    margin: 0 !important;
+  }
+
+  .activity-content p {
+    font-size: 0.7rem !important;
+    margin: 0 !important;
+  }
+
+  .activity-time {
+    font-size: 0.65rem !important;
+  }
+}
+
+/* ── Submit File Tab – Mobile ── */
+@media (max-width: 768px) {
+  .form-card {
+    padding: 1rem !important;
+    border-radius: 10px !important;
+  }
+
+  .form-card h2 {
+    font-size: 1.1rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .form-group {
+    margin-bottom: 0.75rem !important;
+  }
+
+  .form-group label {
+    font-size: 0.78rem !important;
+    margin-bottom: 0.3rem !important;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 0.55rem 0.75rem !important;
+    font-size: 0.82rem !important;
+    border-radius: 8px !important;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .file-upload-area {
+    padding: 0 !important;
+  }
+
+  .file-upload {
+    padding: 0.875rem 0.75rem !important;
+    border-radius: 8px !important;
+  }
+
+  .file-upload-label svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .file-upload-label p {
+    font-size: 0.78rem !important;
+  }
+
+  .file-upload-label span {
+    font-size: 0.68rem !important;
+  }
+
+  .form-actions {
+    gap: 0.5rem !important;
+    flex-direction: column !important;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 0.65rem 1rem !important;
+    font-size: 0.82rem !important;
+    width: 100% !important;
+    border-radius: 8px !important;
+  }
+}
+
+/* ── Notifications Tab – Mobile ── */
+@media (max-width: 768px) {
+  .notification-content {
+    padding: 0.875rem !important;
+    border-radius: 10px !important;
+  }
+
+  .notification-header {
+    margin-bottom: 0.875rem !important;
+    padding-bottom: 0.625rem !important;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .notification-header h2 {
+    font-size: 1rem !important;
+  }
+
+  .notification-header .btn-primary {
+    padding: 0.5rem 0.875rem !important;
+    font-size: 0.78rem !important;
+    width: auto !important;
+  }
+
+  .notification-list {
+    gap: 0.5rem !important;
+  }
+
+  .notification-item {
+    padding: 0.65rem 0.75rem !important;
+    gap: 0.625rem !important;
+    border-radius: 8px !important;
+  }
+
+  .notification-icon {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    border-radius: 8px !important;
+  }
+
+  .notification-icon svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  .notification-content h4 {
+    font-size: 0.82rem !important;
+    margin-bottom: 0.15rem !important;
+  }
+
+  .notification-content p {
+    font-size: 0.75rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .notification-time,
+  .activity-time {
+    font-size: 0.68rem !important;
+  }
+
+  .unread-badge {
+    font-size: 0.65rem !important;
+    padding: 0.15rem 0.4rem !important;
+  }
+}
+
+/* ── Reviews File Tab – Mobile ── */
+@media (max-width: 768px) {
+  .reviews-content,
+  .review-detail-content {
+    padding: 0.875rem !important;
+  }
+
+  .reviews-header {
+    margin-bottom: 1rem !important;
+    padding-bottom: 0.625rem !important;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .reviews-header h2 {
+    font-size: 1rem !important;
+  }
+
+  .reviews-list {
+    gap: 0.625rem !important;
+  }
+
+  .review-item {
+    padding: 0.875rem !important;
+    border-radius: 8px !important;
+  }
+
+  .review-info h4 {
+    font-size: 0.85rem !important;
+    margin-bottom: 0.3rem !important;
+  }
+
+  .review-info p {
+    font-size: 0.78rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .review-meta {
+    padding-top: 0.5rem !important;
+    gap: 0.375rem !important;
+  }
+
+  .reviewer-name {
+    font-size: 0.75rem !important;
+  }
+
+  /* Detail view */
+  .review-detail-header {
+    margin-bottom: 1rem !important;
+    padding-bottom: 0.625rem !important;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .review-detail-header h2 {
+    font-size: 0.95rem !important;
+    gap: 0.4rem !important;
+  }
+
+  .review-detail-header .review-icon {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  .review-detail-header .btn-secondary {
+    padding: 0.45rem 0.75rem !important;
+    font-size: 0.78rem !important;
+  }
+
+  .review-detail-card {
+    padding: 0.875rem !important;
+    border-radius: 8px !important;
+  }
+
+  .reviewer-info h3 {
+    font-size: 0.9rem !important;
+    margin-bottom: 0.625rem !important;
+  }
+
+  .reviewer-details p {
+    font-size: 0.78rem !important;
+    padding: 0.4rem 0 !important;
+    gap: 0.4rem !important;
+  }
+
+  .reviewer-icon {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .role-badge {
+    font-size: 0.68rem !important;
+    padding: 0.15rem 0.45rem !important;
+  }
+
+  .review-comments-section {
+    margin-bottom: 1rem !important;
+  }
+
+  .review-comments-section h4,
+  .review-files-section h4 {
+    font-size: 0.88rem !important;
+    margin-bottom: 0.625rem !important;
+  }
+
+  .comments-box {
+    font-size: 0.8rem !important;
+    padding: 0.625rem !important;
+    border-radius: 6px !important;
+  }
+
+  .review-files-list {
+    gap: 0.625rem !important;
+  }
+
+  .review-file-item {
+    padding: 0.75rem !important;
+    border-radius: 8px !important;
+  }
+
+  .file-info {
+    gap: 0.5rem !important;
+    margin-bottom: 0.625rem !important;
+  }
+
+  .file-icon {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  .file-name {
+    font-size: 0.8rem !important;
+  }
+
+  .file-meta {
+    font-size: 0.7rem !important;
+  }
+
+  .review-file-download {
+    padding: 0.55rem 0.875rem !important;
+    font-size: 0.78rem !important;
+    border-radius: 7px !important;
+  }
+
+  .review-file-download svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+}
+
+/* ── Review Detail View – Mobile ── */
+@media (max-width: 768px) {
+  .review-detail-content {
+    padding: 0.75rem !important;
+  }
+
+  .review-detail-header {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+    margin-bottom: 0.75rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+
+  .review-detail-header h2 {
+    font-size: 0.88rem !important;
+    gap: 0.35rem !important;
+    flex: 1 1 100% !important;
+  }
+
+  .review-detail-header .review-icon {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  .review-detail-header .btn-secondary {
+    padding: 0.4rem 0.7rem !important;
+    font-size: 0.75rem !important;
+    border-radius: 6px !important;
+  }
+
+  .review-detail-card {
+    border-radius: 8px !important;
+  }
+
+  .reviewer-info {
+    padding: 0.75rem !important;
+  }
+
+  .reviewer-info h3 {
+    font-size: 0.85rem !important;
+    margin-bottom: 0.5rem !important;
+    gap: 0.35rem !important;
+  }
+
+  .reviewer-info .reviewer-icon {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  .reviewer-details {
+    gap: 0.35rem !important;
+  }
+
+  .reviewer-details p {
+    font-size: 0.75rem !important;
+    padding: 0.3rem 0 !important;
+    gap: 0.35rem !important;
+  }
+
+  .reviewer-details .reviewer-icon {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  .reviewer-details strong {
+    font-size: 0.75rem !important;
+    min-width: 70px !important;
+  }
+
+  .role-badge {
+    font-size: 0.65rem !important;
+    padding: 0.1rem 0.4rem !important;
+    margin-left: 0.25rem !important;
+  }
+
+  .review-content {
+    padding: 0.75rem !important;
+  }
+
+  .review-content h3 {
+    font-size: 0.88rem !important;
+    margin-bottom: 0.75rem !important;
+    gap: 0.35rem !important;
+  }
+
+  .review-content .document-icon {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  .review-details {
+    gap: 0.35rem !important;
+  }
+
+  .review-details p {
+    font-size: 0.75rem !important;
+    padding: 0.3rem 0 !important;
+    gap: 0.35rem !important;
+  }
+
+  .review-details strong {
+    font-size: 0.75rem !important;
+    min-width: 90px !important;
+  }
+
+  .review-comments,
+  .review-recommendation,
+  .review-attachments {
+    padding: 0.75rem !important;
+    margin-top: 0.625rem !important;
+    border-radius: 6px !important;
+  }
+
+  .review-comments p,
+  .review-recommendation p,
+  .review-attachments p {
+    font-size: 0.78rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .comments-content,
+  .recommendation-content {
+    font-size: 0.78rem !important;
+    padding: 0.625rem !important;
+    border-radius: 5px !important;
+  }
+
+  .attachments-list {
+    gap: 0.5rem !important;
+  }
+
+  .attachment-item {
+    padding: 0.5rem 0.625rem !important;
+    border-radius: 6px !important;
+  }
+
+  .attachment-item span {
+    font-size: 0.75rem !important;
+  }
+
+  .attachment-item a {
+    font-size: 0.68rem !important;
+  }
+
+  .review-file-item {
+    padding: 0.625rem !important;
+    border-radius: 7px !important;
+  }
+
+  .file-info {
+    gap: 0.4rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .file-name {
+    font-size: 0.78rem !important;
+  }
+
+  .file-meta {
+    font-size: 0.68rem !important;
+  }
+
+  .review-file-download {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.75rem !important;
+    border-radius: 6px !important;
+  }
+
+  .review-file-download svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  .review-files-section {
+    padding: 0.75rem !important;
+    border-radius: 8px !important;
+    margin-top: 0.75rem !important;
+  }
+
+  .review-files-section h4 {
+    font-size: 0.85rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .review-files-list {
+    grid-template-columns: 1fr !important;
+    gap: 0.5rem !important;
+  }
+}
+
+/* ── Messages Inbox Tab – Mobile ── */
+@media (max-width: 768px) {
+  .inbox-wrapper {
+    border-radius: 10px !important;
+    min-height: unset !important;
+  }
+
+  .inbox-header {
+    padding: 0.65rem 0.875rem !important;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .inbox-title-group h2 {
+    font-size: 0.88rem !important;
+  }
+
+  .inbox-unread-count {
+    font-size: 0.6rem !important;
+    padding: 0.12rem 0.45rem !important;
+  }
+
+  .inbox-header-actions {
+    gap: 0.35rem !important;
+  }
+
+  .inbox-mark-all-btn,
+  .inbox-delete-all-btn {
+    font-size: 0.68rem !important;
+    padding: 0.22rem 0.55rem !important;
+    border-radius: 6px !important;
+  }
+
+  .inbox-row {
+    padding: 0.6rem 0.75rem !important;
+    gap: 0.5rem !important;
+  }
+
+  .inbox-avatar {
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 0.72rem !important;
+  }
+
+  .inbox-unread-indicator {
+    width: 6px !important;
+  }
+
+  .inbox-unread-dot {
+    width: 7px !important;
+    height: 7px !important;
+  }
+
+  .inbox-sender-name {
+    font-size: 0.78rem !important;
+    max-width: 130px !important;
+  }
+
+  .inbox-row-actions {
+    gap: 0.3rem !important;
+  }
+
+  .inbox-mark-read-btn {
+    font-size: 0.6rem !important;
+    padding: 0.1rem 0.38rem !important;
+  }
+
+  .inbox-trash-btn {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .inbox-trash-btn svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  .inbox-row-date {
+    font-size: 0.63rem !important;
+  }
+
+  .inbox-subject {
+    font-size: 0.72rem !important;
+    max-width: 110px !important;
+  }
+
+  .inbox-preview {
+    font-size: 0.7rem !important;
+  }
+
+  .inbox-badge {
+    font-size: 0.55rem !important;
+    padding: 0.1rem 0.35rem !important;
+  }
+
+  .inbox-empty {
+    padding: 1.5rem 1rem !important;
+  }
+
+  .inbox-empty p {
+    font-size: 0.82rem !important;
+  }
+
+  .inbox-empty span {
+    font-size: 0.72rem !important;
+  }
+
+  .inbox-empty-icon svg {
+    width: 30px !important;
+    height: 30px !important;
+  }
+}

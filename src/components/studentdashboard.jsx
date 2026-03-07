@@ -236,7 +236,7 @@ const StudentDashboard = ({ onLogout }) => {
       <main className={`main-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
         <header className="content-header">
           <button
-            className="menu-toggle desktop-only"
+            className="menu-toggle mobile-only"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           >
             <MenuIcon />

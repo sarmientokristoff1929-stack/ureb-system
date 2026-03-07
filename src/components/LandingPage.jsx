@@ -82,7 +82,11 @@ const Navbar = ({ onLoginClick }) => {
           <img src="/UREBLOGO.png" alt="UREB Logo" className="navbar-logo-img" />
           <span>University Research Ethics Board</span>
         </a>
-        
+
+        {isMobileMenuOpen && (
+          <div className="mobile-nav-backdrop" onClick={() => setIsMobileMenuOpen(false)} />
+        )}
+
         <div className={`nav-links ${isMobileMenuOpen ? 'open' : ''}`}>
           {navLinks.map((link) => (
             <a

@@ -2359,7 +2359,7 @@
     margin-left: 0;
   }
   
-  .menu-toggle.desktop-only {
+  .menu-toggle.mobile-only {
     display: block;
   }
   
@@ -2399,18 +2399,6 @@
     flex-direction: column;
     gap: 0.5rem;
   }
-}
-
-.menu-toggle.desktop-only {
-  display: none;
-}
-
-/* File Review Modal Styles */
-.proposal-subtitle {
-  color: var(--text-medium);
-  font-size: 0.9rem;
-  margin-top: 0.5rem;
-  font-weight: 500;
 }
 
 .proposal-info {

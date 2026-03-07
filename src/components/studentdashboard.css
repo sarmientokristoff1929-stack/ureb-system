@@ -1593,7 +1593,7 @@
     margin-left: 0;
   }
   
-  .menu-toggle.desktop-only {
+  .menu-toggle.mobile-only {
     display: block;
   }
   
@@ -1670,7 +1670,7 @@
   }
 }
 
-.menu-toggle.desktop-only {
+.menu-toggle.mobile-only {
   display: none;
 }
 

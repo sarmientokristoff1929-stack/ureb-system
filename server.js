@@ -1,5 +1,5 @@
 import express from 'express';
-import { MongoClient, ObjectId } from 'mongodb';
+import { MongoClient, ObjectId, GridFSBucket } from 'mongodb';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import nodemailer from 'nodemailer';
@@ -22,6 +22,7 @@ app.use(express.json());
 const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/ureb_system';
 let client;
 let db;
+let gfsBucket;
 
 export const connectToDatabase = async () => {
   try {
@@ -40,6 +41,7 @@ export const connectToDatabase = async () => {
       client = new MongoClient(uri, options);
       await client.connect();
       db = client.db('ureb_system');
+      gfsBucket = new GridFSBucket(db, { bucketName: 'uploads' });
       console.log('✅ Connected to MongoDB database');
     }
     return db;
@@ -80,25 +82,23 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Multer storage configuration
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadsDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
+// Multer — memory storage (files buffered in RAM, then pushed to GridFS)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
 });
 
-const upload = multer({
-  storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-  fileFilter: function (req, file, cb) {
-    // Accept all file types for now
-    cb(null, true);
-  }
-});
+// Upload a single file buffer to GridFS; returns the stored filename
+async function uploadToGridFS(file) {
+  const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+  const filename = file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname);
+  return new Promise((resolve, reject) => {
+    const uploadStream = gfsBucket.openUploadStream(filename, { contentType: file.mimetype });
+    uploadStream.end(file.buffer);
+    uploadStream.on('finish', () => resolve(filename));
+    uploadStream.on('error', reject);
+  });
+}
 
 // Profile picture multer config (images only, 2 MB)
 const profilePicsDir = path.join(uploadsDir, 'profile-pictures');
@@ -125,17 +125,71 @@ const uploadProfilePic = multer({
 // Serve static files from uploads directory
 app.use('/uploads', express.static(uploadsDir));
 
-// Download endpoint — forces browser to download instead of opening in tab
-app.get('/api/download/:filename', (req, res) => {
+// Resolve a filename: GridFS first, then local disk fallback
+async function resolveFile(filename) {
+  const gridFiles = await gfsBucket.find({ filename }).toArray();
+  if (gridFiles.length) return { source: 'gridfs', meta: gridFiles[0] };
+  const diskPath = path.join(uploadsDir, filename);
+  if (fs.existsSync(diskPath)) return { source: 'disk', diskPath };
+  return null;
+}
+
+const MIME_MAP = {
+  '.pdf':  'application/pdf',
+  '.jpg':  'image/jpeg', '.jpeg': 'image/jpeg',
+  '.png':  'image/png',  '.gif':  'image/gif',
+  '.webp': 'image/webp',
+  '.txt':  'text/plain',
+  '.doc':  'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xls':  'application/vnd.ms-excel',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+};
+
+// Download endpoint — GridFS with local-disk fallback
+app.get('/api/download/:filename', async (req, res) => {
   const { filename } = req.params;
   const originalName = req.query.name || filename;
-  const filePath = path.join(uploadsDir, filename);
-
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'File not found' });
+  try {
+    const resolved = await resolveFile(filename);
+    if (!resolved) return res.status(404).json({ error: 'File not found' });
+    const mime = resolved.meta?.contentType
+      || MIME_MAP[path.extname(filename).toLowerCase()]
+      || 'application/octet-stream';
+    res.setHeader('Content-Disposition', `attachment; filename="${originalName}"`);
+    res.setHeader('Content-Type', mime);
+    if (resolved.source === 'gridfs') {
+      gfsBucket.openDownloadStreamByName(filename).pipe(res);
+    } else {
+      res.sendFile(resolved.diskPath);
+    }
+  } catch (err) {
+    console.error('Download error:', err);
+    res.status(500).json({ error: 'Server error' });
   }
+});
 
-  res.download(filePath, originalName);
+// View endpoint — GridFS with local-disk fallback, inline for browser rendering
+app.get('/api/view/:filename', async (req, res) => {
+  const { filename } = req.params;
+  try {
+    const resolved = await resolveFile(filename);
+    if (!resolved) return res.status(404).json({ error: 'File not found' });
+    const mime = resolved.meta?.contentType
+      || MIME_MAP[path.extname(filename).toLowerCase()]
+      || 'application/octet-stream';
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.setHeader('Content-Type', mime);
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    if (resolved.source === 'gridfs') {
+      gfsBucket.openDownloadStreamByName(filename).pipe(res);
+    } else {
+      res.sendFile(resolved.diskPath);
+    }
+  } catch (err) {
+    console.error('View error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 // Collections
@@ -811,23 +865,23 @@ app.post('/api/proposals', upload.fields([
       action
     } = req.body;
     
-    // Process uploaded files
+    // Process uploaded files → GridFS
     const files = {};
     if (req.files) {
-      Object.keys(req.files).forEach(fieldname => {
+      for (const fieldname of Object.keys(req.files)) {
         const fileArray = req.files[fieldname];
         if (fileArray && fileArray.length > 0) {
+          const gfsFilename = await uploadToGridFS(fileArray[0]);
           files[fieldname] = {
-            filename: fileArray[0].filename,
+            filename: gfsFilename,
             originalname: fileArray[0].originalname,
-            path: fileArray[0].path,
             size: fileArray[0].size,
             mimetype: fileArray[0].mimetype
           };
         }
-      });
+      }
     }
-    
+
     // Create new proposal document
     const newProposal = {
       protocolCode,
@@ -884,21 +938,21 @@ app.post('/api/student/submit-files', upload.fields([
 
     const { department, preliminaryReviewer, preliminaryReviewerName, studentEmail, studentName, proposalTitle } = req.body;
 
-    // Process uploaded files
+    // Process uploaded files → GridFS
     const files = {};
     if (req.files) {
-      Object.keys(req.files).forEach(fieldname => {
+      for (const fieldname of Object.keys(req.files)) {
         const fileArray = req.files[fieldname];
         if (fileArray && fileArray.length > 0) {
+          const gfsFilename = await uploadToGridFS(fileArray[0]);
           files[fieldname] = {
-            filename: fileArray[0].filename,
+            filename: gfsFilename,
             originalname: fileArray[0].originalname,
-            path: fileArray[0].path,
             size: fileArray[0].size,
             mimetype: fileArray[0].mimetype
           };
         }
-      });
+      }
     }
 
     const newProposal = {
@@ -962,18 +1016,19 @@ app.post('/api/student/resubmit-files', upload.array('files'), async (req, res) 
 
     const { resubmissionReason, studentEmail, studentName, submissionType } = req.body;
 
-    // Process uploaded files
+    // Process uploaded files → GridFS
     const files = {};
     if (req.files && req.files.length > 0) {
-      req.files.forEach((file, index) => {
+      for (let index = 0; index < req.files.length; index++) {
+        const file = req.files[index];
+        const gfsFilename = await uploadToGridFS(file);
         files[`file${index + 1}`] = {
-          filename: file.filename,
+          filename: gfsFilename,
           originalname: file.originalname,
-          path: file.path,
           size: file.size,
           mimetype: file.mimetype
         };
-      });
+      }
     }
 
     // Create resubmission record
@@ -1091,20 +1146,21 @@ app.post('/api/reviews', upload.fields([
     const proposals = db.collection(collections.proposals);
     const notifications = db.collection(collections.notifications);
 
-    // Process uploaded files
+    // Process uploaded files → GridFS
     const files = {};
     if (req.files) {
-      Object.keys(req.files).forEach(fieldname => {
+      for (const fieldname of Object.keys(req.files)) {
         const fileArray = req.files[fieldname];
         if (fileArray && fileArray.length > 0) {
+          const gfsFilename = await uploadToGridFS(fileArray[0]);
           files[fieldname] = {
-            filename: fileArray[0].filename,
+            filename: gfsFilename,
             originalname: fileArray[0].originalname,
             size: fileArray[0].size,
             mimetype: fileArray[0].mimetype
           };
         }
-      });
+      }
     }
 
     // Create review document
@@ -2020,18 +2076,18 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       'questionnaire', 'cvOfProponent'
     ];
     
-    documentKeys.forEach(key => {
+    for (const key of documentKeys) {
       const files = req.files && req.files[key];
       if (files && files.length > 0) {
+        const gfsFilename = await uploadToGridFS(files[0]);
         uploadedFiles[key] = {
-          filename: files[0].filename,
+          filename: gfsFilename,
           originalname: files[0].originalname,
-          path: files[0].path,
           size: files[0].size,
           mimetype: files[0].mimetype
         };
       }
-    });
+    }
     
     // Validation
     if (!protocolCode || !secondaryReviewer1 || !secondaryReviewer2 || !startDate || !endDate) {
