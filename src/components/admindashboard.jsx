@@ -2124,7 +2124,7 @@ const AddReviewerContent = () => {
 
     try {
 
-      const response = await fetch('http://localhost:5001/api/users/detailed', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/detailed`, {
 
         method: 'POST',
 
@@ -3366,7 +3366,7 @@ const MessageResearcherContent = () => {
 
       try {
 
-        const response = await fetch('http://localhost:5001/api/students');
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/students`);
 
         const data = await response.json();
 
@@ -3470,7 +3470,7 @@ const MessageResearcherContent = () => {
 
 
 
-      const response = await fetch('http://localhost:5001/api/send-message-to-student', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/send-message-to-student`, {
 
         method: 'POST',
 
@@ -5854,7 +5854,7 @@ const AddAdminModal = ({ isOpen, onClose, onAdminAdded }) => {
 
     try {
 
-      const response = await fetch('http://localhost:5001/api/users', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users`, {
 
         method: 'POST',
 
@@ -6132,7 +6132,7 @@ const NotificationContent = ({ setActiveTab }) => {
 
     try {
 
-      const response = await fetch('http://localhost:5001/api/notifications');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/notifications`);
 
       const data = await response.json();
 
@@ -6156,7 +6156,7 @@ const NotificationContent = ({ setActiveTab }) => {
 
     try {
 
-      await fetch(`http://localhost:5001/api/notifications/${id}/read`, { method: 'PUT' });
+      await fetch(`${import.meta.env.VITE_API_URL}/api/notifications/${id}/read`, { method: 'PUT' });
 
       setNotifications(notifications.map(n => n._id === id ? { ...n, read: true } : n));
 
@@ -6174,7 +6174,7 @@ const NotificationContent = ({ setActiveTab }) => {
 
     try {
 
-      await fetch('http://localhost:5001/api/notifications/read-all', { method: 'PUT' });
+      await fetch(`${import.meta.env.VITE_API_URL}/api/notifications/read-all`, { method: 'PUT' });
 
       setNotifications(notifications.map(n => ({ ...n, read: true })));
 
@@ -6398,7 +6398,7 @@ const ReviewsFileContent = () => {
 
     try {
 
-      const response = await fetch('http://localhost:5001/api/reviews');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reviews`);
 
       const data = await response.json();
 
@@ -6424,7 +6424,7 @@ const ReviewsFileContent = () => {
 
     try {
 
-      const response = await fetch(`http://localhost:5001/api/reviews/${reviewId}`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reviews/${reviewId}`);
 
       const data = await response.json();
 
@@ -8788,7 +8788,7 @@ const ViewReviewerSubmissionsModal = ({ isOpen, onClose }) => {
 
     try {
 
-      const res = await fetch('http://localhost:5001/api/reviews/all');
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/reviews/all`);
 
       const data = await res.json();
 

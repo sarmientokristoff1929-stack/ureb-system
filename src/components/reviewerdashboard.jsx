@@ -998,12 +998,12 @@ const ReviewModal = ({ isOpen, onClose, proposal }) => {
     if (typeof file === 'string') {
       // Extract just the filename from the full path
       fileName = file.split(/[/\\]/).pop() || fileKey;
-      fileUrl = `http://localhost:5001/uploads/${fileName}`;
+      fileUrl = `${import.meta.env.VITE_API_URL}/uploads/${fileName}`;
     } else if (file.originalname) {
       // Handle file objects - use the actual filename on server, not originalname
       fileName = file.originalname; // For download display
       const serverFilename = file.filename; // Actual file on server
-      fileUrl = `http://localhost:5001/uploads/${serverFilename}`;
+      fileUrl = `${import.meta.env.VITE_API_URL}/uploads/${serverFilename}`;
     } else {
       return; // No valid file to download
     }
@@ -1172,7 +1172,7 @@ const AssignedProposalsContent = () => {
 
   const getDownloadUrl = (file) => {
     if (!file?.filename) return null;
-    return `http://localhost:5001/api/download/${file.filename}?name=${encodeURIComponent(file.originalname || file.filename)}`;
+    return `${import.meta.env.VITE_API_URL}/api/download/${file.filename}?name=${encodeURIComponent(file.originalname || file.filename)}`;
   };
 
   const formatFileLabel = (key) => {
@@ -2330,7 +2330,7 @@ const SubmittedReviewsContent = () => {
         return;
       }
 
-      const response = await fetch(`http://localhost:5001/api/reviews/completed/${currentUser.email}`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reviews/completed/${currentUser.email}`);
       const data = await response.json();
       setSubmittedReviews(data.map(r => ({
         ...r,

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './studentdashboard.css';
 
-const API = 'http://localhost:5001/api';
+const API = `${import.meta.env.VITE_API_URL}/api`;
 
 // Icons as simple SVG components
 const DashboardIcon = () => (
@@ -286,7 +286,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
   useEffect(() => {
     const fetchStudentData = async () => {
       try {
-        const response = await fetch(`http://localhost:5001/api/student/profile?email=${encodeURIComponent(userInfo.email)}`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/student/profile?email=${encodeURIComponent(userInfo.email)}`);
         const result = await response.json();
         if (result.success) {
           setStudentData(result.student);
@@ -340,7 +340,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
     setSaveLoading(true);
     setError('');
     try {
-      const response = await fetch('http://localhost:5001/api/student/profile', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/student/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userInfo.email, ...editedInfo }),
@@ -390,7 +390,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
     }
     setPwdLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/student/change-password', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/student/change-password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userInfo.email, currentPassword: pwdData.current, newPassword: pwdData.newPwd }),
@@ -416,7 +416,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
     if (!deletePassword) { setDeleteError('Please enter your password to confirm.'); return; }
     setDeleteLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/student/account', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/student/account`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userInfo.email, password: deletePassword }),
@@ -686,9 +686,9 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
       try {
         // Fetch real data from APIs
         const [proposalsResponse, reviewsResponse, notificationsResponse] = await Promise.all([
-          fetch(`http://localhost:5001/api/proposals/student/${encodeURIComponent(userInfo.email)}`),
-          fetch(`http://localhost:5001/api/reviews/student/${encodeURIComponent(userInfo.email)}`),
-          fetch(`http://localhost:5001/api/messages/${encodeURIComponent(userInfo.email)}`)
+          fetch(`${import.meta.env.VITE_API_URL}/api/proposals/student/${encodeURIComponent(userInfo.email)}`),
+          fetch(`${import.meta.env.VITE_API_URL}/api/reviews/student/${encodeURIComponent(userInfo.email)}`),
+          fetch(`${import.meta.env.VITE_API_URL}/api/messages/${encodeURIComponent(userInfo.email)}`)
         ]);
 
         // Check responses are OK before parsing
@@ -1030,7 +1030,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
       submitData.append('studentEmail', user?.email || '');
       submitData.append('studentName', user?.name || '');
 
-      const response = await fetch('http://localhost:5001/api/student/submit-files', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/student/submit-files`, {
         method: 'POST',
         body: submitData
       });
@@ -1585,8 +1585,8 @@ const HistoryContent = () => {
       try {
         // Fetch student's proposals and reviews
         const [proposalsResponse, reviewsResponse] = await Promise.all([
-          fetch(`http://localhost:5001/api/proposals/student/${encodeURIComponent(userInfo.email)}`),
-          fetch(`http://localhost:5001/api/reviews/student/${encodeURIComponent(userInfo.email)}`)
+          fetch(`${import.meta.env.VITE_API_URL}/api/proposals/student/${encodeURIComponent(userInfo.email)}`),
+          fetch(`${import.meta.env.VITE_API_URL}/api/reviews/student/${encodeURIComponent(userInfo.email)}`)
         ]);
 
         // Check if responses are OK before parsing JSON

@@ -83,7 +83,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
 
     setCheckingGmail(true);
     try {
-      const response = await fetch('http://localhost:5001/api/check-gmail-exists', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/check-gmail-exists`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -309,7 +309,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       }
       
       try {
-        const response = await fetch('http://localhost:5001/api/verify-otp', {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/verify-otp`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -558,7 +558,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                       className="send-otp-btn"
                       onClick={async () => {
                         try {
-                          const response = await fetch('http://localhost:5001/api/send-otp', {
+                          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/send-otp`, {
                             method: 'POST',
                             headers: {
                               'Content-Type': 'application/json',
@@ -609,7 +609,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                       className="resend-otp-btn"
                       onClick={async () => {
                         try {
-                          const response = await fetch('http://localhost:5001/api/send-otp', {
+                          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/send-otp`, {
                             method: 'POST',
                             headers: {
                               'Content-Type': 'application/json',
