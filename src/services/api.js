@@ -1,5 +1,5 @@
 // API service for client-side requests
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
 
 // Authentication
 export const authenticateUser = async (email, password) => {
