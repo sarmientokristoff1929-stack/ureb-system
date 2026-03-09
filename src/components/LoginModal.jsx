@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import './LoginModal.css';
 
 const ShieldIcon = () => (
@@ -58,15 +58,9 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [otpError, setOtpError] = useState('');
   const [gmailExists, setGmailExists] = useState(false);
   const [checkingGmail, setCheckingGmail] = useState(false);
-
-  // Debounce function to avoid too many API calls
-  const debounce = (func, delay) => {
-    let timeoutId;
-    return (...args) => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => func.apply(this, args), delay);
-    };
-  };
+  const [otpSending, setOtpSending] = useState(false);
+  const [serverReady, setServerReady] = useState(false);
+  const debounceTimer = useRef(null);
 
   // Gmail validation function
   const validateGmail = (gmail) => {
@@ -80,17 +74,13 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       setGmailExists(false);
       return;
     }
-
     setCheckingGmail(true);
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/check-gmail-exists`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gmail }),
       });
-
       const result = await response.json();
       setGmailExists(result.exists);
     } catch (error) {
@@ -101,8 +91,44 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     }
   };
 
-  // Debounced version of checkGmailExists
-  const debouncedCheckGmail = debounce(checkGmailExists, 500);
+  // Properly memoised debounce using useRef
+  const debouncedCheckGmail = (gmail) => {
+    clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => checkGmailExists(gmail), 500);
+  };
+
+  // Send OTP helper (used by both Send and Resend buttons)
+  const sendOtp = async (gmail, { isResend = false } = {}) => {
+    setOtpSending(true);
+    setError('');
+    setOtpError('');
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gmail }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      const result = await response.json();
+      if (result.success) {
+        setOtpSent(true);
+        setError(isResend ? 'New OTP has been sent to your Gmail address.' : 'OTP has been sent to your Gmail address. Please enter it to continue.');
+      } else {
+        setError(result.error || 'Failed to send OTP. Please try again.');
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        setError('Request timed out. The server may be starting up — please try again in a moment.');
+      } else {
+        setError('Failed to send OTP. Please check your connection and try again.');
+      }
+    } finally {
+      setOtpSending(false);
+    }
+  };
 
   // Password validation function
   const validatePassword = (password) => {
@@ -391,9 +417,26 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     }
   };
 
+  // Ping the server to wake it up (Render free tier cold start)
+  const warmupServer = async () => {
+    setServerReady(false);
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/ping`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(60000),
+      });
+    } catch (_) {
+      // ignore — any response (even 404) means server is up
+    } finally {
+      setServerReady(true);
+    }
+  };
+
   const toggleMode = () => {
-    setIsRegistering(!isRegistering);
+    const next = !isRegistering;
+    setIsRegistering(next);
     resetForm();
+    if (next) warmupServer();
   };
 
   return (
@@ -468,7 +511,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                     placeholder="Enter your student ID (e.g., 2022-2025 or 20231234)"
                     required
                     inputMode="numeric"
-                    pattern="[0-9-]+"
+                    pattern="[0-9\-]+"
                   />
                 </div>
 
@@ -555,31 +598,10 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                     <button
                       type="button"
                       className="send-otp-btn"
-                      onClick={async () => {
-                        try {
-                          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/send-otp`, {
-                            method: 'POST',
-                            headers: {
-                              'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({ gmail: regGmail }),
-                          });
-                          
-                          const result = await response.json();
-                          
-                          if (result.success) {
-                            setOtpSent(true);
-                            setError('OTP has been sent to your Gmail address. Please enter it to continue.');
-                          } else {
-                            setError(result.error || 'Failed to send OTP');
-                          }
-                        } catch (error) {
-                          console.error('Error sending OTP:', error);
-                          setError('Failed to send OTP. Please try again.');
-                        }
-                      }}
+                      disabled={otpSending || checkingGmail || !serverReady}
+                      onClick={() => sendOtp(regGmail)}
                     >
-                      Send OTP
+                      {!serverReady ? 'Connecting…' : otpSending ? 'Sending OTP…' : 'Send OTP'}
                     </button>
                   )}
                 </div>
@@ -606,31 +628,10 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                     <button
                       type="button"
                       className="resend-otp-btn"
-                      onClick={async () => {
-                        try {
-                          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/send-otp`, {
-                            method: 'POST',
-                            headers: {
-                              'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({ gmail: regGmail }),
-                          });
-                          
-                          const result = await response.json();
-                          
-                          if (result.success) {
-                            setOtpError('');
-                            setError('New OTP has been sent to your Gmail address.');
-                          } else {
-                            setOtpError(result.error || 'Failed to resend OTP');
-                          }
-                        } catch (error) {
-                          console.error('Error resending OTP:', error);
-                          setOtpError('Failed to resend OTP. Please try again.');
-                        }
-                      }}
+                      disabled={otpSending}
+                      onClick={() => sendOtp(regGmail, { isResend: true })}
                     >
-                      Resend OTP
+                      {otpSending ? 'Sending…' : 'Resend OTP'}
                     </button>
                   </div>
                 )}

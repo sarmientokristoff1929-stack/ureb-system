@@ -122,6 +122,18 @@ const uploadProfilePic = multer({
   }
 });
 
+// Shared nodemailer transporter (created once, reused for all emails)
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_EMAIL,
+    pass: process.env.GMAIL_APP_PASSWORD
+  },
+  pool: true,          // keep connection pool alive
+  maxConnections: 5,
+  rateLimit: true
+});
+
 // Serve static files from uploads directory
 app.use('/uploads', express.static(uploadsDir));
 
@@ -248,6 +260,11 @@ const collections = {
 };
 
 // API Routes
+
+// Health / warmup ping
+app.get('/api/ping', (req, res) => {
+  res.json({ ok: true });
+});
 
 // Authentication
 app.post('/api/auth/login', async (req, res) => {
@@ -1577,15 +1594,6 @@ app.post('/api/send-email', async (req, res) => {
   try {
     const { to, subject, body, fromEmail, fromName } = req.body;
     
-    // Create a transporter using Gmail
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_EMAIL,
-        pass: process.env.GMAIL_APP_PASSWORD
-      }
-    });
-    
     // Email options
     const mailOptions = {
       from: `${fromName} <${process.env.GMAIL_EMAIL}>`,
@@ -1660,15 +1668,6 @@ app.post('/api/send-otp', async (req, res) => {
     
     // Store OTP
     otpStore.set(gmail, { otp, expiry });
-    
-    // Create email transporter
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_EMAIL,
-        pass: process.env.GMAIL_APP_PASSWORD
-      }
-    });
     
     // Send OTP email
     const mailOptions = {
@@ -2444,14 +2443,6 @@ app.post('/api/send-message-to-student', upload.any(), async (req, res) => {
     let emailSent = false;
     if (process.env.GMAIL_EMAIL && process.env.GMAIL_APP_PASSWORD) {
       try {
-        const transporter = nodemailer.createTransport({
-          service: 'gmail',
-          auth: {
-            user: process.env.GMAIL_EMAIL,
-            pass: process.env.GMAIL_APP_PASSWORD
-          }
-        });
-
         let emailContent = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: #7A9E7E; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
