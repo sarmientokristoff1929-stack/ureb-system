@@ -405,7 +405,7 @@ const Contact = ({ onMessageClick }) => (
               </span>
               <div>
                 <strong>Email</strong>
-                <a href="mailto:reod@dorsu.edu.ph">reod@dorsu.edu.ph</a>
+                <a href="mailto:reo@dorsu.edu.ph">reo@dorsu.edu.ph</a>
               </div>
             </div>
             <div className="contact-item">
