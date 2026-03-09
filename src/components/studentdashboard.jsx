@@ -1339,7 +1339,7 @@ const FileTemplatesContent = () => {
                 <div className="ft-card-footer">
                   <span className="ft-filename">{tpl.filename}</span>
                   <a
-                    href={`${import.meta.env.VITE_API_URL}/api/templates/${tpl.filename}`}
+                    href={`/${tpl.filename}`}
                     download={tpl.filename}
                     className="ft-download-btn"
                   >
