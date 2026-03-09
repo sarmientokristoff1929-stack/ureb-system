@@ -91,6 +91,16 @@ const TrashIcon = () => (
   </svg>
 );
 
+const FileTemplatesIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+    <line x1="16" y1="13" x2="8" y2="13"/>
+    <line x1="16" y1="17" x2="8" y2="17"/>
+    <polyline points="10 9 9 9 8 9"/>
+  </svg>
+);
+
 const ReplyIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
@@ -137,6 +147,7 @@ const StudentDashboard = ({ onLogout }) => {
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     { id: 'notifications', label: 'Notifications', icon: <BellIcon /> },
     { id: 'add-files', label: 'Add Files', icon: <FilePlusIcon /> },
+    { id: 'file-templates', label: 'File Templates', icon: <FileTemplatesIcon /> },
     { id: 'messages', label: 'Messages', icon: <MailIcon /> },
     { id: 'history', label: 'History', icon: <HistoryIcon /> },
     { id: 'profile', label: 'Profile', icon: <ProfileIcon /> },
@@ -171,6 +182,8 @@ const StudentDashboard = ({ onLogout }) => {
         return <NotificationsContent />;
       case 'add-files':
         return <AddFilesContent setSubmittedFiles={setSubmittedFiles} setShowSuccessModal={setShowSuccessModal} />;
+      case 'file-templates':
+        return <FileTemplatesContent />;
       case 'messages':
         return <MessagesContent userInfo={userInfo} />;
       case 'history':
@@ -210,7 +223,16 @@ const StudentDashboard = ({ onLogout }) => {
       {/* Sidebar */}
       <aside className={`sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
-          <h2>Student Portal</h2>
+          <div className="sidebar-logo">
+            <img src="/logoureb.png" alt="UREB Logo" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
+            <span>Student Portal</span>
+          </div>
+          <button
+            className="sidebar-toggle mobile-only"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          >
+            {isSidebarOpen ? <XIcon /> : <MenuIcon />}
+          </button>
         </div>
         <nav className="sidebar-nav">
           {menuItems.map((item) => (
@@ -236,7 +258,7 @@ const StudentDashboard = ({ onLogout }) => {
       <main className={`main-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
         <header className="content-header">
           <button
-            className="menu-toggle mobile-only"
+            className="menu-toggle desktop-only"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           >
             <MenuIcon />
@@ -678,6 +700,8 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
   const [recentActivity, setRecentActivity] = useState([]);
   const [proposals, setProposals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -732,6 +756,21 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
 
     fetchDashboardData();
   }, [userInfo]);
+
+  const confirmDeleteProposal = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/proposals/${deleteTargetId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setProposals(prev => prev.filter(p => p._id !== deleteTargetId));
+        setStats(prev => ({ ...prev, totalProposals: prev.totalProposals - 1 }));
+      }
+    } catch (err) {
+      console.error('Error deleting proposal:', err);
+    } finally {
+      setDeleteTargetId(null);
+      setDeleteModalOpen(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -819,9 +858,18 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
                           <h3 className="up-card-title">{proposal.researchTitle || 'Untitled Proposal'}</h3>
                           <span className="up-card-id">#{proposal._id?.slice(-8) || 'N/A'}</span>
                         </div>
-                        <span className={`up-status up-status--${status}`}>
-                          {proposal.status || 'Pending'}
-                        </span>
+                        <div className="up-card-top-right">
+                          <span className={`up-status up-status--${status}`}>
+                            {proposal.status || 'Pending'}
+                          </span>
+                          <button
+                            className="up-delete-btn"
+                            onClick={() => { setDeleteTargetId(proposal._id); setDeleteModalOpen(true); }}
+                            title="Delete proposal"
+                          >
+                            <TrashIcon />
+                          </button>
+                        </div>
                       </div>
 
                       <div className="up-card-meta">
@@ -861,6 +909,20 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
           )}
         </div>
       </div>
+
+      {deleteModalOpen && (
+        <div className="mini-modal-overlay" onClick={() => { setDeleteModalOpen(false); setDeleteTargetId(null); }}>
+          <div className="mini-modal" onClick={e => e.stopPropagation()}>
+            <div className="mini-modal-icon mini-modal-icon--danger"><TrashIcon /></div>
+            <h4 className="mini-modal-title">Delete Proposal?</h4>
+            <p className="mini-modal-text">This proposal will be permanently removed and cannot be undone.</p>
+            <div className="mini-modal-actions">
+              <button className="mini-modal-btn mini-modal-btn--ghost" onClick={() => { setDeleteModalOpen(false); setDeleteTargetId(null); }}>Cancel</button>
+              <button className="mini-modal-btn mini-modal-btn--danger" onClick={confirmDeleteProposal}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1200,6 +1262,96 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
           </button>
         </div>
       </form>
+    </div>
+  );
+};
+
+const FileTemplatesContent = () => {
+  const templates = [
+    {
+      id: 1,
+      name: 'Form 2 — Curriculum Vitae',
+      description: 'Curriculum Vitae form required for research ethics submission.',
+      filename: 'Form 2  B CURRICULUM VITAE (2).docx',
+      category: 'Submission',
+      color: '#4a7c59',
+    },
+    {
+      id: 2,
+      name: 'Form 6 — Application for Research Ethics Review',
+      description: 'Official application form for requesting a research ethics review.',
+      filename: 'Form 6 APPLICATION FOR RESEARCH ETHICS REVIEW (3).docx',
+      category: 'Application',
+      color: '#2563eb',
+    },
+    {
+      id: 3,
+      name: 'Form 8 (A) — Checklist for Investigations',
+      description: 'Checklist for investigations involving human participants. Accomplish only applicable pages.',
+      filename: 'Form 8 (A) CHECKLIST FOR INVESTIGATIONS INVOLVING (3).docx',
+      category: 'Compliance',
+      color: '#7c3aed',
+    },
+    {
+      id: 4,
+      name: 'Form 10 (A) — Informed Consent Form',
+      description: 'Informed Consent Form template for studies involving human participants.',
+      filename: 'Form 10 (A) INFORMED CONSENT FORM (3).docx',
+      category: 'Compliance',
+      color: '#c2410c',
+    },
+  ];
+
+  const categoryColors = {
+    Submission:  { bg: '#f0faf0', text: '#276227', border: '#c3e6c3' },
+    Application: { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
+    Compliance:  { bg: '#f5f3ff', text: '#6d28d9', border: '#ddd6fe' },
+    Instrument:  { bg: '#ecfeff', text: '#0e7490', border: '#a5f3fc' },
+  };
+
+  return (
+    <div className="content-section">
+      <div className="ft-page-header">
+        <div>
+          <h2 className="ft-page-title">File Templates</h2>
+          <p className="ft-page-subtitle">Download the official UREB forms and templates needed for your submission.</p>
+        </div>
+        <span className="ft-count-badge">{templates.length} templates available</span>
+      </div>
+
+      <div className="ft-grid">
+        {templates.map((tpl) => {
+          const cat = categoryColors[tpl.category] || categoryColors.Submission;
+          return (
+            <div key={tpl.id} className="ft-card">
+              <div className="ft-card-accent" style={{ background: tpl.color }} />
+              <div className="ft-card-body">
+                <div className="ft-card-top">
+                  <div className="ft-icon-wrap" style={{ background: tpl.color + '18', color: tpl.color }}>
+                    <FileTemplatesIcon />
+                  </div>
+                  <span className="ft-category-badge" style={{ background: cat.bg, color: cat.text, border: `1px solid ${cat.border}` }}>
+                    {tpl.category}
+                  </span>
+                </div>
+                <h3 className="ft-card-title">{tpl.name}</h3>
+                <p className="ft-card-desc">{tpl.description}</p>
+                <div className="ft-card-footer">
+                  <span className="ft-filename">{tpl.filename}</span>
+                  <a
+                    href={`${import.meta.env.VITE_API_URL}/api/templates/${tpl.filename}`}
+                    download={tpl.filename}
+                    className="ft-download-btn"
+                  >
+                    <DownloadIcon />
+                    Download
+                  </a>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

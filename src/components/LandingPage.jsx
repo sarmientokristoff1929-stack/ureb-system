@@ -56,9 +56,71 @@ const XIcon = () => (
   </svg>
 );
 
+const MobileBottomNav = ({ onLoginClick }) => {
+  const mobileLinks = [
+    {
+      name: 'Home', href: '#home',
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      ),
+    },
+    {
+      name: 'Services', href: '#services',
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/>
+        </svg>
+      ),
+    },
+    {
+      name: 'About', href: '#about',
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      ),
+    },
+    {
+      name: 'Process', href: '#process',
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+        </svg>
+      ),
+    },
+    {
+      name: 'Login', href: null,
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+        </svg>
+      ),
+    },
+  ];
+
+  return (
+    <nav className="mobile-bottom-nav">
+      {mobileLinks.map((item) =>
+        item.href ? (
+          <a key={item.name} href={item.href} className="mobile-bottom-nav-item">
+            {item.icon}
+            <span>{item.name}</span>
+          </a>
+        ) : (
+          <button key={item.name} className="mobile-bottom-nav-item mobile-bottom-nav-login" onClick={onLoginClick}>
+            {item.icon}
+            <span>{item.name}</span>
+          </button>
+        )
+      )}
+    </nav>
+  );
+};
+
 const Navbar = ({ onLoginClick }) => {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -76,39 +138,23 @@ const Navbar = ({ onLoginClick }) => {
   ];
 
   return (
-    <nav className={`navbar ${isScrolled ? 'scrolled' : ''}`}>
-      <div className="navbar-container">
-        <a href="#home" className="logo">
-          <img src="/UREBLOGO.png" alt="UREB Logo" className="navbar-logo-img" />
-          <span>University Research Ethics Board</span>
-        </a>
-
-        {isMobileMenuOpen && (
-          <div className="mobile-nav-backdrop" onClick={() => setIsMobileMenuOpen(false)} />
-        )}
-
-        <div className={`nav-links ${isMobileMenuOpen ? 'open' : ''}`}>
-          {navLinks.map((link) => (
-            <a
-              key={link.name}
-              href={link.href}
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              {link.name}
-            </a>
-          ))}
-          <button className="nav-cta" onClick={() => { onLoginClick(); setIsMobileMenuOpen(false); }}>Login</button>
+    <>
+      <nav className={`navbar ${isScrolled ? 'scrolled' : ''}`}>
+        <div className="navbar-container">
+          <a href="#home" className="logo">
+            <img src="/UREBLOGO.png" alt="UREB Logo" className="navbar-logo-img" />
+            <span>University Research Ethics Board</span>
+          </a>
+          <div className="nav-links">
+            {navLinks.map((link) => (
+              <a key={link.name} href={link.href}>{link.name}</a>
+            ))}
+            <button className="nav-cta" onClick={onLoginClick}>Login</button>
+          </div>
         </div>
-
-        <button
-          className="mobile-menu-btn"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          aria-label="Toggle menu"
-        >
-          {isMobileMenuOpen ? <XIcon /> : <MenuIcon />}
-        </button>
-      </div>
-    </nav>
+      </nav>
+      <MobileBottomNav onLoginClick={onLoginClick} />
+    </>
   );
 };
 
@@ -341,34 +387,67 @@ const Contact = ({ onMessageClick }) => (
   <section id="contact" className="contact">
     <div className="section-container">
       <div className="contact-grid">
+
         <div className="contact-info">
           <span className="section-badge">Get in Touch</span>
           <h2 className="section-title">We're Here to Help</h2>
           <p className="contact-text">
-            Have questions about your research protocol or the ethics review process? 
-            Our team is ready to assist you.
+            Have questions about your research protocol or the ethics review process?
+            Our team is ready to assist you every step of the way.
           </p>
           <div className="contact-details">
             <div className="contact-item">
-              <strong>Email</strong>
-              <span>reod@dorsu.edu.ph</span>
+              <span className="contact-item-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+              </span>
+              <div>
+                <strong>Email</strong>
+                <a href="mailto:reod@dorsu.edu.ph">reod@dorsu.edu.ph</a>
+              </div>
             </div>
             <div className="contact-item">
-              <strong>Office Hours</strong>
-              <span>Monday - Friday, 8:00 AM - 5:00 PM</span>
+              <span className="contact-item-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </span>
+              <div>
+                <strong>Office Hours</strong>
+                <span>Monday – Friday, 8:00 AM – 5:00 PM</span>
+              </div>
             </div>
             <div className="contact-item">
-              <strong>Location</strong>
-              <span>Guang-Guang Barangay Dahican City Of Mati, Davao Oriental</span>
+              <span className="contact-item-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+              </span>
+              <div>
+                <strong>Location</strong>
+                <span>Guang-Guang, Dahican, Mati City, Davao Oriental</span>
+              </div>
             </div>
           </div>
         </div>
+
         <div className="contact-cta-card" id="apply">
-          <ShieldIcon />
-          <h3>Message Us We are Here to Help</h3>
-          <p>Start your ethics review process today. Our online portal makes submission quick and easy.</p>
-          <button className="btn-primary" onClick={onMessageClick}>Message Us</button>
+          <div className="contact-cta-badge">Ready to get started?</div>
+          <h3>Send Us a Message</h3>
+          <p>Reach out to our team for guidance on your research ethics review. We typically respond within one business day.</p>
+          <button className="btn-primary contact-cta-btn" onClick={onMessageClick}>
+            Message Us
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+            </svg>
+          </button>
+          <p className="contact-cta-note">No login required · Free consultation</p>
         </div>
+
       </div>
     </div>
   </section>
@@ -378,38 +457,54 @@ const Footer = () => (
   <footer className="footer">
     <div className="footer-container">
       <div className="footer-main">
+
         <div className="footer-brand">
           <div className="footer-logo">
-            <ShieldIcon />
+            <img src="/UREBLOGO.png" alt="UREB Logo" className="footer-logo-img" />
             <span>University Research Ethics Board</span>
           </div>
           <p className="footer-tagline">
-            Protecting research participants, promoting ethical research excellence.
+            Protecting research participants and promoting ethical research excellence at Davao Oriental State University.
           </p>
         </div>
-        <div className="footer-links">
-          <div className="footer-column">
-            <h4>Quick Links</h4>
-            <a href="#home">Home</a>
-            <a href="#services">Services</a>
-            <a href="#about">About</a>
-            <a href="#process">Process</a>
+
+        <div className="footer-column">
+          <h4>Navigate</h4>
+          <a href="#home">Home</a>
+          <a href="#services">Services</a>
+          <a href="#about">About</a>
+          <a href="#process">Process</a>
+        </div>
+
+        <div className="footer-column">
+          <h4>Resources</h4>
+          <a href="#">Guidelines</a>
+          <a href="#">Forms</a>
+          <a href="#">FAQ</a>
+          <a href="#">Policies</a>
+        </div>
+
+        <div className="footer-column">
+          <h4>Contact</h4>
+          <div className="footer-contact-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            <a href="mailto:reod@dorsu.edu.ph">reod@dorsu.edu.ph</a>
           </div>
-          <div className="footer-column">
-            <h4>Resources</h4>
-            <a href="#">Guidelines</a>
-            <a href="#">Forms</a>
-            <a href="#">FAQ</a>
-            <a href="#">Policies</a>
+          <div className="footer-contact-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>Mon – Fri, 8:00 AM – 5:00 PM</span>
           </div>
-          <div className="footer-column">
-            <h4>Contact</h4>
-            <a href="reo@dorsu.edu.ph">reo@dorsu.edu.ph</a>
+          <div className="footer-contact-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>Guang-Guang, Dahican, Mati, Davao Oriental</span>
           </div>
         </div>
+
       </div>
+
       <div className="footer-bottom">
-        <p>&copy; {new Date().getFullYear()} University Research Ethics Board. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} University Research Ethics Board — DOrSU. All rights reserved.</p>
+        <a href="#home" className="footer-back-top">Back to top ↑</a>
       </div>
     </div>
   </footer>

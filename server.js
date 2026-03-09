@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5002;
+const PORT = process.env.PORT || 5003;
 
 // Middleware
 app.use(cors());
@@ -125,12 +125,29 @@ const uploadProfilePic = multer({
 // Serve static files from uploads directory
 app.use('/uploads', express.static(uploadsDir));
 
-// Resolve a filename: GridFS first, then local disk fallback
+// Serve downloadable template files
+const templatesDir = path.join(__dirname, 'templates');
+app.use('/api/templates', express.static(templatesDir));
+
+// Resolve a filename: local disk first (checks multiple paths), then GridFS fallback
 async function resolveFile(filename) {
-  const gridFiles = await gfsBucket.find({ filename }).toArray();
-  if (gridFiles.length) return { source: 'gridfs', meta: gridFiles[0] };
-  const diskPath = path.join(uploadsDir, filename);
-  if (fs.existsSync(diskPath)) return { source: 'disk', diskPath };
+  const candidatePaths = [
+    path.join(uploadsDir, filename),
+    path.join(process.cwd(), 'uploads', filename),
+  ];
+  for (const diskPath of candidatePaths) {
+    if (fs.existsSync(diskPath)) {
+      console.log('[resolveFile] found on disk:', diskPath);
+      return { source: 'disk', diskPath };
+    }
+  }
+  try {
+    const gridFiles = await gfsBucket.find({ filename }).toArray();
+    if (gridFiles.length) return { source: 'gridfs', meta: gridFiles[0] };
+  } catch (err) {
+    console.error('GridFS lookup error for', filename, err.message);
+  }
+  console.log('[resolveFile] NOT FOUND:', filename, '| uploadsDir:', uploadsDir, '| cwd:', process.cwd());
   return null;
 }
 
@@ -146,12 +163,28 @@ const MIME_MAP = {
   '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
 
-// Download endpoint — GridFS with local-disk fallback
-app.get('/api/download/:filename', async (req, res) => {
-  const { filename } = req.params;
+// Diagnostic endpoint — shows server path info
+app.get('/api/debug-paths', (req, res) => {
+  const testFile = 'urebForm16-1772010333565-744759165.pdf';
+  const testPath = path.join(uploadsDir, testFile);
+  res.json({
+    __dirname,
+    uploadsDir,
+    testPath,
+    testExists: fs.existsSync(testPath),
+    uploadsDirExists: fs.existsSync(uploadsDir),
+    files: fs.existsSync(uploadsDir) ? fs.readdirSync(uploadsDir).slice(0, 10) : []
+  });
+});
+
+// Download endpoint — disk first, then GridFS fallback
+app.get('/api/download/*', async (req, res) => {
+  const filename = req.params[0];
   const originalName = req.query.name || filename;
+  console.log('[download] requested:', filename);
   try {
     const resolved = await resolveFile(filename);
+    console.log('[download] resolved:', resolved ? resolved.source : 'NOT FOUND', resolved?.diskPath || '');
     if (!resolved) return res.status(404).json({ error: 'File not found' });
     const mime = resolved.meta?.contentType
       || MIME_MAP[path.extname(filename).toLowerCase()]
@@ -161,7 +194,12 @@ app.get('/api/download/:filename', async (req, res) => {
     if (resolved.source === 'gridfs') {
       gfsBucket.openDownloadStreamByName(filename).pipe(res);
     } else {
-      res.sendFile(resolved.diskPath);
+      const stream = fs.createReadStream(resolved.diskPath);
+      stream.on('error', (err) => {
+        console.error('[download] stream error:', err);
+        if (!res.headersSent) res.status(500).json({ error: 'Read error' });
+      });
+      stream.pipe(res);
     }
   } catch (err) {
     console.error('Download error:', err);
@@ -169,9 +207,9 @@ app.get('/api/download/:filename', async (req, res) => {
   }
 });
 
-// View endpoint — GridFS with local-disk fallback, inline for browser rendering
-app.get('/api/view/:filename', async (req, res) => {
-  const { filename } = req.params;
+// View endpoint — disk first, then GridFS fallback, inline for browser rendering
+app.get('/api/view/*', async (req, res) => {
+  const filename = req.params[0];
   try {
     const resolved = await resolveFile(filename);
     if (!resolved) return res.status(404).json({ error: 'File not found' });
@@ -184,7 +222,12 @@ app.get('/api/view/:filename', async (req, res) => {
     if (resolved.source === 'gridfs') {
       gfsBucket.openDownloadStreamByName(filename).pipe(res);
     } else {
-      res.sendFile(resolved.diskPath);
+      const stream = fs.createReadStream(resolved.diskPath);
+      stream.on('error', (err) => {
+        console.error('[view] stream error:', err);
+        if (!res.headersSent) res.status(500).json({ error: 'Read error' });
+      });
+      stream.pipe(res);
     }
   } catch (err) {
     console.error('View error:', err);
@@ -621,8 +664,80 @@ app.delete('/api/users/:id', async (req, res) => {
   }
 });
 
+// Update reviewer profile by email
+app.put('/api/reviewers/profile', async (req, res) => {
+  console.log('=== REVIEWER PROFILE ENDPOINT HIT ===');
+  console.log('Request URL:', req.originalUrl);
+  console.log('Request method:', req.method);
+  console.log('Request headers:', req.headers);
+  console.log('Request body raw:', req.body);
+  console.log('Request body JSON:', JSON.stringify(req.body, null, 2));
+  
+  try {
+    const db = getDatabase();
+    const reviewers = db.collection(collections.reviewers);
+    const { email, name } = req.body;
+    
+    console.log('Extracted email:', email);
+    console.log('Extracted name:', name);
+    
+    if (!email) {
+      console.log('Email validation failed - email is missing');
+      return res.status(400).json({ success: false, error: 'Email is required' });
+    }
+    
+    if (!name) {
+      console.log('Name validation failed - name is missing');
+      return res.status(400).json({ success: false, error: 'Name is required' });
+    }
+    
+    console.log('Updating reviewer profile for email:', email);
+    console.log('Update data:', { name });
+    
+    // Check if reviewer exists
+    const existingReviewer = await reviewers.findOne({ email: email });
+    if (!existingReviewer) {
+      console.log('Reviewer not found with email:', email);
+      return res.status(404).json({ success: false, error: 'Reviewer not found' });
+    }
+    
+    console.log('Found reviewer:', existingReviewer);
+    
+    const result = await reviewers.updateOne(
+      { email: email },
+      { $set: { name: name, updatedAt: new Date() } }
+    );
+    
+    console.log('Update result:', result);
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ success: false, error: 'Reviewer not found' });
+    }
+    
+    console.log('Profile update successful!');
+    res.json({ 
+      success: true, 
+      message: 'Profile updated successfully',
+      reviewer: {
+        name: name,
+        email: email
+      }
+    });
+  } catch (error) {
+    console.error('Error updating reviewer profile:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ success: false, error: 'Server error: ' + error.message });
+  }
+});
+
 // Update reviewer endpoint
 app.put('/api/reviewers/:id', async (req, res) => {
+  console.log('=== REVIEWER ID ENDPOINT HIT ===');
+  console.log('Request URL:', req.originalUrl);
+  console.log('Request method:', req.method);
+  console.log('ID parameter:', req.params.id);
+  console.log('Request body:', req.body);
+  
   try {
     const db = getDatabase();
     const reviewers = db.collection(collections.reviewers);
@@ -813,6 +928,33 @@ app.get('/api/proposals/:proposalId', async (req, res) => {
   } catch (error) {
     console.error('Error fetching proposal:', error);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete proposal by ID (student)
+app.delete('/api/proposals/:proposalId', async (req, res) => {
+  try {
+    const { proposalId } = req.params;
+    const db = getDatabase();
+    const proposals = db.collection(collections.proposals);
+
+    let objectId;
+    try {
+      objectId = new ObjectId(proposalId);
+    } catch (error) {
+      return res.status(400).json({ success: false, error: 'Invalid proposal ID format' });
+    }
+
+    const result = await proposals.deleteOne({ _id: objectId });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ success: false, error: 'Proposal not found' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting proposal:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
   }
 });
 
@@ -1779,6 +1921,30 @@ app.put('/api/student/change-password', async (req, res) => {
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
     console.error('Error changing password:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Change reviewer password endpoint
+app.put('/api/reviewer/change-password', async (req, res) => {
+  try {
+    const { email, currentPassword, newPassword } = req.body;
+    if (!email || !currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, error: 'All fields are required' });
+    }
+    const db = getDatabase();
+    const reviewers = db.collection(collections.reviewers);
+    const reviewer = await reviewers.findOne({ email });
+    if (!reviewer) {
+      return res.status(404).json({ success: false, error: 'Reviewer not found' });
+    }
+    if (reviewer.password !== currentPassword) {
+      return res.status(400).json({ success: false, error: 'Current password is incorrect' });
+    }
+    await reviewers.updateOne({ email }, { $set: { password: newPassword, updatedAt: new Date() } });
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Error changing reviewer password:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

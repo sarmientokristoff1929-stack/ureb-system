@@ -1,5 +1,5 @@
 // API service for client-side requests
-const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
+const API_BASE_URL = '/api';
 
 // Authentication
 export const authenticateUser = async (email, password) => {
@@ -356,6 +356,22 @@ export const deleteUser = async (id) => {
   } catch (error) {
     console.error('Error deleting user:', error);
     return { success: false, error: 'Failed to delete user' };
+  }
+};
+
+// Change reviewer password
+export const changeReviewerPassword = async (email, currentPassword, newPassword) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/reviewer/change-password`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, currentPassword, newPassword }),
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error changing reviewer password:', error);
+    return { success: false, error: 'Failed to change password' };
   }
 };
 

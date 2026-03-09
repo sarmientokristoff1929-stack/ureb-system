@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 import './reviewerdashboard.css';
 
-import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, getReviewerAssignments } from '../services/api';
+import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, getReviewerAssignments, downloadReviewerFile, deleteMessage, changeReviewerPassword } from '../services/api';
 
 
 
@@ -64,6 +64,21 @@ const MessageIcon = () => (
 
   </svg>
 
+);
+
+const EyeIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+);
+
+const EyeOffIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+    <line x1="1" y1="1" x2="23" y2="23"/>
+  </svg>
 );
 
 
@@ -160,6 +175,26 @@ const SubmitSecondaryFileIcon = () => (
 
 
 
+const FileTemplatesIcon = () => (
+
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+
+    <polyline points="14 2 14 8 20 8"/>
+
+    <line x1="16" y1="13" x2="8" y2="13"/>
+
+    <line x1="16" y1="17" x2="8" y2="17"/>
+
+    <polyline points="10 9 9 9 8 9"/>
+
+  </svg>
+
+);
+
+
+
 const ReviewerDashboard = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState(() => {
     // Restore active tab from localStorage on initial load
@@ -180,6 +215,14 @@ const ReviewerDashboard = ({ onLogout }) => {
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSecondaryReviewer, setIsSecondaryReviewer] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileData, setProfileData] = useState({ name: '', email: '' });
+  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState('');
 
   // List of Secondary Reviewers
   const secondaryReviewers = [
@@ -210,6 +253,7 @@ const ReviewerDashboard = ({ onLogout }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     { id: 'assigned-proposals', label: 'Assigned Proposals', icon: <FileCheckIcon /> },
+    { id: 'file-templates', label: 'File Templates', icon: <FileTemplatesIcon /> },
     { id: 'pending-reviews', label: 'Submit Review', icon: <ClockIcon /> },
     // Only show Submit Secondary File for Preliminary Reviewers
     ...(!isSecondaryReviewer ? [{ id: 'submit-secondary-file', label: 'Submit Secondary File', icon: <SubmitSecondaryFileIcon /> }] : []),
@@ -266,37 +310,117 @@ const ReviewerDashboard = ({ onLogout }) => {
 
 
 
-  const renderContent = () => {
+  const handleProfileClick = () => {
+    setProfileData({ name: userInfo.name, email: userInfo.email });
+    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    setProfileError('');
+    setProfileSuccess('');
+    setEditingProfile(false);
+    setShowProfileModal(true);
+  };
 
-    switch (activeTab) {
+  const handleProfileUpdate = async () => {
+    setProfileLoading(true);
+    setProfileError('');
+    setProfileSuccess('');
 
-      case 'dashboard':
+    try {
+      const response = await fetch('/api/reviewers/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: userInfo.email, 
+          name: profileData.name
+        }),
+      });
 
-        return <DashboardContent />;
+      const result = await response.json();
+      if (result.success) {
+        const updatedUser = { ...userInfo, name: profileData.name };
+        setUserInfo(updatedUser);
+        localStorage.setItem('ureb_user', JSON.stringify(updatedUser));
+        setEditingProfile(false);
+        setProfileSuccess('Profile updated successfully!');
+        setTimeout(() => setProfileSuccess(''), 3000);
+      } else {
+        setProfileError(result.error || 'Failed to update profile');
+      }
+    } catch (err) {
+      setProfileError('Failed to update profile');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
-      case 'assigned-proposals':
+  const handlePasswordChange = async () => {
+    const { currentPassword, newPassword, confirmPassword } = passwordData;
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setProfileError('All password fields are required');
+      setTimeout(() => setProfileError(''), 3000);
+      return;
+    }
+    if (newPassword.length < 6) {
+      setProfileError('New password must be at least 6 characters');
+      setTimeout(() => setProfileError(''), 3000);
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setProfileError('New passwords do not match');
+      setTimeout(() => setProfileError(''), 3000);
+      return;
+    }
+    setProfileLoading(true);
+    setProfileError('');
+    const savedUser = localStorage.getItem('ureb_user');
+    const user = savedUser ? JSON.parse(savedUser) : null;
+    const result = await changeReviewerPassword(user?.email, currentPassword, newPassword);
+    setProfileLoading(false);
+    if (result.success) {
+      setProfileSuccess('Password changed successfully!');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setShowPasswords({ current: false, new: false, confirm: false });
+      setTimeout(() => setProfileSuccess(''), 3000);
+    } else {
+      setProfileError(result.error || 'Failed to change password');
+      setTimeout(() => setProfileError(''), 3000);
+    }
+  };
 
-        return <AssignedProposalsContent />;
+const renderContent = () => {
 
-      case 'pending-reviews':
+switch (activeTab) {
 
-        return <SubmitReviewContent onShowSuccessModal={() => setShowSuccessModal(true)} onNavigateToSubmitted={() => setActiveTab('submitted-reviews')} />;
+case 'dashboard':
 
-      case 'submit-secondary-file':
+return <DashboardContent />;
 
-        return <SubmitSecondaryFileContent onShowSuccessModal={() => setShowSuccessModal(true)} onNavigateToSubmitted={() => setActiveTab('submitted-reviews')} />;
+case 'assigned-proposals':
 
-      case 'submitted-reviews':
+return <AssignedProposalsContent />;
 
-        return <SubmittedReviewsContent />;
+case 'file-templates':
 
-      case 'messages':
+return <FileTemplatesContent />;
 
-        return <MessagesContent />;
+case 'pending-reviews':
 
-      default:
+return <SubmitReviewContent onShowSuccessModal={() => setShowSuccessModal(true)} onNavigateToSubmitted={() => setActiveTab('submitted-reviews')} />;
 
-        return <DashboardContent />;
+case 'submit-secondary-file':
+
+return <SubmitSecondaryFileContent onShowSuccessModal={() => setShowSuccessModal(true)} onNavigateToSubmitted={() => setActiveTab('submitted-reviews')} />;
+
+case 'submitted-reviews':
+
+return <SubmittedReviewsContent />;
+
+case 'messages':
+
+return <MessagesContent />;
+
+default:
+
+return <DashboardContent />;
 
     }
 
@@ -323,7 +447,17 @@ const ReviewerDashboard = ({ onLogout }) => {
 
         <div className="sidebar-header">
 
-          <h2>Reviewer Portal</h2>
+          <div className="sidebar-logo">
+            <img src="/logoureb.png" alt="UREB Logo" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
+            <span>Reviewer Portal</span>
+          </div>
+
+          <button
+            className="sidebar-toggle mobile-only"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          >
+            {isSidebarOpen ? <XIcon /> : <MenuIcon />}
+          </button>
 
         </div>
 
@@ -374,7 +508,7 @@ const ReviewerDashboard = ({ onLogout }) => {
         <header className="content-header">
 
           <button
-            className="menu-toggle mobile-only"
+            className="menu-toggle desktop-only"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           >
 
@@ -388,7 +522,9 @@ const ReviewerDashboard = ({ onLogout }) => {
 
             <span>Welcome, {userInfo.name}</span>
 
-            <div className="user-avatar">{userInfo.name.charAt(0).toUpperCase()}</div>
+            <div className="user-avatar" onClick={handleProfileClick} style={{ cursor: 'pointer' }}>
+              {userInfo.name.charAt(0).toUpperCase()}
+            </div>
 
           </div>
 
@@ -408,6 +544,167 @@ const ReviewerDashboard = ({ onLogout }) => {
       
       {/* Success Modal */}
       <SuccessModal isOpen={showSuccessModal} onClose={() => { setShowSuccessModal(false); setActiveTab('submitted-reviews'); }} />
+
+      {/* Profile Modal */}
+      {showProfileModal && (
+        <div className="profile-modal-overlay" onClick={() => !profileLoading && setShowProfileModal(false)}>
+          <div className="profile-modal" onClick={e => e.stopPropagation()}>
+            <div className="profile-modal-header">
+              <h2>Profile Settings</h2>
+              <button className="profile-modal-close" onClick={() => setShowProfileModal(false)} disabled={profileLoading}>
+                Close
+              </button>
+            </div>
+
+            {profileSuccess && (
+              <div className="profile-success-banner">
+                {profileSuccess}
+              </div>
+            )}
+
+            {profileError && (
+              <div className="profile-error-banner">
+                {profileError}
+              </div>
+            )}
+
+            <div className="profile-modal-content">
+              {/* Profile Information Section */}
+              <div className="profile-section">
+                <h3>Profile Information</h3>
+                {!editingProfile ? (
+                  <div className="profile-info-display">
+                    <div className="profile-info-row">
+                      <span className="profile-label">Name:</span>
+                      <span className="profile-value">{profileData.name}</span>
+                    </div>
+                    <div className="profile-info-row">
+                      <span className="profile-label">Email:</span>
+                      <span className="profile-value">{profileData.email}</span>
+                    </div>
+                    <button 
+                      className="profile-edit-btn"
+                      onClick={() => setEditingProfile(true)}
+                      disabled={profileLoading}
+                    >
+                      Edit Profile
+                    </button>
+                  </div>
+                ) : (
+                  <div className="profile-edit-form">
+                    <div className="profile-form-group">
+                      <label>Name</label>
+                      <input
+                        type="text"
+                        value={profileData.name}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Enter your name"
+                      />
+                    </div>
+                    <div className="profile-form-group">
+                      <label>Email</label>
+                      <input
+                        type="email"
+                        value={profileData.email}
+                        disabled
+                        style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
+                      />
+                      <small style={{ color: '#666', fontSize: '0.8rem' }}>Email cannot be changed</small>
+                    </div>
+                    <div className="profile-form-actions">
+                      <button 
+                        className="profile-save-btn"
+                        onClick={handleProfileUpdate}
+                        disabled={profileLoading}
+                      >
+                        {profileLoading ? 'Saving...' : 'Save Changes'}
+                      </button>
+                      <button 
+                        className="profile-cancel-btn"
+                        onClick={() => {
+                          setEditingProfile(false);
+                          setProfileData({ name: userInfo.name, email: userInfo.email });
+                        }}
+                        disabled={profileLoading}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Password Change Section */}
+              <div className="profile-section">
+                <h3>Change Password</h3>
+                <div className="password-form">
+                  <div className="profile-form-group">
+                    <label>Current Password</label>
+                    <div className="password-input-wrapper">
+                      <input
+                        type={showPasswords.current ? 'text' : 'password'}
+                        value={passwordData.currentPassword}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                        placeholder="Enter current password"
+                      />
+                      <button
+                        type="button"
+                        className="password-toggle-btn"
+                        onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
+                      >
+                        {showPasswords.current ? <EyeOffIcon /> : <EyeIcon />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="profile-form-group">
+                    <label>New Password</label>
+                    <div className="password-input-wrapper">
+                      <input
+                        type={showPasswords.new ? 'text' : 'password'}
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                        placeholder="Enter new password (min. 6 characters)"
+                      />
+                      <button
+                        type="button"
+                        className="password-toggle-btn"
+                        onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
+                      >
+                        {showPasswords.new ? <EyeOffIcon /> : <EyeIcon />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="profile-form-group">
+                    <label>Confirm New Password</label>
+                    <div className="password-input-wrapper">
+                      <input
+                        type={showPasswords.confirm ? 'text' : 'password'}
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                        placeholder="Confirm new password"
+                      />
+                      <button
+                        type="button"
+                        className="password-toggle-btn"
+                        onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
+                      >
+                        {showPasswords.confirm ? <EyeOffIcon /> : <EyeIcon />}
+                      </button>
+                    </div>
+                  </div>
+                  <button 
+                    className="profile-password-btn"
+                    onClick={handlePasswordChange}
+                    disabled={profileLoading}
+                  >
+                    {profileLoading ? 'Updating...' : 'Change Password'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
 
@@ -785,24 +1082,6 @@ const DashboardContent = () => {
 
         
 
-        <div className="quick-actions">
-
-          <h2>Quick Actions</h2>
-
-          <div className="action-buttons">
-
-            <button className="action-btn primary">View Assigned Proposals</button>
-
-            <button className="action-btn secondary">Submit Review</button>
-
-            <button className="action-btn secondary">View Messages</button>
-
-            <button className="action-btn secondary">Download Guidelines</button>
-
-          </div>
-
-        </div>
-
       </div>
 
     </div>
@@ -1167,9 +1446,9 @@ const AssignedProposalsContent = () => {
     return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
-  const getDownloadUrl = (file) => {
-    if (!file?.filename) return null;
-    return `${import.meta.env.VITE_API_URL}/api/download/${file.filename}?name=${encodeURIComponent(file.originalname || file.filename)}`;
+  const handleDownload = async (file) => {
+    if (!file?.filename) return;
+    await downloadReviewerFile(file.filename, file.originalname || file.filename);
   };
 
   const formatFileLabel = (key) => {
@@ -1249,25 +1528,21 @@ const AssignedProposalsContent = () => {
 
                   {isExpanded && (
                     <div className="assigned-files-list">
-                      {fileEntries.map(([key, file]) => {
-                        const downloadUrl = getDownloadUrl(file);
-                        return (
-                          <div key={key} className="assigned-file-item">
-                            <span className="assigned-file-label">{formatFileLabel(key)}</span>
-                            <span className="assigned-file-name">{file.originalname || file.filename}</span>
-                            {downloadUrl && (
-                              <a
-                                href={downloadUrl}
-                                download={file.originalname || file.filename}
-                                className="btn-primary"
-                                style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem', textDecoration: 'none' }}
-                              >
-                                Download
-                              </a>
-                            )}
-                          </div>
-                        );
-                      })}
+                      {fileEntries.map(([key, file]) => (
+                        <div key={key} className="assigned-file-item">
+                          <span className="assigned-file-label">{formatFileLabel(key)}</span>
+                          <span className="assigned-file-name">{file.originalname || file.filename}</span>
+                          {file?.filename && (
+                            <button
+                              className="btn-primary"
+                              style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
+                              onClick={() => handleDownload(file)}
+                            >
+                              Download
+                            </button>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -2018,6 +2293,16 @@ const FileUploadComponent = ({ label, field, accept = ".pdf,.doc,.docx" }) => {
 
 
 
+const TrashIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"/>
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+    <path d="M10 11v6"/>
+    <path d="M14 11v6"/>
+    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+  </svg>
+);
+
 const MessagesContent = () => {
 
   const [messages, setMessages] = useState([]);
@@ -2064,6 +2349,13 @@ const MessagesContent = () => {
 
     }
 
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    const result = await deleteMessage(messageId);
+    if (result.success) {
+      setMessages(prev => prev.filter(m => (m._id || m.id) !== messageId));
+    }
   };
 
 
@@ -2162,7 +2454,16 @@ const MessagesContent = () => {
 
               </div>
 
-              {!message.read && <span className="unread-badge">New</span>}
+              <div className="message-header-right">
+                {!message.read && <span className="unread-badge">New</span>}
+                <button
+                  className="message-delete-btn"
+                  onClick={() => handleDeleteMessage(message._id || message.id)}
+                  title="Delete message"
+                >
+                  <TrashIcon />
+                </button>
+              </div>
 
             </div>
 
@@ -2181,8 +2482,6 @@ const MessagesContent = () => {
                 <button className="btn-secondary">Mark as Read</button>
 
               )}
-
-              <button className="btn-primary">Reply</button>
 
             </div>
 
@@ -2527,6 +2826,90 @@ const SubmittedReviewsContent = () => {
           ))}
         </div>
       )}
+    </div>
+  );
+};
+
+
+const FileTemplatesContent = () => {
+  const templates = [
+    {
+      id: 1,
+      name: 'Form 10 (B) — Informed Consent Assessment Form',
+      description: 'Informed Consent Assessment Form for evaluating participant consent processes.',
+      filename: 'Form-10-B-INFORMED-CONSENT-ASSESSMENT-FORM-Copy.docx',
+      category: 'Compliance',
+      color: '#c2410c',
+    },
+    {
+      id: 2,
+      name: 'Form 11 — Expedited/Full Review Checklist',
+      description: 'Findings of the Review Panel checklist for expedited and full review processes.',
+      filename: 'Form-11-EXPEDITEDFULL-REVIEW-CHECKLIST-FINDINGS-OF-THE-REVIEW-PANEL-FORM-Copy-Copy.docx',
+      category: 'Review',
+      color: '#0891b2',
+    },
+  ];
+
+  const categoryColors = {
+    Submission:  { bg: '#f0faf0', text: '#276227', border: '#c3e6c3' },
+    Application: { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
+    Compliance:  { bg: '#f5f3ff', text: '#6d28d9', border: '#ddd6fe' },
+    Instrument:  { bg: '#ecfeff', text: '#0e7490', border: '#a5f3fc' },
+    Review:     { bg: '#f0f9ff', text: '#0c4a6e', border: '#bae6fd' },
+  };
+
+  const DownloadIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="7 10 12 15 17 10"/>
+      <line x1="12" y1="15" x2="12" y2="3"/>
+    </svg>
+  );
+
+  return (
+    <div className="content-section">
+      <div className="ft-page-header">
+        <div>
+          <h2 className="ft-page-title">File Templates</h2>
+          <p className="ft-page-subtitle">Download the official UREB forms and templates needed for your review process.</p>
+        </div>
+        <span className="ft-count-badge">{templates.length} templates available</span>
+      </div>
+
+      <div className="ft-grid">
+        {templates.map((tpl) => {
+          const cat = categoryColors[tpl.category] || categoryColors.Submission;
+          return (
+            <div key={tpl.id} className="ft-card">
+              <div className="ft-card-accent" style={{ background: tpl.color }} />
+              <div className="ft-card-body">
+                <div className="ft-card-top">
+                  <div className="ft-icon-wrap" style={{ background: tpl.color + '18', color: tpl.color }}>
+                    <FileTemplatesIcon />
+                  </div>
+                  <span className="ft-category-badge" style={{ background: cat.bg, color: cat.text, border: `1px solid ${cat.border}` }}>
+                    {tpl.category}
+                  </span>
+                </div>
+                <h3 className="ft-card-title">{tpl.name}</h3>
+                <p className="ft-card-desc">{tpl.description}</p>
+                <div className="ft-card-footer">
+                  <span className="ft-filename">{tpl.filename}</span>
+                  <a
+                    href={`/${tpl.filename}`}
+                    download={tpl.filename}
+                    className="ft-download-btn"
+                  >
+                    <DownloadIcon />
+                    Download
+                  </a>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
