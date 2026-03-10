@@ -1538,7 +1538,7 @@ app.put('/api/notifications/:id/read', async (req, res) => {
 });
 
 // Delete a notification
-app.delete('/api/notifications/:id', async (req, res) => {
+app.post('/api/notifications/:id/delete', async (req, res) => {
   try {
     const { id } = req.params;
     const db = getDatabase();

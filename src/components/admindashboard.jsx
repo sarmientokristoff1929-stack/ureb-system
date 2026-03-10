@@ -5990,7 +5990,7 @@ const NotificationContent = ({ setActiveTab }) => {
 
     try {
 
-      await fetch(`${import.meta.env.VITE_API_URL}/api/notifications/${id}`, { method: 'DELETE' });
+      await fetch(`${import.meta.env.VITE_API_URL}/api/notifications/${id}/delete`, { method: 'POST' });
 
       setNotifications(notifications.filter(n => n._id !== id));
 
