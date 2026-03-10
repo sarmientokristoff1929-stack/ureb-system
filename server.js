@@ -1537,6 +1537,20 @@ app.put('/api/notifications/:id/read', async (req, res) => {
   }
 });
 
+// Delete a notification
+app.delete('/api/notifications/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getDatabase();
+    const notifications = db.collection(collections.notifications);
+    await notifications.deleteOne({ _id: new ObjectId(id) });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting notification:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // Get notifications for a specific user
 app.get('/api/notifications/:email', async (req, res) => {
   try {
@@ -1585,20 +1599,6 @@ app.put('/api/notifications/read-all', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error marking all notifications as read:', error);
-    res.status(500).json({ success: false, error: 'Server error' });
-  }
-});
-
-// Delete a single notification
-app.delete('/api/notifications/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const db = getDatabase();
-    const notifications = db.collection(collections.notifications);
-    await notifications.deleteOne({ _id: new ObjectId(id) });
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting notification:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
