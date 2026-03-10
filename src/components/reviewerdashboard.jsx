@@ -471,7 +471,7 @@ return <DashboardContent />;
 
               className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
 
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => { setActiveTab(item.id); if (window.innerWidth <= 768) setIsSidebarOpen(false); }}
 
             >
 

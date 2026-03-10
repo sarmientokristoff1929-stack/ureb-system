@@ -416,7 +416,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                     }}
                     placeholder="Enter your student ID (e.g., 2022-2025 or 20231234)"
                     required
-                    inputMode="numeric"
+                    inputMode="text"
                     pattern="[0-9\-]+"
                   />
                 </div>

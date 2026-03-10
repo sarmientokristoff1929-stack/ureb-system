@@ -1078,7 +1078,7 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => { setActiveTab(item.id); if (window.innerWidth <= 768) setIsSidebarOpen(false); }}
 
 
 

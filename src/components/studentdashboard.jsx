@@ -157,6 +157,10 @@ const StudentDashboard = ({ onLogout }) => {
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
     sessionStorage.setItem('activeTab', tabId);
+    // Auto-close sidebar on mobile when a tab is selected
+    if (window.innerWidth <= 768) {
+      setIsSidebarOpen(false);
+    }
   };
 
   const handleLogout = () => {
