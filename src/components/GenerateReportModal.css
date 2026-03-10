@@ -634,36 +634,136 @@
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
-  .grm-modal {
-    max-height: 97vh;
-    border-radius: 12px;
-  }
-
-  .grm-header {
-    flex-wrap: wrap;
-    padding: 1rem;
-    gap: 0.75rem;
-  }
-
-  .grm-stats {
-    order: 3;
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .grm-stat { flex: 1; }
-
-  .grm-body { padding: 1rem; }
-
-  .grm-footer {
-    flex-direction: column;
+  /* Fill the entire screen */
+  .grm-overlay {
+    padding: 0;
     align-items: stretch;
-    padding: 0.875rem 1rem;
+  }
+
+  .grm-modal {
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    width: 100%;
+  }
+
+  /* Compact header */
+  .grm-header {
+    padding: 0.65rem 0.875rem;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .grm-header-left {
+    gap: 0.5rem;
+  }
+
+  .grm-header-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 7px;
+  }
+
+  .grm-header-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .grm-title {
+    font-size: 0.95rem;
+  }
+
+  .grm-subtitle {
+    display: none;
+  }
+
+  /* Stats — compact 4-in-a-row strip */
+  .grm-stats {
+    display: none;
+  }
+
+  /* Search bar */
+  .grm-search-bar {
+    padding: 0.5rem 0.875rem;
+  }
+
+  .grm-search-icon {
+    left: 1.625rem;
+  }
+
+  .grm-search-input {
+    padding: 0.5rem 2rem 0.5rem 2rem;
+    font-size: 0.82rem;
+  }
+
+  .grm-search-clear {
+    right: 1rem;
+  }
+
+  /* Body */
+  .grm-body {
+    padding: 0.75rem;
+  }
+
+  /* Section header compact */
+  .grm-section-header {
+    padding: 0.625rem 0.875rem;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .grm-section-title {
+    font-size: 0.78rem;
+  }
+
+  .grm-section-badge {
+    font-size: 0.68rem;
+  }
+
+  /* Table — horizontal scroll, tighter font */
+  .grm-table {
+    font-size: 0.78rem;
+    min-width: 600px;
+  }
+
+  .grm-table th {
+    padding: 0.5rem 0.625rem;
+    font-size: 0.68rem;
+  }
+
+  .grm-table th:first-child { padding-left: 0.875rem; }
+
+  .grm-row td {
+    padding: 0.5rem 0.625rem;
+  }
+
+  .grm-row td:first-child { padding-left: 0.875rem; }
+
+  /* Footer */
+  .grm-footer {
+    padding: 0.625rem 0.875rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .grm-footer-info {
+    font-size: 0.78rem;
+    flex: 1 1 100%;
   }
 
   .grm-footer-actions {
-    flex-direction: column;
+    flex-direction: row;
+    flex: 1 1 100%;
+    gap: 0.5rem;
   }
 
-  .grm-btn { justify-content: center; }
+  .grm-btn {
+    justify-content: center;
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
 }
