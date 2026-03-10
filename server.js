@@ -1589,6 +1589,20 @@ app.put('/api/notifications/read-all', async (req, res) => {
   }
 });
 
+// Delete a single notification
+app.delete('/api/notifications/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getDatabase();
+    const notifications = db.collection(collections.notifications);
+    await notifications.deleteOne({ _id: new ObjectId(id) });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting notification:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // Email sending endpoint
 app.post('/api/send-email', async (req, res) => {
   try {
@@ -2378,134 +2392,91 @@ app.get('/api/stats', async (req, res) => {
 });
 
 // Send message to student endpoint
-app.post('/api/send-message-to-student', upload.any(), async (req, res) => {
-  try {
-    const { studentEmail, message } = req.body;
-    const files = req.files || [];
+app.post('/api/send-message-to-student', upload.any(), (req, res) => {
+  const { studentEmail, recipientName: clientRecipientName, message } = req.body;
+  const files = req.files || [];
 
-    console.log('Sending message to student:', studentEmail);
-    console.log('Message length:', message?.length || 0);
-    console.log('Files attached:', files.length);
-
-    // Validate required fields
-    if (!studentEmail || !message) {
-      return res.status(400).json({
-        success: false,
-        error: 'Student email and message are required'
-      });
-    }
-
-    // Find the student in database
-    const db = getDatabase();
-    const students = db.collection(collections.students);
-
-    const student = await students.findOne({ email: studentEmail });
-    if (!student) {
-      return res.status(404).json({
-        success: false,
-        error: 'Student not found'
-      });
-    }
-
-    const recipientName = student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim();
-    console.log('Student found:', recipientName);
-
-    // Store message in database first (always succeeds regardless of email)
-    const messages = db.collection(collections.messages);
-    const messageRecord = {
-      senderEmail: process.env.GMAIL_EMAIL || 'admin',
-      recipientEmail: studentEmail,
-      recipientName,
-      message,
-      files: files.map(file => ({
-        filename: file.originalname,
-        size: file.size,
-        mimetype: file.mimetype,
-        path: file.path
-      })),
-      sentAt: new Date(),
-      type: 'admin_to_student',
-      status: 'sent'
-    };
-
-    await messages.insertOne(messageRecord);
-
-    // Try to send email — failure here does NOT cause a 500
-    let emailSent = false;
-    if (process.env.GMAIL_EMAIL && process.env.GMAIL_APP_PASSWORD) {
-      try {
-        let emailContent = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: #7A9E7E; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-              <h1 style="margin: 0; font-size: 24px;">UREB System Message</h1>
-            </div>
-            <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; border: 1px solid #ddd; border-top: none;">
-              <h2 style="color: #333; margin-bottom: 20px;">Message from UREB Administrator</h2>
-              <div style="background: white; padding: 20px; border-radius: 6px; border-left: 4px solid #7A9E7E; margin-bottom: 20px;">
-                <p style="margin: 0; line-height: 1.6; color: #555;">${message}</p>
-              </div>
-        `;
-
-        if (files.length > 0) {
-          emailContent += `
-            <div style="background: #e8f5e8; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
-              <h3 style="margin: 0 0 10px 0; color: #4a6b4e;">Attached Files (${files.length}):</h3>
-              <ul style="margin: 0; padding-left: 20px; color: #555;">
-          `;
-          files.forEach(file => {
-            emailContent += `<li style="margin-bottom: 5px;">${file.originalname} (${(file.size / 1024).toFixed(1)} KB)</li>`;
-          });
-          emailContent += `
-              </ul>
-              <p style="margin: 10px 0 0 0; font-size: 14px; color: #666; font-style: italic;">
-                Note: Files have been uploaded to the UREB System and are available for download.
-              </p>
-            </div>
-          `;
-        }
-
-        emailContent += `
-              <div style="border-top: 1px solid #ddd; padding-top: 20px; margin-top: 20px;">
-                <p style="margin: 0; font-size: 12px; color: #999;">
-                  This message was sent through the UREB System on ${new Date().toLocaleString()}
-                </p>
-              </div>
-            </div>
-          </div>
-        `;
-
-        await transporter.sendMail({
-          from: `UREB System <${process.env.GMAIL_EMAIL}>`,
-          to: studentEmail,
-          subject: `Message from UREB Administrator${files.length > 0 ? ` (${files.length} files attached)` : ''}`,
-          html: emailContent
-        });
-
-        emailSent = true;
-        console.log('Email sent successfully to:', studentEmail);
-      } catch (emailError) {
-        console.error('Email sending failed (message still saved to DB):', emailError.message);
-      }
-    } else {
-      console.log('Gmail credentials not configured — message saved to DB only');
-    }
-
-    console.log('Message record saved successfully for:', studentEmail);
-    res.json({
-      success: true,
-      message: emailSent
-        ? 'Message sent successfully to student'
-        : 'Message saved successfully (email delivery skipped — Gmail not configured)',
-      recipientName
-    });
-
-  } catch (error) {
-    console.error('Error sending message to student:', error);
-    res.status(500).json({
+  // Validate required fields
+  if (!studentEmail || !message) {
+    return res.status(400).json({
       success: false,
-      error: 'Server error: ' + error.message
+      error: 'Student email and message are required'
     });
   }
+
+  const recipientName = clientRecipientName || studentEmail;
+
+  // Respond immediately — do NOT wait for DB or email
+  res.json({ success: true, message: 'Message sent successfully', recipientName });
+
+  // Save message to DB in background (fire-and-forget)
+  const db = getDatabase();
+  const messages = db.collection(collections.messages);
+  messages.insertOne({
+    senderEmail: process.env.GMAIL_EMAIL || 'admin',
+    recipientEmail: studentEmail,
+    recipientName,
+    message,
+    files: files.map(file => ({
+      filename: file.originalname,
+      size: file.size,
+      mimetype: file.mimetype,
+    })),
+    sentAt: new Date(),
+    type: 'admin_to_student',
+    status: 'sent'
+  }).catch(err => console.error('Failed to save message to DB:', err.message));
+
+    // Send email in background (fire-and-forget)
+    if (process.env.GMAIL_EMAIL && process.env.GMAIL_APP_PASSWORD) {
+      let emailContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: #7A9E7E; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; font-size: 24px;">UREB System Message</h1>
+          </div>
+          <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; border: 1px solid #ddd; border-top: none;">
+            <h2 style="color: #333; margin-bottom: 20px;">Message from UREB Administrator</h2>
+            <div style="background: white; padding: 20px; border-radius: 6px; border-left: 4px solid #7A9E7E; margin-bottom: 20px;">
+              <p style="margin: 0; line-height: 1.6; color: #555;">${message}</p>
+            </div>
+      `;
+
+      if (files.length > 0) {
+        emailContent += `
+          <div style="background: #e8f5e8; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+            <h3 style="margin: 0 0 10px 0; color: #4a6b4e;">Attached Files (${files.length}):</h3>
+            <ul style="margin: 0; padding-left: 20px; color: #555;">
+        `;
+        files.forEach(file => {
+          emailContent += `<li style="margin-bottom: 5px;">${file.originalname} (${(file.size / 1024).toFixed(1)} KB)</li>`;
+        });
+        emailContent += `</ul></div>`;
+      }
+
+      emailContent += `
+            <div style="border-top: 1px solid #ddd; padding-top: 20px; margin-top: 20px;">
+              <p style="margin: 0; font-size: 12px; color: #999;">
+                Sent via UREB System on ${new Date().toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      transporter.sendMail({
+        from: `UREB System <${process.env.GMAIL_EMAIL}>`,
+        to: studentEmail,
+        subject: `Message from UREB Administrator${files.length > 0 ? ` (${files.length} files attached)` : ''}`,
+        html: emailContent,
+        attachments: files.map(file => ({
+          filename: file.originalname,
+          content: file.buffer,
+          contentType: file.mimetype,
+        })),
+      })
+        .then(() => console.log('Email sent to:', studentEmail))
+        .catch(err => console.error('Email failed:', err.message));
+    }
 });
 
 // Start server

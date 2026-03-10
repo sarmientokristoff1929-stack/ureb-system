@@ -826,10 +826,6 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
-    { id: 'reviews-file', label: 'Reviews File', icon: <ReviewsIcon /> },
-
-
-
     { id: 'messages-inbox', label: 'Messages Inbox', icon: <MessageIcon /> },
 
 
@@ -929,14 +925,6 @@ const AdminDashboard = ({ onLogout }) => {
 
 
         return <NotificationContent setActiveTab={setActiveTab} />;
-
-
-
-      case 'reviews-file':
-
-
-
-        return <ReviewsFileContent />;
 
 
 
@@ -3328,11 +3316,11 @@ const MessageResearcherContent = () => {
 
 
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
 
     e.preventDefault();
 
-    
+
 
     if (!selectedStudent || !message) {
 
@@ -3342,134 +3330,40 @@ const MessageResearcherContent = () => {
 
     }
 
-
-
-    setLoading(true);
-
     setError('');
 
-    setSuccess('');
-
-
-
-    try {
-
-      const formDataToSend = new FormData();
-
-      formDataToSend.append('studentEmail', selectedStudent);
-
-      formDataToSend.append('message', message);
-
-      
-
-      // Add files
-
-      attachedFiles.forEach((file, index) => {
-
-        formDataToSend.append(`file${index}`, file);
-
-      });
-
-
-
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/send-message-to-student`, {
-
-        method: 'POST',
-
-        body: formDataToSend,
-
-      });
-
-
-
-      // Check if response is OK before trying to parse JSON
-
-      if (!response.ok) {
-
-        if (response.status === 404) {
-
-          throw new Error('Message sending endpoint not found. Please restart the server.');
-
-        } else if (response.status === 500) {
-
-          throw new Error('Server error occurred while sending message.');
-
-        } else {
-
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-
-        }
-
-      }
-
-
-
-      // Check if response content type is JSON
-
-      const contentType = response.headers.get('content-type');
-
-      if (!contentType || !contentType.includes('application/json')) {
-
-        throw new Error('Invalid server response. Please restart the server.');
-
-      }
-
-
-
-      const result = await response.json();
-
-      
-
-      if (result.success) {
-
-        setMessageSuccessRecipient(result.recipientName || 'student');
-
-        setIsMessageSuccessModalOpen(true);
-
-        setSelectedStudent('');
-
-        setMessage('');
-
-        setAttachedFiles([]);
-
-      } else {
-
-        setError(result.error || 'Failed to send message');
-
-      }
-
-    } catch (error) {
-
-      console.error('Error sending message:', error);
-
-      
-
-      // Handle different types of errors
-
-      if (error.message.includes('SyntaxError') || error.message.includes('<!DOCTYPE')) {
-
-        setError('Server returned invalid response. Please restart the server and try again.');
-
-      } else if (error.message.includes('404') || error.message.includes('endpoint not found')) {
-
-        setError('Message sending feature not available. Please restart the server to load the new endpoint.');
-
-      } else if (error.message.includes('Failed to fetch')) {
-
-        setError('Cannot connect to server. Please check if the server is running.');
-
-      } else {
-
-        setError(error.message || 'Failed to send message');
-
-      }
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
+    const selectedStudentObj = students.find(s => s.email === selectedStudent);
+    const recipientName = selectedStudentObj
+      ? (selectedStudentObj.name || `${selectedStudentObj.firstName || ''} ${selectedStudentObj.lastName || ''}`.trim())
+      : '';
+
+    // Show success immediately — don't wait for file upload
+    setMessageSuccessRecipient(recipientName || 'student');
+    setIsMessageSuccessModalOpen(true);
+
+    // Capture values before resetting form
+    const studentEmail = selectedStudent;
+    const messageText = message;
+    const filesToSend = [...attachedFiles];
+
+    // Reset form immediately
+    setSelectedStudent('');
+    setMessage('');
+    setAttachedFiles([]);
+
+    // Upload in background (fire-and-forget from client)
+    const formDataToSend = new FormData();
+    formDataToSend.append('studentEmail', studentEmail);
+    formDataToSend.append('recipientName', recipientName);
+    formDataToSend.append('message', messageText);
+    filesToSend.forEach((file, index) => {
+      formDataToSend.append(`file${index}`, file);
+    });
+
+    fetch(`${import.meta.env.VITE_API_URL}/api/send-message-to-student`, {
+      method: 'POST',
+      body: formDataToSend,
+    }).catch(err => console.error('Message send failed:', err));
   };
 
 
@@ -6090,6 +5984,26 @@ const NotificationContent = ({ setActiveTab }) => {
 
 
 
+  const handleDeleteNotification = async (e, id) => {
+
+    e.stopPropagation();
+
+    try {
+
+      await fetch(`${import.meta.env.VITE_API_URL}/api/notifications/${id}`, { method: 'DELETE' });
+
+      setNotifications(notifications.filter(n => n._id !== id));
+
+    } catch (error) {
+
+      console.error('Error deleting notification:', error);
+
+    }
+
+  };
+
+
+
   const handleNotificationClick = (notification) => {
 
     // Mark as read
@@ -6106,9 +6020,9 @@ const NotificationContent = ({ setActiveTab }) => {
 
     if (notification.type === 'review_submitted' && notification.reviewId) {
 
-      // Navigate to Reviews File tab
+      // Navigate to Messages Inbox tab
 
-      setActiveTab('reviews-file');
+      setActiveTab('messages-inbox');
 
       // Store the selected review ID to display specific review
 
@@ -6239,6 +6153,24 @@ const NotificationContent = ({ setActiveTab }) => {
               </div>
 
               {!notification.read && <span className="unread-badge">New</span>}
+
+              <button
+
+                className="notif-delete-btn"
+
+                onClick={(e) => handleDeleteNotification(e, notification._id)}
+
+                title="Delete notification"
+
+              >
+
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+
+                  <path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+
+                </svg>
+
+              </button>
 
             </div>
 

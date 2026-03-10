@@ -4232,6 +4232,26 @@
 
 }
 
+.notif-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #bbb;
+  padding: 0.3rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: auto;
+  transition: color 0.15s, background 0.15s;
+}
+
+.notif-delete-btn:hover {
+  color: #dc2626;
+  background: #fee2e2;
+}
+
 
 
 
