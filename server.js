@@ -1652,56 +1652,47 @@ app.post('/api/check-gmail-exists', async (req, res) => {
 });
 
 // Send OTP endpoint
-app.post('/api/send-otp', async (req, res) => {
-  try {
-    const { gmail } = req.body;
-    
-    // Validate Gmail address
-    const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail.com$/;
-    if (!gmailRegex.test(gmail)) {
-      return res.json({ success: false, error: 'Invalid Gmail address' });
-    }
-    
-    // Generate OTP
-    const otp = generateOTP();
-    const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
-    
-    // Store OTP
-    otpStore.set(gmail, { otp, expiry });
-    
-    // Send OTP email
-    const mailOptions = {
-      from: `UREB System <${process.env.GMAIL_EMAIL}>`,
-      to: gmail,
-      subject: 'UREB System - Email Verification OTP',
-      text: `Your OTP for email verification is: ${otp}\n\nThis OTP will expire in 10 minutes.\n\nIf you didn't request this OTP, please ignore this email.`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #7A9E7E;">UREB System - Email Verification</h2>
-          <p>Your One-Time Password (OTP) for email verification is:</p>
-          <div style="background: #f0f0f0; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
-            <span style="font-size: 32px; font-weight: bold; color: #333; letter-spacing: 5px;">${otp}</span>
-          </div>
-          <p>This OTP will expire in <strong>10 minutes</strong>.</p>
-          <p>If you didn't request this OTP, please ignore this email.</p>
-          <hr style="border: 1px solid #eee; margin: 30px 0;">
-          <p style="color: #666; font-size: 14px;">This is an automated message from the UREB System.</p>
-        </div>
-      `
-    };
-    
-    await transporter.sendMail(mailOptions);
-    console.log(`OTP sent to ${gmail}: ${otp}`);
-    
-    res.json({ 
-      success: true, 
-      message: 'OTP sent to your Gmail address',
-      // Don't send OTP in response for security
-    });
-  } catch (error) {
-    console.error('Error sending OTP:', error);
-    res.status(500).json({ success: false, error: 'Failed to send OTP' });
+app.post('/api/send-otp', (req, res) => {
+  const { gmail } = req.body;
+
+  // Validate Gmail address
+  const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail.com$/;
+  if (!gmailRegex.test(gmail)) {
+    return res.json({ success: false, error: 'Invalid Gmail address' });
   }
+
+  // Generate and store OTP immediately
+  const otp = generateOTP();
+  const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  otpStore.set(gmail, { otp, expiry });
+
+  // Respond to the client right away — do NOT wait for the email
+  res.json({ success: true, message: 'OTP sent to your Gmail address' });
+
+  // Send the email in the background (fire-and-forget)
+  const mailOptions = {
+    from: `UREB System <${process.env.GMAIL_EMAIL}>`,
+    to: gmail,
+    subject: 'UREB System - Email Verification OTP',
+    text: `Your OTP for email verification is: ${otp}\n\nThis OTP will expire in 10 minutes.\n\nIf you didn't request this OTP, please ignore this email.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #7A9E7E;">UREB System - Email Verification</h2>
+        <p>Your One-Time Password (OTP) for email verification is:</p>
+        <div style="background: #f0f0f0; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+          <span style="font-size: 32px; font-weight: bold; color: #333; letter-spacing: 5px;">${otp}</span>
+        </div>
+        <p>This OTP will expire in <strong>10 minutes</strong>.</p>
+        <p>If you didn't request this OTP, please ignore this email.</p>
+        <hr style="border: 1px solid #eee; margin: 30px 0;">
+        <p style="color: #666; font-size: 14px;">This is an automated message from the UREB System.</p>
+      </div>
+    `
+  };
+
+  transporter.sendMail(mailOptions)
+    .then(() => console.log(`OTP emailed to ${gmail}`))
+    .catch((err) => console.error(`Failed to email OTP to ${gmail}:`, err.message));
 });
 
 // Verify OTP endpoint

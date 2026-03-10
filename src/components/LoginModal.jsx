@@ -59,8 +59,20 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [gmailExists, setGmailExists] = useState(false);
   const [checkingGmail, setCheckingGmail] = useState(false);
   const [otpSending, setOtpSending] = useState(false);
-  const [serverReady, setServerReady] = useState(false);
+  const [otpSendMessage, setOtpSendMessage] = useState('');
   const debounceTimer = useRef(null);
+
+  // Pre-warm the Render free-tier server as soon as the modal opens,
+  // so it is awake long before the user reaches "Send OTP".
+  useEffect(() => {
+    if (!isOpen) return;
+    fetch(`${import.meta.env.VITE_API_URL}/api/check-gmail-exists`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gmail: '' }),
+      signal: AbortSignal.timeout(60000),
+    }).catch(() => {});
+  }, [isOpen]);
 
   // Gmail validation function
   const validateGmail = (gmail) => {
@@ -100,33 +112,57 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   // Send OTP helper (used by both Send and Resend buttons)
   const sendOtp = async (gmail, { isResend = false } = {}) => {
     setOtpSending(true);
-    setError('');
+    setOtpSendMessage('Sending OTP, please wait...');
     setOtpError('');
-    try {
+
+    const MAX_ATTEMPTS = 3;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      // On later attempts, let the user know what's happening
+      if (attempt > 1) {
+        setOtpSendMessage(`Server is waking up, retrying... (${attempt}/${MAX_ATTEMPTS})`);
+      } else {
+        // After 8 s on the first attempt, explain the delay
+        setTimeout(() => {
+          setOtpSendMessage('Server is starting up, please wait...');
+        }, 8000);
+      }
+
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 60000);
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gmail }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      const result = await response.json();
-      if (result.success) {
-        setOtpSent(true);
-        setError(isResend ? 'New OTP has been sent to your Gmail address.' : 'OTP has been sent to your Gmail address. Please enter it to continue.');
-      } else {
-        setError(result.error || 'Failed to send OTP. Please try again.');
+      const abortTimeout = setTimeout(() => controller.abort(), 90000);
+
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/send-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gmail }),
+          signal: controller.signal,
+        });
+        clearTimeout(abortTimeout);
+        const result = await response.json();
+        if (result.success) {
+          setOtpSent(true);
+          setOtpSendMessage('');
+          setOtpError(isResend ? 'New OTP sent! Please check your Gmail.' : 'OTP sent! Please check your Gmail and enter the code below.');
+        } else {
+          setOtpSendMessage(result.error || 'Failed to send OTP. Please try again.');
+        }
+        setOtpSending(false);
+        return;
+      } catch (err) {
+        clearTimeout(abortTimeout);
+        if (err.name === 'AbortError' && attempt < MAX_ATTEMPTS) {
+          // Timed out — but this request woke the server up. Retry immediately.
+          continue;
+        }
+        setOtpSendMessage(
+          err.name === 'AbortError'
+            ? 'Server is taking too long. Please try again in a moment.'
+            : 'Failed to send OTP. Please check your connection and try again.'
+        );
+        setOtpSending(false);
+        return;
       }
-    } catch (err) {
-      if (err.name === 'AbortError') {
-        setError('Request timed out. The server may be starting up — please try again in a moment.');
-      } else {
-        setError('Failed to send OTP. Please check your connection and try again.');
-      }
-    } finally {
-      setOtpSending(false);
     }
   };
 
@@ -295,6 +331,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     setOtpVerified(false);
     setOtpValue('');
     setOtpError('');
+    setOtpSendMessage('');
   };
 
   const handleLoginSubmit = async (e) => {
@@ -417,26 +454,9 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     }
   };
 
-  // Ping the server to wake it up (Render free tier cold start)
-  const warmupServer = async () => {
-    setServerReady(false);
-    try {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/ping`, {
-        method: 'GET',
-        signal: AbortSignal.timeout(60000),
-      });
-    } catch (_) {
-      // ignore — any response (even 404) means server is up
-    } finally {
-      setServerReady(true);
-    }
-  };
-
   const toggleMode = () => {
-    const next = !isRegistering;
-    setIsRegistering(next);
+    setIsRegistering(!isRegistering);
     resetForm();
-    if (next) warmupServer();
   };
 
   return (
@@ -595,14 +615,21 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                     <div className="gmail-exists-message">This Gmail address is already registered in the system</div>
                   )}
                   {regGmail && validateGmail(regGmail) && !otpSent && !gmailExists && (
-                    <button
-                      type="button"
-                      className="send-otp-btn"
-                      disabled={otpSending || checkingGmail || !serverReady}
-                      onClick={() => sendOtp(regGmail)}
-                    >
-                      {!serverReady ? 'Connecting…' : otpSending ? 'Sending OTP…' : 'Send OTP'}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="send-otp-btn"
+                        disabled={otpSending || checkingGmail}
+                        onClick={() => sendOtp(regGmail)}
+                      >
+                        {otpSending ? 'Sending OTP…' : 'Send OTP'}
+                      </button>
+                      {otpSendMessage && (
+                        <div className={otpSending ? 'gmail-checking-message' : 'otp-error-message'}>
+                          {otpSendMessage}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
