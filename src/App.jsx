@@ -7,10 +7,31 @@ import { authenticateUser } from './services/api'
 
 const API_URL = import.meta.env.VITE_API_URL
 
+// Keep the Render free-tier server warm so OTP sending is always fast.
+// Fires immediately on page load, then every 10 minutes while the tab is open.
+function pingServer() {
+  fetch(`${API_URL}/api/check-gmail-exists`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ gmail: '' }),
+    signal: AbortSignal.timeout(90000),
+  }).catch(() => {
+    // If ping fails (server was sleeping / 502), retry after 10 s
+    setTimeout(pingServer, 10000);
+  });
+}
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userRole, setUserRole] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Warm up server on page load and keep it alive every 10 minutes
+  useEffect(() => {
+    pingServer();
+    const keepAlive = setInterval(pingServer, 10 * 60 * 1000);
+    return () => clearInterval(keepAlive);
+  }, []);
 
   // Check for existing authentication on app load
   useEffect(() => {

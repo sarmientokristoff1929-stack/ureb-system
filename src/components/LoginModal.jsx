@@ -52,27 +52,9 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [passwordError, setPasswordError] = useState('');
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpVerified, setOtpVerified] = useState(false);
-  const [otpValue, setOtpValue] = useState('');
-  const [otpError, setOtpError] = useState('');
   const [gmailExists, setGmailExists] = useState(false);
   const [checkingGmail, setCheckingGmail] = useState(false);
-  const [otpSending, setOtpSending] = useState(false);
-  const [otpSendMessage, setOtpSendMessage] = useState('');
   const debounceTimer = useRef(null);
-
-  // Pre-warm the Render free-tier server as soon as the modal opens,
-  // so it is awake long before the user reaches "Send OTP".
-  useEffect(() => {
-    if (!isOpen) return;
-    fetch(`${import.meta.env.VITE_API_URL}/api/check-gmail-exists`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gmail: '' }),
-      signal: AbortSignal.timeout(60000),
-    }).catch(() => {});
-  }, [isOpen]);
 
   // Gmail validation function
   const validateGmail = (gmail) => {
@@ -107,63 +89,6 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const debouncedCheckGmail = (gmail) => {
     clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => checkGmailExists(gmail), 500);
-  };
-
-  // Send OTP helper (used by both Send and Resend buttons)
-  const sendOtp = async (gmail, { isResend = false } = {}) => {
-    setOtpSending(true);
-    setOtpSendMessage('Sending OTP, please wait...');
-    setOtpError('');
-
-    const MAX_ATTEMPTS = 3;
-
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      // On later attempts, let the user know what's happening
-      if (attempt > 1) {
-        setOtpSendMessage(`Server is waking up, retrying... (${attempt}/${MAX_ATTEMPTS})`);
-      } else {
-        // After 8 s on the first attempt, explain the delay
-        setTimeout(() => {
-          setOtpSendMessage('Server is starting up, please wait...');
-        }, 8000);
-      }
-
-      const controller = new AbortController();
-      const abortTimeout = setTimeout(() => controller.abort(), 90000);
-
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/send-otp`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ gmail }),
-          signal: controller.signal,
-        });
-        clearTimeout(abortTimeout);
-        const result = await response.json();
-        if (result.success) {
-          setOtpSent(true);
-          setOtpSendMessage('');
-          setOtpError(isResend ? 'New OTP sent! Please check your Gmail.' : 'OTP sent! Please check your Gmail and enter the code below.');
-        } else {
-          setOtpSendMessage(result.error || 'Failed to send OTP. Please try again.');
-        }
-        setOtpSending(false);
-        return;
-      } catch (err) {
-        clearTimeout(abortTimeout);
-        if (err.name === 'AbortError' && attempt < MAX_ATTEMPTS) {
-          // Timed out — but this request woke the server up. Retry immediately.
-          continue;
-        }
-        setOtpSendMessage(
-          err.name === 'AbortError'
-            ? 'Server is taking too long. Please try again in a moment.'
-            : 'Failed to send OTP. Please check your connection and try again.'
-        );
-        setOtpSending(false);
-        return;
-      }
-    }
   };
 
   // Password validation function
@@ -327,11 +252,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     setPasswordError('');
     setPasswordTouched(false);
     setShowSuccessModal(false);
-    setOtpSent(false);
-    setOtpVerified(false);
-    setOtpValue('');
-    setOtpError('');
-    setOtpSendMessage('');
+    setGmailExists(false);
   };
 
   const handleLoginSubmit = async (e) => {
@@ -352,48 +273,16 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     e.preventDefault();
     setError('');
     
-    // Validate Gmail
+    // Validate Gmail format
     if (!validateGmail(regGmail)) {
       setError('Please enter a valid Gmail address');
       return;
     }
 
-    // Check if OTP has been sent
-    if (!otpSent) {
-      setError('Please click "Send OTP" to verify your Gmail address');
+    // Block if Gmail is already registered
+    if (gmailExists) {
+      setError('This Gmail address is already registered in the system');
       return;
-    }
-
-    // Verify OTP if sent but not verified
-    if (otpSent && !otpVerified) {
-      if (otpValue.length !== 6) {
-        setOtpError('Please enter a valid 6-digit OTP');
-        return;
-      }
-      
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/verify-otp`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ gmail: regGmail, otp: otpValue }),
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          setOtpVerified(true);
-          setOtpError('');
-        } else {
-          setOtpError(result.error || 'Invalid OTP. Please try again.');
-          return;
-        }
-      } catch (error) {
-        console.error('Error verifying OTP:', error);
-        setOtpError('Failed to verify OTP. Please try again.');
-        return;
-      }
     }
 
     // Validate password
@@ -434,10 +323,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       setDepartment('');
       setProgram('');
       setRegGmail('');
-      setOtpSent(false);
-      setOtpVerified(false);
-      setOtpValue('');
-      setOtpError('');
+      setGmailExists(false);
       setRegPassword('');
       setConfirmPassword('');
       setPasswordError('');
@@ -589,24 +475,16 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                     onChange={(e) => {
                       const value = e.target.value;
                       setRegGmail(value);
-                      // Reset OTP states when email changes
-                      setOtpSent(false);
-                      setOtpVerified(false);
-                      setOtpValue('');
-                      setOtpError('');
-                      setGmailExists(false); // Reset existence check
-                      // Check if Gmail exists in real-time (debounced)
+                      setGmailExists(false);
                       if (value) {
                         debouncedCheckGmail(value);
                       }
                     }}
                     placeholder="Enter your Gmail address"
                     required
-                    pattern="[a-zA-Z0-9._%+-]+@gmail\.com"
-                    title="Please enter a valid Gmail address"
                   />
                   {regGmail && !validateGmail(regGmail) && (
-                    <div className="gmail-error-message">Please enter a valid Gmail address</div>
+                    <div className="gmail-error-message">Please enter a valid Gmail address (@gmail.com)</div>
                   )}
                   {checkingGmail && (
                     <div className="gmail-checking-message">Checking...</div>
@@ -614,54 +492,10 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                   {gmailExists && validateGmail(regGmail) && (
                     <div className="gmail-exists-message">This Gmail address is already registered in the system</div>
                   )}
-                  {regGmail && validateGmail(regGmail) && !otpSent && !gmailExists && (
-                    <>
-                      <button
-                        type="button"
-                        className="send-otp-btn"
-                        disabled={otpSending || checkingGmail}
-                        onClick={() => sendOtp(regGmail)}
-                      >
-                        {otpSending ? 'Sending OTP…' : 'Send OTP'}
-                      </button>
-                      {otpSendMessage && (
-                        <div className={otpSending ? 'gmail-checking-message' : 'otp-error-message'}>
-                          {otpSendMessage}
-                        </div>
-                      )}
-                    </>
+                  {regGmail && validateGmail(regGmail) && !checkingGmail && !gmailExists && (
+                    <div className="gmail-checking-message" style={{ color: '#388E3C' }}>✓ Gmail address is available</div>
                   )}
                 </div>
-
-                {otpSent && !otpVerified && (
-                  <div className="login-form-group">
-                    <label htmlFor="otp">Enter OTP </label>
-                    <input
-                      type="text"
-                      id="otp"
-                      value={otpValue}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/[^0-9]/g, '');
-                        setOtpValue(value);
-                        setOtpError('');
-                      }}
-                      placeholder="Enter 6-digit OTP"
-                      maxLength="6"
-                      required
-                    />
-                    {otpError && (
-                      <div className="otp-error-message">{otpError}</div>
-                    )}
-                    <button
-                      type="button"
-                      className="resend-otp-btn"
-                      disabled={otpSending}
-                      onClick={() => sendOtp(regGmail, { isResend: true })}
-                    >
-                      {otpSending ? 'Sending…' : 'Resend OTP'}
-                    </button>
-                  </div>
-                )}
 
                 <div className="login-form-group">
                   <label htmlFor="regPassword">Password </label>
