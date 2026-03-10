@@ -7099,7 +7099,9 @@ const MessagesInboxContent = () => {
           new Date(b.createdAt || b.sentAt) - new Date(a.createdAt || a.sentAt)
         );
 
-        setMessages(sorted);
+        // Apply localStorage read overrides so read state persists through refreshes
+        const readIds = (() => { try { return JSON.parse(localStorage.getItem('read_messages') || '[]'); } catch { return []; } })();
+        setMessages(sorted.map(m => readIds.includes(String(m._id)) ? { ...m, read: true } : m));
 
 
 
@@ -7193,37 +7195,16 @@ const MessagesInboxContent = () => {
 
     if (selectedMessage && !selectedMessage.read) {
 
-      try {
+      // Persist locally immediately
+      saveReadId(selectedMessage._id);
+      setMessages(prev => prev.map(m => m._id === selectedMessage._id ? { ...m, read: true } : m));
+      setSelectedMessage(prev => ({ ...prev, read: true }));
 
-        // Call API to mark message as read
+      try {
 
         const { markMessageAsRead } = await import('../services/api.js');
 
-        const result = await markMessageAsRead(selectedMessage._id);
-
-        
-
-        if (result.success) {
-
-          // Update local state to reflect the change
-
-          setMessages(prevMessages => 
-
-            prevMessages.map(msg => 
-
-              msg._id === selectedMessage._id ? { ...msg, read: true } : msg
-
-            )
-
-          );
-
-          setSelectedMessage(prev => ({ ...prev, read: true }));
-
-        } else {
-
-          console.error('Failed to mark message as read:', result.error);
-
-        }
+        await markMessageAsRead(selectedMessage._id);
 
       } catch (error) {
 
@@ -7239,33 +7220,19 @@ const MessagesInboxContent = () => {
 
   const markAllAsRead = async () => {
 
+    // Persist all current message IDs to localStorage immediately
     try {
+      const existing = JSON.parse(localStorage.getItem('read_messages') || '[]');
+      const allIds = [...new Set([...existing, ...messages.map(m => String(m._id))])];
+      localStorage.setItem('read_messages', JSON.stringify(allIds));
+    } catch {}
+    setMessages(prev => prev.map(m => ({ ...m, read: true })));
 
-      // Call API to mark all messages as read on server
+    try {
 
       const { markAllMessagesAsRead } = await import('../services/api.js');
 
-      const result = await markAllMessagesAsRead(userInfo.email);
-
-      
-
-      if (result.success) {
-
-        // Update local state to reflect the change
-
-        setMessages(prevMessages => 
-
-          prevMessages.map(msg => ({ ...msg, read: true }))
-
-        );
-
-        console.log(`Marked ${result.modifiedCount} messages as read`);
-
-      } else {
-
-        console.error('Failed to mark messages as read:', result.error);
-
-      }
+      await markAllMessagesAsRead(userInfo.email);
 
     } catch (error) {
 
@@ -7308,27 +7275,30 @@ const MessagesInboxContent = () => {
     }
   };
 
+  const saveReadId = (id) => {
+    try {
+      const ids = JSON.parse(localStorage.getItem('read_messages') || '[]');
+      if (!ids.includes(String(id))) {
+        localStorage.setItem('read_messages', JSON.stringify([...ids, String(id)]));
+      }
+    } catch {}
+  };
+
   const markSingleAsRead = async (e, msg) => {
 
     e.stopPropagation();
+
+    // Update UI and persist locally immediately
+    saveReadId(msg._id);
+    setMessages(prev => prev.map(m => m._id === msg._id ? { ...m, read: true } : m));
 
     try {
 
       const { markMessageAsRead } = await import('../services/api.js');
 
-      const result = await markMessageAsRead(msg._id);
+      await markMessageAsRead(msg._id);
 
-      
 
-      if (result.success) {
-
-        setMessages(prev => prev.map(m => m._id === msg._id ? { ...m, read: true } : m));
-
-      } else {
-
-        console.error('Failed to mark message as read:', result.error);
-
-      }
 
     } catch (error) {
 
