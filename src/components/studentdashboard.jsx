@@ -3,6 +3,20 @@ import './studentdashboard.css';
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 
+// localStorage helpers for deleted proposals (Render deployment workaround)
+const getDeletedProposalIds = () => {
+  try { return JSON.parse(localStorage.getItem('deleted_proposals') || '[]'); }
+  catch { return []; }
+};
+const saveDeletedProposalId = (id) => {
+  try {
+    const ids = getDeletedProposalIds();
+    if (!ids.includes(String(id))) {
+      localStorage.setItem('deleted_proposals', JSON.stringify([...ids, String(id)]));
+    }
+  } catch {}
+};
+
 // Icons as simple SVG components
 const DashboardIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -740,7 +754,8 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
           notifications: notificationsCount
         });
         
-        setProposals(proposalsData);
+        const deletedIds = getDeletedProposalIds();
+        setProposals(proposalsData.filter(p => !deletedIds.includes(String(p._id))));
         setRecentActivity([]);
         setLoading(false);
       } catch (error) {
@@ -761,19 +776,17 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
     fetchDashboardData();
   }, [userInfo]);
 
-  const confirmDeleteProposal = async () => {
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/proposals/${deleteTargetId}`, { method: 'DELETE' });
-      if (res.ok) {
-        setProposals(prev => prev.filter(p => p._id !== deleteTargetId));
-        setStats(prev => ({ ...prev, totalProposals: prev.totalProposals - 1 }));
-      }
-    } catch (err) {
-      console.error('Error deleting proposal:', err);
-    } finally {
-      setDeleteTargetId(null);
-      setDeleteModalOpen(false);
-    }
+  const confirmDeleteProposal = () => {
+    const idToDelete = deleteTargetId;
+    // Optimistic: update UI and persist deletion immediately
+    saveDeletedProposalId(idToDelete);
+    setProposals(prev => prev.filter(p => p._id !== idToDelete));
+    setStats(prev => ({ ...prev, totalProposals: Math.max(0, prev.totalProposals - 1) }));
+    setDeleteTargetId(null);
+    setDeleteModalOpen(false);
+    // Try server in background
+    fetch(`${import.meta.env.VITE_API_URL}/api/proposals/${idToDelete}`, { method: 'DELETE' })
+      .catch(err => console.error('Background proposal delete failed:', err));
   };
 
   if (loading) {
@@ -1763,9 +1776,10 @@ const HistoryContent = () => {
 
         // Combine and format activities
         const activities = [];
+        const deletedProposalIds = getDeletedProposalIds();
 
         // Add proposal submissions
-        proposals.forEach(proposal => {
+        proposals.filter(p => !deletedProposalIds.includes(String(p._id))).forEach(proposal => {
           activities.push({
             id: proposal._id,
             type: 'proposal',
