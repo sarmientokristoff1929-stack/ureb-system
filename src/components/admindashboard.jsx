@@ -5922,6 +5922,11 @@ const NotificationContent = ({ setActiveTab }) => {
 
 
 
+  const getDeletedIds = () => {
+    try { return JSON.parse(localStorage.getItem('deleted_notifications') || '[]'); }
+    catch { return []; }
+  };
+
   const fetchNotifications = async () => {
 
     setLoading(true);
@@ -5932,7 +5937,9 @@ const NotificationContent = ({ setActiveTab }) => {
 
       const data = await response.json();
 
-      setNotifications(data);
+      const deleted = getDeletedIds();
+
+      setNotifications(data.filter(n => !deleted.includes(n._id)));
 
     } catch (error) {
 
@@ -5984,21 +5991,15 @@ const NotificationContent = ({ setActiveTab }) => {
 
 
 
-  const handleDeleteNotification = async (e, id) => {
+  const handleDeleteNotification = (e, id) => {
 
     e.stopPropagation();
 
-    try {
-
-      await fetch(`${import.meta.env.VITE_API_URL}/api/notifications/${id}/delete`, { method: 'POST' });
-
-      setNotifications(notifications.filter(n => n._id !== id));
-
-    } catch (error) {
-
-      console.error('Error deleting notification:', error);
-
+    const deleted = getDeletedIds();
+    if (!deleted.includes(id)) {
+      localStorage.setItem('deleted_notifications', JSON.stringify([...deleted, id]));
     }
+    setNotifications(prev => prev.filter(n => n._id !== id));
 
   };
 
