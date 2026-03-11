@@ -316,12 +316,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
   const [pwdLoading, setPwdLoading] = useState(false);
   const [pwdError, setPwdError] = useState('');
   const [pwdSuccess, setPwdSuccess] = useState('');
-
-  // Delete account state
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deletePassword, setDeletePassword] = useState('');
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
+  const [showPwd, setShowPwd] = useState({ current: false, newPwd: false, confirm: false });
 
   useEffect(() => {
     const fetchStudentData = async () => {
@@ -448,31 +443,6 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
       setPwdError('Failed to change password.');
     } finally {
       setPwdLoading(false);
-    }
-  };
-
-  const handleDeleteAccount = async () => {
-    setDeleteError('');
-    if (!deletePassword) { setDeleteError('Please enter your password to confirm.'); return; }
-    setDeleteLoading(true);
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/student/account`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userInfo.email, password: deletePassword }),
-      });
-      const result = await response.json();
-      if (result.success) {
-        localStorage.removeItem('ureb_user');
-        sessionStorage.removeItem('welcome_shown');
-        onLogout();
-      } else {
-        setDeleteError(result.error || 'Failed to delete account.');
-      }
-    } catch (err) {
-      setDeleteError('Failed to delete account.');
-    } finally {
-      setDeleteLoading(false);
     }
   };
 
@@ -618,24 +588,44 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
         {showPasswordForm ? (
           <div className="sp-edit-form">
             <div className="sp-field-row sp-field-row--3">
-              <div className="sp-field">
-                <label>Current Password</label>
-                <input type="password" value={pwdData.current}
-                  onChange={e => setPwdData(p => ({ ...p, current: e.target.value }))}
-                  placeholder="Current password" />
-              </div>
-              <div className="sp-field">
-                <label>New Password</label>
-                <input type="password" value={pwdData.newPwd}
-                  onChange={e => setPwdData(p => ({ ...p, newPwd: e.target.value }))}
-                  placeholder="New password (min. 6 chars)" />
-              </div>
-              <div className="sp-field">
-                <label>Confirm New Password</label>
-                <input type="password" value={pwdData.confirm}
-                  onChange={e => setPwdData(p => ({ ...p, confirm: e.target.value }))}
-                  placeholder="Repeat new password" />
-              </div>
+              {[
+                { key: 'current', label: 'Current Password',      ph: 'Current password' },
+                { key: 'newPwd',  label: 'New Password',           ph: 'New password (min. 6 chars)' },
+                { key: 'confirm', label: 'Confirm New Password',   ph: 'Repeat new password' },
+              ].map(({ key, label, ph }) => (
+                <div className="sp-field" key={key}>
+                  <label>{label}</label>
+                  <div className="sp-pwd-wrap">
+                    <input
+                      type={showPwd[key] ? 'text' : 'password'}
+                      value={pwdData[key]}
+                      onChange={e => setPwdData(p => ({ ...p, [key]: e.target.value }))}
+                      placeholder={ph}
+                    />
+                    <button
+                      type="button"
+                      className="sp-pwd-eye"
+                      onClick={() => setShowPwd(p => ({ ...p, [key]: !p[key] }))}
+                      tabIndex={-1}
+                      aria-label={showPwd[key] ? 'Hide password' : 'Show password'}
+                    >
+                      {showPwd[key] ? (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+                          <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
+                          <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
+                          <path d="M2 2l20 20"/>
+                        </svg>
+                      ) : (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                          <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
             {pwdError && <div className="sp-banner sp-banner--error">{pwdError}</div>}
             <div className="sp-form-actions">
@@ -655,55 +645,6 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
           </p>
         )}
       </div>
-
-      {/* ── Danger Zone Card ── */}
-      <div className="sp-card sp-card--danger">
-        <div className="sp-card-header">
-          <h3 className="sp-card-title sp-card-title--danger">Danger Zone</h3>
-        </div>
-        <div className="sp-danger-row">
-          <div className="sp-danger-text">
-            <p className="sp-danger-label">Delete Account</p>
-            <p className="sp-danger-desc">
-              Permanently remove your account and all associated data. This action cannot be undone.
-            </p>
-          </div>
-          <button className="sp-btn sp-btn--danger"
-            onClick={() => { setShowDeleteModal(true); setDeleteError(''); setDeletePassword(''); }}>
-            Delete Account
-          </button>
-        </div>
-      </div>
-
-      {/* ── Delete Confirm Modal ── */}
-      {showDeleteModal && (
-        <div className="sp-modal-overlay" onClick={() => !deleteLoading && setShowDeleteModal(false)}>
-          <div className="sp-modal" onClick={e => e.stopPropagation()}>
-            <div className="sp-modal-icon">⚠</div>
-            <h3 className="sp-modal-title">Delete Your Account?</h3>
-            <p className="sp-modal-desc">
-              This will permanently delete your account and all your submitted research data.
-              This action <strong>cannot</strong> be undone.
-            </p>
-            <div className="sp-field sp-modal-field">
-              <label>Enter your password to confirm</label>
-              <input type="password" value={deletePassword}
-                onChange={e => setDeletePassword(e.target.value)}
-                placeholder="Your current password" />
-            </div>
-            {deleteError && <div className="sp-banner sp-banner--error">{deleteError}</div>}
-            <div className="sp-modal-actions">
-              <button className="sp-btn sp-btn--danger" onClick={handleDeleteAccount} disabled={deleteLoading}>
-                {deleteLoading ? 'Deleting…' : 'Yes, Delete My Account'}
-              </button>
-              <button className="sp-btn sp-btn--ghost"
-                onClick={() => setShowDeleteModal(false)} disabled={deleteLoading}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -1736,13 +1677,26 @@ const MessagesContent = ({ userInfo }) => {
   );
 };
 
+const HISTORY_HIDDEN_KEY = 'ureb_hidden_history';
+const getHiddenHistoryIds = () => {
+  try { return JSON.parse(localStorage.getItem(HISTORY_HIDDEN_KEY) || '[]'); }
+  catch { return []; }
+};
+const saveHiddenHistoryId = (id) => {
+  const ids = getHiddenHistoryIds();
+  if (!ids.includes(String(id))) {
+    localStorage.setItem(HISTORY_HIDDEN_KEY, JSON.stringify([...ids, String(id)]));
+  }
+};
+const clearHiddenHistory = () => localStorage.removeItem(HISTORY_HIDDEN_KEY);
+
 const HistoryContent = () => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userInfo, setUserInfo] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ open: false, mode: null, id: null });
 
   useEffect(() => {
-    // Get user info from localStorage (using ureb_user like other parts of the app)
     const userData = JSON.parse(localStorage.getItem('ureb_user') || '{}');
     setUserInfo(userData);
   }, []);
@@ -1750,23 +1704,20 @@ const HistoryContent = () => {
   useEffect(() => {
     const fetchHistory = async () => {
       if (!userInfo?.email) return;
-      
+
       try {
-        // Fetch student's proposals and reviews
         const [proposalsResponse, reviewsResponse] = await Promise.all([
           fetch(`${import.meta.env.VITE_API_URL}/api/proposals/student/${encodeURIComponent(userInfo.email)}`),
           fetch(`${import.meta.env.VITE_API_URL}/api/reviews/student/${encodeURIComponent(userInfo.email)}`)
         ]);
 
-        // Check if responses are OK before parsing JSON
         if (!proposalsResponse.ok || !reviewsResponse.ok) {
           throw new Error('Server endpoints not available. Please restart the server.');
         }
 
-        // Check if responses are JSON
         const proposalsContentType = proposalsResponse.headers.get('content-type');
         const reviewsContentType = reviewsResponse.headers.get('content-type');
-        
+
         if (!proposalsContentType?.includes('application/json') || !reviewsContentType?.includes('application/json')) {
           throw new Error('Invalid server response. Please restart the server.');
         }
@@ -1774,12 +1725,11 @@ const HistoryContent = () => {
         const proposals = await proposalsResponse.json();
         const reviews = await reviewsResponse.json();
 
-        // Combine and format activities
         const activities = [];
         const deletedProposalIds = getDeletedProposalIds();
+        const hiddenIds = getHiddenHistoryIds();
 
-        // Add proposal submissions
-        proposals.filter(p => !deletedProposalIds.includes(String(p._id))).forEach(proposal => {
+        proposals.filter(p => !deletedProposalIds.includes(String(p._id)) && !hiddenIds.includes(String(p._id))).forEach(proposal => {
           activities.push({
             id: proposal._id,
             type: 'proposal',
@@ -1794,13 +1744,12 @@ const HistoryContent = () => {
           });
         });
 
-        // Add review submissions
-        reviews.forEach(review => {
+        reviews.filter(r => !hiddenIds.includes(String(r._id))).forEach(review => {
           activities.push({
             id: review._id,
             type: 'review',
             title: review.proposalTitle || 'Research Proposal',
-            action: `Submitted file for review`,
+            action: 'Submitted file for review',
             date: review.createdAt || review.submittedAt,
             status: review.status || 'pending',
             details: {
@@ -1811,63 +1760,54 @@ const HistoryContent = () => {
           });
         });
 
-        // Sort by date (most recent first)
         activities.sort((a, b) => new Date(b.date) - new Date(a.date));
         setHistory(activities);
       } catch (error) {
         console.error('Error fetching history:', error);
-        // Don't set error state, just log it and show empty state
       } finally {
         setLoading(false);
       }
     };
 
-    if (userInfo) {
-      fetchHistory();
-    }
+    if (userInfo) fetchHistory();
   }, [userInfo]);
+
+  const handleDeleteOne = () => {
+    const { id } = confirmModal;
+    saveHiddenHistoryId(id);
+    setHistory(prev => prev.filter(a => String(a.id) !== String(id)));
+    setConfirmModal({ open: false, mode: null, id: null });
+  };
+
+  const handleDeleteAll = () => {
+    history.forEach(a => saveHiddenHistoryId(a.id));
+    setHistory([]);
+    setConfirmModal({ open: false, mode: null, id: null });
+  };
 
   const formatDate = (dateStr) => {
     if (!dateStr) return 'Unknown date';
     const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
     });
   };
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
-      case 'approved':
-        return '#10b981';
-      case 'pending':
-        return '#f59e0b';
-      case 'rejected':
-        return '#ef4444';
-      case 'completed':
-        return '#10b981';
-      case 'in_review':
-        return '#3b82f6';
-      default:
-        return '#6b7280';
+      case 'approved':   return '#10b981';
+      case 'pending':    return '#f59e0b';
+      case 'rejected':   return '#ef4444';
+      case 'completed':  return '#10b981';
+      case 'in_review':  return '#3b82f6';
+      default:           return '#6b7280';
     }
   };
 
   const getStatusIcon = (type) => {
     switch (type) {
       case 'proposal':
-        return (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-            <polyline points="10 9 9 9 8 9"/>
-          </svg>
-        );
       case 'review':
         return (
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1906,9 +1846,21 @@ const HistoryContent = () => {
           <h2 className="sm-page-title">Activity History</h2>
           <p className="sm-page-subtitle">Your recent activity and submissions</p>
         </div>
-        {history.length > 0 && (
-          <span className="sm-count-badge">{history.length} activities</span>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          {history.length > 0 && (
+            <span className="sm-count-badge">{history.length} activities</span>
+          )}
+          {history.length > 0 && (
+            <button
+              className="hist-delete-all-btn"
+              title="Delete all history"
+              onClick={() => setConfirmModal({ open: true, mode: 'all', id: null })}
+            >
+              <TrashIcon />
+              <span>Delete All</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {history.length === 0 ? (
@@ -1924,30 +1876,39 @@ const HistoryContent = () => {
         </div>
       ) : (
         <div className="sm-timeline">
-          {history.map((activity, index) => (
+          {history.map((activity) => (
             <div key={activity.id} className="sm-timeline-item">
               <div className="sm-timeline-marker" style={{ color: getStatusColor(activity.status) }}>
                 {getStatusIcon(activity.type)}
               </div>
-              
+
               <div className="sm-timeline-content">
                 <div className="sm-timeline-header">
-                  <div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <h4 className="sm-timeline-title">{activity.title}</h4>
                     <p className="sm-timeline-action">{activity.action}</p>
                   </div>
                   <div className="sm-timeline-meta">
                     <span className="sm-timeline-date">{formatDate(activity.date)}</span>
-                    <span 
-                      className="sm-status-badge" 
-                      style={{ 
-                        backgroundColor: getStatusColor(activity.status) + '20',
-                        color: getStatusColor(activity.status),
-                        border: `1px solid ${getStatusColor(activity.status)}40`
-                      }}
-                    >
-                      {activity.status}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <span
+                        className="sm-status-badge"
+                        style={{
+                          backgroundColor: getStatusColor(activity.status) + '20',
+                          color: getStatusColor(activity.status),
+                          border: `1px solid ${getStatusColor(activity.status)}40`
+                        }}
+                      >
+                        {activity.status}
+                      </span>
+                      <button
+                        className="hist-item-delete-btn"
+                        title="Delete this entry"
+                        onClick={() => setConfirmModal({ open: true, mode: 'one', id: activity.id })}
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1958,7 +1919,6 @@ const HistoryContent = () => {
                       <p><strong>Abstract:</strong> {activity.details.abstract}</p>
                     </div>
                   )}
-                  
                   {activity.type === 'review' && (
                     <div className="sm-review-details">
                       <p><strong>Reviewer:</strong> {activity.details.reviewer}</p>
@@ -1970,6 +1930,27 @@ const HistoryContent = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Confirm delete modal */}
+      {confirmModal.open && (
+        <div className="mini-modal-overlay" onClick={() => setConfirmModal({ open: false, mode: null, id: null })}>
+          <div className="mini-modal" onClick={e => e.stopPropagation()}>
+            <div className="mini-modal-icon mini-modal-icon--danger"><TrashIcon /></div>
+            <h4 className="mini-modal-title">
+              {confirmModal.mode === 'all' ? 'Delete All History?' : 'Delete Entry?'}
+            </h4>
+            <p className="mini-modal-text">
+              {confirmModal.mode === 'all'
+                ? 'All activity history entries will be permanently removed.'
+                : 'This history entry will be permanently removed.'}
+            </p>
+            <div className="mini-modal-actions">
+              <button className="mini-modal-btn mini-modal-btn--ghost" onClick={() => setConfirmModal({ open: false, mode: null, id: null })}>Cancel</button>
+              <button className="mini-modal-btn mini-modal-btn--danger" onClick={confirmModal.mode === 'all' ? handleDeleteAll : handleDeleteOne}>Delete</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 import './reviewerdashboard.css';
 
-import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, getReviewerAssignments, downloadReviewerFile, deleteMessage, changeReviewerPassword } from '../services/api';
+import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, getReviewerAssignments, downloadReviewerFile, deleteMessage, changeReviewerPassword, getReviewerProfile } from '../services/api';
 
 
 
@@ -718,8 +718,6 @@ return <DashboardContent />;
 
 const DashboardContent = () => {
 
-  const [searchQuery, setSearchQuery] = useState('');
-
   const [stats, setStats] = useState({
 
     assignedProposals: 0,
@@ -766,13 +764,15 @@ const DashboardContent = () => {
 
     try {
 
-      const [assignments, reviews, messages] = await Promise.all([
+      const [assignments, reviews, messages, reviewerProfile] = await Promise.all([
 
         getReviewerAssignments(userEmail),
 
         getReviewsByReviewer(userEmail),
 
-        getMessagesByUser(userEmail)
+        getMessagesByUser(userEmail),
+
+        getReviewerProfile(userEmail)
 
       ]);
 
@@ -780,7 +780,11 @@ const DashboardContent = () => {
 
       const pendingReviews = reviews.filter(r => r.status === 'pending').length;
 
-      const completedReviews = reviews.filter(r => r.status === 'completed').length;
+      // If admin has marked this reviewer as completed, count all their assignments as done
+      const isMarkedComplete = reviewerProfile?.status === 'completed';
+      const completedReviews = isMarkedComplete
+        ? assignments.length
+        : assignments.filter(a => a.status === 'completed').length;
 
       const unreadMessages = messages.filter(m => !m.read).length;
 
@@ -1008,27 +1012,6 @@ const DashboardContent = () => {
 
       
 
-      <div className="dashboard-search">
-
-        <div className="search-bar">
-
-          <SearchIcon />
-
-          <input
-
-            type="text"
-
-            placeholder="Search proposals, reviews, or messages..."
-
-            value={searchQuery}
-
-            onChange={(e) => setSearchQuery(e.target.value)}
-
-          />
-
-        </div>
-
-      </div>
 
       
 
@@ -1415,10 +1398,20 @@ const ReviewModal = ({ isOpen, onClose, proposal }) => {
 };
 
 
+const DELETED_ASSIGNMENTS_KEY = 'ureb_deleted_assignments';
+
+const getDeletedAssignmentIds = () => {
+  try {
+    return JSON.parse(localStorage.getItem(DELETED_ASSIGNMENTS_KEY) || '[]');
+  } catch { return []; }
+};
+
 const AssignedProposalsContent = () => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('ureb_user');
@@ -1433,12 +1426,25 @@ const AssignedProposalsContent = () => {
     setLoading(true);
     try {
       const data = await getReviewerAssignments(userEmail);
-      setAssignments(data);
+      const deletedIds = getDeletedAssignmentIds();
+      setAssignments(data.filter(a => !deletedIds.includes(String(a._id))));
     } catch (error) {
       console.error('Error fetching assignments:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!confirmDeleteId) return;
+    setDeleting(true);
+    const deletedIds = getDeletedAssignmentIds();
+    if (!deletedIds.includes(confirmDeleteId)) {
+      localStorage.setItem(DELETED_ASSIGNMENTS_KEY, JSON.stringify([...deletedIds, confirmDeleteId]));
+    }
+    setAssignments(prev => prev.filter(a => String(a._id) !== confirmDeleteId));
+    setConfirmDeleteId(null);
+    setDeleting(false);
   };
 
   const formatDate = (dateStr) => {
@@ -1489,6 +1495,27 @@ const AssignedProposalsContent = () => {
   return (
     <div className="content-section">
       <h2>Assigned Proposals</h2>
+
+      {/* Delete confirmation modal */}
+      {confirmDeleteId && (
+        <div className="logout-modal-overlay" onClick={() => setConfirmDeleteId(null)}>
+          <div className="logout-modal-container" onClick={e => e.stopPropagation()}>
+            <div className="logout-modal-header">
+              <h2>Delete Assignment</h2>
+            </div>
+            <div className="logout-modal-body">
+              <p>Are you sure you want to delete this assignment? This cannot be undone.</p>
+            </div>
+            <div className="logout-modal-footer">
+              <button className="logout-modal-btn-secondary" onClick={() => setConfirmDeleteId(null)} disabled={deleting}>Cancel</button>
+              <button className="logout-modal-btn-primary" onClick={handleDeleteConfirm} disabled={deleting}>
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="proposals-list">
         {assignments.map((assignment) => {
           const files = assignment.assignedFiles || {};
@@ -1501,9 +1528,20 @@ const AssignedProposalsContent = () => {
                 <div className="proposal-header-left">
                   <h3>{assignment.protocolCode || 'No Protocol Code'}</h3>
                 </div>
-                <span className={`status-badge ${(assignment.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
-                  {assignment.status || 'Pending'}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span className={`status-badge ${(assignment.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
+                    {assignment.status || 'Pending'}
+                  </span>
+                  <button
+                    title="Delete assignment"
+                    onClick={() => setConfirmDeleteId(String(assignment._id))}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '0.25rem', display: 'flex', alignItems: 'center' }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               <div className="proposal-content">

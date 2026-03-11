@@ -54,6 +54,24 @@ function App() {
     try {
       const result = await authenticateUser(email, password);
       if (result.success) {
+        // For students, check if account is disabled before allowing login
+        if (result.user.role === 'student') {
+          try {
+            const studentsRes = await fetch(`${import.meta.env.VITE_API_URL}/api/students`);
+            if (studentsRes.ok) {
+              const students = await studentsRes.json();
+              const studentRecord = Array.isArray(students)
+                ? students.find(s => s.email === email)
+                : null;
+              if (studentRecord?.disabled === true) {
+                return { success: false, error: 'disabled' };
+              }
+            }
+          } catch {
+            // If check fails, proceed with login
+          }
+        }
+
         setIsAuthenticated(true);
         setUserRole(result.user.role);
 
@@ -63,8 +81,8 @@ function App() {
         localStorage.setItem('ureb_user', JSON.stringify(result.user));
 
         // Dispatch custom event to notify components of user change
-        window.dispatchEvent(new CustomEvent('userChanged', { 
-          detail: { action: 'login', user: result.user } 
+        window.dispatchEvent(new CustomEvent('userChanged', {
+          detail: { action: 'login', user: result.user }
         }));
 
         return { success: true };

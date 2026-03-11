@@ -324,6 +324,12 @@ app.post('/api/auth/login', async (req, res) => {
       return res.json({ success: false, error: 'Invalid email or password' });
     }
 
+    // Check if student account is disabled
+    if (userType === 'student' && user.disabled === true) {
+      console.log(`Disabled account login attempt: ${email}`);
+      return res.json({ success: false, error: 'Your account has been disabled. Please contact the administrator.' });
+    }
+
     // Update last login time
     if (userType === 'user') {
       await users.updateOne(
@@ -786,13 +792,25 @@ app.put('/api/reviewers/:id', async (req, res) => {
       { _id: new ObjectId(id) },
       { $set: updateData }
     );
-    
+
     console.log('Update result:', result);
-    
+
     if (result.matchedCount === 0) {
       return res.status(404).json({ success: false, error: 'Reviewer not found' });
     }
-    
+
+    // Cascade: when reviewer status changes, update their assignments accordingly
+    if (updateData.status === 'completed' || updateData.status === 'pending') {
+      const assignments = db.collection(collections.assignments);
+      const reviewerEmail = existingReviewer.email;
+      if (reviewerEmail) {
+        await assignments.updateMany(
+          { reviewerEmail },
+          { $set: { status: updateData.status } }
+        );
+      }
+    }
+
     res.json({ success: true, message: 'Reviewer updated successfully' });
   } catch (error) {
     console.error('Error updating reviewer:', error);
@@ -1584,6 +1602,29 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
   } catch (error) {
     console.error('Error fetching assignments for reviewer:', error);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete a single assignment by ID
+app.post('/api/assignments/:id/delete', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const assignments = db.collection(collections.assignments);
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, error: 'Invalid assignment ID' });
+    }
+
+    const result = await assignments.deleteOne({ _id: new ObjectId(id) });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ success: false, error: 'Assignment not found' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting assignment:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
   }
 });
 

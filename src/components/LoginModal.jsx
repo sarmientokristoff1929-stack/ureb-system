@@ -36,6 +36,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [showDisabledModal, setShowDisabledModal] = useState(false);
 
   // Registration form states
   const [firstName, setFirstName] = useState('');
@@ -258,12 +259,14 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
+
     const result = await onLogin(email, password);
-    
+
     if (result.success) {
       resetForm();
       onClose();
+    } else if (result.error === 'disabled') {
+      setShowDisabledModal(true);
     } else {
       setError(result.error || 'Invalid username or password');
     }
@@ -609,6 +612,30 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
         </div>
       </div>
       
+      {/* Account Disabled Modal */}
+      {showDisabledModal && (
+        <div className="success-modal-overlay">
+          <div className="success-modal-container" style={{ borderTop: '4px solid #d97706' }}>
+            <div className="success-icon">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <h2 style={{ color: '#92400e' }}>Account Disabled</h2>
+            <p>Your account has been disabled. Please contact the administrator for assistance.</p>
+            <button
+              className="login-btn-primary login-modal-submit"
+              style={{ marginTop: '1.25rem', background: '#d97706' }}
+              onClick={() => setShowDisabledModal(false)}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Registration Success Modal */}
       {showSuccessModal && (
         <div className="success-modal-overlay">

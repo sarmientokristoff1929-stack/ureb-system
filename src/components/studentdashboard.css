@@ -512,6 +512,34 @@
 }
 .sp-field input::placeholder { color: #b0bcb0; }
 
+/* Password field with eye toggle */
+.sp-pwd-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.sp-pwd-wrap input {
+  padding-right: 2.5rem;
+}
+
+.sp-pwd-eye {
+  position: absolute;
+  right: 0.55rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 0.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.sp-pwd-eye:hover { color: #475569; }
+
 .sp-modal-field {
   margin-bottom: 0.75rem;
 }
@@ -2543,6 +2571,54 @@
   }
 }
 
+/* ── History Tab — Delete buttons ──────────────────────────────────── */
+.hist-delete-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  background: #fff0f0;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  border-radius: 7px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.hist-delete-all-btn:hover {
+  background: #fee2e2;
+  border-color: #dc2626;
+}
+.hist-delete-all-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.hist-item-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  background: none;
+  border: none;
+  color: #d1d5db;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.hist-item-delete-btn:hover {
+  color: #dc2626;
+  background: #fee2e2;
+}
+.hist-item-delete-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
 /* ── Timeline Styles for History Tab ───────────────────────────────── */
 .sm-timeline {
   position: relative;
@@ -4501,6 +4577,152 @@
   }
   .rm-body {
     padding: 1rem;
+  }
+
+  /* Prevent horizontal overflow on cards */
+  .sm-card {
+    overflow: hidden;
+    word-break: break-word;
+  }
+  .sm-file-chip {
+    flex-wrap: wrap;
+  }
+  .sm-file-name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* ── Messages — small mobile (≤480px) ─────────────────── */
+@media (max-width: 480px) {
+  .sm-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    margin-bottom: 0.6rem;
+  }
+  .sm-page-title {
+    font-size: 0.88rem;
+  }
+  .sm-page-subtitle {
+    font-size: 0.7rem;
+  }
+  .sm-count-badge {
+    font-size: 0.62rem;
+    padding: 0.15rem 0.4rem;
+  }
+
+  .sm-list {
+    gap: 0.5rem;
+  }
+
+  .sm-card {
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .sm-card-top {
+    padding: 0.5rem 0.65rem 0.4rem;
+    gap: 0.45rem;
+  }
+  .sm-avatar {
+    width: 26px;
+    height: 26px;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+  }
+  .sm-sender-name {
+    font-size: 0.74rem;
+  }
+  .sm-sender-date {
+    font-size: 0.62rem;
+  }
+
+  .sm-card-actions {
+    gap: 0.25rem;
+  }
+  .sm-action-btn {
+    padding: 0.25rem;
+    border-radius: 5px;
+  }
+  .sm-action-btn svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .sm-card-body {
+    padding: 0.45rem 0.65rem;
+  }
+  .sm-message-text {
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+
+  .sm-attachments {
+    padding: 0.4rem 0.65rem 0.5rem;
+  }
+  .sm-attachments-label {
+    font-size: 0.65rem;
+    margin-bottom: 0.3rem;
+  }
+  .sm-attachments-list {
+    gap: 0.25rem;
+  }
+  .sm-file-chip {
+    padding: 0.28rem 0.45rem;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+  }
+  .sm-file-name {
+    font-size: 0.7rem;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .sm-file-size {
+    font-size: 0.62rem;
+  }
+  .sm-download-btn {
+    font-size: 0.65rem;
+    padding: 0.18rem 0.4rem;
+    gap: 0.2rem;
+  }
+  .sm-download-btn svg {
+    width: 10px;
+    height: 10px;
+  }
+
+  /* Reply modal — sheet style */
+  .rm-container {
+    max-height: 95vh;
+  }
+  .rm-header {
+    padding: 0.75rem 0.85rem;
+    gap: 0.5rem;
+  }
+  .rm-header-icon {
+    width: 26px;
+    height: 26px;
+  }
+  .rm-title {
+    font-size: 0.82rem;
+  }
+  .rm-subtitle {
+    font-size: 0.64rem;
+  }
+  .rm-body {
+    padding: 0.75rem 0.85rem;
+  }
+  .rm-footer {
+    padding: 0.6rem 0.85rem;
+    gap: 0.5rem;
+  }
+  .rm-btn {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.75rem;
   }
 }
 

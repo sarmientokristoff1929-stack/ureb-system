@@ -504,6 +504,19 @@ export const getUserNotifications = async (email) => {
   }
 };
 
+// Get a reviewer's profile (status, etc.) by email
+export const getReviewerProfile = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/reviewers`);
+    const data = await response.json();
+    if (!Array.isArray(data)) return null;
+    return data.find(r => (r.email || '').toLowerCase() === (email || '').toLowerCase()) || null;
+  } catch (error) {
+    console.error('Error fetching reviewer profile:', error);
+    return null;
+  }
+};
+
 // Get assignments for a specific reviewer
 export const getReviewerAssignments = async (reviewerEmail) => {
   try {

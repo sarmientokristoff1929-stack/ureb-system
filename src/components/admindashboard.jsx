@@ -692,6 +692,13 @@ const ReviewsIcon = () => (
 
 
 
+const CheckCircleIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+    <polyline points="22 4 12 14.01 9 11.01"/>
+  </svg>
+);
+
 const SearchIcon = () => (
 
 
@@ -818,6 +825,10 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
+    { id: 'mark-completed-review', label: 'Mark Completed Review', icon: <CheckCircleIcon /> },
+
+
+
     { id: 'manage-users', label: 'Manage Users', icon: <UsersIcon /> },
 
 
@@ -895,6 +906,10 @@ const AdminDashboard = ({ onLogout }) => {
         return <AddReviewerContent />;
 
 
+
+      case 'mark-completed-review':
+
+        return <MarkCompletedReviewContent />;
 
       case 'assign-file':
 
@@ -1672,59 +1687,6 @@ const DashboardContent = () => {
 
 
 
-      <div className="dashboard-search">
-
-
-
-        <div className="search-bar">
-
-
-
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-
-
-
-            <circle cx="11" cy="11" r="8"/>
-
-
-
-            <path d="m21 21-4.35-4.35"/>
-
-
-
-          </svg>
-
-
-
-          <input
-
-
-
-            type="text"
-
-
-
-            placeholder="Search proposals, reviewers, or activities..."
-
-
-
-            value={searchQuery}
-
-
-
-            onChange={(e) => setSearchQuery(e.target.value)}
-
-
-
-          />
-
-
-
-        </div>
-
-
-
-      </div>
 
 
 
@@ -2455,6 +2417,221 @@ const AddReviewerContent = () => {
 
 
 
+
+// ── Mark Completed Review ──────────────────────────────────────────────────
+const MarkCompletedReviewContent = () => {
+  const [reviewerRows, setReviewerRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState({});
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const API = import.meta.env.VITE_API_URL;
+        const [reviewsRes, proposalsRes, reviewersRes] = await Promise.all([
+          fetch(`${API}/api/reviews`),
+          fetch(`${API}/api/proposals`),
+          fetch(`${API}/api/reviewers`),
+        ]);
+
+        const allReviews = reviewsRes.ok ? await reviewsRes.json() : [];
+        const allProposals = proposalsRes.ok ? await proposalsRes.json() : [];
+        const allAccounts = reviewersRes.ok ? await reviewersRes.json() : [];
+
+        // Build reviewer-type map from proposals (reviewer1 → preliminary, reviewer2/3 → secondary)
+        const reviewerTypeMap = {};
+        if (Array.isArray(allProposals)) {
+          allProposals.forEach(proposal => {
+            const slots = proposal.reviewers || {};
+            if (slots.reviewer1) {
+              const key = slots.reviewer1.trim().toLowerCase();
+              if (!reviewerTypeMap[key]) reviewerTypeMap[key] = 'preliminary';
+            }
+            ['reviewer2', 'reviewer3'].forEach(slot => {
+              if (slots[slot]) {
+                const key = slots[slot].trim().toLowerCase();
+                if (!reviewerTypeMap[key]) reviewerTypeMap[key] = 'secondary';
+              }
+            });
+          });
+        }
+
+        // Group reviews by reviewer email → unique reviewers with review count
+        const byEmail = {};
+        if (Array.isArray(allReviews)) {
+          allReviews.forEach(review => {
+            const email = (review.reviewerEmail || '').trim().toLowerCase();
+            if (!email) return;
+            if (!byEmail[email]) {
+              byEmail[email] = {
+                email,
+                name: review.reviewerName || review.reviewer || email,
+                reviewCount: 0,
+              };
+            }
+            byEmail[email].reviewCount++;
+          });
+        }
+
+        // Build account lookup by email
+        const accountMap = {};
+        if (Array.isArray(allAccounts)) {
+          allAccounts.forEach(acc => {
+            const key = (acc.email || '').trim().toLowerCase();
+            accountMap[key] = acc;
+          });
+        }
+
+        // Build final rows: only reviewers who have actual reviews
+        const EXCLUDED_FROM_MCR = ['kristoff h. sarmiento'];
+        const rows = Object.values(byEmail).filter(r =>
+          !EXCLUDED_FROM_MCR.includes(r.name.trim().toLowerCase())
+        ).map(r => {
+          const acc = accountMap[r.email] || {};
+          const nameKey = r.name.trim().toLowerCase();
+          const reviewerType =
+            reviewerTypeMap[r.email] ||
+            reviewerTypeMap[nameKey] ||
+            (acc.reviewerType || '').toLowerCase() ||
+            'unknown';
+          return {
+            _id: acc._id,
+            name: r.name,
+            email: r.email,
+            department: acc.department || '—',
+            reviewerType,
+            reviewCount: r.reviewCount,
+            status: acc.status || 'pending',
+          };
+        });
+
+        setReviewerRows(rows);
+      } catch (err) {
+        console.error('Error fetching review data:', err);
+        setReviewerRows([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const handleToggle = async (row) => {
+    if (!row._id) return;
+    const newStatus = row.status === 'completed' ? 'pending' : 'completed';
+    setUpdating(prev => ({ ...prev, [row.email]: true }));
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/reviewers/${row._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      setReviewerRows(prev =>
+        prev.map(r => r.email === row.email ? { ...r, status: newStatus } : r)
+      );
+    } catch (err) {
+      console.error('Error updating reviewer status:', err);
+    } finally {
+      setUpdating(prev => ({ ...prev, [row.email]: false }));
+    }
+  };
+
+  const preliminary = reviewerRows.filter(r => r.reviewerType === 'preliminary');
+  const secondary   = reviewerRows.filter(r => r.reviewerType === 'secondary');
+
+  const renderSection = (title, list, accent) => {
+    const completedReviewsCount = list
+      .filter(r => r.status === 'completed')
+      .reduce((sum, r) => sum + r.reviewCount, 0);
+    return (
+    <div className="mcr-section">
+      <div className="mcr-section-header" style={{ borderLeftColor: accent }}>
+        <span className="mcr-dot" style={{ background: accent }} />
+        <h3 className="mcr-section-title">{title}</h3>
+        <span className="mcr-section-badge" style={{ background: accent + '1a', color: accent }}>
+          {list.length} reviewer{list.length !== 1 ? 's' : ''}
+        </span>
+        <span className="mcr-completed-badge">
+          <span className="mcr-completed-badge__count">{completedReviewsCount}</span>
+          Completed Reviews
+        </span>
+      </div>
+
+      {list.length === 0 ? (
+        <p className="mcr-no-data">No {title.toLowerCase()} with assignments found.</p>
+      ) : (
+        <div className="mcr-table-wrap">
+          <table className="mcr-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Department</th>
+                <th>Reviews</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((row, idx) => {
+                const isCompleted = row.status === 'completed';
+                const isBusy = updating[row.email];
+                return (
+                  <tr key={row.email} className={`mcr-row${isCompleted ? ' mcr-row--done' : ''}${idx % 2 === 1 ? ' mcr-row--alt' : ''}`}>
+                    <td className="mcr-td-name">{row.name}</td>
+                    <td className="mcr-td-email">{row.email}</td>
+                    <td>{row.department}</td>
+                    <td>{row.reviewCount}</td>
+                    <td>
+                      <span className={`mcr-status ${isCompleted ? 'mcr-status--completed' : 'mcr-status--pending'}`}>
+                        {isCompleted ? 'Completed' : 'Pending'}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        className={`mcr-btn ${isCompleted ? 'mcr-btn--reset' : 'mcr-btn--complete'}`}
+                        onClick={() => handleToggle(row)}
+                        disabled={isBusy || !row._id}
+                      >
+                        {isBusy ? 'Saving…' : isCompleted ? 'Reset' : 'Mark Completed'}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+  };
+
+  return (
+    <div className="mcr-wrapper">
+      <div className="mcr-header">
+        <h2 className="mcr-title">Mark Completed Review</h2>
+        <p className="mcr-subtitle">Reviewers with active assignments. Mark them completed when their review work is done.</p>
+      </div>
+
+      {loading ? (
+        <div className="mcr-loading">
+          <div className="mcr-spinner" />
+          <span>Loading reviewers…</span>
+        </div>
+      ) : reviewerRows.length === 0 ? (
+        <div className="mcr-empty-state">
+          <p>No reviewers with review assignments found.</p>
+        </div>
+      ) : (
+        <div className="mcr-sections">
+          {renderSection('Preliminary Reviewers', preliminary, '#4A6B4E')}
+          {renderSection('Secondary Reviewers', secondary, '#7A9E7E')}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const AssignFileContent = () => {
 
@@ -3794,6 +3971,10 @@ const ManageUsersContent = () => {
 
 
 
+  // Disable state
+  const [isDisableModalOpen, setIsDisableModalOpen] = useState(false);
+  const [disablingStudent, setDisablingStudent] = useState(null);
+
   // Edit and Delete states
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -3838,7 +4019,31 @@ const ManageUsersContent = () => {
 
   const closeAddAdminModal = () => setIsAddAdminModalOpen(false);
 
+  // Disable / Enable handlers
+  const handleDisable = (student) => {
+    setDisablingStudent(student);
+    setIsDisableModalOpen(true);
+  };
 
+  const confirmDisable = async () => {
+    if (!disablingStudent) return;
+    const willDisable = !disablingStudent.disabled;
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/students/${disablingStudent._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ disabled: willDisable }),
+      });
+      setStudents(prev =>
+        prev.map(s => s._id === disablingStudent._id ? { ...s, disabled: willDisable } : s)
+      );
+    } catch (err) {
+      console.error('Error toggling student disabled state:', err);
+    } finally {
+      setIsDisableModalOpen(false);
+      setDisablingStudent(null);
+    }
+  };
 
   // Edit handlers
 
@@ -4922,7 +5127,9 @@ const ManageUsersContent = () => {
 
                       <td>
 
-                        <span className="status-badge active">Active</span>
+                        <span className={`status-badge ${student.disabled ? 'disabled' : 'active'}`}>
+                          {student.disabled ? 'Disabled' : 'Active'}
+                        </span>
 
                       </td>
 
@@ -4931,6 +5138,13 @@ const ManageUsersContent = () => {
                         <div className="action-buttons">
 
                           <button className="btn-secondary" onClick={() => handleEdit(student, 'student')}>Edit</button>
+
+                          <button
+                            className={student.disabled ? 'btn-enable' : 'btn-warning'}
+                            onClick={() => handleDisable(student)}
+                          >
+                            {student.disabled ? 'Enable' : 'Disable'}
+                          </button>
 
                           <button className="btn-danger" onClick={() => handleDelete(student, 'student')}>Remove</button>
 
@@ -5379,6 +5593,37 @@ const ManageUsersContent = () => {
       )}
 
 
+
+      {/* Disable / Enable Confirmation Modal */}
+      {isDisableModalOpen && (
+        <div className="logout-modal-overlay" onClick={(e) => e.target === e.currentTarget && setIsDisableModalOpen(false)}>
+          <div className="logout-modal-container">
+            <div className="logout-modal-header">
+              <h2>{disablingStudent?.disabled ? 'Enable Account' : 'Disable Account'}</h2>
+            </div>
+            <div className="logout-modal-body">
+              <p>
+                {disablingStudent?.disabled
+                  ? 'Are you sure you want to enable this student\'s account? They will be able to log in again.'
+                  : 'Are you sure you want to disable this student\'s account? They will not be able to log in.'}
+              </p>
+              <p><strong>{disablingStudent?.name || `${disablingStudent?.firstName || ''} ${disablingStudent?.lastName || ''}`.trim() || disablingStudent?.email}</strong></p>
+            </div>
+            <div className="logout-modal-footer">
+              <button className="logout-modal-btn-secondary" onClick={() => setIsDisableModalOpen(false)}>
+                Cancel
+              </button>
+              <button
+                className={disablingStudent?.disabled ? 'logout-modal-btn-secondary' : 'logout-modal-btn-primary'}
+                style={disablingStudent?.disabled ? { background: '#16a34a', color: '#fff', borderColor: '#16a34a' } : { background: '#d97706', borderColor: '#d97706' }}
+                onClick={confirmDisable}
+              >
+                {disablingStudent?.disabled ? 'Yes, Enable' : 'Yes, Disable'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
 
