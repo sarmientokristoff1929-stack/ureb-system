@@ -562,11 +562,30 @@
   background: linear-gradient(135deg, var(--nude-green) 0%, var(--white) 100%);
 }
 
-.team-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 2rem;
+.team-slider-container {
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+  padding: 1rem 0;
   margin-bottom: 4rem;
+  -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+
+.team-slider {
+  display: flex;
+  gap: 2rem;
+  width: max-content;
+  animation: slideTeam 30s linear infinite;
+}
+
+.team-slider:hover {
+  animation-play-state: paused;
+}
+
+@keyframes slideTeam {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(calc(-50% - 1rem)); }
 }
 
 .team-card {
@@ -576,6 +595,8 @@
   box-shadow: 0 10px 40px rgba(122, 158, 126, 0.1);
   transition: all 0.3s ease;
   text-align: center;
+  width: 320px;
+  flex-shrink: 0;
 }
 
 .team-card:hover {
@@ -1998,4 +2019,17 @@
   .avatar-placeholder:hover {
     transform: none;
   }
+}
+
+/* Scroll Reveal Animations */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.8s cubic-bezier(0.5, 0, 0, 1), transform 0.8s cubic-bezier(0.5, 0, 0, 1);
+  will-change: opacity, transform;
+}
+
+.reveal-on-scroll.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
 }

@@ -14,113 +14,113 @@ const saveDeletedProposalId = (id) => {
     if (!ids.includes(String(id))) {
       localStorage.setItem('deleted_proposals', JSON.stringify([...ids, String(id)]));
     }
-  } catch {}
+  } catch { }
 };
 
 // Icons as simple SVG components
 const DashboardIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="7" height="7"/>
-    <rect x="14" y="3" width="7" height="7"/>
-    <rect x="14" y="14" width="7" height="7"/>
-    <rect x="3" y="14" width="7" height="7"/>
+    <rect x="3" y="3" width="7" height="7" />
+    <rect x="14" y="3" width="7" height="7" />
+    <rect x="14" y="14" width="7" height="7" />
+    <rect x="3" y="14" width="7" height="7" />
   </svg>
 );
 
 const BellIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
-    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
   </svg>
 );
 
 const FilePlusIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-    <polyline points="14 2 14 8 20 8"/>
-    <line x1="12" y1="18" x2="12" y2="12"/>
-    <line x1="9" y1="15" x2="15" y2="15"/>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="12" y1="18" x2="12" y2="12" />
+    <line x1="9" y1="15" x2="15" y2="15" />
   </svg>
 );
 
 const HistoryIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-    <path d="M3 3v5h5"/>
-    <path d="M12 7v5l3 3"/>
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+    <path d="M12 7v5l3 3" />
   </svg>
 );
 
 const MenuIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="3" y1="12" x2="21" y2="12"/>
-    <line x1="3" y1="6" x2="21" y2="6"/>
-    <line x1="3" y1="18" x2="21" y2="18"/>
+    <line x1="3" y1="12" x2="21" y2="12" />
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="18" x2="21" y2="18" />
   </svg>
 );
 
 const XIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M18 6 6 18"/>
-    <path d="m6 6 12 12"/>
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
   </svg>
 );
 
 const LogOutIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-    <polyline points="16 17 21 12 16 7"/>
-    <line x1="21" y1="12" x2="9" y2="12"/>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
   </svg>
 );
 
 const UploadIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-    <polyline points="17 8 12 3 7 8"/>
-    <line x1="12" y1="3" x2="12" y2="15"/>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" y1="3" x2="12" y2="15" />
   </svg>
 );
 
 const ProfileIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-    <circle cx="12" cy="7" r="4"/>
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
   </svg>
 );
 
 const MailIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="4" width="20" height="16" rx="2"/>
-    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+    <rect x="2" y="4" width="20" height="16" rx="2" />
+    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
   </svg>
 );
 
 const TrashIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 6h18"/>
-    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-    <line x1="10" y1="11" x2="10" y2="17"/>
-    <line x1="14" y1="11" x2="14" y2="17"/>
+    <path d="M3 6h18" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
   </svg>
 );
 
 const FileTemplatesIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-    <polyline points="14 2 14 8 20 8"/>
-    <line x1="16" y1="13" x2="8" y2="13"/>
-    <line x1="16" y1="17" x2="8" y2="17"/>
-    <polyline points="10 9 9 9 8 9"/>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
+    <polyline points="10 9 9 9 8 9" />
   </svg>
 );
 
 const ReplyIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-    <path d="M12 12v.01"/>
-    <path d="M8 12h8"/>
-    <path d="M12 8l4 4-4 4"/>
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    <path d="M12 12v.01" />
+    <path d="M8 12h8" />
+    <path d="M12 8l4 4-4 4" />
   </svg>
 );
 
@@ -197,7 +197,7 @@ const StudentDashboard = ({ onLogout }) => {
       case 'dashboard':
         return <DashboardContent userInfo={userInfo} onTabChange={handleTabChange} />;
       case 'notifications':
-        return <NotificationsContent />;
+        return <NotificationsContent userInfo={userInfo} />;
       case 'add-files':
         return <AddFilesContent setSubmittedFiles={setSubmittedFiles} setShowSuccessModal={setShowSuccessModal} />;
       case 'file-templates':
@@ -498,11 +498,11 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
         {!isEditing ? (
           <div className="sp-info-list">
             {[
-              { label: 'Full Name',   value: fullName },
-              { label: 'Student ID',  value: studentData?.studentId },
-              { label: 'Department',  value: studentData?.department },
-              { label: 'Program',     value: studentData?.program },
-              { label: 'Gmail',       value: studentData?.gmail },
+              { label: 'Full Name', value: fullName },
+              { label: 'Student ID', value: studentData?.studentId },
+              { label: 'Department', value: studentData?.department },
+              { label: 'Program', value: studentData?.program },
+              { label: 'Gmail', value: studentData?.gmail },
             ].map(({ label, value }) => (
               <div className="sp-info-row" key={label}>
                 <span className="sp-info-label">{label}</span>
@@ -516,9 +516,9 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
 
             <div className="sp-field-row sp-field-row--3">
               {[
-                { id: 'sp-fn', key: 'firstName',  label: 'First Name',  ph: 'First name' },
+                { id: 'sp-fn', key: 'firstName', label: 'First Name', ph: 'First name' },
                 { id: 'sp-mn', key: 'middleName', label: 'Middle Name', ph: 'Middle name (optional)' },
-                { id: 'sp-ln', key: 'lastName',   label: 'Last Name',   ph: 'Last name' },
+                { id: 'sp-ln', key: 'lastName', label: 'Last Name', ph: 'Last name' },
               ].map(({ id, key, label, ph }) => (
                 <div className="sp-field" key={key}>
                   <label htmlFor={id}>{label}</label>
@@ -589,9 +589,9 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
           <div className="sp-edit-form">
             <div className="sp-field-row sp-field-row--3">
               {[
-                { key: 'current', label: 'Current Password',      ph: 'Current password' },
-                { key: 'newPwd',  label: 'New Password',           ph: 'New password (min. 6 chars)' },
-                { key: 'confirm', label: 'Confirm New Password',   ph: 'Repeat new password' },
+                { key: 'current', label: 'Current Password', ph: 'Current password' },
+                { key: 'newPwd', label: 'New Password', ph: 'New password (min. 6 chars)' },
+                { key: 'confirm', label: 'Confirm New Password', ph: 'Repeat new password' },
               ].map(({ key, label, ph }) => (
                 <div className="sp-field" key={key}>
                   <label>{label}</label>
@@ -611,15 +611,15 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
                     >
                       {showPwd[key] ? (
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
-                          <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
-                          <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
-                          <path d="M2 2l20 20"/>
+                          <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                          <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                          <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                          <path d="M2 2l20 20" />
                         </svg>
                       ) : (
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
-                          <circle cx="12" cy="12" r="3"/>
+                          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                          <circle cx="12" cy="12" r="3" />
                         </svg>
                       )}
                     </button>
@@ -665,7 +665,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!userInfo?.email) return;
-      
+
       try {
         // Fetch real data from APIs
         const [proposalsResponse, reviewsResponse, notificationsResponse] = await Promise.all([
@@ -694,7 +694,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
           approvedProposals: approvedProposals,
           notifications: notificationsCount
         });
-        
+
         const deletedIds = getDeletedProposalIds();
         setProposals(proposalsData.filter(p => !deletedIds.includes(String(p._id))));
         setRecentActivity([]);
@@ -779,7 +779,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
           </div>
         </div>
       </div>
-      
+
       <div className="dashboard-sections">
         <div className="up-section">
           <div className="up-header">
@@ -885,11 +885,64 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
   );
 };
 
-const NotificationsContent = () => {
+const NotificationsContent = ({ userInfo }) => {
   const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchExpiringProposals = async () => {
+      if (!userInfo?.email) return;
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/proposals/student/${encodeURIComponent(userInfo.email)}`);
+        if (response.ok) {
+          const proposals = await response.json();
+          const expiringNotifs = [];
+
+          proposals.forEach((proposal) => {
+            const status = (proposal.status || 'Pending').toLowerCase();
+            if (status !== 'approved') {
+              const submittedDate = new Date(proposal.createdAt || proposal.uploadDate || Date.now());
+              const deadlineDate = new Date(submittedDate);
+              deadlineDate.setFullYear(deadlineDate.getFullYear() + 1);
+              const today = new Date();
+              const daysRemaining = Math.ceil((deadlineDate - today) / (1000 * 3600 * 24));
+
+              if (daysRemaining <= 14 && daysRemaining > 0) {
+                expiringNotifs.push({
+                  id: `exp-${proposal._id}`,
+                  type: 'warning',
+                  title: 'Requirement Expiration Warning',
+                  message: `Your proposal "${proposal.researchTitle || 'Untitled'}" is expiring in ${daysRemaining} day(s) (1-year limit).`,
+                  time: new Date().toLocaleDateString(),
+                  read: false
+                });
+              } else if (daysRemaining <= 0) {
+                expiringNotifs.push({
+                  id: `exp-${proposal._id}`,
+                  type: 'warning',
+                  title: 'Requirement Expired',
+                  message: `Your proposal "${proposal.researchTitle || 'Untitled'}" has exceeded the 1-year validity period.`,
+                  time: new Date().toLocaleDateString(),
+                  read: false
+                });
+              }
+            }
+          });
+
+          setNotifications(expiringNotifs);
+        }
+      } catch (error) {
+        console.error('Error fetching proposals for notifications:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchExpiringProposals();
+  }, [userInfo]);
 
   const markAsRead = (id) => {
-    setNotifications(notifications.map(notif => 
+    setNotifications(notifications.map(notif =>
       notif.id === id ? { ...notif, read: true } : notif
     ));
   };
@@ -898,7 +951,9 @@ const NotificationsContent = () => {
     <div className="content-section">
       <h2>Notifications</h2>
       <div className="notifications-list">
-        {notifications.length === 0 ? (
+        {loading ? (
+          <div className="loading-state">Loading notifications...</div>
+        ) : notifications.length === 0 ? (
           <div className="loading-state">No notifications</div>
         ) : (
           notifications.map((notification) => (
@@ -915,8 +970,8 @@ const NotificationsContent = () => {
               </div>
               <div className="notification-actions">
                 {!notification.read && (
-                  <button 
-                    className="btn-secondary" 
+                  <button
+                    className="btn-secondary"
                     onClick={() => markAsRead(notification.id)}
                   >
                     Mark as Read
@@ -979,7 +1034,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
         setLoadingReviewers(false);
       }
     };
-    
+
     fetchReviewers();
   }, []);
 
@@ -1001,7 +1056,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
     name: reviewer.name || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim(),
     email: reviewer.email || ''
   }))
-  .filter(r => !EXCLUDED_REVIEWERS.includes(r.name) && r.email);
+    .filter(r => !EXCLUDED_REVIEWERS.includes(r.name) && r.email);
 
   const handleFileChange = (fieldName, file) => {
     setFormData(prev => ({
@@ -1064,10 +1119,10 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
             name: formData[field].name,
             size: (formData[field].size / 1024).toFixed(1) + ' KB'
           }));
-        
+
         setSubmittedFiles(submittedFilesList);
         setShowSuccessModal(true);
-        
+
         setFormData({
           proposal: null,
           approvalSheet: null,
@@ -1137,7 +1192,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
         {renderFileInput('accomplishedForm10A', 'Accomplish Form 10 A', 'See attached form')}
         {renderFileInput('instrumentTool', 'Copy of instrument/tool', 'e.g. questionnaire that will be administered to participants, if study entails human participants. Provide a link if instrument is administered online')}
         {renderFileInput('ethicsReviewFee', 'Ethics Review Fee (Receipt)')}
-        
+
         <div className="form-group">
           <label htmlFor="department">Department</label>
           <select
@@ -1165,7 +1220,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
             <option value="TEC">TEC-Tarragona Extension Campus</option>
           </select>
         </div>
-        
+
         <div className="form-group">
           <label htmlFor="preliminaryReviewer">Preliminary Reviewer</label>
           <select
@@ -1190,15 +1245,15 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
         </div>
 
         <div className="form-actions">
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="btn-primary"
             disabled={uploading}
           >
             {uploading ? 'Uploading...' : 'Submit Files'}
           </button>
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="btn-secondary"
             onClick={() => {
               setFormData({
@@ -1261,10 +1316,10 @@ const FileTemplatesContent = () => {
   ];
 
   const categoryColors = {
-    Submission:  { bg: '#f0faf0', text: '#276227', border: '#c3e6c3' },
+    Submission: { bg: '#f0faf0', text: '#276227', border: '#c3e6c3' },
     Application: { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
-    Compliance:  { bg: '#f5f3ff', text: '#6d28d9', border: '#ddd6fe' },
-    Instrument:  { bg: '#ecfeff', text: '#0e7490', border: '#a5f3fc' },
+    Compliance: { bg: '#f5f3ff', text: '#6d28d9', border: '#ddd6fe' },
+    Instrument: { bg: '#ecfeff', text: '#0e7490', border: '#a5f3fc' },
   };
 
   return (
@@ -1316,16 +1371,16 @@ const FileTemplatesContent = () => {
 
 const DownloadIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-    <polyline points="7 10 12 15 17 10"/>
-    <line x1="12" y1="15" x2="12" y2="3"/>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
   </svg>
 );
 
 const FileIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-    <polyline points="14 2 14 8 20 8"/>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
   </svg>
 );
 
@@ -1796,12 +1851,12 @@ const HistoryContent = () => {
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
-      case 'approved':   return '#10b981';
-      case 'pending':    return '#f59e0b';
-      case 'rejected':   return '#ef4444';
-      case 'completed':  return '#10b981';
-      case 'in_review':  return '#3b82f6';
-      default:           return '#6b7280';
+      case 'approved': return '#10b981';
+      case 'pending': return '#f59e0b';
+      case 'rejected': return '#ef4444';
+      case 'completed': return '#10b981';
+      case 'in_review': return '#3b82f6';
+      default: return '#6b7280';
     }
   };
 
@@ -1811,18 +1866,18 @@ const HistoryContent = () => {
       case 'review':
         return (
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-            <polyline points="10 9 9 9 8 9"/>
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
           </svg>
         );
       default:
         return (
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="12 6 12 12 16 14"/>
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
           </svg>
         );
     }
@@ -1867,8 +1922,8 @@ const HistoryContent = () => {
         <div className="sm-empty">
           <div className="sm-empty-icon">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12 6 12 12 16 14"/>
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
             </svg>
           </div>
           <h3>No activity yet</h3>

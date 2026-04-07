@@ -3,6 +3,24 @@ import LoginModal from './LoginModal';
 import { sendMessage } from '../services/api.js';
 import './LandingPage.css';
 
+const useScrollReveal = () => {
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-revealed');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -50px 0px' });
+
+    const elements = document.querySelectorAll('.reveal-on-scroll');
+    elements.forEach((el) => observer.observe(el));
+
+    return () => elements.forEach((el) => observer.unobserve(el));
+  }, []);
+};
+
 // Icons as simple SVG components
 const ShieldIcon = () => (
   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -230,7 +248,7 @@ const Services = () => {
   ];
 
   return (
-    <section id="services" className="services">
+    <section id="services" className="services reveal-on-scroll">
       <div className="section-container">
         <div className="section-header">
           <span className="section-badge">Our Services</span>
@@ -301,7 +319,7 @@ const About = () => {
   };
 
   return (
-    <section id="about" className="about">
+    <section id="about" className="about reveal-on-scroll">
       <div className="section-container">
         <div className="section-header">
           <span className="section-badge">Our Team</span>
@@ -310,25 +328,27 @@ const About = () => {
             Dedicated professionals committed to ethical research excellence
           </p>
         </div>
-        <div className="team-grid">
-          {team.map((member, index) => (
-            <div key={index} className="team-card">
-              <div className="team-avatar" onClick={() => handleMemberClick(member)} style={{ cursor: 'pointer' }}>
-                {member.image ? (
-                  <img src={member.image} alt={member.name} className="team-image" />
-                ) : (
-                  <div className="avatar-placeholder">
-                    {member.name.split(' ').map(n => n[0]).join('')}
-                  </div>
-                )}
+        <div className="team-slider-container">
+          <div className="team-slider">
+            {[...team, ...team].map((member, index) => (
+              <div key={index} className="team-card">
+                <div className="team-avatar" onClick={() => handleMemberClick(member)} style={{ cursor: 'pointer' }}>
+                  {member.image ? (
+                    <img src={member.image} alt={member.name} className="team-image" />
+                  ) : (
+                    <div className="avatar-placeholder">
+                      {member.name.split(' ').map(n => n[0]).join('')}
+                    </div>
+                  )}
+                </div>
+                <div className="team-info">
+                  <h3 className="team-name">{member.name}</h3>
+                  <span className="team-role">{member.role}</span>
+                  <p className="team-description">{member.description}</p>
+                </div>
               </div>
-              <div className="team-info">
-                <h3 className="team-name">{member.name}</h3>
-                <span className="team-role">{member.role}</span>
-                <p className="team-description">{member.description}</p>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -360,7 +380,7 @@ const Process = () => {
   ];
 
   return (
-    <section id="process" className="process">
+    <section id="process" className="process reveal-on-scroll">
       <div className="section-container">
         <div className="section-header">
           <span className="section-badge">Application Process</span>
@@ -384,7 +404,7 @@ const Process = () => {
 };
 
 const Contact = ({ onMessageClick }) => (
-  <section id="contact" className="contact">
+  <section id="contact" className="contact reveal-on-scroll">
     <div className="section-container">
       <div className="contact-grid">
 
@@ -652,6 +672,7 @@ const ThankYouModal = ({ isOpen, onClose }) => {
 };
 
 const LandingPage = ({ onLogin, onRegister }) => {
+  useScrollReveal();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
