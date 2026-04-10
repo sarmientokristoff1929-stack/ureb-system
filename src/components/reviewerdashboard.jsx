@@ -12,13 +12,13 @@ const DashboardIcon = () => (
 
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-    <rect x="3" y="3" width="7" height="7"/>
+    <rect x="3" y="3" width="7" height="7" />
 
-    <rect x="14" y="3" width="7" height="7"/>
+    <rect x="14" y="3" width="7" height="7" />
 
-    <rect x="14" y="14" width="7" height="7"/>
+    <rect x="14" y="14" width="7" height="7" />
 
-    <rect x="3" y="14" width="7" height="7"/>
+    <rect x="3" y="14" width="7" height="7" />
 
   </svg>
 
@@ -30,11 +30,11 @@ const FileCheckIcon = () => (
 
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
 
-    <polyline points="14 2 14 8 20 8"/>
+    <polyline points="14 2 14 8 20 8" />
 
-    <path d="m9 15 2 2 4-4"/>
+    <path d="m9 15 2 2 4-4" />
 
   </svg>
 
@@ -46,9 +46,9 @@ const ClockIcon = () => (
 
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-    <circle cx="12" cy="12" r="10"/>
+    <circle cx="12" cy="12" r="10" />
 
-    <polyline points="12 6 12 12 16 14"/>
+    <polyline points="12 6 12 12 16 14" />
 
   </svg>
 
@@ -60,7 +60,7 @@ const MessageIcon = () => (
 
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
 
   </svg>
 
@@ -68,16 +68,16 @@ const MessageIcon = () => (
 
 const EyeIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-    <circle cx="12" cy="12" r="3"/>
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
   </svg>
 );
 
 const EyeOffIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-    <line x1="1" y1="1" x2="23" y2="23"/>
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+    <line x1="1" y1="1" x2="23" y2="23" />
   </svg>
 );
 
@@ -87,11 +87,11 @@ const MenuIcon = () => (
 
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-    <line x1="3" y1="12" x2="21" y2="12"/>
+    <line x1="3" y1="12" x2="21" y2="12" />
 
-    <line x1="3" y1="6" x2="21" y2="6"/>
+    <line x1="3" y1="6" x2="21" y2="6" />
 
-    <line x1="3" y1="18" x2="21" y2="18"/>
+    <line x1="3" y1="18" x2="21" y2="18" />
 
   </svg>
 
@@ -103,9 +103,9 @@ const XIcon = () => (
 
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-    <path d="M18 6 6 18"/>
+    <path d="M18 6 6 18" />
 
-    <path d="m6 6 12 12"/>
+    <path d="m6 6 12 12" />
 
   </svg>
 
@@ -117,11 +117,11 @@ const LogOutIcon = () => (
 
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
 
-    <polyline points="16 17 21 12 16 7"/>
+    <polyline points="16 17 21 12 16 7" />
 
-    <line x1="21" y1="12" x2="9" y2="12"/>
+    <line x1="21" y1="12" x2="9" y2="12" />
 
   </svg>
 
@@ -133,12 +133,19 @@ const SearchIcon = () => (
 
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-    <circle cx="11" cy="11" r="8"/>
+    <circle cx="11" cy="11" r="8" />
 
-    <path d="m21 21-4.35-4.35"/>
+    <path d="m21 21-4.35-4.35" />
 
   </svg>
 
+);
+
+const BellIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+  </svg>
 );
 
 
@@ -147,9 +154,9 @@ const SubmitReviewIcon = () => (
 
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
 
-    <polyline points="22 4 12 14.01 9 11.01"/>
+    <polyline points="22 4 12 14.01 9 11.01" />
 
   </svg>
 
@@ -161,13 +168,13 @@ const SubmitSecondaryFileIcon = () => (
 
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
 
-    <polyline points="14 2 14 8 20 8"/>
+    <polyline points="14 2 14 8 20 8" />
 
-    <line x1="12" y1="18" x2="12" y2="12"/>
+    <line x1="12" y1="18" x2="12" y2="12" />
 
-    <line x1="9" y1="15" x2="15" y2="15"/>
+    <line x1="9" y1="15" x2="15" y2="15" />
 
   </svg>
 
@@ -179,21 +186,34 @@ const FileTemplatesIcon = () => (
 
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
 
-    <polyline points="14 2 14 8 20 8"/>
+    <polyline points="14 2 14 8 20 8" />
 
-    <line x1="16" y1="13" x2="8" y2="13"/>
+    <line x1="16" y1="13" x2="8" y2="13" />
 
-    <line x1="16" y1="17" x2="8" y2="17"/>
+    <line x1="16" y1="17" x2="8" y2="17" />
 
-    <polyline points="10 9 9 9 8 9"/>
+    <polyline points="10 9 9 9 8 9" />
 
   </svg>
 
 );
 
+const DELETED_ASSIGNMENTS_KEY = 'ureb_deleted_assignments';
+const READ_ASSIGNMENTS_KEY = 'ureb_read_assignments';
 
+const getDeletedAssignmentIds = () => {
+  try {
+    return JSON.parse(localStorage.getItem(DELETED_ASSIGNMENTS_KEY) || '[]');
+  } catch { return []; }
+};
+
+const getReadAssignmentIds = () => {
+  try {
+    return JSON.parse(localStorage.getItem(READ_ASSIGNMENTS_KEY) || '[]');
+  } catch { return []; }
+};
 
 const ReviewerDashboard = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState(() => {
@@ -213,6 +233,8 @@ const ReviewerDashboard = ({ onLogout }) => {
 
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
+  const [notifCount, setNotifCount] = useState(0);
+  const [assignedCount, setAssignedCount] = useState(0);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSecondaryReviewer, setIsSecondaryReviewer] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -227,7 +249,7 @@ const ReviewerDashboard = ({ onLogout }) => {
   // List of Secondary Reviewers
   const secondaryReviewers = [
     'Dr. Emily S. Antonio',
-    'Dr. Jeralyn N. Hemillan', 
+    'Dr. Jeralyn N. Hemillan',
     'Dr. Rose Anelyn V. Ceniza',
     'Dr. Roselyn V. Regino',
     'Dr. Maria Gloria R. Lugo',
@@ -252,7 +274,8 @@ const ReviewerDashboard = ({ onLogout }) => {
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-    { id: 'assigned-proposals', label: 'Assigned Proposals', icon: <FileCheckIcon /> },
+    { id: 'notifications', label: 'Notifications', icon: <BellIcon />, badge: notifCount > 0 ? notifCount : null },
+    { id: 'assigned-proposals', label: 'Assigned Proposals', icon: <FileCheckIcon />, badge: assignedCount > 0 ? assignedCount : null },
     { id: 'file-templates', label: 'File Templates', icon: <FileTemplatesIcon /> },
     { id: 'pending-reviews', label: 'Submit Review', icon: <ClockIcon /> },
     // Only show Submit Secondary File for Preliminary Reviewers
@@ -267,8 +290,29 @@ const ReviewerDashboard = ({ onLogout }) => {
 
     if (savedUser) {
 
-      setUserInfo(JSON.parse(savedUser));
+      const user = JSON.parse(savedUser);
+      setUserInfo(user);
 
+      // Fetch expiring proposals count for badge
+      import('../services/api').then(({ getReviewerAssignments }) => {
+        getReviewerAssignments(user.email).then((assignments) => {
+          const deletedIds = getDeletedAssignmentIds();
+          const readIds = getReadAssignmentIds();
+          const activeAssignments = assignments.filter((a) => !deletedIds.includes(String(a._id)) && !readIds.includes(String(a._id)));
+          setAssignedCount(activeAssignments.length);
+
+          const today = new Date();
+          let count = 0;
+          assignments.forEach((p) => {
+            const submitted = new Date(p.submissionDate || p.createdAt || Date.now());
+            const deadline = new Date(submitted);
+            deadline.setFullYear(deadline.getFullYear() + 1);
+            const days = Math.ceil((deadline - today) / (1000 * 3600 * 24));
+            if (days <= 3) count++;
+          });
+          setNotifCount(count);
+        }).catch(() => { });
+      });
     }
 
     // Check if welcome modal has been shown in this login session
@@ -328,8 +372,8 @@ const ReviewerDashboard = ({ onLogout }) => {
       const response = await fetch('/api/reviewers/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: userInfo.email, 
+        body: JSON.stringify({
+          email: userInfo.email,
           name: profileData.name
         }),
       });
@@ -386,46 +430,49 @@ const ReviewerDashboard = ({ onLogout }) => {
     }
   };
 
-const renderContent = () => {
+  const renderContent = () => {
 
-switch (activeTab) {
+    switch (activeTab) {
 
-case 'dashboard':
+      case 'dashboard':
 
-return <DashboardContent />;
+        return <DashboardContent />;
 
-case 'assigned-proposals':
+      case 'assigned-proposals':
 
-return <AssignedProposalsContent />;
+        return <AssignedProposalsContent setAssignedCount={setAssignedCount} />;
 
-case 'file-templates':
+      case 'file-templates':
 
-return <FileTemplatesContent />;
+        return <FileTemplatesContent />;
 
-case 'pending-reviews':
+      case 'pending-reviews':
 
-return <SubmitReviewContent onShowSuccessModal={() => setShowSuccessModal(true)} onNavigateToSubmitted={() => setActiveTab('submitted-reviews')} />;
+        return <SubmitReviewContent onShowSuccessModal={() => setShowSuccessModal(true)} onNavigateToSubmitted={() => setActiveTab('submitted-reviews')} />;
 
-case 'submit-secondary-file':
+      case 'submit-secondary-file':
 
-return <SubmitSecondaryFileContent onShowSuccessModal={() => setShowSuccessModal(true)} onNavigateToSubmitted={() => setActiveTab('submitted-reviews')} />;
+        return <SubmitSecondaryFileContent onShowSuccessModal={() => setShowSuccessModal(true)} onNavigateToSubmitted={() => setActiveTab('submitted-reviews')} />;
 
-case 'submitted-reviews':
+      case 'submitted-reviews':
 
-return <SubmittedReviewsContent />;
+        return <SubmittedReviewsContent />;
 
-case 'messages':
+      case 'notifications':
 
-return <MessagesContent />;
+        return <ReviewerNotificationsContent userInfo={userInfo} />;
 
-default:
+      case 'messages':
 
-return <DashboardContent />;
+        return <MessagesContent />;
+
+      default:
+
+        return <DashboardContent />;
 
     }
 
   };
-
 
 
   return (
@@ -476,8 +523,10 @@ return <DashboardContent />;
             >
 
               {item.icon}
-
               <span>{item.label}</span>
+              {item.badge && (
+                <span className="nav-badge">{item.badge}</span>
+              )}
 
             </button>
 
@@ -530,7 +579,7 @@ return <DashboardContent />;
 
         </header>
 
-        
+
 
         <div className="content-body">
 
@@ -541,7 +590,7 @@ return <DashboardContent />;
       </main>
 
       <LogoutModal isOpen={isLogoutModalOpen} onClose={cancelLogout} onConfirm={confirmLogout} />
-      
+
       {/* Success Modal */}
       <SuccessModal isOpen={showSuccessModal} onClose={() => { setShowSuccessModal(false); setActiveTab('submitted-reviews'); }} />
 
@@ -582,7 +631,7 @@ return <DashboardContent />;
                       <span className="profile-label">Email:</span>
                       <span className="profile-value">{profileData.email}</span>
                     </div>
-                    <button 
+                    <button
                       className="profile-edit-btn"
                       onClick={() => setEditingProfile(true)}
                       disabled={profileLoading}
@@ -612,14 +661,14 @@ return <DashboardContent />;
                       <small style={{ color: '#666', fontSize: '0.8rem' }}>Email cannot be changed</small>
                     </div>
                     <div className="profile-form-actions">
-                      <button 
+                      <button
                         className="profile-save-btn"
                         onClick={handleProfileUpdate}
                         disabled={profileLoading}
                       >
                         {profileLoading ? 'Saving...' : 'Save Changes'}
                       </button>
-                      <button 
+                      <button
                         className="profile-cancel-btn"
                         onClick={() => {
                           setEditingProfile(false);
@@ -692,7 +741,7 @@ return <DashboardContent />;
                       </button>
                     </div>
                   </div>
-                  <button 
+                  <button
                     className="profile-password-btn"
                     onClick={handlePasswordChange}
                     disabled={profileLoading}
@@ -713,6 +762,98 @@ return <DashboardContent />;
 };
 
 
+
+// ── Reviewer Notifications Content ──
+const ReviewerNotificationsContent = ({ userInfo }) => {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchExpiring = async () => {
+      if (!userInfo?.email) return;
+      try {
+        const assignments = await getReviewerAssignments(userInfo.email);
+        const notifs = [];
+        const today = new Date();
+
+        assignments.forEach((proposal) => {
+          const submittedDate = new Date(proposal.submissionDate || proposal.createdAt || Date.now());
+          const deadlineDate = new Date(submittedDate);
+          deadlineDate.setFullYear(deadlineDate.getFullYear() + 1);
+          const daysRemaining = Math.ceil((deadlineDate - today) / (1000 * 3600 * 24));
+
+          if (daysRemaining <= 3 && daysRemaining > 0) {
+            notifs.push({
+              id: `exp-${proposal._id}`,
+              type: 'warning',
+              title: 'Proposal Expiring Soon',
+              message: `"${proposal.researchTitle || 'Untitled'}" is expiring in ${daysRemaining} day(s). The 1-year review period ends on ${deadlineDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`,
+              time: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              read: false,
+            });
+          } else if (daysRemaining <= 0) {
+            notifs.push({
+              id: `exp-${proposal._id}`,
+              type: 'danger',
+              title: 'Proposal Expired',
+              message: `"${proposal.researchTitle || 'Untitled'}" has exceeded the 1-year review validity period (expired ${deadlineDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}).`,
+              time: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              read: false,
+            });
+          }
+        });
+
+        setNotifications(notifs);
+      } catch (err) {
+        console.error('Error loading reviewer notifications:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchExpiring();
+  }, [userInfo]);
+
+  const markAsRead = (id) => {
+    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+  };
+
+  return (
+    <div className="content-section">
+      <h2>Notifications</h2>
+      <div className="notifications-list">
+        {loading ? (
+          <div className="loading-state">Loading notifications...</div>
+        ) : notifications.length === 0 ? (
+          <div className="loading-state">No notifications at this time.</div>
+        ) : (
+          notifications.map((notif) => (
+            <div
+              key={notif.id}
+              className={`notification-item ${!notif.read ? 'unread' : ''} ${notif.type}`}
+            >
+              <div className="notification-icon">
+                {notif.type === 'warning' && <span>!</span>}
+                {notif.type === 'danger' && <span>✕</span>}
+              </div>
+              <div className="notification-content">
+                <h4>{notif.title}</h4>
+                <p>{notif.message}</p>
+                <span className="notification-time">{notif.time}</span>
+              </div>
+              <div className="notification-actions">
+                {!notif.read && (
+                  <button className="btn-secondary" onClick={() => markAsRead(notif.id)}>
+                    Mark as Read
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
 
 // Content Components
 
@@ -749,6 +890,7 @@ const DashboardContent = () => {
       setUserInfo(user);
 
       fetchDashboardData(user.email);
+
 
     }
 
@@ -813,11 +955,8 @@ const DashboardContent = () => {
       console.error('Error fetching dashboard data:', error);
 
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
 
@@ -914,7 +1053,7 @@ const DashboardContent = () => {
 
     const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
 
-    
+
 
     if (diffInHours < 1) return 'Just now';
 
@@ -933,6 +1072,7 @@ const DashboardContent = () => {
   return (
 
     <div className="dashboard-content">
+
 
       <div className="stats-grid">
 
@@ -1010,10 +1150,10 @@ const DashboardContent = () => {
 
       </div>
 
-      
 
 
-      
+
+
 
       <div className="dashboard-sections">
 
@@ -1063,7 +1203,7 @@ const DashboardContent = () => {
 
         </div>
 
-        
+
 
       </div>
 
@@ -1132,13 +1272,13 @@ const ProposalDetailsModal = ({ isOpen, onClose, proposal }) => {
             </div>
 
             {proposal.preliminaryReviewer && (
-            <div className="detail-row">
-              <span className="detail-label">Preliminary Reviewer:</span>
-              <span className="detail-value">
-                {proposal.preliminaryReviewerName || proposal.preliminaryReviewer}
-                <span className="preliminary-badge" style={{ marginLeft: '0.5rem' }}>Preliminary</span>
-              </span>
-            </div>
+              <div className="detail-row">
+                <span className="detail-label">Preliminary Reviewer:</span>
+                <span className="detail-value">
+                  {proposal.preliminaryReviewerName || proposal.preliminaryReviewer}
+                  <span className="preliminary-badge" style={{ marginLeft: '0.5rem' }}>Preliminary</span>
+                </span>
+              </div>
             )}
 
             <div className="detail-row">
@@ -1250,10 +1390,10 @@ const ReviewModal = ({ isOpen, onClose, proposal }) => {
 
   const handleDownloadFile = async (fileKey, file) => {
     let fileUrl, fileName;
-    
+
     // Debug: Log the exact file data we're receiving
     console.log('File data received:', { fileKey, file });
-    
+
     if (typeof file === 'string') {
       // Extract just the filename from the full path
       fileName = file.split(/[/\\]/).pop() || fileKey;
@@ -1266,10 +1406,10 @@ const ReviewModal = ({ isOpen, onClose, proposal }) => {
     } else {
       return; // No valid file to download
     }
-    
+
     console.log('Attempting download from:', fileUrl); // Debug log
     console.log('Filename for download:', fileName);
-    
+
     try {
       // Try to download the file directly
       const response = await fetch(fileUrl, {
@@ -1277,14 +1417,14 @@ const ReviewModal = ({ isOpen, onClose, proposal }) => {
         mode: 'cors',
         credentials: 'omit'
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      
+
       // Create download link
       const link = document.createElement('a');
       link.href = url;
@@ -1293,13 +1433,13 @@ const ReviewModal = ({ isOpen, onClose, proposal }) => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       // Clean up the object URL
       window.URL.revokeObjectURL(url);
       console.log('Download successful:', fileName);
     } catch (error) {
       console.error('Download failed:', error);
-      
+
       // Show user a helpful message with available file types
       const availableFiles = [
         'notificationLetter-1770706722776-470251442.docx',
@@ -1307,9 +1447,9 @@ const ReviewModal = ({ isOpen, onClose, proposal }) => {
         'ethicalClearance-1770706722780-752777537.docx',
         'reviewResults-1770706722777-796906084.docx'
       ];
-      
+
       const fileList = availableFiles.map(f => `• ${f}`).join('\n');
-      
+
       const message = `File "${fileName}" not found on server.\n\nAvailable files:\n${fileList}\n\nPlease contact administrator to update the file records.`;
       alert(message);
     }
@@ -1317,22 +1457,22 @@ const ReviewModal = ({ isOpen, onClose, proposal }) => {
 
   const FileIcon = () => (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-      <polyline points="14 2 14 8 20 8"/>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
     </svg>
   );
 
   const FolderIcon = () => (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
     </svg>
   );
 
   const DownloadIcon = () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-      <polyline points="7 10 12 15 17 10"/>
-      <line x1="12" y1="15" x2="12" y2="3"/>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
     </svg>
   );
 
@@ -1367,7 +1507,7 @@ const ReviewModal = ({ isOpen, onClose, proposal }) => {
                           </span>
                         </div>
                       </div>
-                      <button 
+                      <button
                         className="download-btn"
                         onClick={() => handleDownloadFile(key, file)}
                         title="Download file"
@@ -1397,21 +1537,17 @@ const ReviewModal = ({ isOpen, onClose, proposal }) => {
   );
 };
 
-
-const DELETED_ASSIGNMENTS_KEY = 'ureb_deleted_assignments';
-
-const getDeletedAssignmentIds = () => {
-  try {
-    return JSON.parse(localStorage.getItem(DELETED_ASSIGNMENTS_KEY) || '[]');
-  } catch { return []; }
-};
-
-const AssignedProposalsContent = () => {
+const AssignedProposalsContent = ({ setAssignedCount }) => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [readIds, setReadIds] = useState([]);
+
+  useEffect(() => {
+    setReadIds(getReadAssignmentIds());
+  }, []);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('ureb_user');
@@ -1442,7 +1578,13 @@ const AssignedProposalsContent = () => {
     if (!deletedIds.includes(confirmDeleteId)) {
       localStorage.setItem(DELETED_ASSIGNMENTS_KEY, JSON.stringify([...deletedIds, confirmDeleteId]));
     }
-    setAssignments(prev => prev.filter(a => String(a._id) !== confirmDeleteId));
+    setAssignments(prev => {
+      const filtered = prev.filter(a => String(a._id) !== confirmDeleteId);
+      if (setAssignedCount) {
+        setAssignedCount(filtered.filter(a => !readIds.includes(String(a._id))).length);
+      }
+      return filtered;
+    });
     setConfirmDeleteId(null);
     setDeleting(false);
   };
@@ -1522,11 +1664,24 @@ const AssignedProposalsContent = () => {
           const fileEntries = Object.entries(files);
           const isExpanded = expandedId === String(assignment._id);
 
+          const isRead = readIds.includes(String(assignment._id));
+
           return (
-            <div className="proposal-card" key={String(assignment._id)}>
+            <div className={`proposal-card ${!isRead ? 'unread' : ''}`} key={String(assignment._id)}>
               <div className="proposal-header">
-                <div className="proposal-header-left">
+                <div className="proposal-header-left" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <h3>{assignment.protocolCode || 'No Protocol Code'}</h3>
+                  <span style={{
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: '12px',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    backgroundColor: isRead ? '#e2e8f0' : '#fee2e2',
+                    color: isRead ? '#64748b' : '#ef4444',
+                    border: `1px solid ${isRead ? '#cbd5e1' : '#fca5a5'}`
+                  }}>
+                    {isRead ? 'Finished' : 'Not finished'}
+                  </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <span className={`status-badge ${(assignment.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
@@ -1538,7 +1693,7 @@ const AssignedProposalsContent = () => {
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '0.25rem', display: 'flex', alignItems: 'center' }}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                      <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4h6v2" />
                     </svg>
                   </button>
                 </div>
@@ -1559,7 +1714,20 @@ const AssignedProposalsContent = () => {
                   <button
                     className="btn-secondary"
                     style={{ marginBottom: '0.75rem' }}
-                    onClick={() => setExpandedId(isExpanded ? null : String(assignment._id))}
+                    onClick={() => {
+                      const idStr = String(assignment._id);
+                      if (isExpanded) {
+                        setExpandedId(null);
+                      } else {
+                        setExpandedId(idStr);
+                        if (!readIds.includes(idStr)) {
+                          const newReadIds = [...readIds, idStr];
+                          localStorage.setItem(READ_ASSIGNMENTS_KEY, JSON.stringify(newReadIds));
+                          setReadIds(newReadIds);
+                          if (setAssignedCount) setAssignedCount(prev => Math.max(0, prev - 1));
+                        }
+                      }
+                    }}
                   >
                     {isExpanded ? 'Hide Files' : `View Files (${fileEntries.length})`}
                   </button>
@@ -1599,20 +1767,20 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
   const [proposals, setProposals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProposal, setSelectedProposal] = useState(null);
-  
+
   // List of Secondary Reviewers
   const secondaryReviewers = [
     'Dr. Emily S. Antonio',
-    'Dr. Jeralyn N. Hemillan', 
+    'Dr. Jeralyn N. Hemillan',
     'Dr. Rose Anelyn V. Ceniza',
     'Dr. Roselyn V. Regino',
     'Dr. Maria Gloria R. Lugo',
     'Dr. Sharmaine Anne C. Argawanon'
   ];
-  
+
   // Check if current user is a Secondary Reviewer
   const [isSecondaryReviewer, setIsSecondaryReviewer] = useState(false);
-  
+
   // Load saved data from localStorage on component mount
   const [reviewData, setReviewData] = useState(() => {
     const savedData = localStorage.getItem('reviewDraftData');
@@ -1654,7 +1822,7 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
       comment: ''
     };
   });
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Save data to localStorage whenever reviewData changes
@@ -1682,13 +1850,13 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
     const savedUser = localStorage.getItem('ureb_user');
     if (savedUser) {
       const user = JSON.parse(savedUser);
-      
+
       // Check if current user is a Secondary Reviewer by name
       const userIsSecondary = secondaryReviewers.includes(user.name);
       setIsSecondaryReviewer(userIsSecondary);
-      
+
       console.log('User:', user.name, 'isSecondaryReviewer:', userIsSecondary);
-      
+
       fetchProposals(user.email);
     }
   }, []);
@@ -1781,99 +1949,99 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
   };
 
   const FileIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-    <polyline points="14 2 14 8 20 8"></polyline>
-    <line x1="16" y1="13" x2="8" y2="13"></line>
-    <line x1="16" y1="17" x2="8" y2="17"></line>
-    <polyline points="10 9 9 9 8 9"></polyline>
-  </svg>
-);
-
-const CloseIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="6" x2="6" y2="18"></line>
-    <line x1="6" y1="6" x2="18" y2="18"></line>
-  </svg>
-);
-
-const FileUploadIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-    <polyline points="14 2 14 8 20 8"></polyline>
-    <line x1="16" y1="13" x2="8" y2="13"></line>
-    <line x1="16" y1="17" x2="8" y2="17"></line>
-    <polyline points="10 9 9 9 8 9"></polyline>
-  </svg>
-);
-
-const FileUploadComponent = ({ label, field, accept = ".pdf,.doc,.docx" }) => {
-  const [isDragging, setIsDragging] = useState(false);
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFileChange(field, files[0]);
-    }
-  };
-
-  return (
-    <div className="form-group">
-      <label className="form-label">{label}</label>
-      <div 
-        className={`file-upload ${isDragging ? 'dragging' : ''}`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <input
-          type="file"
-          id={field}
-          accept={accept}
-          onChange={(e) => handleFileChange(field, e.target.files[0])}
-          className="file-input"
-          style={{ display: 'none' }}
-        />
-        <label htmlFor={field} className="file-upload-label">
-          <div className="file-upload-icon">
-            <FileUploadIcon />
-          </div>
-          <div className="file-upload-text">
-            <p>Attach file or drag and drop here</p>
-            <span>PDF, DOC, DOCX (MAX. 10MB)</span>
-          </div>
-        </label>
-        {reviewData[field] && (
-          <div className="attached-file">
-            <span>
-              <FileIcon /> {reviewData[field].name}
-            </span>
-            <button
-              type="button"
-              onClick={() => handleFileChange(field, null)}
-              className="remove-file"
-            >
-              <CloseIcon />
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+      <polyline points="14 2 14 8 20 8"></polyline>
+      <line x1="16" y1="13" x2="8" y2="13"></line>
+      <line x1="16" y1="17" x2="8" y2="17"></line>
+      <polyline points="10 9 9 9 8 9"></polyline>
+    </svg>
   );
-};
+
+  const CloseIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"></line>
+      <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
+  );
+
+  const FileUploadIcon = () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+      <polyline points="14 2 14 8 20 8"></polyline>
+      <line x1="16" y1="13" x2="8" y2="13"></line>
+      <line x1="16" y1="17" x2="8" y2="17"></line>
+      <polyline points="10 9 9 9 8 9"></polyline>
+    </svg>
+  );
+
+  const FileUploadComponent = ({ label, field, accept = ".pdf,.doc,.docx" }) => {
+    const [isDragging, setIsDragging] = useState(false);
+
+    const handleDragOver = (e) => {
+      e.preventDefault();
+      setIsDragging(true);
+    };
+
+    const handleDragLeave = (e) => {
+      e.preventDefault();
+      setIsDragging(false);
+    };
+
+    const handleDrop = (e) => {
+      e.preventDefault();
+      setIsDragging(false);
+
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleFileChange(field, files[0]);
+      }
+    };
+
+    return (
+      <div className="form-group">
+        <label className="form-label">{label}</label>
+        <div
+          className={`file-upload ${isDragging ? 'dragging' : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <input
+            type="file"
+            id={field}
+            accept={accept}
+            onChange={(e) => handleFileChange(field, e.target.files[0])}
+            className="file-input"
+            style={{ display: 'none' }}
+          />
+          <label htmlFor={field} className="file-upload-label">
+            <div className="file-upload-icon">
+              <FileUploadIcon />
+            </div>
+            <div className="file-upload-text">
+              <p>Attach file or drag and drop here</p>
+              <span>PDF, DOC, DOCX (MAX. 10MB)</span>
+            </div>
+          </label>
+          {reviewData[field] && (
+            <div className="attached-file">
+              <span>
+                <FileIcon /> {reviewData[field].name}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleFileChange(field, null)}
+                className="remove-file"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -1884,65 +2052,65 @@ const FileUploadComponent = ({ label, field, accept = ".pdf,.doc,.docx" }) => {
     );
   }
 
-  
+
   return (
     <div className="content-section">
       <h2>Submit Review</h2>
-      
+
       <form onSubmit={handleSubmit} className="review-form">
         {/* Document upload section - conditional based on reviewer type */}
         <div className="form-section">
           {isSecondaryReviewer ? (
             // Secondary Reviewer Layout - Only UREB Form 10B and UREB Form 11
             <div className="documents-grid secondary-reviewer-layout">
-              <FileUploadComponent 
-                label="UREB Form 10B" 
-                field="urebForm10B" 
+              <FileUploadComponent
+                label="UREB Form 10B"
+                field="urebForm10B"
               />
-              <FileUploadComponent 
-                label="UREB Form 11" 
-                field="urebForm11" 
+              <FileUploadComponent
+                label="UREB Form 11"
+                field="urebForm11"
               />
             </div>
           ) : (
             // Preliminary Reviewer Layout - All existing documents
             <div className="documents-grid preliminary-reviewer-layout">
-              <FileUploadComponent 
-                label="Proposal" 
-                field="proposal" 
+              <FileUploadComponent
+                label="Proposal"
+                field="proposal"
               />
-              <FileUploadComponent 
-                label="Approval Sheet" 
-                field="approvalSheet" 
+              <FileUploadComponent
+                label="Approval Sheet"
+                field="approvalSheet"
               />
-              <FileUploadComponent 
-                label="UREB Form 2" 
-                field="urebForm2" 
+              <FileUploadComponent
+                label="UREB Form 2"
+                field="urebForm2"
               />
-              <FileUploadComponent 
-                label="Application for Research Ethics Review Form 6" 
-                field="applicationForm6" 
+              <FileUploadComponent
+                label="Application for Research Ethics Review Form 6"
+                field="applicationForm6"
               />
-              <FileUploadComponent 
-                label="Accomplished Form 8" 
-                field="accomplishedForm8" 
+              <FileUploadComponent
+                label="Accomplished Form 8"
+                field="accomplishedForm8"
               />
-              <FileUploadComponent 
-                label="Accomplish Form 10 A" 
-                field="accomplishForm10A" 
+              <FileUploadComponent
+                label="Accomplish Form 10 A"
+                field="accomplishForm10A"
               />
-              <FileUploadComponent 
-                label="Copy of instrument/tool" 
-                field="copyOfInstrument" 
+              <FileUploadComponent
+                label="Copy of instrument/tool"
+                field="copyOfInstrument"
               />
-              <FileUploadComponent 
-                label="Ethics Review Fee (Receipt)" 
-                field="ethicsReviewFee" 
+              <FileUploadComponent
+                label="Ethics Review Fee (Receipt)"
+                field="ethicsReviewFee"
                 accept=".pdf,.jpg,.jpeg,.png"
               />
-              <FileUploadComponent 
-                label="Form 7" 
-                field="form7" 
+              <FileUploadComponent
+                label="Form 7"
+                field="form7"
               />
             </div>
           )}
@@ -2059,7 +2227,7 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
   const [proposals, setProposals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProposal, setSelectedProposal] = useState(null);
-  
+
   // Load saved data from localStorage on component mount
   const [secondaryFileData, setSecondaryFileData] = useState(() => {
     const savedData = localStorage.getItem('secondaryFileDraftData');
@@ -2081,7 +2249,7 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
       urebForm11: null
     };
   });
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Save data to localStorage whenever secondaryFileData changes
@@ -2169,99 +2337,99 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
   };
 
   const FileIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-    <polyline points="14 2 14 8 20 8"></polyline>
-    <line x1="16" y1="13" x2="8" y2="13"></line>
-    <line x1="16" y1="17" x2="8" y2="17"></line>
-    <polyline points="10 9 9 9 8 9"></polyline>
-  </svg>
-);
-
-const CloseIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="6" x2="6" y2="18"></line>
-    <line x1="6" y1="6" x2="18" y2="18"></line>
-  </svg>
-);
-
-const FileUploadIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-    <polyline points="14 2 14 8 20 8"></polyline>
-    <line x1="16" y1="13" x2="8" y2="13"></line>
-    <line x1="16" y1="17" x2="8" y2="17"></line>
-    <polyline points="10 9 9 9 8 9"></polyline>
-  </svg>
-);
-
-const FileUploadComponent = ({ label, field, accept = ".pdf,.doc,.docx" }) => {
-  const [isDragging, setIsDragging] = useState(false);
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFileChange(field, files[0]);
-    }
-  };
-
-  return (
-    <div className="form-group">
-      <label className="form-label">{label}</label>
-      <div 
-        className={`file-upload ${isDragging ? 'dragging' : ''}`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <input
-          type="file"
-          id={field}
-          accept={accept}
-          onChange={(e) => handleFileChange(field, e.target.files[0])}
-          className="file-input"
-          style={{ display: 'none' }}
-        />
-        <label htmlFor={field} className="file-upload-label">
-          <div className="file-upload-icon">
-            <FileUploadIcon />
-          </div>
-          <div className="file-upload-text">
-            <p>Attach file or drag and drop here</p>
-            <span>PDF, DOC, DOCX (MAX. 10MB)</span>
-          </div>
-        </label>
-        {secondaryFileData[field] && (
-          <div className="attached-file">
-            <span>
-              <FileIcon /> {secondaryFileData[field].name}
-            </span>
-            <button
-              type="button"
-              onClick={() => handleFileChange(field, null)}
-              className="remove-file"
-            >
-              <CloseIcon />
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+      <polyline points="14 2 14 8 20 8"></polyline>
+      <line x1="16" y1="13" x2="8" y2="13"></line>
+      <line x1="16" y1="17" x2="8" y2="17"></line>
+      <polyline points="10 9 9 9 8 9"></polyline>
+    </svg>
   );
-};
+
+  const CloseIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"></line>
+      <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
+  );
+
+  const FileUploadIcon = () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+      <polyline points="14 2 14 8 20 8"></polyline>
+      <line x1="16" y1="13" x2="8" y2="13"></line>
+      <line x1="16" y1="17" x2="8" y2="17"></line>
+      <polyline points="10 9 9 9 8 9"></polyline>
+    </svg>
+  );
+
+  const FileUploadComponent = ({ label, field, accept = ".pdf,.doc,.docx" }) => {
+    const [isDragging, setIsDragging] = useState(false);
+
+    const handleDragOver = (e) => {
+      e.preventDefault();
+      setIsDragging(true);
+    };
+
+    const handleDragLeave = (e) => {
+      e.preventDefault();
+      setIsDragging(false);
+    };
+
+    const handleDrop = (e) => {
+      e.preventDefault();
+      setIsDragging(false);
+
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleFileChange(field, files[0]);
+      }
+    };
+
+    return (
+      <div className="form-group">
+        <label className="form-label">{label}</label>
+        <div
+          className={`file-upload ${isDragging ? 'dragging' : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <input
+            type="file"
+            id={field}
+            accept={accept}
+            onChange={(e) => handleFileChange(field, e.target.files[0])}
+            className="file-input"
+            style={{ display: 'none' }}
+          />
+          <label htmlFor={field} className="file-upload-label">
+            <div className="file-upload-icon">
+              <FileUploadIcon />
+            </div>
+            <div className="file-upload-text">
+              <p>Attach file or drag and drop here</p>
+              <span>PDF, DOC, DOCX (MAX. 10MB)</span>
+            </div>
+          </label>
+          {secondaryFileData[field] && (
+            <div className="attached-file">
+              <span>
+                <FileIcon /> {secondaryFileData[field].name}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleFileChange(field, null)}
+                className="remove-file"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -2272,22 +2440,22 @@ const FileUploadComponent = ({ label, field, accept = ".pdf,.doc,.docx" }) => {
     );
   }
 
-  
+
   return (
     <div className="content-section">
       <h2>Submit Secondary File</h2>
-      
+
       <form onSubmit={handleSubmit} className="review-form">
         {/* Document upload section - Secondary Reviewer Layout */}
         <div className="form-section">
           <div className="documents-grid secondary-reviewer-layout">
-            <FileUploadComponent 
-              label="UREB Form 10B" 
-              field="urebForm10B" 
+            <FileUploadComponent
+              label="UREB Form 10B"
+              field="urebForm10B"
             />
-            <FileUploadComponent 
-              label="UREB Form 11" 
-              field="urebForm11" 
+            <FileUploadComponent
+              label="UREB Form 11"
+              field="urebForm11"
             />
           </div>
         </div>
@@ -2333,11 +2501,11 @@ const FileUploadComponent = ({ label, field, accept = ".pdf,.doc,.docx" }) => {
 
 const TrashIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="3 6 5 6 21 6"/>
-    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-    <path d="M10 11v6"/>
-    <path d="M14 11v6"/>
-    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6" />
+    <path d="M14 11v6" />
+    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
   </svg>
 );
 
@@ -2408,7 +2576,7 @@ const MessagesContent = () => {
 
     const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
 
-    
+
 
     if (diffInHours < 1) return 'Just now';
 
@@ -2634,7 +2802,7 @@ const SubmittedReviewsContent = () => {
       const savedUser = localStorage.getItem('ureb_user');
       const currentUser = savedUser ? JSON.parse(savedUser) : null;
       const currentEmail = currentUser?.email || null;
-      
+
       if (currentEmail !== lastUserEmail) {
         lastUserEmail = currentEmail;
         fetchSubmittedReviews();
@@ -2718,25 +2886,25 @@ const SubmittedReviewsContent = () => {
       case 'approve':
         return (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12"/>
+            <polyline points="20 6 9 17 4 12" />
           </svg>
         );
       case 'revision':
         return (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+            <path d="M1 4v6h6" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
           </svg>
         );
       case 'reject':
         return (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         );
       default:
         return (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
         );
     }
@@ -2790,9 +2958,9 @@ const SubmittedReviewsContent = () => {
         <div className="sr-empty">
           <div className="sr-empty-icon">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <path d="m9 15 2 2 4-4"/>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <path d="m9 15 2 2 4-4" />
             </svg>
           </div>
           <h3>No Reviews Yet</h3>
@@ -2827,7 +2995,7 @@ const SubmittedReviewsContent = () => {
                     {getDecisionLabel(review.decision)}
                   </span>
                   <svg className={`sr-chevron ${expandedId === review._id ? 'sr-chevron--open' : ''}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="6 9 12 15 18 9"/>
+                    <polyline points="6 9 12 15 18 9" />
                   </svg>
                 </div>
               </div>
@@ -2890,18 +3058,18 @@ const FileTemplatesContent = () => {
   ];
 
   const categoryColors = {
-    Submission:  { bg: '#f0faf0', text: '#276227', border: '#c3e6c3' },
+    Submission: { bg: '#f0faf0', text: '#276227', border: '#c3e6c3' },
     Application: { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
-    Compliance:  { bg: '#f5f3ff', text: '#6d28d9', border: '#ddd6fe' },
-    Instrument:  { bg: '#ecfeff', text: '#0e7490', border: '#a5f3fc' },
-    Review:     { bg: '#f0f9ff', text: '#0c4a6e', border: '#bae6fd' },
+    Compliance: { bg: '#f5f3ff', text: '#6d28d9', border: '#ddd6fe' },
+    Instrument: { bg: '#ecfeff', text: '#0e7490', border: '#a5f3fc' },
+    Review: { bg: '#f0f9ff', text: '#0c4a6e', border: '#bae6fd' },
   };
 
   const DownloadIcon = () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-      <polyline points="7 10 12 15 17 10"/>
-      <line x1="12" y1="15" x2="12" y2="3"/>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
     </svg>
   );
 

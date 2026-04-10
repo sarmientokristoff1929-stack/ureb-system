@@ -312,6 +312,35 @@ export const getAllReviewers = async () => {
   }
 };
 
+export const addReviewer = async (reviewerData) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/users/detailed`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(reviewerData),
+    });
+
+    if (!response.ok) {
+      let errorMessage = 'Failed to create reviewer';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch (jsonError) {
+        errorMessage = `Failed to create reviewer: ${response.statusText} (${response.status})`;
+      }
+      return { success: false, error: errorMessage };
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error creating reviewer:', error);
+    return { success: false, error: 'Failed to create reviewer' };
+  }
+};
+
 // Update user
 export const updateUser = async (id, userData) => {
   try {

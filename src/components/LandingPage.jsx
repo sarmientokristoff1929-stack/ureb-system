@@ -24,53 +24,53 @@ const useScrollReveal = () => {
 // Icons as simple SVG components
 const ShieldIcon = () => (
   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
   </svg>
 );
 
 const FileCheckIcon = () => (
   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-    <polyline points="14 2 14 8 20 8"/>
-    <path d="m9 15 2 2 4-4"/>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <path d="m9 15 2 2 4-4" />
   </svg>
 );
 
 const UsersIcon = () => (
   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-    <circle cx="9" cy="7" r="4"/>
-    <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </svg>
 );
 
 const ClockIcon = () => (
   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/>
-    <polyline points="12 6 12 12 16 14"/>
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
   </svg>
 );
 
 const ArrowRightIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M5 12h14"/>
-    <path d="m12 5 7 7-7 7"/>
+    <path d="M5 12h14" />
+    <path d="m12 5 7 7-7 7" />
   </svg>
 );
 
 const MenuIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="3" y1="12" x2="21" y2="12"/>
-    <line x1="3" y1="6" x2="21" y2="6"/>
-    <line x1="3" y1="18" x2="21" y2="18"/>
+    <line x1="3" y1="12" x2="21" y2="12" />
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="18" x2="21" y2="18" />
   </svg>
 );
 
 const XIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M18 6 6 18"/>
-    <path d="m6 6 12 12"/>
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
   </svg>
 );
 
@@ -80,7 +80,7 @@ const MobileBottomNav = ({ onLoginClick }) => {
       name: 'Home', href: '#home',
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" />
         </svg>
       ),
     },
@@ -88,7 +88,7 @@ const MobileBottomNav = ({ onLoginClick }) => {
       name: 'Services', href: '#services',
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="m9 15 2 2 4-4" />
         </svg>
       ),
     },
@@ -96,7 +96,7 @@ const MobileBottomNav = ({ onLoginClick }) => {
       name: 'About', href: '#about',
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
       ),
     },
@@ -104,7 +104,7 @@ const MobileBottomNav = ({ onLoginClick }) => {
       name: 'Process', href: '#process',
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+          <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
         </svg>
       ),
     },
@@ -112,7 +112,7 @@ const MobileBottomNav = ({ onLoginClick }) => {
       name: 'Login', href: null,
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10 17 15 12 10 7" /><line x1="15" y1="12" x2="3" y2="12" />
         </svg>
       ),
     },
@@ -185,8 +185,8 @@ const Hero = () => (
           <span className="highlight">Research Protocols</span> with ease.
         </h1>
         <p className="hero-description">
-          Supporting researchers in conducting ethical, responsible, and impactful research. 
-          We review and approve research protocols to ensure the protection of human participants 
+          Supporting researchers in conducting ethical, responsible, and impactful research.
+          We review and approve research protocols to ensure the protection of human participants
           and the integrity of research endeavors.
         </p>
         <div className="hero-cta">
@@ -200,20 +200,20 @@ const Hero = () => (
       </div>
       <div className="hero-visual">
         <div className="floating-background">
-          <span className="bg-letter bg-u">U</span>
-          <span className="bg-letter bg-r">R</span>
-          <span className="bg-letter bg-e">E</span>
-          <span className="bg-letter bg-b">B</span>
-          <span className="bg-letter bg-u2">U</span>
-          <span className="bg-letter bg-r2">R</span>
-          <span className="bg-letter bg-e2">E</span>
-          <span className="bg-letter bg-b2">B</span>
+          <span className="bg-letter bg-u">U<span className="dot">.</span></span>
+          <span className="bg-letter bg-r">R<span className="dot">.</span></span>
+          <span className="bg-letter bg-e">E<span className="dot">.</span></span>
+          <span className="bg-letter bg-b">B<span className="dot">.</span></span>
+          <span className="bg-letter bg-u2">U<span className="dot">.</span></span>
+          <span className="bg-letter bg-r2">R<span className="dot">.</span></span>
+          <span className="bg-letter bg-e2">E<span className="dot">.</span></span>
+          <span className="bg-letter bg-b2">B<span className="dot">.</span></span>
         </div>
         <div className="floating-letters">
-          <span className="floating-letter letter-u">U</span>
-          <span className="floating-letter letter-r">R</span>
-          <span className="floating-letter letter-e">E</span>
-          <span className="floating-letter letter-b">B</span>
+          <span className="floating-letter letter-u">U<span className="dot">.</span></span>
+          <span className="floating-letter letter-r">R<span className="dot">.</span></span>
+          <span className="floating-letter letter-e">E<span className="dot">.</span></span>
+          <span className="floating-letter letter-b">B<span className="dot">.</span></span>
         </div>
       </div>
     </div>
@@ -274,7 +274,7 @@ const Services = () => {
 const About = () => {
   const [selectedMember, setSelectedMember] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   const team = [
     {
       name: 'Dr. Melay Antonio',
@@ -295,7 +295,7 @@ const About = () => {
       image: '/Ms.Cris.png'
     },
     {
-      name: 'Ermelyn Padalapat', 
+      name: 'Ermelyn Padalapat',
       role: 'Web Designer',
       description: 'Specializing in biomedical research ethics and regulatory compliance.',
       image: '/Ermelyn.png'
@@ -305,6 +305,12 @@ const About = () => {
       role: 'System Developer',
       description: 'Developing and maintaining the UREB online portal and submission system.',
       image: '/Kristoff.png'
+    },
+    {
+      name: 'Rozel Candado',
+      role: 'Technical Support',
+      description: 'Providing essential troubleshooting and user support to ensure reliable platform operations.',
+      image: '/rozel.jpg'
     }
   ];
 
@@ -419,8 +425,8 @@ const Contact = ({ onMessageClick }) => (
             <div className="contact-item">
               <span className="contact-item-icon">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                  <polyline points="22,6 12,13 2,6"/>
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
                 </svg>
               </span>
               <div>
@@ -431,8 +437,8 @@ const Contact = ({ onMessageClick }) => (
             <div className="contact-item">
               <span className="contact-item-icon">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/>
-                  <polyline points="12 6 12 12 16 14"/>
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
                 </svg>
               </span>
               <div>
@@ -443,8 +449,8 @@ const Contact = ({ onMessageClick }) => (
             <div className="contact-item">
               <span className="contact-item-icon">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                  <circle cx="12" cy="10" r="3"/>
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
                 </svg>
               </span>
               <div>
@@ -462,7 +468,7 @@ const Contact = ({ onMessageClick }) => (
           <button className="btn-primary contact-cta-btn" onClick={onMessageClick}>
             Message Us
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+              <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
             </svg>
           </button>
           <p className="contact-cta-note">No login required · Free consultation</p>
@@ -507,15 +513,15 @@ const Footer = () => (
         <div className="footer-column">
           <h4>Contact</h4>
           <div className="footer-contact-item">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
             <a href="mailto:reo@dorsu.edu.ph">reo@dorsu.edu.ph</a>
           </div>
           <div className="footer-contact-item">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
             <span>Mon – Fri, 8:00 AM – 5:00 PM</span>
           </div>
           <div className="footer-contact-item">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
             <span>Guang-Guang, Dahican, Mati, Davao Oriental</span>
           </div>
         </div>
@@ -542,7 +548,7 @@ const MessageModal = ({ isOpen, onClose, setIsSuccessModalOpen }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log('Message submitted:', formData);
-    
+
     try {
       const messageData = {
         senderEmail: formData.email,
@@ -551,9 +557,9 @@ const MessageModal = ({ isOpen, onClose, setIsSuccessModalOpen }) => {
         subject: 'Message from Researcher',
         message: formData.message
       };
-      
+
       const result = await sendMessage(messageData);
-      
+
       if (result.success) {
         // Show success modal instead of alert
         setIsSuccessModalOpen(true);
@@ -656,8 +662,8 @@ const ThankYouModal = ({ isOpen, onClose }) => {
           <div className="success-content" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             <div className="success-icon" style={{ marginBottom: '16px' }}>
               <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
             </div>
             <p className="success-message" style={{ textAlign: 'center', margin: '0' }}>Thank you for your message! We will get back to you soon.</p>

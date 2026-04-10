@@ -488,6 +488,30 @@ app.get('/api/reviewers', async (req, res) => {
   }
 });
 
+app.post('/api/reviewers', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const reviewers = db.collection('reviewers');
+    
+    const newReviewer = {
+      ...req.body,
+      createdAt: new Date().toISOString()
+    };
+    
+    // Check if email already exists
+    const existing = await reviewers.findOne({ email: req.body.email });
+    if (existing) {
+      return res.status(400).json({ error: 'Reviewer with this email already exists' });
+    }
+    
+    const result = await reviewers.insertOne(newReviewer);
+    res.status(201).json({ success: true, _id: result.insertedId, ...newReviewer });
+  } catch (error) {
+    console.error('Error creating reviewer:', error);
+    res.status(500).json({ error: 'Server error adding reviewer' });
+  }
+});
+
 // Students operations
 app.get('/api/students', async (req, res) => {
   try {

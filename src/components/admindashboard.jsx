@@ -759,6 +759,8 @@ const AdminDashboard = ({ onLogout }) => {
 
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
 
+  const [messageCount, setMessageCount] = useState(0);
+
 
 
   // Load user info from localStorage on mount
@@ -799,6 +801,26 @@ const AdminDashboard = ({ onLogout }) => {
 
   }, [activeTab]);
 
+  // Fetch message count for badge
+  const refreshMessageCount = async () => {
+    if (!userInfo?.email) return;
+    try {
+      const { getMessagesByUser } = await import('../services/api.js');
+      const messageList = await getMessagesByUser(userInfo.email);
+      // Count unread messages
+      const unreadMessages = messageList.filter(m => !m.read);
+      setMessageCount(unreadMessages.length);
+    } catch (error) {
+      console.error('Error fetching message count:', error);
+      setMessageCount(0);
+    }
+  };
+
+  useEffect(() => {
+    refreshMessageCount();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userInfo]);
+
 
 
 
@@ -837,7 +859,7 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
-    { id: 'messages-inbox', label: 'Messages Inbox', icon: <MessageIcon /> },
+    { id: 'messages-inbox', label: 'Messages Inbox', icon: <MessageIcon />, badge: messageCount > 0 ? messageCount : null },
 
 
 
@@ -947,7 +969,7 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
-        return <MessagesInboxContent />;
+        return <MessagesInboxContent onMessageRead={refreshMessageCount} />;
 
 
 
@@ -1094,6 +1116,12 @@ const AdminDashboard = ({ onLogout }) => {
 
 
               <span>{item.label}</span>
+
+              {item.badge && (
+
+                <span className="nav-badge">{item.badge}</span>
+
+              )}
 
 
 
@@ -2064,28 +2092,46 @@ const AddReviewerContent = () => {
 
     ];
 
-    // Clear form and localStorage
+    try {
+      const { addReviewer } = await import('../services/api');
+      
+      const payload = {
+        ...formData,
+        role: 'reviewer',
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        status: 'active'
+      };
 
-    setFormData({
+      const result = await addReviewer(payload);
 
-      firstName: '',
+      if (result && result.success === false) {
+        setErrorMessage(result.error || 'Failed to add reviewer.');
+        setShowErrorModal(true);
+        setLoading(false);
+        return;
+      }
 
-      middleName: '',
+      setShowSuccessModal(true);
 
-      lastName: '',
-
-      title: '',
-
-      email: '',
-
-      password: '',
-
-      department: ''
-
-    });
-
-    localStorage.removeItem('addReviewerForm');
-
+      // Clear form and localStorage
+      setFormData({
+        firstName: '',
+        middleName: '',
+        lastName: '',
+        title: '',
+        email: '',
+        password: '',
+        department: '',
+        reviewerType: ''
+      });
+      localStorage.removeItem('addReviewerForm');
+    } catch (err) {
+      console.error('Submit error:', err);
+      setErrorMessage('An unexpected error occurred. Please try again.');
+      setShowErrorModal(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
 
@@ -2387,9 +2433,7 @@ const AddReviewerContent = () => {
             <div className="error-content">
 
               <div className="error-icon">✕</div>
-
-              <h3>Email Already Exists</h3>
-
+              <h3>{errorMessage?.toLowerCase().includes('email') ? 'Email Already Exists' : 'Action Failed'}</h3>
               <p>{errorMessage}</p>
 
               <button className="error-close-btn" onClick={() => setShowErrorModal(false)}>
@@ -7248,7 +7292,7 @@ const ReviewsFileContent = () => {
 
 
 
-const MessagesInboxContent = () => {
+const MessagesInboxContent = ({ onMessageRead }) => {
 
 
 
@@ -7417,11 +7461,19 @@ const MessagesInboxContent = () => {
 
 
   const openMessageModal = (message) => {
-
     setSelectedMessage(message);
-
     setIsMessageModalOpen(true);
 
+    // Auto-mark as read when opening
+    if (!message.read) {
+      saveReadId(message._id);
+      setMessages(prev => prev.map(m => m._id === message._id ? { ...m, read: true } : m));
+      // Fire-and-forget API + badge refresh
+      import('../services/api.js').then(({ markMessageAsRead }) => {
+        markMessageAsRead(message._id).catch(err => console.error('Error marking as read:', err));
+      });
+      if (onMessageRead) onMessageRead();
+    }
   };
 
 
@@ -7437,28 +7489,24 @@ const MessagesInboxContent = () => {
 
 
   const markAsRead = async () => {
-
     if (selectedMessage && !selectedMessage.read) {
-
       // Persist locally immediately
       saveReadId(selectedMessage._id);
       setMessages(prev => prev.map(m => m._id === selectedMessage._id ? { ...m, read: true } : m));
       setSelectedMessage(prev => ({ ...prev, read: true }));
 
       try {
-
         const { markMessageAsRead } = await import('../services/api.js');
-
         await markMessageAsRead(selectedMessage._id);
-
+        
+        // Call the callback to refresh message count in sidebar
+        if (onMessageRead) {
+          onMessageRead();
+        }
       } catch (error) {
-
         console.error('Error marking message as read:', error);
-
       }
-
     }
-
   };
 
 
@@ -7478,6 +7526,11 @@ const MessagesInboxContent = () => {
       const { markAllMessagesAsRead } = await import('../services/api.js');
 
       await markAllMessagesAsRead(userInfo.email);
+      
+      // Call the callback to refresh message count in sidebar
+      if (onMessageRead) {
+        onMessageRead();
+      }
 
     } catch (error) {
 
@@ -7542,8 +7595,11 @@ const MessagesInboxContent = () => {
       const { markMessageAsRead } = await import('../services/api.js');
 
       await markMessageAsRead(msg._id);
-
-
+      
+      // Call the callback to refresh message count in sidebar
+      if (onMessageRead) {
+        onMessageRead();
+      }
 
     } catch (error) {
 
@@ -7701,21 +7757,16 @@ const MessagesInboxContent = () => {
                     <div className="inbox-row-actions">
 
                       {!message.read && (
-
                         <button
-
                           className="inbox-mark-read-btn"
-
                           onClick={(e) => markSingleAsRead(e, message)}
-
                           title="Mark as read"
-
                         >
-
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                          </svg>
                           Mark as read
-
                         </button>
-
                       )}
 
                       <span className="inbox-row-date">
@@ -7782,6 +7833,8 @@ const MessagesInboxContent = () => {
         userInfo={userInfo}
 
         onMarkAsRead={markAsRead}
+
+        onMessageRead={onMessageRead}
 
         setSuccessMessage={setSuccessMessage}
 
@@ -7861,7 +7914,7 @@ const MessagesInboxContent = () => {
 
 
 
-const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, setSuccessMessage, setIsSuccessModalOpen, setMessages }) => {
+const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, onMessageRead, setSuccessMessage, setIsSuccessModalOpen, setMessages }) => {
 
   const [proposalFiles, setProposalFiles] = useState(null);
 
@@ -7929,10 +7982,10 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, se
 
 
 
-  const handleMarkAsRead = () => {
-
-    onMarkAsRead();
-
+  const handleMarkAsRead = async () => {
+    await onMarkAsRead();
+    // Refresh sidebar badge count
+    if (onMessageRead) onMessageRead();
   };
 
 

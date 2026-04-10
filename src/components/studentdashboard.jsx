@@ -124,6 +124,12 @@ const ReplyIcon = () => (
   </svg>
 );
 
+const CheckIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
 const StudentDashboard = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -132,6 +138,7 @@ const StudentDashboard = ({ onLogout }) => {
   const [submittedFiles, setSubmittedFiles] = useState([]);
   const [userInfo, setUserInfo] = useState(null);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [messageCount, setMessageCount] = useState(0);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('ureb_user');
@@ -157,12 +164,33 @@ const StudentDashboard = ({ onLogout }) => {
     }
   }, []);
 
+  // Fetch message count for badge
+  useEffect(() => {
+    const fetchMessageCount = async () => {
+      if (!userInfo?.email) return;
+      try {
+        const response = await fetch(`${API}/messages/${encodeURIComponent(userInfo.email)}`);
+        const data = await response.json();
+        const unreadAdminMessages = data.filter((m) => 
+          m.recipientEmail === userInfo.email && 
+          m.type === 'admin_to_student' && 
+          !m.read
+        );
+        setMessageCount(unreadAdminMessages.length);
+      } catch (error) {
+        console.error('Error fetching message count:', error);
+        setMessageCount(0);
+      }
+    };
+    fetchMessageCount();
+  }, [userInfo]);
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     { id: 'notifications', label: 'Notifications', icon: <BellIcon /> },
     { id: 'add-files', label: 'Add Files', icon: <FilePlusIcon /> },
     { id: 'file-templates', label: 'File Templates', icon: <FileTemplatesIcon /> },
-    { id: 'messages', label: 'Messages', icon: <MailIcon /> },
+    { id: 'messages', label: 'Messages', icon: <MailIcon />, badge: messageCount > 0 ? messageCount : null },
     { id: 'history', label: 'History', icon: <HistoryIcon /> },
     { id: 'profile', label: 'Profile', icon: <ProfileIcon /> },
   ];
@@ -203,7 +231,7 @@ const StudentDashboard = ({ onLogout }) => {
       case 'file-templates':
         return <FileTemplatesContent />;
       case 'messages':
-        return <MessagesContent userInfo={userInfo} />;
+        return <MessagesContent userInfo={userInfo} onMessageRead={refreshMessageCount} />;
       case 'history':
         return <HistoryContent />;
       case 'profile':
@@ -215,6 +243,22 @@ const StudentDashboard = ({ onLogout }) => {
 
   const getFirstName = () => {
     return userInfo?.name ? userInfo.name.split(' ')[0] : 'Student';
+  };
+
+  const refreshMessageCount = async () => {
+    if (!userInfo?.email) return;
+    try {
+      const response = await fetch(`${API}/messages/${encodeURIComponent(userInfo.email)}`);
+      const data = await response.json();
+      const unreadAdminMessages = data.filter((m) => 
+        m.recipientEmail === userInfo.email && 
+        m.type === 'admin_to_student' && 
+        !m.read
+      );
+      setMessageCount(unreadAdminMessages.length);
+    } catch (error) {
+      console.error('Error refreshing message count:', error);
+    }
   };
 
   return (
@@ -261,6 +305,9 @@ const StudentDashboard = ({ onLogout }) => {
             >
               {item.icon}
               <span>{item.label}</span>
+              {item.badge && (
+                <span className="nav-badge">{item.badge}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -661,6 +708,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
   const [loading, setLoading] = useState(true);
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [dueReminders, setDueReminders] = useState([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -715,6 +763,52 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
     };
 
     fetchDashboardData();
+
+    // Calculate due reminders for student proposals
+    const checkDueReminders = async () => {
+      if (!userInfo?.email) return;
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/proposals/student/${encodeURIComponent(userInfo.email)}`);
+        if (response.ok) {
+          const proposals = await response.json();
+          const reminders = [];
+          
+          proposals.forEach(proposal => {
+            const status = (proposal.status || 'Pending').toLowerCase();
+            if (status !== 'approved') {
+              const submittedDate = new Date(proposal.createdAt || proposal.uploadDate || Date.now());
+              const deadlineDate = new Date(submittedDate);
+              deadlineDate.setFullYear(deadlineDate.getFullYear() + 1);
+              
+              const today = new Date();
+              const diffTime = deadlineDate - today;
+              const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+              // Show warning if expiring within 14 days
+              if (daysRemaining <= 14 && daysRemaining > 0) {
+                reminders.push({
+                  id: proposal._id,
+                  title: proposal.researchTitle,
+                  daysRemaining,
+                  type: 'warning'
+                });
+              } else if (daysRemaining <= 0) {
+                reminders.push({
+                  id: proposal._id,
+                  title: proposal.researchTitle,
+                  daysRemaining,
+                  type: 'danger'
+                });
+              }
+            }
+          });
+          setDueReminders(reminders);
+        }
+      } catch (err) {
+        console.error("Error fetching reminders:", err);
+      }
+    };
+    checkDueReminders();
   }, [userInfo]);
 
   const confirmDeleteProposal = () => {
@@ -741,6 +835,36 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
 
   return (
     <div className="dashboard-content">
+      {/* Due Date Reminders Section */}
+      {dueReminders.length > 0 && (
+        <div className="due-reminders-section">
+          <div className="reminders-header">
+            <span className="reminder-icon">⚠️</span>
+            <div className="reminder-text-group">
+              <h3 className="reminder-title">Expiration Reminders</h3>
+              <p className="reminder-subtitle">The following proposals are approaching or have exceeded their 1-year validity limit.</p>
+            </div>
+          </div>
+          <div className="reminders-list">
+            {dueReminders.map((reminder) => (
+              <div key={reminder.id} className={`reminder-item ${reminder.type}`}>
+                <div className="reminder-item-left">
+                  <div className="reminder-dot"></div>
+                  <span className="reminder-proposal-title">{reminder.title || 'Untitled Proposal'}</span>
+                </div>
+                <div className="reminder-status-pill">
+                  {reminder.daysRemaining <= 0 ? (
+                    <span className="status-danger">EXPIRED</span>
+                  ) : (
+                    <span className="status-warning">Expires in {reminder.daysRemaining} day{reminder.daysRemaining !== 1 ? 's' : ''}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-icon total">
@@ -1384,7 +1508,7 @@ const FileIcon = () => (
   </svg>
 );
 
-const MessagesContent = ({ userInfo }) => {
+const MessagesContent = ({ userInfo, onMessageRead }) => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [replyModalOpen, setReplyModalOpen] = useState(false);
@@ -1450,6 +1574,26 @@ const MessagesContent = ({ userInfo }) => {
       console.error('Error deleting message:', error);
     } finally {
       closeDeleteModal();
+    }
+  };
+
+  const markAsRead = async (messageId) => {
+    try {
+      const response = await fetch(`${API}/messages/${messageId}/read`, { 
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (response.ok) {
+        setMessages(prev => prev.map(msg => 
+          msg._id === messageId ? { ...msg, read: true } : msg
+        ));
+        // Call the callback to refresh message count in sidebar
+        if (onMessageRead) {
+          onMessageRead();
+        }
+      }
+    } catch (error) {
+      console.error('Error marking message as read:', error);
     }
   };
 
@@ -1555,6 +1699,16 @@ const MessagesContent = ({ userInfo }) => {
                   <span className="sm-sender-date">{formatDate(msg.sentAt)}</span>
                 </div>
                 <div className="sm-card-actions">
+                  {!msg.read && (
+                    <button
+                      className="sm-action-btn sm-mark-read-btn"
+                      onClick={() => markAsRead(msg._id)}
+                      title="Mark as read"
+                    >
+                      <CheckIcon />
+                      Read
+                    </button>
+                  )}
                   <button
                     className="sm-action-btn sm-reply-btn"
                     onClick={() => handleReply(msg)}
