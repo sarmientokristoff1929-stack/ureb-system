@@ -187,10 +187,10 @@ const StudentDashboard = ({ onLogout }) => {
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-    { id: 'notifications', label: 'Notifications', icon: <BellIcon /> },
     { id: 'add-files', label: 'Add Files', icon: <FilePlusIcon /> },
     { id: 'file-templates', label: 'File Templates', icon: <FileTemplatesIcon /> },
     { id: 'messages', label: 'Messages', icon: <MailIcon />, badge: messageCount > 0 ? messageCount : null },
+    { id: 'notifications', label: 'Notifications', icon: <BellIcon /> },
     { id: 'history', label: 'History', icon: <HistoryIcon /> },
     { id: 'profile', label: 'Profile', icon: <ProfileIcon /> },
   ];
@@ -731,20 +731,23 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
         const reviewsData = await reviewsResponse.json();
         const notificationsData = await notificationsResponse.json();
 
+        const deletedIds = getDeletedProposalIds();
+        const activeProposals = proposalsData.filter(p => !deletedIds.includes(String(p._id)));
+
         // Calculate actual stats
-        const pendingReviews = reviewsData.filter(review => review.status === 'pending').length;
-        const approvedProposals = proposalsData.filter(proposal => proposal.status === 'approved').length;
+        const pendingReviewsCount = reviewsData.filter(review => review.status === 'pending').length;
+        const pendingProposalsCount = activeProposals.filter(proposal => !proposal.status || proposal.status.toLowerCase() === 'pending').length;
+        const approvedProposals = activeProposals.filter(proposal => proposal.status === 'approved').length;
         const notificationsCount = notificationsData.filter(msg => msg.type === 'admin_to_student').length;
 
         setStats({
-          totalProposals: proposalsData.length,
-          pendingReviews: pendingReviews,
+          totalProposals: activeProposals.length,
+          pendingReviews: pendingReviewsCount + pendingProposalsCount,
           approvedProposals: approvedProposals,
           notifications: notificationsCount
         });
 
-        const deletedIds = getDeletedProposalIds();
-        setProposals(proposalsData.filter(p => !deletedIds.includes(String(p._id))));
+        setProposals(activeProposals);
         setRecentActivity([]);
         setLoading(false);
       } catch (error) {
@@ -881,7 +884,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
           </div>
           <div className="stat-info">
             <h3>{stats.pendingReviews}</h3>
-            <p>Pending Reviews</p>
+            <p>Pending</p>
           </div>
         </div>
         <div className="stat-card">

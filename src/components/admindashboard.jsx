@@ -284,19 +284,19 @@ const DashboardIcon = () => (
 
 
 
-    <rect x="3" y="3" width="7" height="7"/>
+    <rect x="3" y="3" width="7" height="7" />
 
 
 
-    <rect x="14" y="3" width="7" height="7"/>
+    <rect x="14" y="3" width="7" height="7" />
 
 
 
-    <rect x="14" y="14" width="7" height="7"/>
+    <rect x="14" y="14" width="7" height="7" />
 
 
 
-    <rect x="3" y="14" width="7" height="7"/>
+    <rect x="3" y="14" width="7" height="7" />
 
 
 
@@ -320,19 +320,19 @@ const FilePlusIcon = () => (
 
 
 
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
 
 
 
-    <polyline points="14 2 14 8 20 8"/>
+    <polyline points="14 2 14 8 20 8" />
 
 
 
-    <line x1="12" y1="18" x2="12" y2="12"/>
+    <line x1="12" y1="18" x2="12" y2="12" />
 
 
 
-    <line x1="9" y1="15" x2="15" y2="15"/>
+    <line x1="9" y1="15" x2="15" y2="15" />
 
 
 
@@ -356,19 +356,19 @@ const UserPlusIcon = () => (
 
 
 
-    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
 
 
 
-    <circle cx="8.5" cy="7" r="4"/>
+    <circle cx="8.5" cy="7" r="4" />
 
 
 
-    <line x1="20" y1="8" x2="20" y2="14"/>
+    <line x1="20" y1="8" x2="20" y2="14" />
 
 
 
-    <line x1="23" y1="11" x2="17" y2="11"/>
+    <line x1="23" y1="11" x2="17" y2="11" />
 
 
 
@@ -392,19 +392,19 @@ const AssignIcon = () => (
 
 
 
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
 
 
 
-    <circle cx="9" cy="7" r="4"/>
+    <circle cx="9" cy="7" r="4" />
 
 
 
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
 
 
 
-    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
 
 
 
@@ -428,19 +428,19 @@ const UsersIcon = () => (
 
 
 
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
 
 
 
-    <circle cx="9" cy="7" r="4"/>
+    <circle cx="9" cy="7" r="4" />
 
 
 
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
 
 
 
-    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
 
 
 
@@ -464,15 +464,15 @@ const LogOutIcon = () => (
 
 
 
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
 
 
 
-    <polyline points="16 17 21 12 16 7"/>
+    <polyline points="16 17 21 12 16 7" />
 
 
 
-    <line x1="21" y1="12" x2="9" y2="12"/>
+    <line x1="21" y1="12" x2="9" y2="12" />
 
 
 
@@ -496,7 +496,7 @@ const ShieldIcon = () => (
 
 
 
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
 
 
 
@@ -520,15 +520,15 @@ const MenuIcon = () => (
 
 
 
-    <line x1="3" y1="12" x2="21" y2="12"/>
+    <line x1="3" y1="12" x2="21" y2="12" />
 
 
 
-    <line x1="3" y1="6" x2="21" y2="6"/>
+    <line x1="3" y1="6" x2="21" y2="6" />
 
 
 
-    <line x1="3" y1="18" x2="21" y2="18"/>
+    <line x1="3" y1="18" x2="21" y2="18" />
 
 
 
@@ -552,11 +552,11 @@ const XIcon = () => (
 
 
 
-    <path d="M18 6 6 18"/>
+    <path d="M18 6 6 18" />
 
 
 
-    <path d="m6 6 12 12"/>
+    <path d="m6 6 12 12" />
 
 
 
@@ -572,9 +572,9 @@ const EyeIcon = () => (
 
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
 
-    <circle cx="12" cy="12" r="3"/>
+    <circle cx="12" cy="12" r="3" />
 
   </svg>
 
@@ -586,13 +586,13 @@ const EyeOffIcon = () => (
 
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
 
-    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
+    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
 
-    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
+    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
 
-    <path d="M2 2l20 20"/>
+    <path d="M2 2l20 20" />
 
   </svg>
 
@@ -612,11 +612,11 @@ const NotificationIcon = () => (
 
 
 
-    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
 
 
 
-    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
 
 
 
@@ -640,11 +640,11 @@ const MessageIcon = () => (
 
 
 
-    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
 
 
 
-    <polyline points="22,6 12,13 2,6"/>
+    <polyline points="22,6 12,13 2,6" />
 
 
 
@@ -664,23 +664,23 @@ const ReviewsIcon = () => (
 
 
 
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
 
 
 
-    <polyline points="14,2 14,8 20,8"/>
+    <polyline points="14,2 14,8 20,8" />
 
 
 
-    <line x1="16" y1="13" x2="8" y2="13"/>
+    <line x1="16" y1="13" x2="8" y2="13" />
 
 
 
-    <line x1="16" y1="17" x2="8" y2="17"/>
+    <line x1="16" y1="17" x2="8" y2="17" />
 
 
 
-    <polyline points="10,9 9,9 8,9"/>
+    <polyline points="10,9 9,9 8,9" />
 
 
 
@@ -694,8 +694,8 @@ const ReviewsIcon = () => (
 
 const CheckCircleIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-    <polyline points="22 4 12 14.01 9 11.01"/>
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+    <polyline points="22 4 12 14.01 9 11.01" />
   </svg>
 );
 
@@ -707,11 +707,11 @@ const SearchIcon = () => (
 
 
 
-    <circle cx="11" cy="11" r="8"/>
+    <circle cx="11" cy="11" r="8" />
 
 
 
-    <path d="m21 21-4.35-4.35"/>
+    <path d="m21 21-4.35-4.35" />
 
 
 
@@ -760,6 +760,8 @@ const AdminDashboard = ({ onLogout }) => {
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
 
   const [messageCount, setMessageCount] = useState(0);
+
+  const [notifCount, setNotifCount] = useState(0);
 
 
 
@@ -816,9 +818,24 @@ const AdminDashboard = ({ onLogout }) => {
     }
   };
 
+  const refreshNotifCount = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/notifications`);
+      const data = await response.json();
+      const deletedIdsStr = localStorage.getItem('deleted_notifications') || '[]';
+      const deletedIds = JSON.parse(deletedIdsStr);
+      const unreadNotifs = data.filter(n => !n.read && !deletedIds.includes(n._id));
+      setNotifCount(unreadNotifs.length);
+    } catch (error) {
+      console.error('Error fetching notification count:', error);
+      setNotifCount(0);
+    }
+  };
+
   useEffect(() => {
     refreshMessageCount();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    refreshNotifCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userInfo]);
 
 
@@ -855,7 +872,7 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
-    { id: 'notification', label: 'Notification (File)', icon: <NotificationIcon /> },
+    { id: 'notification', label: 'Notification (File)', icon: <NotificationIcon />, badge: notifCount > 0 ? notifCount : null },
 
 
 
@@ -961,7 +978,7 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
-        return <NotificationContent setActiveTab={setActiveTab} />;
+        return <NotificationContent setActiveTab={setActiveTab} onRefreshCount={refreshNotifCount} />;
 
 
 
@@ -1051,7 +1068,7 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
-          <button 
+          <button
 
 
 
@@ -1185,7 +1202,7 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
-          <button 
+          <button
 
 
 
@@ -1375,7 +1392,7 @@ const DashboardContent = () => {
 
 
 
-    
+
 
 
 
@@ -1419,7 +1436,7 @@ const DashboardContent = () => {
 
 
 
-        
+
 
 
 
@@ -1451,7 +1468,7 @@ const DashboardContent = () => {
 
 
 
-            description: `${proposal.protocolCode}: "${proposal.title}"`,
+            description: `${proposal.protocolCode ? 'Protocol ' + proposal.protocolCode : 'Proposal'}: "${proposal.title || 'Untitled'}"`,
 
 
 
@@ -1467,7 +1484,7 @@ const DashboardContent = () => {
 
 
 
-        
+
 
 
 
@@ -1499,7 +1516,7 @@ const DashboardContent = () => {
 
 
 
-    
+
 
 
 
@@ -1711,14 +1728,14 @@ const DashboardContent = () => {
 
 
 
-      
 
 
 
 
 
 
-      
+
+
 
 
 
@@ -1742,11 +1759,11 @@ const DashboardContent = () => {
 
 
 
-              <div className="activity-item" style={{justifyContent: 'center', padding: '2rem'}}>
+              <div className="activity-item" style={{ justifyContent: 'center', padding: '2rem' }}>
 
 
 
-                <p style={{color: 'var(--text-medium)'}}>Loading activity...</p>
+                <p style={{ color: 'var(--text-medium)' }}>Loading activity...</p>
 
 
 
@@ -1758,11 +1775,11 @@ const DashboardContent = () => {
 
 
 
-              <div className="activity-item" style={{justifyContent: 'center', padding: '2rem'}}>
+              <div className="activity-item" style={{ justifyContent: 'center', padding: '2rem' }}>
 
 
 
-                <p style={{color: 'var(--text-medium)'}}>No recent activity</p>
+                <p style={{ color: 'var(--text-medium)' }}>No recent activity</p>
 
 
 
@@ -1810,7 +1827,7 @@ const DashboardContent = () => {
 
 
 
-                      {new Date(activity.timestamp).toLocaleDateString()} • {new Date(activity.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      {new Date(activity.timestamp).toLocaleDateString()} • {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 
 
 
@@ -1842,7 +1859,7 @@ const DashboardContent = () => {
 
 
 
-        
+
 
 
 
@@ -1882,7 +1899,7 @@ const DashboardContent = () => {
 
 
 
-      
+
 
 
 
@@ -2030,7 +2047,7 @@ const AddReviewerContent = () => {
 
     const { name, value } = e.target;
 
-    
+
 
     setFormData(prev => ({
 
@@ -2086,7 +2103,7 @@ const AddReviewerContent = () => {
 
       'FALS', 'FTED', 'FAIS', 'FNAS', 'FBM', 'FCJE', 'FACET',
 
-      'FHUSOCOM', 'SEIC', 'BEC', 'CEC', 'BGEC', 'TEC', 
+      'FHUSOCOM', 'SEIC', 'BEC', 'CEC', 'BGEC', 'TEC',
 
       'NSTP', 'ICS', 'Community Representatives'
 
@@ -2094,7 +2111,7 @@ const AddReviewerContent = () => {
 
     try {
       const { addReviewer } = await import('../services/api');
-      
+
       const payload = {
         ...formData,
         role: 'reviewer',
@@ -2152,13 +2169,13 @@ const AddReviewerContent = () => {
 
               <label>First Name</label>
 
-              <input 
+              <input
 
-                type="text" 
+                type="text"
 
                 name="firstName"
 
-                placeholder="Enter first name" 
+                placeholder="Enter first name"
 
                 value={formData.firstName}
 
@@ -2172,13 +2189,13 @@ const AddReviewerContent = () => {
 
               <label>Middle Name (optional)</label>
 
-              <input 
+              <input
 
-                type="text" 
+                type="text"
 
                 name="middleName"
 
-                placeholder="Enter middle name" 
+                placeholder="Enter middle name"
 
                 value={formData.middleName || ''}
 
@@ -2250,13 +2267,13 @@ const AddReviewerContent = () => {
 
             <label>Email Address</label>
 
-            <input 
+            <input
 
-              type="email" 
+              type="email"
 
               name="email"
 
-              placeholder="reviewer@university.edu" 
+              placeholder="reviewer@university.edu"
 
               value={formData.email}
 
@@ -2270,13 +2287,13 @@ const AddReviewerContent = () => {
 
             <label>Generated Password</label>
 
-            <input 
+            <input
 
-              type="text" 
+              type="text"
 
               name="password"
 
-              placeholder="Auto-generated password" 
+              placeholder="Auto-generated password"
 
               value={formData.password}
 
@@ -2296,7 +2313,7 @@ const AddReviewerContent = () => {
 
               <label>Department</label>
 
-              <select 
+              <select
 
                 name="department"
 
@@ -2348,7 +2365,7 @@ const AddReviewerContent = () => {
 
               <label>Reviewer Type</label>
 
-              <select 
+              <select
 
                 name="reviewerType"
 
@@ -2376,9 +2393,9 @@ const AddReviewerContent = () => {
 
             <button type="submit" className="btn-primary" disabled={loading}>
 
-            {loading ? 'Adding...' : 'Add Reviewer'}
+              {loading ? 'Adding...' : 'Add Reviewer'}
 
-          </button>
+            </button>
 
             <button type="button" className="btn-secondary" onClick={handleCancel}>Cancel</button>
 
@@ -2388,7 +2405,7 @@ const AddReviewerContent = () => {
 
       </div>
 
-      
+
 
       {/* Success Modal */}
 
@@ -2420,7 +2437,7 @@ const AddReviewerContent = () => {
 
       )}
 
-      
+
 
       {/* Error Modal */}
 
@@ -2581,74 +2598,74 @@ const MarkCompletedReviewContent = () => {
   };
 
   const preliminary = reviewerRows.filter(r => r.reviewerType === 'preliminary');
-  const secondary   = reviewerRows.filter(r => r.reviewerType === 'secondary');
+  const secondary = reviewerRows.filter(r => r.reviewerType === 'secondary');
 
   const renderSection = (title, list, accent) => {
     const completedReviewsCount = list
       .filter(r => r.status === 'completed')
       .reduce((sum, r) => sum + r.reviewCount, 0);
     return (
-    <div className="mcr-section">
-      <div className="mcr-section-header" style={{ borderLeftColor: accent }}>
-        <span className="mcr-dot" style={{ background: accent }} />
-        <h3 className="mcr-section-title">{title}</h3>
-        <span className="mcr-section-badge" style={{ background: accent + '1a', color: accent }}>
-          {list.length} reviewer{list.length !== 1 ? 's' : ''}
-        </span>
-        <span className="mcr-completed-badge">
-          <span className="mcr-completed-badge__count">{completedReviewsCount}</span>
-          Completed Reviews
-        </span>
-      </div>
-
-      {list.length === 0 ? (
-        <p className="mcr-no-data">No {title.toLowerCase()} with assignments found.</p>
-      ) : (
-        <div className="mcr-table-wrap">
-          <table className="mcr-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Department</th>
-                <th>Reviews</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map((row, idx) => {
-                const isCompleted = row.status === 'completed';
-                const isBusy = updating[row.email];
-                return (
-                  <tr key={row.email} className={`mcr-row${isCompleted ? ' mcr-row--done' : ''}${idx % 2 === 1 ? ' mcr-row--alt' : ''}`}>
-                    <td className="mcr-td-name">{row.name}</td>
-                    <td className="mcr-td-email">{row.email}</td>
-                    <td>{row.department}</td>
-                    <td>{row.reviewCount}</td>
-                    <td>
-                      <span className={`mcr-status ${isCompleted ? 'mcr-status--completed' : 'mcr-status--pending'}`}>
-                        {isCompleted ? 'Completed' : 'Pending'}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        className={`mcr-btn ${isCompleted ? 'mcr-btn--reset' : 'mcr-btn--complete'}`}
-                        onClick={() => handleToggle(row)}
-                        disabled={isBusy || !row._id}
-                      >
-                        {isBusy ? 'Saving…' : isCompleted ? 'Reset' : 'Mark Completed'}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      <div className="mcr-section">
+        <div className="mcr-section-header" style={{ borderLeftColor: accent }}>
+          <span className="mcr-dot" style={{ background: accent }} />
+          <h3 className="mcr-section-title">{title}</h3>
+          <span className="mcr-section-badge" style={{ background: accent + '1a', color: accent }}>
+            {list.length} reviewer{list.length !== 1 ? 's' : ''}
+          </span>
+          <span className="mcr-completed-badge">
+            <span className="mcr-completed-badge__count">{completedReviewsCount}</span>
+            Completed Reviews
+          </span>
         </div>
-      )}
-    </div>
-  );
+
+        {list.length === 0 ? (
+          <p className="mcr-no-data">No {title.toLowerCase()} with assignments found.</p>
+        ) : (
+          <div className="mcr-table-wrap">
+            <table className="mcr-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Department</th>
+                  <th>Reviews</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.map((row, idx) => {
+                  const isCompleted = row.status === 'completed';
+                  const isBusy = updating[row.email];
+                  return (
+                    <tr key={row.email} className={`mcr-row${isCompleted ? ' mcr-row--done' : ''}${idx % 2 === 1 ? ' mcr-row--alt' : ''}`}>
+                      <td className="mcr-td-name">{row.name}</td>
+                      <td className="mcr-td-email">{row.email}</td>
+                      <td>{row.department}</td>
+                      <td>{row.reviewCount}</td>
+                      <td>
+                        <span className={`mcr-status ${isCompleted ? 'mcr-status--completed' : 'mcr-status--pending'}`}>
+                          {isCompleted ? 'Completed' : 'Pending'}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          className={`mcr-btn ${isCompleted ? 'mcr-btn--reset' : 'mcr-btn--complete'}`}
+                          onClick={() => handleToggle(row)}
+                          disabled={isBusy || !row._id}
+                        >
+                          {isBusy ? 'Saving…' : isCompleted ? 'Reset' : 'Mark Completed'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -2785,7 +2802,7 @@ const AssignFileContent = () => {
 
     };
 
-    
+
 
     fetchReviewers();
 
@@ -2915,7 +2932,7 @@ const AssignFileContent = () => {
 
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
 
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
 
           </svg>
 
@@ -2937,7 +2954,7 @@ const AssignFileContent = () => {
 
     e.preventDefault();
 
-    
+
 
     // Validation
 
@@ -2953,7 +2970,7 @@ const AssignFileContent = () => {
 
     if (!formData.endDate) errors.endDate = 'End Date is required';
 
-    
+
 
     // Check if at least one file is uploaded
 
@@ -2961,7 +2978,7 @@ const AssignFileContent = () => {
 
     if (!hasFiles) errors.files = 'At least one document must be uploaded';
 
-    
+
 
     if (Object.keys(errors).length > 0) {
 
@@ -2971,13 +2988,13 @@ const AssignFileContent = () => {
 
     }
 
-    
+
 
     setValidationErrors({});
 
     setLoading(true);
 
-    
+
 
     try {
 
@@ -2985,7 +3002,7 @@ const AssignFileContent = () => {
 
       const formDataToSend = new FormData();
 
-      
+
 
       // Add form fields
 
@@ -2999,7 +3016,7 @@ const AssignFileContent = () => {
 
       formDataToSend.append('endDate', formData.endDate);
 
-      
+
 
       // Add document files
 
@@ -3013,7 +3030,7 @@ const AssignFileContent = () => {
 
       });
 
-      
+
 
       // Import and call API
 
@@ -3021,7 +3038,7 @@ const AssignFileContent = () => {
 
       const result = await assignFileToReviewer(formDataToSend);
 
-      
+
 
       if (result.success) {
 
@@ -3153,13 +3170,13 @@ const AssignFileContent = () => {
 
             <label>Protocol Code </label>
 
-            <input 
+            <input
 
-              type="text" 
+              type="text"
 
               name="protocolCode"
 
-              placeholder="e.g., UREB-2026-001" 
+              placeholder="e.g., UREB-2026-001"
 
               value={formData.protocolCode}
 
@@ -3295,9 +3312,9 @@ const AssignFileContent = () => {
 
                 <label>Start Date</label>
 
-                <input 
+                <input
 
-                  type="date" 
+                  type="date"
 
                   name="startDate"
 
@@ -3317,9 +3334,9 @@ const AssignFileContent = () => {
 
                 <label>End Date</label>
 
-                <input 
+                <input
 
-                  type="date" 
+                  type="date"
 
                   name="endDate"
 
@@ -3339,7 +3356,7 @@ const AssignFileContent = () => {
 
           </div>
 
-          
+
 
           {/* Individual Document Upload Areas */}
 
@@ -3361,7 +3378,7 @@ const AssignFileContent = () => {
 
           </div>
 
-          
+
 
           <div className="form-actions">
 
@@ -3379,7 +3396,7 @@ const AssignFileContent = () => {
 
       </div>
 
-      
+
 
       {/* Success Modal */}
 
@@ -3395,9 +3412,9 @@ const AssignFileContent = () => {
 
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
 
-                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
 
-                  <polyline points="22 4 12 14.01 9 11.01"/>
+                  <polyline points="22 4 12 14.01 9 11.01" />
 
                 </svg>
 
@@ -3409,9 +3426,9 @@ const AssignFileContent = () => {
 
               <div className="success-actions minimal">
 
-                <button 
+                <button
 
-                  className="success-btn-done" 
+                  className="success-btn-done"
 
                   onClick={() => setIsSuccessModalOpen(false)}
 
@@ -3517,15 +3534,15 @@ const MessageResearcherContent = () => {
 
       const studentId = (student.studentId || '').toLowerCase();
 
-      
 
-      return name.includes(searchLower) || 
 
-             email.includes(searchLower) || 
+      return name.includes(searchLower) ||
 
-             department.includes(searchLower) ||
+        email.includes(searchLower) ||
 
-             studentId.includes(searchLower);
+        department.includes(searchLower) ||
+
+        studentId.includes(searchLower);
 
     });
 
@@ -3633,7 +3650,7 @@ const MessageResearcherContent = () => {
 
     setIsDragOver(false);
 
-    
+
 
     const files = Array.from(e.dataTransfer.files);
 
@@ -3645,7 +3662,7 @@ const MessageResearcherContent = () => {
 
     });
 
-    
+
 
     if (validFiles.length > 0) {
 
@@ -3653,7 +3670,7 @@ const MessageResearcherContent = () => {
 
     }
 
-    
+
 
     if (validFiles.length !== files.length) {
 
@@ -3701,7 +3718,7 @@ const MessageResearcherContent = () => {
 
               </div>
 
-              
+
 
               {searchQuery && (
 
@@ -3715,7 +3732,7 @@ const MessageResearcherContent = () => {
 
               )}
 
-              
+
 
               <div className="student-dropdown">
 
@@ -3733,9 +3750,9 @@ const MessageResearcherContent = () => {
 
                   <option value="">
 
-                    {filteredStudents.length === 0 
+                    {filteredStudents.length === 0
 
-                      ? 'No students found - adjust your search' 
+                      ? 'No students found - adjust your search'
 
                       : `Select a student (${filteredStudents.length} available)`
 
@@ -3771,7 +3788,7 @@ const MessageResearcherContent = () => {
 
             <label>Attached Files</label>
 
-            <div 
+            <div
 
               className={`file-upload-area ${isDragOver ? 'dragover' : ''}`}
 
@@ -3785,9 +3802,9 @@ const MessageResearcherContent = () => {
 
             >
 
-              <input 
+              <input
 
-                type="file" 
+                type="file"
 
                 multiple
 
@@ -3815,7 +3832,7 @@ const MessageResearcherContent = () => {
 
           </div>
 
-          
+
 
           {attachedFiles.length > 0 && (
 
@@ -3833,9 +3850,9 @@ const MessageResearcherContent = () => {
 
                     <span>({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
 
-                    <button 
+                    <button
 
-                      type="button" 
+                      type="button"
 
                       className="remove-file-btn"
 
@@ -3893,11 +3910,11 @@ const MessageResearcherContent = () => {
 
             </button>
 
-            <button 
+            <button
 
-              type="button" 
+              type="button"
 
-              className="btn-secondary" 
+              className="btn-secondary"
 
               onClick={() => {
 
@@ -3943,9 +3960,9 @@ const MessageResearcherContent = () => {
 
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
 
-                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
 
-                  <polyline points="22 4 12 14.01 9 11.01"/>
+                  <polyline points="22 4 12 14.01 9 11.01" />
 
                 </svg>
 
@@ -4251,7 +4268,7 @@ const ManageUsersContent = () => {
 
         fetchUsers();
 
-        
+
 
         closeEditModal();
 
@@ -4365,7 +4382,7 @@ const ManageUsersContent = () => {
 
         fetchUsers();
 
-        
+
 
         closeDeleteModal();
 
@@ -4435,7 +4452,7 @@ const ManageUsersContent = () => {
 
         ]);
 
-        
+
 
         // Filter out reviewers from main users table (show only non-reviewer users)
 
@@ -4759,11 +4776,11 @@ const ManageUsersContent = () => {
 
                     <td>
 
-                      {user.lastLogin ? 
+                      {user.lastLogin ?
 
-                        new Date(user.lastLogin).toLocaleDateString() + ' ' + 
+                        new Date(user.lastLogin).toLocaleDateString() + ' ' +
 
-                        new Date(user.lastLogin).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                        new Date(user.lastLogin).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
                         : 'Never'
 
@@ -4793,7 +4810,7 @@ const ManageUsersContent = () => {
 
                       {user.role === 'superadmin' && (
 
-                        <span style={{color: '#636e72', fontSize: '0.85rem', fontStyle: 'italic'}}>No actions available</span>
+                        <span style={{ color: '#636e72', fontSize: '0.85rem', fontStyle: 'italic' }}>No actions available</span>
 
                       )}
 
@@ -4837,11 +4854,11 @@ const ManageUsersContent = () => {
 
                 </svg>
 
-                <input 
+                <input
 
-                  placeholder="Search" 
+                  placeholder="Search"
 
-                  type="search" 
+                  type="search"
 
                   className="input"
 
@@ -4915,7 +4932,7 @@ const ManageUsersContent = () => {
 
             </div>
 
-            
+
 
             <table className="users-table">
 
@@ -4967,7 +4984,7 @@ const ManageUsersContent = () => {
 
                       <td>
 
-                        {reviewer.createdAt ? 
+                        {reviewer.createdAt ?
 
                           new Date(reviewer.createdAt).toLocaleDateString()
 
@@ -5035,11 +5052,11 @@ const ManageUsersContent = () => {
 
                 </svg>
 
-                <input 
+                <input
 
-                  placeholder="Search" 
+                  placeholder="Search"
 
-                  type="search" 
+                  type="search"
 
                   className="input"
 
@@ -5113,7 +5130,7 @@ const ManageUsersContent = () => {
 
             </div>
 
-            
+
 
             <table className="users-table">
 
@@ -5238,7 +5255,7 @@ const ManageUsersContent = () => {
 
         <button className="btn-primary" onClick={openAddAdminModal}>Add Admin</button>
 
-      </div>  
+      </div>
 
 
 
@@ -5274,11 +5291,11 @@ const ManageUsersContent = () => {
 
 
 
-      <AddAdminModal 
+      <AddAdminModal
 
-        isOpen={isAddAdminModalOpen} 
+        isOpen={isAddAdminModalOpen}
 
-        onClose={closeAddAdminModal} 
+        onClose={closeAddAdminModal}
 
         onAdminAdded={() => {
 
@@ -5320,7 +5337,7 @@ const ManageUsersContent = () => {
 
           fetchUsers();
 
-        }} 
+        }}
 
       />
 
@@ -5346,7 +5363,7 @@ const ManageUsersContent = () => {
 
             </div>
 
-            
+
 
             <form onSubmit={handleEditSubmit} className="admin-form">
 
@@ -5735,9 +5752,9 @@ const ManageUsersContent = () => {
 
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
 
-                  <polyline points="22 4 12 14.01 9 11.01"/>
+                  <polyline points="22 4 12 14.01 9 11.01" />
 
                 </svg>
 
@@ -5777,11 +5794,11 @@ const ManageUsersContent = () => {
 
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#F44336" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-                  <circle cx="12" cy="12" r="10"/>
+                  <circle cx="12" cy="12" r="10" />
 
-                  <line x1="15" y1="9" x2="9" y2="15"/>
+                  <line x1="15" y1="9" x2="9" y2="15" />
 
-                  <line x1="9" y1="9" x2="15" y2="15"/>
+                  <line x1="9" y1="9" x2="15" y2="15" />
 
                 </svg>
 
@@ -5821,9 +5838,9 @@ const ManageUsersContent = () => {
 
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
 
-                  <polyline points="22 4 12 14.01 9 11.01"/>
+                  <polyline points="22 4 12 14.01 9 11.01" />
 
                 </svg>
 
@@ -5863,11 +5880,11 @@ const ManageUsersContent = () => {
 
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#F44336" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-                  <circle cx="12" cy="12" r="10"/>
+                  <circle cx="12" cy="12" r="10" />
 
-                  <line x1="15" y1="9" x2="9" y2="15"/>
+                  <line x1="15" y1="9" x2="9" y2="15" />
 
-                  <line x1="9" y1="9" x2="15" y2="15"/>
+                  <line x1="9" y1="9" x2="15" y2="15" />
 
                 </svg>
 
@@ -6141,7 +6158,7 @@ const AddAdminModal = ({ isOpen, onClose, onAdminAdded }) => {
 
       </div>
 
-      
+
 
       {/* Success Modal */}
 
@@ -6159,9 +6176,9 @@ const AddAdminModal = ({ isOpen, onClose, onAdminAdded }) => {
 
               <p>The new administrator account has been created successfully.</p>
 
-              <button 
+              <button
 
-                className="admin-success-close-btn" 
+                className="admin-success-close-btn"
 
                 onClick={() => {
 
@@ -6195,7 +6212,7 @@ const AddAdminModal = ({ isOpen, onClose, onAdminAdded }) => {
 
 
 
-const NotificationContent = ({ setActiveTab }) => {
+const NotificationContent = ({ setActiveTab, onRefreshCount }) => {
 
   const [notifications, setNotifications] = useState([]);
 
@@ -6251,6 +6268,7 @@ const NotificationContent = ({ setActiveTab }) => {
       await fetch(`${import.meta.env.VITE_API_URL}/api/notifications/${id}/read`, { method: 'PUT' });
 
       setNotifications(notifications.map(n => n._id === id ? { ...n, read: true } : n));
+      if (onRefreshCount) onRefreshCount();
 
     } catch (error) {
 
@@ -6269,6 +6287,7 @@ const NotificationContent = ({ setActiveTab }) => {
       await fetch(`${import.meta.env.VITE_API_URL}/api/notifications/read-all`, { method: 'PUT' });
 
       setNotifications(notifications.map(n => ({ ...n, read: true })));
+      if (onRefreshCount) onRefreshCount();
 
     } catch (error) {
 
@@ -6289,6 +6308,7 @@ const NotificationContent = ({ setActiveTab }) => {
       localStorage.setItem('deleted_notifications', JSON.stringify([...deleted, id]));
     }
     setNotifications(prev => prev.filter(n => n._id !== id));
+    if (onRefreshCount) onRefreshCount();
 
   };
 
@@ -6304,7 +6324,7 @@ const NotificationContent = ({ setActiveTab }) => {
 
     }
 
-    
+
 
     // Handle review notifications
 
@@ -6356,9 +6376,9 @@ const NotificationContent = ({ setActiveTab }) => {
 
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
 
-          <polyline points="22 4 12 14.01 9 11.01"/>
+          <polyline points="22 4 12 14.01 9 11.01" />
 
         </svg>
 
@@ -6396,17 +6416,17 @@ const NotificationContent = ({ setActiveTab }) => {
 
         {loading ? (
 
-          <div className="notification-item" style={{justifyContent: 'center', padding: '2rem'}}>
+          <div className="notification-item" style={{ justifyContent: 'center', padding: '2rem' }}>
 
-            <p style={{color: 'var(--text-medium)'}}>Loading notifications...</p>
+            <p style={{ color: 'var(--text-medium)' }}>Loading notifications...</p>
 
           </div>
 
         ) : notifications.length === 0 ? (
 
-          <div className="notification-item" style={{justifyContent: 'center', padding: '2rem'}}>
+          <div className="notification-item" style={{ justifyContent: 'center', padding: '2rem' }}>
 
-            <p style={{color: 'var(--text-medium)'}}>No notifications yet</p>
+            <p style={{ color: 'var(--text-medium)' }}>No notifications yet</p>
 
           </div>
 
@@ -6456,7 +6476,7 @@ const NotificationContent = ({ setActiveTab }) => {
 
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-                  <path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
 
                 </svg>
 
@@ -6585,14 +6605,14 @@ const ReviewsFileContent = () => {
   // Check if review contains only UREB Form 10B and 11 files
   const isOnlyForm10BAnd11 = (review) => {
     if (!review.files || typeof review.files !== 'object') return false;
-    
+
     const fileKeys = Object.keys(review.files);
     const hasForm10B = fileKeys.includes('urebForm10B') && review.files.urebForm10B;
     const hasForm11 = fileKeys.includes('urebForm11') && review.files.urebForm11;
-    
+
     // Check if only these two files exist and both are present
     const otherFiles = fileKeys.filter(key => key !== 'urebForm10B' && key !== 'urebForm11');
-    
+
     return hasForm10B && hasForm11 && otherFiles.length === 0;
   };
 
@@ -6601,13 +6621,13 @@ const ReviewsFileContent = () => {
 
     if (!file || !file.filename) return;
 
-    
+
 
     const downloadKey = `${selectedReview._id}-${fileKey}`;
 
     setDownloadStatus(prev => ({ ...prev, [downloadKey]: 'downloading' }));
 
-    
+
 
     try {
 
@@ -6615,7 +6635,7 @@ const ReviewsFileContent = () => {
 
       const result = await downloadReviewerFile(file.filename, file.originalname);
 
-      
+
 
       if (result.success) {
 
@@ -6680,11 +6700,11 @@ const ReviewsFileContent = () => {
             </button>
             <h2>
               <svg className="review-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14,2 14,8 20,8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10,9 9,9 8,9"/>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14,2 14,8 20,8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10,9 9,9 8,9" />
               </svg>
               UREB Forms Review - {selectedReview.reviewer?.name || selectedReview.reviewerName || 'Reviewer'}
             </h2>
@@ -6694,42 +6714,42 @@ const ReviewsFileContent = () => {
             <div className="reviewer-info">
               <h3>
                 <svg className="reviewer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                  <circle cx="12" cy="7" r="4"/>
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
                 </svg>
                 Reviewer Information
               </h3>
               <div className="reviewer-details">
                 <p>
                   <svg className="reviewer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
                   </svg>
                   <strong>Name:</strong> {selectedReview.reviewer?.name || selectedReview.reviewerName || 'N/A'}
                 </p>
                 <p>
                   <svg className="reviewer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                    <polyline points="22,6 12,13 2,6"/>
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
                   </svg>
                   <strong>Email:</strong> {selectedReview.reviewer?.email || selectedReview.reviewerEmail || 'N/A'}
                 </p>
                 <p>
                   <svg className="reviewer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="8.5" cy="7" r="4"/>
-                    <line x1="20" y1="8" x2="20" y2="14"/>
-                    <line x1="23" y1="11" x2="17" y2="11"/>
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="8.5" cy="7" r="4" />
+                    <line x1="20" y1="8" x2="20" y2="14" />
+                    <line x1="23" y1="11" x2="17" y2="11" />
                   </svg>
-                  <strong>Role:</strong> 
+                  <strong>Role:</strong>
                   <span className="role-badge">
                     {getReviewerRole(selectedReview.reviewer || {})}
                   </span>
                 </p>
                 <p>
                   <svg className="reviewer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                    <polyline points="9,22 9,12 15,12 15,22"/>
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <polyline points="9,22 9,12 15,12 15,22" />
                   </svg>
                   <strong>Department:</strong> {selectedReview.reviewer?.department || selectedReview.department || 'N/A'}
                 </p>
@@ -6753,15 +6773,15 @@ const ReviewsFileContent = () => {
                     { key: 'urebForm10B', label: 'UREB Form 10-B' },
                     { key: 'urebForm11', label: 'UREB Form 11' }
                   ].map(({ key, label }) => {
-                    const file = selectedReview.files?.[key] || 
+                    const file = selectedReview.files?.[key] ||
                       (typeof selectedReview.files === 'object' && selectedReview.files[key]);
-                    
+
                     return (
                       <div key={key} className="review-file-item">
                         <div className="file-info">
                           <svg className="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14,2 14,8 20,8"/>
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14,2 14,8 20,8" />
                           </svg>
                           <div>
                             <p className="file-name">{file?.originalname || label}</p>
@@ -6779,30 +6799,30 @@ const ReviewsFileContent = () => {
                             {downloadStatus[`${selectedReview._id}-${key}`] === 'downloading' ? (
                               <>
                                 <svg className="animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                                  <path d="M21 12a9 9 0 11-6.219-8.56" />
                                 </svg>
                                 Downloading...
                               </>
                             ) : downloadStatus[`${selectedReview._id}-${key}`] === 'success' ? (
                               <>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M20 6L9 17l-5-5"/>
+                                  <path d="M20 6L9 17l-5-5" />
                                 </svg>
                                 Downloaded!
                               </>
                             ) : downloadStatus[`${selectedReview._id}-${key}`] === 'error' ? (
                               <>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <circle cx="12" cy="12" r="10"/>
-                                  <line x1="15" y1="9" x2="9" y2="15"/>
-                                  <line x1="9" y1="9" x2="15" y2="15"/>
+                                  <circle cx="12" cy="12" r="10" />
+                                  <line x1="15" y1="9" x2="9" y2="15" />
+                                  <line x1="9" y1="9" x2="15" y2="15" />
                                 </svg>
                                 Error
                               </>
                             ) : (
                               <>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
                                 </svg>
                                 Download
                               </>
@@ -6836,15 +6856,15 @@ const ReviewsFileContent = () => {
 
             <svg className="review-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
 
-              <polyline points="14,2 14,8 20,8"/>
+              <polyline points="14,2 14,8 20,8" />
 
-              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="13" x2="8" y2="13" />
 
-              <line x1="16" y1="17" x2="8" y2="17"/>
+              <line x1="16" y1="17" x2="8" y2="17" />
 
-              <polyline points="10,9 9,9 8,9"/>
+              <polyline points="10,9 9,9 8,9" />
 
             </svg>
 
@@ -6854,7 +6874,7 @@ const ReviewsFileContent = () => {
 
         </div>
 
-        
+
 
         <div className="review-detail-card">
 
@@ -6864,9 +6884,9 @@ const ReviewsFileContent = () => {
 
               <svg className="reviewer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
 
-                <circle cx="12" cy="7" r="4"/>
+                <circle cx="12" cy="7" r="4" />
 
               </svg>
 
@@ -6880,9 +6900,9 @@ const ReviewsFileContent = () => {
 
                 <svg className="reviewer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
 
-                  <circle cx="12" cy="7" r="4"/>
+                  <circle cx="12" cy="7" r="4" />
 
                 </svg>
 
@@ -6894,9 +6914,9 @@ const ReviewsFileContent = () => {
 
                 <svg className="reviewer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
 
-                  <polyline points="22,6 12,13 2,6"/>
+                  <polyline points="22,6 12,13 2,6" />
 
                 </svg>
 
@@ -6908,17 +6928,17 @@ const ReviewsFileContent = () => {
 
                 <svg className="reviewer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
 
-                  <circle cx="8.5" cy="7" r="4"/>
+                  <circle cx="8.5" cy="7" r="4" />
 
-                  <line x1="20" y1="8" x2="20" y2="14"/>
+                  <line x1="20" y1="8" x2="20" y2="14" />
 
-                  <line x1="23" y1="11" x2="17" y2="11"/>
+                  <line x1="23" y1="11" x2="17" y2="11" />
 
                 </svg>
 
-                <strong>Role:</strong> 
+                <strong>Role:</strong>
 
                 <span className="role-badge">
 
@@ -6932,9 +6952,9 @@ const ReviewsFileContent = () => {
 
                 <svg className="reviewer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
 
-                  <polyline points="9,22 9,12 15,12 15,22"/>
+                  <polyline points="9,22 9,12 15,12 15,22" />
 
                 </svg>
 
@@ -6954,15 +6974,15 @@ const ReviewsFileContent = () => {
 
               <svg className="document-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
 
-                <polyline points="14,2 14,8 20,8"/>
+                <polyline points="14,2 14,8 20,8" />
 
-                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="13" x2="8" y2="13" />
 
-                <line x1="16" y1="17" x2="8" y2="17"/>
+                <line x1="16" y1="17" x2="8" y2="17" />
 
-                <polyline points="10,9 9,9 8,9"/>
+                <polyline points="10,9 9,9 8,9" />
 
               </svg>
 
@@ -7070,7 +7090,7 @@ const ReviewsFileContent = () => {
 
                 ].map(({ key, label }) => {
 
-                  const file = selectedReview.files?.[key] || 
+                  const file = selectedReview.files?.[key] ||
 
                     (typeof selectedReview.files === 'object' && selectedReview.files[key]);
 
@@ -7082,9 +7102,9 @@ const ReviewsFileContent = () => {
 
                         <svg className="review-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
 
-                          <polyline points="14,2 14,8 20,8"/>
+                          <polyline points="14,2 14,8 20,8" />
 
                         </svg>
 
@@ -7120,7 +7140,7 @@ const ReviewsFileContent = () => {
 
                               <svg className="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
 
-                                <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                                <path d="M21 12a9 9 0 11-6.219-8.56" />
 
                               </svg>
 
@@ -7164,11 +7184,11 @@ const ReviewsFileContent = () => {
 
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
 
-                                <polyline points="7,10 12,15 17,10"/>
+                                <polyline points="7,10 12,15 17,10" />
 
-                                <line x1="12" y1="15" x2="12" y2="3"/>
+                                <line x1="12" y1="15" x2="12" y2="3" />
 
                               </svg>
 
@@ -7218,17 +7238,17 @@ const ReviewsFileContent = () => {
 
         {loading ? (
 
-          <div className="review-item" style={{justifyContent: 'center', padding: '2rem'}}>
+          <div className="review-item" style={{ justifyContent: 'center', padding: '2rem' }}>
 
-            <p style={{color: 'var(--text-medium)'}}>Loading reviews...</p>
+            <p style={{ color: 'var(--text-medium)' }}>Loading reviews...</p>
 
           </div>
 
         ) : reviews.length === 0 ? (
 
-          <div className="review-item" style={{justifyContent: 'center', padding: '2rem'}}>
+          <div className="review-item" style={{ justifyContent: 'center', padding: '2rem' }}>
 
-            <p style={{color: 'var(--text-medium)'}}>No reviews yet</p>
+            <p style={{ color: 'var(--text-medium)' }}>No reviews yet</p>
 
           </div>
 
@@ -7236,9 +7256,9 @@ const ReviewsFileContent = () => {
 
           reviews.map((review) => (
 
-            <div 
+            <div
 
-              key={review._id} 
+              key={review._id}
 
               className="review-item clickable"
 
@@ -7498,7 +7518,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
       try {
         const { markMessageAsRead } = await import('../services/api.js');
         await markMessageAsRead(selectedMessage._id);
-        
+
         // Call the callback to refresh message count in sidebar
         if (onMessageRead) {
           onMessageRead();
@@ -7518,7 +7538,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
       const existing = JSON.parse(localStorage.getItem('read_messages') || '[]');
       const allIds = [...new Set([...existing, ...messages.map(m => String(m._id))])];
       localStorage.setItem('read_messages', JSON.stringify(allIds));
-    } catch {}
+    } catch { }
     setMessages(prev => prev.map(m => ({ ...m, read: true })));
 
     try {
@@ -7526,7 +7546,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
       const { markAllMessagesAsRead } = await import('../services/api.js');
 
       await markAllMessagesAsRead(userInfo.email);
-      
+
       // Call the callback to refresh message count in sidebar
       if (onMessageRead) {
         onMessageRead();
@@ -7579,7 +7599,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
       if (!ids.includes(String(id))) {
         localStorage.setItem('read_messages', JSON.stringify([...ids, String(id)]));
       }
-    } catch {}
+    } catch { }
   };
 
   const markSingleAsRead = async (e, msg) => {
@@ -7595,7 +7615,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
       const { markMessageAsRead } = await import('../services/api.js');
 
       await markMessageAsRead(msg._id);
-      
+
       // Call the callback to refresh message count in sidebar
       if (onMessageRead) {
         onMessageRead();
@@ -7656,10 +7676,10 @@ const MessagesInboxContent = ({ onMessageRead }) => {
               <button className="inbox-delete-all-btn" onClick={() => setDeleteAllModalOpen(true)}>
 
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="3 6 5 6 21 6"/>
-                  <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                  <path d="M10 11v6M14 11v6"/>
-                  <path d="M9 6V4h6v2"/>
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                  <path d="M10 11v6M14 11v6" />
+                  <path d="M9 6V4h6v2" />
                 </svg>
 
                 Delete All
@@ -7684,7 +7704,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
 
               <div className="inbox-empty-icon">
 
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
 
               </div>
 
@@ -7698,7 +7718,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
 
               <div className="inbox-empty-icon">
 
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
 
               </div>
 
@@ -7763,7 +7783,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
                           title="Mark as read"
                         >
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12"/>
+                            <polyline points="20 6 9 17 4 12" />
                           </svg>
                           Mark as read
                         </button>
@@ -7781,10 +7801,10 @@ const MessagesInboxContent = ({ onMessageRead }) => {
                         title="Delete message"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="3 6 5 6 21 6"/>
-                          <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                          <path d="M10 11v6M14 11v6"/>
-                          <path d="M9 6V4h6v2"/>
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                          <path d="M10 11v6M14 11v6" />
+                          <path d="M9 6V4h6v2" />
                         </svg>
                       </button>
 
@@ -7862,10 +7882,10 @@ const MessagesInboxContent = ({ onMessageRead }) => {
           <div className="inbox-delete-modal" onClick={e => e.stopPropagation()}>
             <div className="inbox-delete-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="3 6 5 6 21 6"/>
-                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                <path d="M10 11v6M14 11v6"/>
-                <path d="M9 6V4h6v2"/>
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                <path d="M10 11v6M14 11v6" />
+                <path d="M9 6V4h6v2" />
               </svg>
             </div>
             <h4 className="inbox-delete-title">Delete Message?</h4>
@@ -7884,10 +7904,10 @@ const MessagesInboxContent = ({ onMessageRead }) => {
           <div className="inbox-delete-modal" onClick={e => e.stopPropagation()}>
             <div className="inbox-delete-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="3 6 5 6 21 6"/>
-                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                <path d="M10 11v6M14 11v6"/>
-                <path d="M9 6V4h6v2"/>
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                <path d="M10 11v6M14 11v6" />
+                <path d="M9 6V4h6v2" />
               </svg>
             </div>
             <h4 className="inbox-delete-title">Delete All Messages?</h4>
@@ -7938,7 +7958,7 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
           const proposal = await getProposalById(message.relatedProposalId);
 
-          
+
 
           if (proposal && proposal.files) {
 
@@ -7993,11 +8013,11 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, on
   const handleDownloadFile = async (fileKey, fileData, messageType = null) => {
     try {
       console.log('Downloading file:', { fileKey, fileData, messageType });
-      
+
       // Get the filename from fileData - handle different possible structures
       const filename = fileData.filename || fileData.originalname || fileKey;
       const originalName = fileData.originalname || filename;
-      
+
       if (!filename) {
         throw new Error('File name not found');
       }
@@ -8005,13 +8025,13 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, on
       // Use the unified download endpoint for all files
       const { downloadReviewerFile } = await import('../services/api.js');
       const result = await downloadReviewerFile(filename, originalName);
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Download failed');
       }
-      
+
       console.log('Download successful:', result);
-      
+
     } catch (error) {
       console.error('Error downloading file:', error);
       alert(`Failed to download file: ${error.message || 'Unknown error'}. Please try again.`);
@@ -8124,9 +8144,9 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
 
-                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
 
-                          <polyline points="14 2 14 8 20 8"/>
+                          <polyline points="14 2 14 8 20 8" />
 
                         </svg>
 
@@ -8142,7 +8162,7 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
                       <button className="msg-file-download" onClick={() => handleDownloadFile(fileKey, fileData)}>
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
                         </svg>
                         Download
                       </button>
@@ -8185,9 +8205,9 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
 
-                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
 
-                          <polyline points="14 2 14 8 20 8"/>
+                          <polyline points="14 2 14 8 20 8" />
 
                         </svg>
 
@@ -8205,7 +8225,7 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
 
-                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
 
                         </svg>
 
@@ -8243,9 +8263,9 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
 
-                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
 
-                        <polyline points="14 2 14 8 20 8"/>
+                        <polyline points="14 2 14 8 20 8" />
 
                       </svg>
 
@@ -8263,7 +8283,7 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
 
-                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
 
                       </svg>
 
@@ -8273,7 +8293,7 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
                   </div>
 
-              ))}
+                ))}
 
               </div>
 
@@ -8290,7 +8310,7 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, on
               {!message.read && (
                 <button className="msg-btn-ghost" onClick={handleMarkAsRead}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                    <polyline points="20 6 9 17 4 12"/>
+                    <polyline points="20 6 9 17 4 12" />
                   </svg>
                   Mark as Read
                 </button>
@@ -8349,9 +8369,9 @@ const SuccessModal = ({ isOpen, onClose, message }) => {
 
               <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#009130ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
-                <circle cx="12" cy="12" r="10"/>
+                <circle cx="12" cy="12" r="10" />
 
-                <path d="M9 12 11 14 15 10"/>
+                <path d="M9 12 11 14 15 10" />
 
               </svg>
 
@@ -8457,11 +8477,11 @@ const PendingProposalsModal = ({ isOpen, onClose }) => {
 
       // Filter proposals that are pending review
 
-      const pendingProposals = allProposals.filter(proposal => 
+      const pendingProposals = allProposals.filter(proposal =>
 
-        proposal.status === 'pending' || 
+        proposal.status === 'pending' ||
 
-        proposal.status === 'Pending Review' || 
+        proposal.status === 'Pending Review' ||
 
         proposal.status === 'In Progress'
 
@@ -8731,27 +8751,27 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
 
   const filteredReviews = reviews.filter(review => {
     const searchLower = searchQuery.toLowerCase();
-    
+
     // Handle both enriched (from /api/reviews/all) and raw (from /api/reviews) data structures
-    const titleMatch = review.proposalTitle?.toLowerCase().includes(searchLower) || 
-                      review.proposal?.researchTitle?.toLowerCase().includes(searchLower) ||
-                      review.title?.toLowerCase().includes(searchLower);
-    
+    const titleMatch = review.proposalTitle?.toLowerCase().includes(searchLower) ||
+      review.proposal?.researchTitle?.toLowerCase().includes(searchLower) ||
+      review.title?.toLowerCase().includes(searchLower);
+
     const reviewerMatch = review.reviewerName?.toLowerCase().includes(searchLower) ||
-                        review.reviewer?.toLowerCase().includes(searchLower);
-    
+      review.reviewer?.toLowerCase().includes(searchLower);
+
     const proponentMatch = review.proponent?.toLowerCase().includes(searchLower) ||
-                        review.proposal?.proponent?.toLowerCase().includes(searchLower) ||
-                        review.student?.toLowerCase().includes(searchLower);
-    
+      review.proposal?.proponent?.toLowerCase().includes(searchLower) ||
+      review.student?.toLowerCase().includes(searchLower);
+
     const protocolMatch = review.protocolCode?.toLowerCase().includes(searchLower) ||
-                        review.proposal?.protocolCode?.toLowerCase().includes(searchLower) ||
-                        review.protocol?.toLowerCase().includes(searchLower);
-    
-    const statusMatch = filterStatus === 'all' || 
-                        review.status?.toLowerCase() === filterStatus.toLowerCase() ||
-                        review.decision?.toLowerCase() === filterStatus.toLowerCase();
-    
+      review.proposal?.protocolCode?.toLowerCase().includes(searchLower) ||
+      review.protocol?.toLowerCase().includes(searchLower);
+
+    const statusMatch = filterStatus === 'all' ||
+      review.status?.toLowerCase() === filterStatus.toLowerCase() ||
+      review.decision?.toLowerCase() === filterStatus.toLowerCase();
+
     return (titleMatch || reviewerMatch || proponentMatch || protocolMatch) && statusMatch;
   }).sort((a, b) => {
     if (sortBy === 'date') {
@@ -8773,7 +8793,7 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
   const filteredReviewerGroups = reviewerGroups.filter(group => {
     const searchLower = searchQuery.toLowerCase();
     const nameMatch = group.name?.toLowerCase().includes(searchLower);
-    const statusMatch = filterStatus === 'all' || group.reviews.some(review => 
+    const statusMatch = filterStatus === 'all' || group.reviews.some(review =>
       (review.status?.toLowerCase() === filterStatus.toLowerCase()) ||
       (review.decision?.toLowerCase() === filterStatus.toLowerCase())
     );
@@ -8822,7 +8842,7 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
   const handleExport = async (format, specificData = null) => {
     setIsExporting(true);
     try {
-      const selectedReviewData = specificData || reviews.filter(review => 
+      const selectedReviewData = specificData || reviews.filter(review =>
         selectedReviews.includes(review._id || review.id)
       );
 
@@ -8910,7 +8930,7 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
 
       console.error('Export failed:', error);
 
-      
+
 
       // Show error message
 
@@ -9045,7 +9065,7 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
     const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
     const preliminary = data.filter(r => (r.reviewerType || '').toLowerCase() === 'preliminary');
-    const secondary   = data.filter(r => (r.reviewerType || '').toLowerCase() === 'secondary');
+    const secondary = data.filter(r => (r.reviewerType || '').toLowerCase() === 'secondary');
 
     const renderRows = (reviews) => reviews.map(review => {
       const decision = review.decision || review.status || 'N/A';
@@ -9142,15 +9162,15 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
 
   const sections = [
     { label: 'Preliminary Reviewers', key: 'preliminary', data: preliminaryCompleted, unique: uniquePreliminary, accent: '#2563eb' },
-    { label: 'Secondary Reviewers',   key: 'secondary',   data: secondaryCompleted,   unique: uniqueSecondary,   accent: '#7c3aed' },
+    { label: 'Secondary Reviewers', key: 'secondary', data: secondaryCompleted, unique: uniqueSecondary, accent: '#7c3aed' },
   ];
 
   const getDecisionInfo = (decision) => {
     const d = (decision || '').toLowerCase();
-    if (d === 'approve' || d === 'approved')                return { label: 'Approved',         cls: 'decision-approve' };
-    if (d === 'revision' || d === 'needs revision')         return { label: 'Revision',          cls: 'decision-revision' };
-    if (d === 'reject'   || d === 'rejected')               return { label: 'Rejected',          cls: 'decision-reject' };
-    if (d === 'secondary_file')                             return { label: 'Secondary File',    cls: 'decision-secondary' };
+    if (d === 'approve' || d === 'approved') return { label: 'Approved', cls: 'decision-approve' };
+    if (d === 'revision' || d === 'needs revision') return { label: 'Revision', cls: 'decision-revision' };
+    if (d === 'reject' || d === 'rejected') return { label: 'Rejected', cls: 'decision-reject' };
+    if (d === 'secondary_file') return { label: 'Secondary File', cls: 'decision-secondary' };
     return { label: decision || 'Pending', cls: 'decision-default' };
   };
 
@@ -9174,11 +9194,11 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
           <div className="grm-header-left">
             <div className="grm-header-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10 9 9 9 8 9"/>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
               </svg>
             </div>
             <div>
@@ -9205,14 +9225,14 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
             </div>
           </div>
           <button className="grm-close" onClick={onClose} aria-label="Close">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
           </button>
         </div>
 
         {/* ── Search ── */}
         <div className="grm-search-bar">
           <svg className="grm-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
             className="grm-search-input"
@@ -9223,7 +9243,7 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
           />
           {searchQuery && (
             <button className="grm-search-clear" onClick={() => setSearchQuery('')}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
           )}
         </div>
@@ -9232,13 +9252,13 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
         <div className="grm-body">
           {loading ? (
             <div className="grm-loading">
-              <div className="grm-spinner"/>
+              <div className="grm-spinner" />
               <p>Loading reviews…</p>
             </div>
           ) : completedReviews.length === 0 ? (
             <div className="grm-empty">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
               <h3>No completed reviews found</h3>
               <p>{searchQuery ? 'Try a different search term.' : 'No reviewers have completed reviews yet.'}</p>
@@ -9254,7 +9274,7 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
                   <div key={key} className="grm-section">
                     <div className="grm-section-header" style={{ borderLeftColor: accent }}>
                       <div className="grm-section-title-row">
-                        <span className="grm-section-dot" style={{ background: accent }}/>
+                        <span className="grm-section-dot" style={{ background: accent }} />
                         <h3 className="grm-section-title">{label}</h3>
                         <span className="grm-section-badge" style={{ background: accent + '1a', color: accent }}>
                           {filtered.length} {filtered.length === 1 ? 'review' : 'reviews'}
@@ -9289,7 +9309,7 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
                           </colgroup>
                           <thead>
                             <tr>
-                              <th/>
+                              <th />
                               <th>Reviewer Name</th>
                               <th>Decision</th>
                               <th>Date Completed</th>
@@ -9343,8 +9363,8 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
               disabled={selectedReviews.length === 0 || isExporting}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-                <line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+                <line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" />
               </svg>
               {isExporting ? 'Exporting…' : `Export CSV`}
             </button>
@@ -9354,8 +9374,8 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
               disabled={selectedReviews.length === 0 || isExporting}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-                <line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+                <line x1="12" y1="18" x2="12" y2="12" /><polyline points="9 15 12 18 15 15" />
               </svg>
               {isExporting ? 'Exporting…' : `Export PDF`}
             </button>
@@ -9622,10 +9642,10 @@ const StudentSubmissionsModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   const tabs = [
-    { id: 'payment-receipts',        label: 'Payment Receipts',        icon: '💳', color: '#2563eb', filter: (p) => p.files?.paymentReceipt },
+    { id: 'payment-receipts', label: 'Payment Receipts', icon: '💳', color: '#2563eb', filter: (p) => p.files?.paymentReceipt },
     { id: 'resubmitted-manuscripts', label: 'Resubmitted Manuscripts', icon: '📄', color: '#7c3aed', filter: (p) => p.status === 'Resubmitted' || p.submissionType === 'resubmission' },
-    { id: 'response-letters',        label: 'Response Letters',        icon: '✉️',  color: '#0891b2', filter: (p) => p.files?.reviewResults || p.files?.decisionOfInitialReview || p.files?.responseLetter },
-    { id: 'completed-manuscripts',   label: 'Completed Manuscripts',   icon: '✅', color: '#16a34a', filter: (p) => p.files?.ethicalClearance || p.files?.releaseOfCompletedEthicalReview },
+    { id: 'response-letters', label: 'Response Letters', icon: '✉️', color: '#0891b2', filter: (p) => p.files?.reviewResults || p.files?.decisionOfInitialReview || p.files?.responseLetter },
+    { id: 'completed-manuscripts', label: 'Completed Manuscripts', icon: '✅', color: '#16a34a', filter: (p) => p.files?.ethicalClearance || p.files?.releaseOfCompletedEthicalReview },
   ];
 
   const activeTabData = tabs.find((t) => t.id === activeTab);
@@ -9635,8 +9655,8 @@ const StudentSubmissionsModal = ({ isOpen, onClose }) => {
       if (!searchQuery) return true;
       const q = searchQuery.toLowerCase();
       return (p.proponent || '').toLowerCase().includes(q) ||
-             (p.protocolCode || '').toLowerCase().includes(q) ||
-             (p.researchTitle || '').toLowerCase().includes(q);
+        (p.protocolCode || '').toLowerCase().includes(q) ||
+        (p.researchTitle || '').toLowerCase().includes(q);
     });
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
@@ -9662,18 +9682,18 @@ const StudentSubmissionsModal = ({ isOpen, onClose }) => {
     if (tab.id === 'resubmitted-manuscripts')
       return Object.entries(proposal.files || {}).filter(([k]) => k.startsWith('file')).map(([, v]) => v);
     const keys = {
-      'payment-receipts':      ['paymentReceipt'],
-      'response-letters':      ['reviewResults', 'decisionOfInitialReview', 'responseLetter'],
+      'payment-receipts': ['paymentReceipt'],
+      'response-letters': ['reviewResults', 'decisionOfInitialReview', 'responseLetter'],
       'completed-manuscripts': ['ethicalClearance', 'releaseOfCompletedEthicalReview'],
     }[tab.id] || [];
     return keys.map((k) => proposal.files?.[k]).filter(Boolean);
   };
 
   const statusColors = {
-    pending:        { bg: '#fef3c7', color: '#92400e' },
-    approved:       { bg: '#dcfce7', color: '#166534' },
-    rejected:       { bg: '#fee2e2', color: '#991b1b' },
-    resubmitted:    { bg: '#ede9fe', color: '#6d28d9' },
+    pending: { bg: '#fef3c7', color: '#92400e' },
+    approved: { bg: '#dcfce7', color: '#166534' },
+    rejected: { bg: '#fee2e2', color: '#991b1b' },
+    resubmitted: { bg: '#ede9fe', color: '#6d28d9' },
     'under review': { bg: '#dbeafe', color: '#1e40af' },
   };
   const getStatusStyle = (s = '') => statusColors[s.toLowerCase()] || { bg: '#f1f5f9', color: '#475569' };
@@ -9689,9 +9709,9 @@ const StudentSubmissionsModal = ({ isOpen, onClose }) => {
           <div className="ssm-header-left">
             <div className="ssm-header-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
-                <line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/>
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                <line x1="9" y1="12" x2="15" y2="12" /><line x1="9" y1="16" x2="13" y2="16" />
               </svg>
             </div>
             <div>
@@ -9709,7 +9729,7 @@ const StudentSubmissionsModal = ({ isOpen, onClose }) => {
           </div>
           <button className="ssm-close" onClick={onClose} aria-label="Close">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
@@ -9738,7 +9758,7 @@ const StudentSubmissionsModal = ({ isOpen, onClose }) => {
         {/* Search */}
         <div className="ssm-search-bar">
           <svg className="ssm-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
             className="ssm-search-input"
@@ -9750,7 +9770,7 @@ const StudentSubmissionsModal = ({ isOpen, onClose }) => {
           {searchQuery && (
             <button className="ssm-search-clear" onClick={() => setSearchQuery('')}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
           )}
@@ -9766,8 +9786,8 @@ const StudentSubmissionsModal = ({ isOpen, onClose }) => {
           ) : rows.length === 0 ? (
             <div className="ssm-empty">
               <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
               </svg>
               <h3>No {activeTabData.label.toLowerCase()} found</h3>
               <p>{searchQuery ? 'Try a different search term.' : 'No submissions in this category yet.'}</p>
@@ -9846,8 +9866,8 @@ const StudentSubmissionsModal = ({ isOpen, onClose }) => {
             <div className="ssm-viewer-header">
               <div className="ssm-viewer-file-info">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
                 </svg>
                 <span className="ssm-viewer-filename">{viewingFile.originalname || viewingFile.filename}</span>
                 {viewingFile.size > 0 && <span className="ssm-viewer-filesize">{formatSize(viewingFile.size)}</span>}
@@ -9859,15 +9879,15 @@ const StudentSubmissionsModal = ({ isOpen, onClose }) => {
                   download={viewingFile.originalname || viewingFile.filename}
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/>
-                    <line x1="12" y1="15" x2="12" y2="3"/>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
                   Download
                 </a>
                 <button className="ssm-viewer-close" onClick={() => setViewingFile(null)} aria-label="Close viewer">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 </button>
               </div>
@@ -9892,8 +9912,8 @@ const StudentSubmissionsModal = ({ isOpen, onClose }) => {
               ) : (
                 <div className="ssm-viewer-unsupported">
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.5" strokeLinecap="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
                   </svg>
                   <p className="ssm-viewer-unsupported-title">Preview not available</p>
                   <p className="ssm-viewer-unsupported-sub">This file type cannot be displayed in the browser.</p>
@@ -9903,9 +9923,9 @@ const StudentSubmissionsModal = ({ isOpen, onClose }) => {
                     download={viewingFile.originalname || viewingFile.filename}
                   >
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                      <polyline points="7 10 12 15 17 10"/>
-                      <line x1="12" y1="15" x2="12" y2="3"/>
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
                     </svg>
                     Download File
                   </a>

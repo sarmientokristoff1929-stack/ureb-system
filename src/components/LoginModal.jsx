@@ -3,30 +3,30 @@ import './LoginModal.css';
 
 const ShieldIcon = () => (
   <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
   </svg>
 );
 
 const XIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M18 6 6 18"/>
-    <path d="m6 6 12 12"/>
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
   </svg>
 );
 
 const EyeIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
-    <circle cx="12" cy="12" r="3"/>
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
   </svg>
 );
 
 const EyeOffIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
-    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
-    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
-    <path d="M2 2l20 20"/>
+    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+    <path d="M2 2l20 20" />
   </svg>
 );
 
@@ -99,9 +99,9 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     const hasLowerCase = /[a-z]/.test(password);
     const hasNumbers = /\d/.test(password);
     const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-    
+
     const errors = [];
-    
+
     if (password.length < minLength) {
       errors.push(`at least ${minLength} characters`);
     }
@@ -117,7 +117,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     if (!hasSpecialChar) {
       errors.push('one special character (!@#$%^&*(),.?":{}|<>)');
     }
-    
+
     return errors;
   };
 
@@ -275,7 +275,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
+
     // Validate Gmail format
     if (!validateGmail(regGmail)) {
       setError('Please enter a valid Gmail address');
@@ -295,12 +295,12 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       setPasswordTouched(true);
       return;
     }
-    
+
     if (regPassword !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-    
+
     const userData = {
       firstName,
       middleName,
@@ -312,9 +312,9 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       password: regPassword,
       role: 'student'
     };
-    
+
     const result = await onRegister(userData);
-    
+
     if (result.success) {
       // Show success modal
       setShowSuccessModal(true);
@@ -331,7 +331,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       setConfirmPassword('');
       setPasswordError('');
       setPasswordTouched(false);
-      
+
       // Auto-redirect to login after 3 seconds
       setTimeout(() => {
         setShowSuccessModal(false);
@@ -363,7 +363,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
             {isRegistering ? (
               <form className="login-modal-form" onSubmit={handleRegisterSubmit}>
                 {error && <div className="login-error-message">{error}</div>}
-                
+
                 <div className="login-form-group">
                   <label htmlFor="firstName">First Name </label>
                   <input
@@ -557,13 +557,13 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
               <form className="login-modal-form" onSubmit={handleLoginSubmit}>
                 {error && <div className="login-error-message">{error}</div>}
                 <div className="login-form-group">
-                  <label htmlFor="username">Username</label>
+                  <label htmlFor="username">Email</label>
                   <input
                     type="text"
                     id="username"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your username"
+                    placeholder="Enter your Email"
                     required
                   />
                 </div>
@@ -611,16 +611,16 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
           </div>
         </div>
       </div>
-      
+
       {/* Account Disabled Modal */}
       {showDisabledModal && (
         <div className="success-modal-overlay">
           <div className="success-modal-container" style={{ borderTop: '4px solid #d97706' }}>
             <div className="success-icon">
               <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
             </div>
             <h2 style={{ color: '#92400e' }}>Account Disabled</h2>
@@ -642,8 +642,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
           <div className="success-modal-container">
             <div className="success-icon">
               <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#388E3C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
             </div>
             <h2>Registered Successfully!</h2>

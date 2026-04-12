@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 import './reviewerdashboard.css';
 
-import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, getReviewerAssignments, downloadReviewerFile, deleteMessage, changeReviewerPassword, getReviewerProfile } from '../services/api';
+import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, getReviewerAssignments, downloadReviewerFile, deleteMessage, markMessageAsRead, changeReviewerPassword, getReviewerProfile } from '../services/api';
 
 
 
@@ -274,14 +274,14 @@ const ReviewerDashboard = ({ onLogout }) => {
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-    { id: 'notifications', label: 'Notifications', icon: <BellIcon />, badge: notifCount > 0 ? notifCount : null },
     { id: 'assigned-proposals', label: 'Assigned Proposals', icon: <FileCheckIcon />, badge: assignedCount > 0 ? assignedCount : null },
     { id: 'file-templates', label: 'File Templates', icon: <FileTemplatesIcon /> },
     { id: 'pending-reviews', label: 'Submit Review', icon: <ClockIcon /> },
     // Only show Submit Secondary File for Preliminary Reviewers
     ...(!isSecondaryReviewer ? [{ id: 'submit-secondary-file', label: 'Submit Secondary File', icon: <SubmitSecondaryFileIcon /> }] : []),
     { id: 'submitted-reviews', label: 'Submitted Reviews', icon: <CheckIcon /> },
-    { id: 'messages', label: 'Messages', icon: <MessageIcon /> }
+    { id: 'messages', label: 'Messages', icon: <MessageIcon /> },
+    { id: 'notifications', label: 'Notifications', icon: <BellIcon />, badge: notifCount > 0 ? notifCount : null }
   ];
 
   useEffect(() => {
@@ -920,27 +920,31 @@ const DashboardContent = () => {
 
 
 
-      const pendingReviews = reviews.filter(r => r.status === 'pending').length;
+      const deletedIds = getDeletedAssignmentIds();
+      const activeAssignments = assignments.filter(a => !deletedIds.includes(String(a._id)));
+
+      const pendingReviewsCount = reviews.filter(r => r.status === 'pending').length;
+      const pendingAssignmentsCount = activeAssignments.filter(a => !a.status || a.status.toLowerCase() === 'pending').length;
 
       // If admin has marked this reviewer as completed, count all their assignments as done
       const isMarkedComplete = reviewerProfile?.status === 'completed';
       const completedReviews = isMarkedComplete
-        ? assignments.length
-        : assignments.filter(a => a.status === 'completed').length;
+        ? activeAssignments.length
+        : activeAssignments.filter(a => a.status === 'completed').length;
 
       const unreadMessages = messages.filter(m => !m.read).length;
 
 
 
-      const activities = generateRecentActivity(assignments, reviews, messages);
+      const activities = generateRecentActivity(activeAssignments, reviews, messages);
 
 
 
       setStats({
 
-        assignedProposals: assignments.length,
+        assignedProposals: activeAssignments.length,
 
-        pendingReviews,
+        pendingReviews: pendingReviewsCount + pendingAssignmentsCount,
 
         completedReviews,
 
@@ -977,7 +981,7 @@ const DashboardContent = () => {
 
         title: 'New Proposal Assigned',
 
-        description: `${proposal.protocolCode || proposal._id}: "${proposal.researchTitle || 'Untitled'}"`,
+        description: `${proposal.protocolCode ? 'Protocol ' + proposal.protocolCode : 'Proposal'}: "${proposal.researchTitle || 'Untitled'}"`,
 
         time: proposal.submissionDate || proposal.createdAt,
 
@@ -999,7 +1003,7 @@ const DashboardContent = () => {
 
         title: 'Review Completed',
 
-        description: `${review.proposalId || review._id}: "${review.proposalTitle || 'Untitled Proposal'}"`,
+        description: `Proposal: "${review.proposalTitle || 'Untitled Proposal'}"`,
 
         time: review.completedDate || review.updatedAt || review.createdAt,
 
@@ -1106,7 +1110,7 @@ const DashboardContent = () => {
 
             <h3>{loading ? '-' : stats.pendingReviews}</h3>
 
-            <p>Pending Reviews</p>
+            <p>Pending</p>
 
           </div>
 
@@ -1680,11 +1684,14 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                     color: isRead ? '#64748b' : '#ef4444',
                     border: `1px solid ${isRead ? '#cbd5e1' : '#fca5a5'}`
                   }}>
-                    {isRead ? 'Finished' : 'Not finished'}
+                    {isRead ? 'Done' : 'New'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <span className={`status-badge ${(assignment.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
+                  <span
+                    className={`status-badge ${(assignment.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}
+                    style={(assignment.status || 'pending').toLowerCase() === 'pending' ? { fontSize: '1.05rem', fontWeight: '800', letterSpacing: '0.5px', padding: '0.4rem 0.8rem', textTransform: 'uppercase' } : {}}
+                  >
                     {assignment.status || 'Pending'}
                   </span>
                   <button
@@ -2564,6 +2571,13 @@ const MessagesContent = () => {
     }
   };
 
+  const handleMarkAsRead = async (messageId) => {
+    const result = await markMessageAsRead(messageId);
+    if (result && result.success !== false) {
+      setMessages(prev => prev.map(m => (m._id || m.id) === messageId ? { ...m, read: true } : m));
+    }
+  };
+
 
 
   const formatTimeAgo = (dateString) => {
@@ -2685,7 +2699,12 @@ const MessagesContent = () => {
 
               {!message.read && (
 
-                <button className="btn-secondary">Mark as Read</button>
+                <button
+                  className="btn-secondary"
+                  onClick={() => handleMarkAsRead(message._id || message.id)}
+                >
+                  Mark as Read
+                </button>
 
               )}
 
@@ -2982,7 +3001,7 @@ const SubmittedReviewsContent = () => {
                     {getDecisionIcon(review.decision)}
                   </span>
                   <div className="sr-card-info">
-                    <h4 className="sr-card-title">{review.proposalTitle || 'Untitled Proposal'}</h4>
+                    <h4 className="sr-card-title">{review.proposalTitle || review.researchTitle || review.title || 'Untitled Proposal'}</h4>
                     <span className="sr-card-code">{review.protocolCode || 'No code'}</span>
                   </div>
                 </div>
