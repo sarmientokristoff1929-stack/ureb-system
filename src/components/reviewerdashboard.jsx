@@ -148,6 +148,13 @@ const BellIcon = () => (
   </svg>
 );
 
+const ProfileIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
 
 
 const SubmitReviewIcon = () => (
@@ -281,7 +288,8 @@ const ReviewerDashboard = ({ onLogout }) => {
     ...(!isSecondaryReviewer ? [{ id: 'submit-secondary-file', label: 'Submit Secondary File', icon: <SubmitSecondaryFileIcon /> }] : []),
     { id: 'submitted-reviews', label: 'Submitted Reviews', icon: <CheckIcon /> },
     { id: 'messages', label: 'Messages', icon: <MessageIcon /> },
-    { id: 'notifications', label: 'Notifications', icon: <BellIcon />, badge: notifCount > 0 ? notifCount : null }
+    { id: 'notifications', label: 'Notifications', icon: <BellIcon />, badge: notifCount > 0 ? notifCount : null },
+    { id: 'profile-settings', label: 'Profile Settings', icon: <ProfileIcon /> }
   ];
 
   useEffect(() => {
@@ -462,6 +470,10 @@ const ReviewerDashboard = ({ onLogout }) => {
 
         return <ReviewerNotificationsContent userInfo={userInfo} />;
 
+      case 'profile-settings':
+
+        return <ReviewerProfileContent userInfo={userInfo} setUserInfo={setUserInfo} />;
+
       case 'messages':
 
         return <MessagesContent />;
@@ -571,7 +583,7 @@ const ReviewerDashboard = ({ onLogout }) => {
 
             <span>Welcome, {userInfo.name}</span>
 
-            <div className="user-avatar" onClick={handleProfileClick} style={{ cursor: 'pointer' }}>
+            <div className="user-avatar">
               {userInfo.name.charAt(0).toUpperCase()}
             </div>
 
@@ -593,167 +605,6 @@ const ReviewerDashboard = ({ onLogout }) => {
 
       {/* Success Modal */}
       <SuccessModal isOpen={showSuccessModal} onClose={() => { setShowSuccessModal(false); setActiveTab('submitted-reviews'); }} />
-
-      {/* Profile Modal */}
-      {showProfileModal && (
-        <div className="profile-modal-overlay" onClick={() => !profileLoading && setShowProfileModal(false)}>
-          <div className="profile-modal" onClick={e => e.stopPropagation()}>
-            <div className="profile-modal-header">
-              <h2>Profile Settings</h2>
-              <button className="profile-modal-close" onClick={() => setShowProfileModal(false)} disabled={profileLoading}>
-                Close
-              </button>
-            </div>
-
-            {profileSuccess && (
-              <div className="profile-success-banner">
-                {profileSuccess}
-              </div>
-            )}
-
-            {profileError && (
-              <div className="profile-error-banner">
-                {profileError}
-              </div>
-            )}
-
-            <div className="profile-modal-content">
-              {/* Profile Information Section */}
-              <div className="profile-section">
-                <h3>Profile Information</h3>
-                {!editingProfile ? (
-                  <div className="profile-info-display">
-                    <div className="profile-info-row">
-                      <span className="profile-label">Name:</span>
-                      <span className="profile-value">{profileData.name}</span>
-                    </div>
-                    <div className="profile-info-row">
-                      <span className="profile-label">Email:</span>
-                      <span className="profile-value">{profileData.email}</span>
-                    </div>
-                    <button
-                      className="profile-edit-btn"
-                      onClick={() => setEditingProfile(true)}
-                      disabled={profileLoading}
-                    >
-                      Edit Profile
-                    </button>
-                  </div>
-                ) : (
-                  <div className="profile-edit-form">
-                    <div className="profile-form-group">
-                      <label>Name</label>
-                      <input
-                        type="text"
-                        value={profileData.name}
-                        onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="Enter your name"
-                      />
-                    </div>
-                    <div className="profile-form-group">
-                      <label>Email</label>
-                      <input
-                        type="email"
-                        value={profileData.email}
-                        disabled
-                        style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
-                      />
-                      <small style={{ color: '#666', fontSize: '0.8rem' }}>Email cannot be changed</small>
-                    </div>
-                    <div className="profile-form-actions">
-                      <button
-                        className="profile-save-btn"
-                        onClick={handleProfileUpdate}
-                        disabled={profileLoading}
-                      >
-                        {profileLoading ? 'Saving...' : 'Save Changes'}
-                      </button>
-                      <button
-                        className="profile-cancel-btn"
-                        onClick={() => {
-                          setEditingProfile(false);
-                          setProfileData({ name: userInfo.name, email: userInfo.email });
-                        }}
-                        disabled={profileLoading}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Password Change Section */}
-              <div className="profile-section">
-                <h3>Change Password</h3>
-                <div className="password-form">
-                  <div className="profile-form-group">
-                    <label>Current Password</label>
-                    <div className="password-input-wrapper">
-                      <input
-                        type={showPasswords.current ? 'text' : 'password'}
-                        value={passwordData.currentPassword}
-                        onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                        placeholder="Enter current password"
-                      />
-                      <button
-                        type="button"
-                        className="password-toggle-btn"
-                        onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
-                      >
-                        {showPasswords.current ? <EyeOffIcon /> : <EyeIcon />}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="profile-form-group">
-                    <label>New Password</label>
-                    <div className="password-input-wrapper">
-                      <input
-                        type={showPasswords.new ? 'text' : 'password'}
-                        value={passwordData.newPassword}
-                        onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                        placeholder="Enter new password (min. 6 characters)"
-                      />
-                      <button
-                        type="button"
-                        className="password-toggle-btn"
-                        onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
-                      >
-                        {showPasswords.new ? <EyeOffIcon /> : <EyeIcon />}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="profile-form-group">
-                    <label>Confirm New Password</label>
-                    <div className="password-input-wrapper">
-                      <input
-                        type={showPasswords.confirm ? 'text' : 'password'}
-                        value={passwordData.confirmPassword}
-                        onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                        placeholder="Confirm new password"
-                      />
-                      <button
-                        type="button"
-                        className="password-toggle-btn"
-                        onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
-                      >
-                        {showPasswords.confirm ? <EyeOffIcon /> : <EyeIcon />}
-                      </button>
-                    </div>
-                  </div>
-                  <button
-                    className="profile-password-btn"
-                    onClick={handlePasswordChange}
-                    disabled={profileLoading}
-                  >
-                    {profileLoading ? 'Updating...' : 'Change Password'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
 
@@ -849,6 +700,315 @@ const ReviewerNotificationsContent = ({ userInfo }) => {
               </div>
             </div>
           ))
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ── Reviewer Profile Settings Content ──
+const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [profileData, setProfileData] = useState({ name: userInfo?.name || '', email: userInfo?.email || '' });
+  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [pwdError, setPwdError] = useState('');
+  const [pwdSuccess, setPwdSuccess] = useState('');
+  const [pwdLoading, setPwdLoading] = useState(false);
+
+  // Only sync profileData from userInfo when NOT editing (prevents resetting while user types)
+  useEffect(() => {
+    if (!isEditing && userInfo?.name) {
+      setProfileData({ name: userInfo.name, email: userInfo.email || '' });
+    }
+  }, [userInfo, isEditing]);
+
+  // Hero card always shows the saved userInfo name; edit field uses profileData for live input
+  const fullName = userInfo?.name || profileData.name || 'Reviewer';
+  const initials = fullName.charAt(0).toUpperCase();
+
+  const handleEdit = () => { setIsEditing(true); setError(''); setSuccessMsg(''); };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setError('');
+    setProfileData({ name: userInfo?.name || '', email: userInfo?.email || '' });
+  };
+
+  const handleSave = async () => {
+    if (!profileData.name.trim()) {
+      setError('Name cannot be empty.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+      
+      // Step 1: Fetch the reviewer record to get the MongoDB document ID
+      const listRes = await fetch(`${API_BASE}/reviewers`);
+      const reviewers = await listRes.json();
+      const reviewer = Array.isArray(reviewers)
+        ? reviewers.find(r => (r.email || '').toLowerCase() === (userInfo?.email || '').toLowerCase())
+        : null;
+
+      if (!reviewer) {
+        setError('Reviewer account not found on the server.');
+        setLoading(false);
+        return;
+      }
+
+      // Step 2: Use the standard update endpoint that is already correctly deployed on Render
+      const reviewerId = String(reviewer._id);
+      const updateRes = await fetch(`${API_BASE}/reviewers/${reviewerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: profileData.name.trim() }),
+      });
+      const result = await updateRes.json();
+
+      if (result.success) {
+        const updatedUser = { ...userInfo, name: profileData.name.trim() };
+        setUserInfo(updatedUser);
+        localStorage.setItem('ureb_user', JSON.stringify(updatedUser));
+        setIsEditing(false);
+        setSuccessMsg('Profile updated successfully.');
+        setTimeout(() => setSuccessMsg(''), 4000);
+      } else {
+        setError(result.error || 'Failed to update profile.');
+      }
+    } catch {
+      setError('Failed to update profile. Check your connection.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    setPwdError('');
+    const { currentPassword, newPassword, confirmPassword } = passwordData;
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPwdError('All password fields are required.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPwdError('New password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPwdError('New passwords do not match.');
+      return;
+    }
+    setPwdLoading(true);
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+
+      // Step 1: Fetch the reviewer record to verify current password
+      const listRes = await fetch(`${API_BASE}/reviewers`);
+      const reviewers = await listRes.json();
+      const reviewer = Array.isArray(reviewers)
+        ? reviewers.find(r => (r.email || '').toLowerCase() === (userInfo?.email || '').toLowerCase())
+        : null;
+
+      if (!reviewer) {
+        setPwdError('Reviewer account not found.');
+        setPwdLoading(false);
+        return;
+      }
+
+      // Step 2: Verify current password
+      if (reviewer.password !== currentPassword) {
+        setPwdError('Current password is incorrect.');
+        setPwdLoading(false);
+        return;
+      }
+
+      // Step 3: Update password via existing reviewer update endpoint
+      const reviewerId = String(reviewer._id);
+      const updateRes = await fetch(`${API_BASE}/reviewers/${reviewerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPassword }),
+      });
+      const result = await updateRes.json();
+      if (result.success) {
+        setPwdSuccess('Password changed successfully.');
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        setShowPasswords({ current: false, new: false, confirm: false });
+        setShowPasswordForm(false);
+        setTimeout(() => setPwdSuccess(''), 4000);
+      } else {
+        setPwdError(result.error || 'Failed to change password.');
+      }
+    } catch {
+      setPwdError('Failed to change password. Check your connection.');
+    } finally {
+      setPwdLoading(false);
+    }
+  };
+
+  const EyeOnIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+  const EyeHideIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+      <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+      <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+      <path d="M2 2l20 20" />
+    </svg>
+  );
+
+  const pwdFields = [
+    { key: 'currentPassword', label: 'Current Password', ph: 'Current password', showKey: 'current' },
+    { key: 'newPassword', label: 'New Password', ph: 'New password (min. 6 chars)', showKey: 'new' },
+    { key: 'confirmPassword', label: 'Confirm New Password', ph: 'Repeat new password', showKey: 'confirm' },
+  ];
+
+  return (
+    <div className="sp-wrapper">
+
+      {/* ── Hero Card ── */}
+      <div className="sp-hero-card">
+        <div className="sp-avatar">{initials}</div>
+        <div className="sp-hero-info">
+          <h2 className="sp-hero-name">{fullName}</h2>
+          <p className="sp-hero-email">{userInfo?.email || '—'}</p>
+        </div>
+        {!isEditing && (
+          <button className="sp-btn sp-btn--outline sp-edit-trigger" onClick={handleEdit}>
+            Edit Profile
+          </button>
+        )}
+      </div>
+
+      {/* ── Global feedback ── */}
+      {successMsg && <div className="sp-banner sp-banner--success">{successMsg}</div>}
+      {error && <div className="sp-banner sp-banner--error">{error}</div>}
+
+      {/* ── Account Information Card ── */}
+      <div className="sp-card">
+        <div className="sp-card-header">
+          <h3 className="sp-card-title">Account Information</h3>
+          {!isEditing && (
+            <button className="sp-btn sp-btn--ghost sp-btn--sm" onClick={handleEdit}>Edit</button>
+          )}
+        </div>
+
+        {!isEditing ? (
+          <div className="sp-info-list">
+            {[
+              { label: 'Full Name', value: fullName },
+              { label: 'Email', value: userInfo?.email },
+            ].map(({ label, value }) => (
+              <div className="sp-info-row" key={label}>
+                <span className="sp-info-label">{label}</span>
+                <span className="sp-info-value">{value || <em className="sp-not-set">Not set</em>}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="sp-edit-form">
+            <p className="sp-edit-hint">Update your profile information below.</p>
+            <div className="sp-field-row sp-field-row--2">
+              <div className="sp-field">
+                <label htmlFor="rp-name">Full Name</label>
+                <input
+                  id="rp-name"
+                  type="text"
+                  value={profileData.name}
+                  onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter your name"
+                />
+              </div>
+              <div className="sp-field">
+                <label>Email Address</label>
+                <input
+                  type="email"
+                  value={profileData.email}
+                  disabled
+                  style={{ backgroundColor: '#f5f7f5', cursor: 'not-allowed', color: '#999' }}
+                />
+                <small style={{ color: '#94a3b8', fontSize: '0.72rem' }}>Email cannot be changed</small>
+              </div>
+            </div>
+            <div className="sp-form-actions">
+              <button className="sp-btn sp-btn--primary" onClick={handleSave} disabled={loading}>
+                {loading ? 'Saving…' : 'Save Changes'}
+              </button>
+              <button className="sp-btn sp-btn--ghost" onClick={handleCancel} disabled={loading}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Security Card ── */}
+      <div className="sp-card">
+        <div className="sp-card-header">
+          <h3 className="sp-card-title">Security</h3>
+          {!showPasswordForm && (
+            <button
+              className="sp-btn sp-btn--outline sp-btn--sm"
+              onClick={() => { setShowPasswordForm(true); setPwdError(''); }}
+            >
+              Change Password
+            </button>
+          )}
+        </div>
+
+        {pwdSuccess && <div className="sp-banner sp-banner--success">{pwdSuccess}</div>}
+
+        {showPasswordForm ? (
+          <div className="sp-edit-form">
+            <div className="sp-field-row sp-field-row--3">
+              {pwdFields.map(({ key, label, ph, showKey }) => (
+                <div className="sp-field" key={key}>
+                  <label>{label}</label>
+                  <div className="sp-pwd-wrap">
+                    <input
+                      type={showPasswords[showKey] ? 'text' : 'password'}
+                      value={passwordData[key]}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, [key]: e.target.value }))}
+                      placeholder={ph}
+                    />
+                    <button
+                      type="button"
+                      className="sp-pwd-eye"
+                      onClick={() => setShowPasswords(prev => ({ ...prev, [showKey]: !prev[showKey] }))}
+                      tabIndex={-1}
+                      aria-label={showPasswords[showKey] ? 'Hide password' : 'Show password'}
+                    >
+                      {showPasswords[showKey] ? <EyeHideIcon /> : <EyeOnIcon />}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {pwdError && <div className="sp-banner sp-banner--error">{pwdError}</div>}
+            <div className="sp-form-actions">
+              <button className="sp-btn sp-btn--primary" onClick={handlePasswordChange} disabled={pwdLoading}>
+                {pwdLoading ? 'Updating…' : 'Update Password'}
+              </button>
+              <button
+                className="sp-btn sp-btn--ghost"
+                onClick={() => { setShowPasswordForm(false); setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); setPwdError(''); }}
+                disabled={pwdLoading}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="sp-security-hint">Keep your account secure with a strong, unique password.</p>
         )}
       </div>
     </div>

@@ -777,6 +777,41 @@ app.put('/api/reviewers/profile', async (req, res) => {
   }
 });
 
+// Change reviewer password
+app.put('/api/reviewer/change-password', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const reviewers = db.collection(collections.reviewers);
+    const { email, currentPassword, newPassword } = req.body;
+
+    if (!email || !currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, error: 'All fields are required' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, error: 'New password must be at least 6 characters' });
+    }
+
+    const reviewer = await reviewers.findOne({ email });
+    if (!reviewer) {
+      return res.status(404).json({ success: false, error: 'Reviewer not found' });
+    }
+
+    if (reviewer.password !== currentPassword) {
+      return res.status(400).json({ success: false, error: 'Current password is incorrect' });
+    }
+
+    await reviewers.updateOne(
+      { email },
+      { $set: { password: newPassword, updatedAt: new Date() } }
+    );
+
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Error changing reviewer password:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // Update reviewer endpoint
 app.put('/api/reviewers/:id', async (req, res) => {
   console.log('=== REVIEWER ID ENDPOINT HIT ===');
@@ -2363,7 +2398,11 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
     // Create assignments for each reviewer to access these files
     const assignments = db.collection(collections.assignments);
     const reviewerCollection = db.collection(collections.reviewers);
-    const reviewerValues = [secondaryReviewer1, secondaryReviewer2].filter(Boolean);
+    const reviewerValues = [...new Set([secondaryReviewer1, secondaryReviewer2].filter(Boolean))];
+
+    // Collect reviewer names for admin notification
+    const assignedReviewerNames = [];
+    const notifications = db.collection(collections.notifications);
 
     for (const reviewerEmail of reviewerValues) {
       // Look up the reviewer by email — direct, guaranteed match
@@ -2377,6 +2416,9 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       const resolvedName = reviewer.name ||
         `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim() ||
         reviewer.email;
+
+      // Store name for admin notification
+      assignedReviewerNames.push(resolvedName);
 
       const assignment = {
         proposalId: result.insertedId,
@@ -2399,7 +2441,6 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       console.log(`Assignment created for reviewer: ${resolvedName} (${reviewer.email})`);
 
       // Notify the reviewer
-      const notifications = db.collection(collections.notifications);
       await notifications.insertOne({
         recipientEmail: reviewer.email,
         recipientName: resolvedName,
@@ -2418,6 +2459,19 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       });
       console.log(`Notification sent to: ${resolvedName} (${reviewer.email})`);
     }
+
+    // Create admin notification with assigned reviewer names
+    await notifications.insertOne({
+      title: 'Files Assigned to Reviewers',
+      message: `You have assigned ${Object.keys(uploadedFiles).length} document(s) for protocol ${protocolCode} to ${assignedReviewerNames.join(' and ')}.`,
+      type: 'admin_assignment',
+      protocolCode: protocolCode,
+      proposalId: result.insertedId,
+      assignedReviewers: assignedReviewerNames,
+      read: false,
+      createdAt: new Date()
+    });
+    console.log(`Admin notification created with reviewers: ${assignedReviewerNames.join(', ')}`);
     
     res.json({
       success: true,
