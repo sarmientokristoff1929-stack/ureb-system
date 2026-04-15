@@ -1337,8 +1337,8 @@ const DashboardContent = () => {
 
 
   const [recentActivity, setRecentActivity] = useState([]);
-
-
+  const [showAllActivity, setShowAllActivity] = useState(false);
+  const ACTIVITY_LIMIT = 5;
 
   const [activityLoading, setActivityLoading] = useState(true);
 
@@ -1791,51 +1791,67 @@ const DashboardContent = () => {
 
 
 
-              recentActivity.map((activity, index) => (
+              <>
 
 
 
-                <div key={index} className="activity-item">
+                <div style={{ maxHeight: showAllActivity ? 'none' : '400px', overflow: showAllActivity ? 'visible' : 'auto' }}>
 
 
 
-                  <div className="activity-icon">
+                  {(showAllActivity ? recentActivity : recentActivity.slice(0, ACTIVITY_LIMIT)).map((activity, index) => (
 
 
 
-                    {activity.icon === 'FilePlus' ? <FilePlusIcon /> : <DashboardIcon />}
+                    <div key={index} className="activity-item">
 
 
 
-                  </div>
+                      <div className="activity-icon">
 
 
 
-                  <div className="activity-content">
+                        {activity.icon === 'FilePlus' ? <FilePlusIcon /> : <DashboardIcon />}
 
 
 
-                    <h4>{activity.title}</h4>
+                      </div>
 
 
 
-                    <p>{activity.description}</p>
+                      <div className="activity-content">
 
 
 
-                    <span className="activity-time">
+                        <h4>{activity.title}</h4>
 
 
 
-                      {new Date(activity.timestamp).toLocaleDateString()} • {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        <p>{activity.description}</p>
 
 
 
-                    </span>
+                        <span className="activity-time">
 
 
 
-                  </div>
+                          {new Date(activity.timestamp).toLocaleDateString()} • {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+
+
+
+                        </span>
+
+
+
+                      </div>
+
+
+
+                    </div>
+
+
+
+                  ))}
 
 
 
@@ -1843,7 +1859,83 @@ const DashboardContent = () => {
 
 
 
-              ))
+                {recentActivity.length > ACTIVITY_LIMIT && (
+
+
+
+                  <button 
+
+
+
+                    onClick={() => setShowAllActivity(!showAllActivity)}
+
+
+
+                    style={{
+
+
+
+                      width: '100%',
+
+
+
+                      padding: '0.75rem',
+
+
+
+                      marginTop: '1rem',
+
+
+
+                      background: 'var(--pale-green)',
+
+
+
+                      border: '1px solid var(--soft-green)',
+
+
+
+                      borderRadius: '8px',
+
+
+
+                      color: 'var(--dark-green)',
+
+
+
+                      fontWeight: '600',
+
+
+
+                      cursor: 'pointer',
+
+
+
+                      transition: 'all 0.2s ease'
+
+
+
+                    }}
+
+
+
+                  >
+
+
+
+                    {showAllActivity ? 'Show Less' : `Show ${recentActivity.length - ACTIVITY_LIMIT} More`}
+
+
+
+                  </button>
+
+
+
+                )}
+
+
+
+              </>
 
 
 

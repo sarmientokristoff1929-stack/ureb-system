@@ -1032,6 +1032,8 @@ const DashboardContent = () => {
   });
 
   const [recentActivity, setRecentActivity] = useState([]);
+  const [showAllActivity, setShowAllActivity] = useState(false);
+  const ACTIVITY_LIMIT = 5;
 
   const [loading, setLoading] = useState(true);
 
@@ -1334,35 +1336,41 @@ const DashboardContent = () => {
             <div className="empty-state">No recent activity.</div>
 
           ) : (
-
-            <div className="activity-list">
-
-              {recentActivity.map((activity, index) => (
-
-                <div className="activity-item" key={index}>
-
-                  <div className="activity-icon">
-
-                    {activity.icon}
-
+            <>
+              <div className="activity-list" style={{ maxHeight: showAllActivity ? 'none' : '400px', overflow: showAllActivity ? 'visible' : 'auto' }}>
+                {(showAllActivity ? recentActivity : recentActivity.slice(0, ACTIVITY_LIMIT)).map((activity, index) => (
+                  <div className="activity-item" key={index}>
+                    <div className="activity-icon">
+                      {activity.icon}
+                    </div>
+                    <div className="activity-content">
+                      <h4>{activity.title}</h4>
+                      <p>{activity.description}</p>
+                      <span className="activity-time">{activity.timeLabel}</span>
+                    </div>
                   </div>
-
-                  <div className="activity-content">
-
-                    <h4>{activity.title}</h4>
-
-                    <p>{activity.description}</p>
-
-                    <span className="activity-time">{activity.timeLabel}</span>
-
-                  </div>
-
-                </div>
-
-              ))}
-
-            </div>
-
+                ))}
+              </div>
+              {recentActivity.length > ACTIVITY_LIMIT && (
+                <button
+                  onClick={() => setShowAllActivity(!showAllActivity)}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    marginTop: '1rem',
+                    background: 'var(--pale-green)',
+                    border: '1px solid var(--soft-green)',
+                    borderRadius: '8px',
+                    color: 'var(--dark-green)',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {showAllActivity ? 'Show Less' : `Show ${recentActivity.length - ACTIVITY_LIMIT} More`}
+                </button>
+              )}
+            </>
           )}
 
         </div>
@@ -1705,9 +1713,10 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [readIds, setReadIds] = useState([]);
+  const [viewingFile, setViewingFile] = useState(null);
 
   useEffect(() => {
     setReadIds(getReadAssignmentIds());
@@ -1906,13 +1915,26 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                           <span className="assigned-file-label">{formatFileLabel(key)}</span>
                           <span className="assigned-file-name">{file.originalname || file.filename}</span>
                           {file?.filename && (
-                            <button
-                              className="btn-primary"
-                              style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
-                              onClick={() => handleDownload(file)}
-                            >
-                              Download
-                            </button>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button
+                                className="btn-primary"
+                                style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
+                                onClick={() => handleDownload(file)}
+                              >
+                                Download
+                              </button>
+                              <button
+                                className="btn-secondary"
+                                style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem' }}
+                                onClick={() => setViewingFile(file)}
+                                title="View file"
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                  <circle cx="12" cy="12" r="3" />
+                                </svg>
+                              </button>
+                            </div>
                           )}
                         </div>
                       ))}
@@ -1924,11 +1946,315 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
           );
         })}
       </div>
+
+      {/* File Viewer Modal */}
+      {viewingFile && (
+        <FileViewerModal 
+          viewingFile={viewingFile} 
+          onClose={() => setViewingFile(null)} 
+          onDownload={() => handleDownload(viewingFile)}
+        />
+      )}
     </div>
   );
 };
 
+// File Viewer Modal Component (separate for proper event handling)
+const FileViewerModal = ({ viewingFile, onClose, onDownload }) => {
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
+  return (
+    <div 
+      className="modal-overlay" 
+      onClick={onClose}
+      style={{ padding: '2rem' }}
+    >
+      <div 
+        className="modal-container" 
+        onClick={e => e.stopPropagation()}
+        style={{ 
+          maxWidth: '95vw', 
+          width: '95vw',
+          maxHeight: '95vh',
+          height: 'auto',
+          margin: '0 auto'
+        }}
+      >
+        <button className="modal-close" onClick={onClose} aria-label="Close modal">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        <div className="modal-header" style={{ overflow: 'hidden' }}>
+          <h2 
+            title={viewingFile.originalname || viewingFile.filename}
+            style={{ 
+              fontSize: '1.1rem',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: '100%'
+            }}
+          >
+            {viewingFile.originalname || viewingFile.filename}
+          </h2>
+        </div>
+        <div className="modal-body" style={{ padding: '1rem' }}>
+          <FileViewer file={viewingFile} onClose={onClose} />
+        </div>
+        <div className="modal-footer">
+          <button className="btn-secondary" onClick={onClose}>Close</button>
+          <button 
+            className="btn-primary" 
+            onClick={onDownload}
+            style={{ marginLeft: '0.5rem' }}
+          >
+            Download
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// File Viewer Component
+const FileViewer = ({ file, onClose }) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [fileUrl, setFileUrl] = useState(null);
+  const [fileType, setFileType] = useState(null);
+  const [zoom, setZoom] = useState(100);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    if (!file?.filename) return;
+
+    const loadFile = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const downloadUrl = `${import.meta.env.VITE_API_URL}/api/download/${file.filename}`;
+        const response = await fetch(downloadUrl);
+        
+        if (!response.ok) {
+          throw new Error('Failed to load file');
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        setFileUrl(url);
+
+        // Determine file type
+        const mimeType = blob.type;
+        const extension = (file.originalname || file.filename).split('.').pop().toLowerCase();
+        
+        if (mimeType.includes('pdf') || extension === 'pdf') {
+          setFileType('pdf');
+        } else if (mimeType.includes('image') || ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(extension)) {
+          setFileType('image');
+        } else if (mimeType.includes('text') || ['txt', 'csv'].includes(extension)) {
+          setFileType('text');
+        } else if (mimeType.includes('word') || extension === 'doc' || extension === 'docx') {
+          setFileType('word');
+        } else if (mimeType.includes('excel') || mimeType.includes('sheet') || ['xls', 'xlsx', 'csv'].includes(extension)) {
+          setFileType('excel');
+        } else if (mimeType.includes('powerpoint') || mimeType.includes('presentation') || ['ppt', 'pptx'].includes(extension)) {
+          setFileType('powerpoint');
+        } else {
+          setFileType('other');
+        }
+      } catch (err) {
+        console.error('Error loading file:', err);
+        setError('Failed to load file. Please try downloading instead.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadFile();
+
+    return () => {
+      if (fileUrl) {
+        window.URL.revokeObjectURL(fileUrl);
+      }
+    };
+  }, [file]);
+
+  const getGoogleDocsViewerUrl = (url) => {
+    return `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(url)}`;
+  };
+
+  const getMicrosoftViewerUrl = (url) => {
+    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+  };
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '3rem' }}>
+        <p>Loading file...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ textAlign: 'center', padding: '2rem' }}>
+        <p style={{ color: '#ef4444' }}>{error}</p>
+      </div>
+    );
+  }
+
+  // Zoom controls toolbar
+  const ZoomControls = () => (
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      gap: '0.5rem', 
+      padding: '0.5rem',
+      borderRadius: '8px',
+      marginBottom: '0.5rem',
+      border: '1px solid #e2e8f0'
+    }}>
+      <button 
+        onClick={() => setZoom(prev => Math.max(50, prev - 25))}
+        style={{ padding: '0.25rem 0.5rem', fontSize: '0.9rem', cursor: 'pointer' }}
+        title="Zoom out"
+      >
+        −
+      </button>
+      <span style={{ fontSize: '0.9rem', minWidth: '60px', textAlign: 'center' }}>
+        {zoom}%
+      </span>
+      <button 
+        onClick={() => setZoom(prev => Math.min(200, prev + 25))}
+        style={{ padding: '0.25rem 0.5rem', fontSize: '0.9rem', cursor: 'pointer' }}
+        title="Zoom in"
+      >
+        +
+      </button>
+      <button 
+        onClick={() => setZoom(100)}
+        style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem', cursor: 'pointer', marginLeft: '0.5rem' }}
+      >
+        Reset
+      </button>
+    </div>
+  );
+
+  // PDF Viewer
+  if (fileType === 'pdf') {
+    return (
+      <div style={{ height: '92vh', width: '100%', display: 'flex', flexDirection: 'column' }}>
+        <ZoomControls />
+        <div style={{ flex: 1, overflow: 'auto', borderRadius: '8px' }}>
+          <iframe
+            src={`${fileUrl}#zoom=${zoom}`}
+            width="100%"
+            height="100%"
+            style={{ 
+              border: 'none', 
+              borderRadius: '8px',
+              background: 'white',
+              minHeight: '700px'
+            }}
+            title="PDF Viewer"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Image Viewer
+  if (fileType === 'image') {
+    return (
+      <div style={{ height: '85vh', width: '100%', display: 'flex', flexDirection: 'column' }}>
+        <ZoomControls />
+        <div style={{ flex: 1, overflow: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', borderRadius: '8px' }}>
+          <img
+            src={fileUrl}
+            alt={file.originalname || file.filename}
+            style={{ 
+              maxWidth: '100%', 
+              maxHeight: 'none',
+              width: zoom === 100 ? 'auto' : `${zoom}%`,
+              height: 'auto',
+              objectFit: 'contain',
+              borderRadius: '8px', 
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              transition: 'all 0.2s ease',
+              display: 'block'
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Text File Viewer
+  if (fileType === 'text') {
+    return (
+      <div style={{ height: '70vh', width: '100%', overflow: 'auto' }}>
+        <iframe
+          src={fileUrl}
+          width="100%"
+          height="100%"
+          style={{ border: 'none', borderRadius: '8px', background: '#f8f9fa' }}
+          title="Text Viewer"
+        />
+      </div>
+    );
+  }
+
+  // Microsoft Office Documents - Use Microsoft Online Viewer
+  if (['word', 'excel', 'powerpoint'].includes(fileType)) {
+    // For Office files, we need the public URL
+    const viewerUrl = getMicrosoftViewerUrl(`${import.meta.env.VITE_API_URL}/api/download/${file.filename}`);
+    
+    return (
+      <div style={{ height: '70vh', width: '100%' }}>
+        <iframe
+          src={viewerUrl}
+          width="100%"
+          height="100%"
+          style={{ border: 'none', borderRadius: '8px' }}
+          title="Office Document Viewer"
+          allow="fullscreen"
+        />
+        <p style={{ textAlign: 'center', marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--text-medium)' }}>
+          If the document doesn't load, please use the Download button below.
+        </p>
+      </div>
+    );
+  }
+
+  // For other file types, show download option
+  return (
+    <div style={{ textAlign: 'center', padding: '3rem' }}>
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#7A9E7E" strokeWidth="1.5" style={{ marginBottom: '1rem' }}>
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+        <polyline points="10 9 9 9 8 9" />
+      </svg>
+      <p>This file type cannot be previewed directly.</p>
+      <p style={{ fontSize: '0.9rem', color: 'var(--text-medium)', marginTop: '0.5rem' }}>
+        Please download the file to view its contents.
+      </p>
+    </div>
+  );
+};
 
 const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
   const [proposals, setProposals] = useState([]);

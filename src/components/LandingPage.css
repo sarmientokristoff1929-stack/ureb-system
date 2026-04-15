@@ -643,8 +643,8 @@
 }
 
 .team-image:hover {
-  transform: scale(1.05);
-  box-shadow: 0 12px 32px rgba(122, 158, 126, 0.25);
+  transform: scale(1.15);
+  box-shadow: 0 16px 40px rgba(122, 158, 126, 0.35);
   border-color: #7A9E7E;
 }
 

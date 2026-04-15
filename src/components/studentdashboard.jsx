@@ -1406,7 +1406,16 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
   );
 };
 
+const ViewIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
 const FileTemplatesContent = () => {
+  const [viewingFile, setViewingFile] = useState(null);
+
   const templates = [
     {
       id: 1,
@@ -1478,19 +1487,300 @@ const FileTemplatesContent = () => {
                 <p className="ft-card-desc">{tpl.description}</p>
                 <div className="ft-card-footer">
                   <span className="ft-filename">{tpl.filename}</span>
-                  <a
-                    href={`/${tpl.filename}`}
-                    download={tpl.filename}
-                    className="ft-download-btn"
-                  >
-                    <DownloadIcon />
-                    Download
-                  </a>
+                  <div className="ft-actions" style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      onClick={() => setViewingFile({ filename: tpl.filename, originalname: tpl.name })}
+                      className="ft-view-btn"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        padding: '0.5rem 0.75rem',
+                        background: '#f0fdf4',
+                        border: '1px solid #86efac',
+                        borderRadius: '6px',
+                        color: '#166534',
+                        fontSize: '0.85rem',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <ViewIcon />
+                      View
+                    </button>
+                    <a
+                      href={`/${tpl.filename}`}
+                      download={tpl.filename}
+                      className="ft-download-btn"
+                    >
+                      <DownloadIcon />
+                      Download
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
           );
         })}
+      </div>
+
+      {viewingFile && (
+        <FileViewerModal
+          file={viewingFile}
+          onClose={() => setViewingFile(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+const FileViewerModal = ({ file, onClose }) => {
+  const [zoom, setZoom] = useState(100);
+  const [loadError, setLoadError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
+  const fileUrl = `/${file.filename}`;
+  const fileExt = file.filename.split('.').pop().toLowerCase();
+
+  const handleZoomIn = () => setZoom(z => Math.min(z + 25, 200));
+  const handleZoomOut = () => setZoom(z => Math.max(z - 25, 50));
+  const handleZoomReset = () => setZoom(100);
+
+  const ZoomControls = () => (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.5rem',
+      padding: '0.5rem 1rem',
+      background: '#f8fafc',
+      borderRadius: '8px',
+      marginBottom: '0.5rem'
+    }}>
+      <button onClick={handleZoomOut} style={zoomBtnStyle}>-</button>
+      <span style={{ fontSize: '0.875rem', fontWeight: '500', minWidth: '3rem', textAlign: 'center' }}>{zoom}%</span>
+      <button onClick={handleZoomIn} style={zoomBtnStyle}>+</button>
+      <button onClick={handleZoomReset} style={{...zoomBtnStyle, marginLeft: '0.5rem'}}>Reset</button>
+    </div>
+  );
+
+  const zoomBtnStyle = {
+    padding: '0.25rem 0.75rem',
+    background: 'white',
+    border: '1px solid #e2e8f0',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: '600'
+  };
+
+  const renderFileViewer = () => {
+    if (fileExt === 'pdf') {
+      return (
+        <div style={{ height: '85vh', width: '100%', display: 'flex', flexDirection: 'column' }}>
+          <ZoomControls />
+          <div style={{ flex: 1, overflow: 'auto', borderRadius: '8px' }}>
+            <iframe
+              src={`${fileUrl}#zoom=${zoom}`}
+              width="100%"
+              height="100%"
+              style={{ border: 'none', borderRadius: '8px', background: 'white' }}
+              title="PDF Viewer"
+              onLoad={() => setIsLoading(false)}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (['doc', 'docx'].includes(fileExt)) {
+      // Check if running locally (Office Viewer can't access localhost files)
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      
+      if (isLocalhost) {
+        // Show immediate fallback for local files since Office Viewer can't access them
+        return (
+          <div style={{ padding: '3rem 2rem', textAlign: 'center', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📄</div>
+            <h3 style={{ color: '#1e293b', marginBottom: '0.5rem', fontSize: '1.1rem' }}>Document Preview</h3>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem', maxWidth: '400px', margin: '0 auto 1.5rem' }}>
+              Preview is not available for local files. Please download the document to view it.
+            </p>
+            <a href={fileUrl} download={file.originalname} style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.75rem 1.5rem',
+              background: '#4a7c59',
+              color: 'white',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontWeight: '500',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+            }}>
+              <DownloadIcon />
+              Download {file.originalname}
+            </a>
+          </div>
+        );
+      }
+
+      const officeUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(window.location.origin + fileUrl)}`;
+
+      return (
+        <div style={{ height: '85vh', width: '100%', display: 'flex', flexDirection: 'column' }}>
+          {isLoading && !loadError && (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              <div style={{ marginBottom: '1rem' }}>Loading document preview...</div>
+              <div style={{ width: '40px', height: '40px', border: '3px solid #e2e8f0', borderTopColor: '#4a7c59', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto' }} />
+            </div>
+          )}
+          {loadError ? (
+            <div style={{ padding: '3rem 2rem', textAlign: 'center', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📄</div>
+              <h3 style={{ color: '#1e293b', marginBottom: '0.5rem', fontSize: '1.1rem' }}>Preview Not Available</h3>
+              <p style={{ color: '#64748b', marginBottom: '1.5rem', maxWidth: '400px', margin: '0 auto 1.5rem' }}>
+                We couldn't load the preview for this document. Please download it to view.
+              </p>
+              <a href={fileUrl} download={file.originalname} style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.75rem 1.5rem',
+                background: '#4a7c59',
+                color: 'white',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                fontWeight: '500',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+              }}>
+                <DownloadIcon />
+                Download {file.originalname}
+              </a>
+            </div>
+          ) : (
+            <iframe
+              src={officeUrl}
+              width="100%"
+              height="100%"
+              style={{ border: 'none', borderRadius: '8px' }}
+              title="Document Viewer"
+              onLoad={() => setIsLoading(false)}
+              onError={() => { setLoadError(true); setIsLoading(false); }}
+            />
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', background: '#f8fafc', borderRadius: '8px' }}>
+        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📎</div>
+        <p style={{ color: '#64748b', marginBottom: '1rem' }}>Preview not available for this file type.</p>
+        <a href={fileUrl} download={file.originalname} className="ft-download-btn">
+          <DownloadIcon />
+          Download File
+        </a>
+      </div>
+    );
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,0.75)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: '1rem'
+    }}>
+      <div className="modal-container" onClick={e => e.stopPropagation()} style={{
+        background: 'white',
+        borderRadius: '12px',
+        maxWidth: '95vw',
+        width: '95vw',
+        maxHeight: '95vh',
+        height: 'auto',
+        overflow: 'hidden',
+        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
+      }}>
+        <div className="modal-header" style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '1rem 1.5rem',
+          borderBottom: '1px solid #e2e8f0'
+        }}>
+          <h2 title={file.originalname} style={{
+            margin: 0,
+            fontSize: '1.1rem',
+            fontWeight: '600',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            maxWidth: 'calc(95vw - 150px)'
+          }}>
+            {file.originalname}
+          </h2>
+          <button onClick={onClose} style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '0.5rem',
+            borderRadius: '6px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }} aria-label="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="modal-body" style={{ padding: '1rem 1.5rem' }}>
+          {renderFileViewer()}
+        </div>
+        <div className="modal-footer" style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: '0.75rem',
+          padding: '1rem 1.5rem',
+          borderTop: '1px solid #e2e8f0'
+        }}>
+          <button onClick={onClose} style={{
+            padding: '0.5rem 1rem',
+            background: '#f1f5f9',
+            border: '1px solid #e2e8f0',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: '500'
+          }}>Close</button>
+          <a href={fileUrl} download={file.originalname} style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            padding: '0.5rem 1rem',
+            background: '#4a7c59',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            textDecoration: 'none',
+            fontWeight: '500',
+            cursor: 'pointer'
+          }}>
+            <DownloadIcon />
+            Download
+          </a>
+        </div>
       </div>
     </div>
   );

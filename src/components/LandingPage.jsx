@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import LoginModal from './LoginModal';
 import { sendMessage } from '../services/api.js';
 import './LandingPage.css';
