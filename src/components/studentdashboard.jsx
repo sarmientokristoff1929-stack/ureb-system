@@ -344,12 +344,11 @@ const StudentDashboard = ({ onLogout }) => {
   );
 };
 
-// Content Components
 const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedInfo, setEditedInfo] = useState({
     firstName: '', middleName: '', lastName: '',
-    studentId: '', department: '', program: '', gmail: '',
+    studentId: '', gender: '', department: '', program: '', gmail: '',
   });
   const [loading, setLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
@@ -377,6 +376,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
             middleName: result.student.middleName || '',
             lastName: result.student.lastName || '',
             studentId: result.student.studentId || '',
+            gender: result.student.gender || '',
             department: result.student.department || '',
             program: result.student.program || '',
             gmail: result.student.gmail || '',
@@ -411,6 +411,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
         middleName: studentData.middleName || '',
         lastName: studentData.lastName || '',
         studentId: studentData.studentId || '',
+        gender: studentData.gender || '',
         department: studentData.department || '',
         program: studentData.program || '',
         gmail: studentData.gmail || '',
@@ -457,37 +458,50 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
   };
 
   const handlePasswordChange = async () => {
+    setPwdLoading(true);
     setPwdError('');
-    if (!pwdData.current || !pwdData.newPwd || !pwdData.confirm) {
-      setPwdError('All password fields are required.');
+    setPwdSuccess('');
+
+    // Validate passwords
+    if (!pwdData.current) {
+      setPwdError('Please enter your current password');
+      setPwdLoading(false);
+      return;
+    }
+    if (!pwdData.newPwd || pwdData.newPwd.length < 6) {
+      setPwdError('New password must be at least 6 characters');
+      setPwdLoading(false);
       return;
     }
     if (pwdData.newPwd !== pwdData.confirm) {
-      setPwdError('New passwords do not match.');
+      setPwdError('New passwords do not match');
+      setPwdLoading(false);
       return;
     }
-    if (pwdData.newPwd.length < 6) {
-      setPwdError('New password must be at least 6 characters.');
-      return;
-    }
-    setPwdLoading(true);
+
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/student/change-password`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/student/password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userInfo.email, currentPassword: pwdData.current, newPassword: pwdData.newPwd }),
+        body: JSON.stringify({
+          email: userInfo.email,
+          currentPassword: pwdData.current,
+          newPassword: pwdData.newPwd
+        }),
       });
       const result = await response.json();
+      
       if (result.success) {
-        setPwdSuccess('Password changed successfully.');
+        setPwdSuccess('Password updated successfully');
         setPwdData({ current: '', newPwd: '', confirm: '' });
         setShowPasswordForm(false);
         setTimeout(() => setPwdSuccess(''), 4000);
       } else {
-        setPwdError(result.error || 'Failed to change password.');
+        setPwdError(result.error || 'Failed to update password');
       }
     } catch (err) {
-      setPwdError('Failed to change password.');
+      console.error('Error updating password:', err);
+      setPwdError('Failed to update password. Please try again.');
     } finally {
       setPwdLoading(false);
     }
@@ -547,6 +561,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
             {[
               { label: 'Full Name', value: fullName },
               { label: 'Student ID', value: studentData?.studentId },
+              { label: 'Gender', value: studentData?.gender },
               { label: 'Department', value: studentData?.department },
               { label: 'Program', value: studentData?.program },
               { label: 'Gmail', value: studentData?.gmail },
@@ -584,20 +599,37 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
                   placeholder="e.g. 2023-00001" />
               </div>
               <div className="sp-field">
+                <label htmlFor="sp-gender">Gender</label>
+                <select
+                  id="sp-gender"
+                  value={editedInfo.gender}
+                  onChange={e => setEditedInfo(p => ({ ...p, gender: e.target.value }))}
+                >
+                  <option value="">Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="LGBTQ+">LGBTQ+</option>
+                  <option value="Prefer not to say">Prefer not to say</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="sp-field-row sp-field-row--2">
+              <div className="sp-field">
                 <label htmlFor="sp-gmail">Gmail Address</label>
                 <input id="sp-gmail" type="email" value={editedInfo.gmail}
                   onChange={e => setEditedInfo(p => ({ ...p, gmail: e.target.value }))}
                   placeholder="example@gmail.com" />
               </div>
-            </div>
-
-            <div className="sp-field-row sp-field-row--2">
               <div className="sp-field">
                 <label htmlFor="sp-dept">Department</label>
                 <input id="sp-dept" type="text" value={editedInfo.department}
                   onChange={e => setEditedInfo(p => ({ ...p, department: e.target.value }))}
                   placeholder="e.g. Faculty of Teacher Education" />
               </div>
+            </div>
+
+            <div className="sp-field-row sp-field-row--1">
               <div className="sp-field">
                 <label htmlFor="sp-prog">Program</label>
                 <input id="sp-prog" type="text" value={editedInfo.program}
@@ -835,7 +867,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
       </div>
     );
   }
-
+  // Date Reminders Here
   return (
     <div className="dashboard-content">
       {/* Due Date Reminders Section */}
@@ -958,7 +990,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
                       </div>
 
                       <div className="up-card-meta">
-                        <div className="up-meta-item">
+                        <div className="up-meta-item"> 
                           <span className="up-meta-label">Department</span>
                           <span className="up-meta-value up-dept">{proposal.department || 'N/A'}</span>
                         </div>
@@ -1252,7 +1284,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
 
         setFormData({
           proposal: null,
-          approvalSheet: null,
+          approvalSheet: null,  
           urebForm2: null,
           applicationForm6: null,
           accomplishedForm8: null,

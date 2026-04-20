@@ -387,9 +387,9 @@ app.post('/api/auth/login', async (req, res) => {
 // Student Registration
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { firstName, middleName, lastName, studentId, department, program, email, password, role } = req.body;
+    const { firstName, middleName, lastName, studentId, gender, department, program, email, password, role } = req.body;
 
-    console.log('Registration request received:', { firstName, lastName, studentId, department, program, email });
+    console.log('Registration request received:', { firstName, lastName, studentId, gender, department, program, email });
 
     const db = getDatabase();
     const students = db.collection(collections.students);
@@ -429,6 +429,7 @@ app.post('/api/auth/register', async (req, res) => {
       middleName: middleName || '',
       lastName,
       studentId,
+      gender: gender || '',
       department,
       program: program || '',
       email,
@@ -452,6 +453,7 @@ app.post('/api/auth/register', async (req, res) => {
         lastName: newStudent.lastName,
         email: newStudent.email,
         studentId: newStudent.studentId,
+        gender: newStudent.gender,
         department: newStudent.department,
         program: newStudent.program
       }
@@ -945,6 +947,102 @@ app.delete('/api/students/:id', async (req, res) => {
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
+
+// ── Student Profile & Password endpoints ──────────────────────────────────────
+
+// GET student profile by email
+app.get('/api/student/profile', async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
+
+    const db = getDatabase();
+    const students = db.collection(collections.students);
+    const student = await students.findOne({ email });
+
+    if (!student) return res.status(404).json({ success: false, error: 'Student not found' });
+
+    // Derive a gmail field (stored as either `gmail` or `email`)
+    const gmail = student.gmail || student.email || '';
+    res.json({ success: true, student: { ...student, gmail } });
+  } catch (error) {
+    console.error('Error fetching student profile:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// PUT update student profile by email
+app.put('/api/student/profile', async (req, res) => {
+  try {
+    const { email, firstName, middleName, lastName, studentId, gender, department, program, gmail } = req.body;
+    if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
+
+    const db = getDatabase();
+    const students = db.collection(collections.students);
+
+    const student = await students.findOne({ email });
+    if (!student) return res.status(404).json({ success: false, error: 'Student not found' });
+
+    const updateFields = {
+      updatedAt: new Date(),
+      ...(firstName   !== undefined && { firstName }),
+      ...(middleName  !== undefined && { middleName }),
+      ...(lastName    !== undefined && { lastName }),
+      ...(studentId   !== undefined && { studentId }),
+      ...(gender      !== undefined && { gender }),
+      ...(department  !== undefined && { department }),
+      ...(program     !== undefined && { program }),
+      ...(gmail       !== undefined && { gmail }),
+    };
+
+    // Rebuild full name for backwards-compat
+    const fn = firstName  ?? student.firstName  ?? '';
+    const mn = middleName ?? student.middleName ?? '';
+    const ln = lastName   ?? student.lastName   ?? '';
+    updateFields.name = [fn, mn, ln].filter(Boolean).join(' ');
+
+    await students.updateOne({ email }, { $set: updateFields });
+
+    const updated = await students.findOne({ email });
+    res.json({ success: true, student: { ...updated, gmail: updated.gmail || updated.email || '' } });
+  } catch (error) {
+    console.error('Error updating student profile:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// PUT change student password
+app.put('/api/student/password', async (req, res) => {
+  try {
+    const { email, currentPassword, newPassword } = req.body;
+
+    if (!email || !currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, error: 'All fields are required' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, error: 'New password must be at least 6 characters' });
+    }
+
+    const db = getDatabase();
+    const students = db.collection(collections.students);
+
+    const student = await students.findOne({ email });
+    if (!student) return res.status(404).json({ success: false, error: 'Student not found' });
+
+    if (student.password !== currentPassword) {
+      return res.status(400).json({ success: false, error: 'Current password is incorrect' });
+    }
+
+    await students.updateOne({ email }, { $set: { password: newPassword, updatedAt: new Date() } });
+
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Error changing student password:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 // Proposal operations
 app.get('/api/proposals', async (req, res) => {
@@ -1897,27 +1995,28 @@ app.get('/api/student/profile', async (req, res) => {
 // Update student profile endpoint
 app.put('/api/student/profile', async (req, res) => {
   try {
-    const { email, firstName, middleName, lastName, studentId, department, program, gmail } = req.body;
-    
+    const { email, firstName, middleName, lastName, studentId, gender, department, program, gmail } = req.body;
+
     if (!email) {
       return res.status(400).json({ success: false, error: 'Email is required' });
     }
-    
+
     const db = getDatabase();
     const students = db.collection(collections.students);
-    
+
     // Check if student exists
     const existingStudent = await students.findOne({ email });
     if (!existingStudent) {
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
-    
+
     // Update student profile
     const updateData = {
       ...(firstName && { firstName }),
       ...(middleName && { middleName }),
       ...(lastName && { lastName }),
       ...(studentId && { studentId }),
+      ...(gender && { gender }),
       ...(department && { department }),
       ...(program && { program }),
       ...(gmail && { gmail }),
@@ -1941,6 +2040,7 @@ app.put('/api/student/profile', async (req, res) => {
         middleName: middleName || existingStudent.middleName,
         lastName: lastName || existingStudent.lastName,
         studentId: studentId || existingStudent.studentId,
+        gender: gender || existingStudent.gender,
         department: department || existingStudent.department,
         program: program || existingStudent.program,
         gmail: gmail || existingStudent.email,
@@ -1949,6 +2049,47 @@ app.put('/api/student/profile', async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating student profile:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Student Password Change
+app.put('/api/student/password', async (req, res) => {
+  try {
+    const { email, currentPassword, newPassword } = req.body;
+    
+    if (!email || !currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, error: 'Email, current password, and new password are required' });
+    }
+    
+    const db = getDatabase();
+    const students = db.collection(collections.students);
+    
+    // Find student
+    const student = await students.findOne({ email });
+    if (!student) {
+      return res.status(404).json({ success: false, error: 'Student not found' });
+    }
+    
+    // Verify current password
+    if (student.password !== currentPassword) {
+      return res.status(401).json({ success: false, error: 'Current password is incorrect' });
+    }
+    
+    // Validate new password
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, error: 'New password must be at least 6 characters' });
+    }
+    
+    // Update password
+    await students.updateOne(
+      { email },
+      { $set: { password: newPassword, updatedAt: new Date() } }
+    );
+    
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Error changing password:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
