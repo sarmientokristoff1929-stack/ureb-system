@@ -16,6 +16,13 @@ const PORT = process.env.PORT || 5003;
 
 // Middleware
 app.use(cors());
+// Debug middleware to log registration requests
+app.use((req, res, next) => {
+  if (req.path === '/api/auth/register' && req.method === 'POST') {
+    console.log('[DEBUG] Raw request body before express.json():', req.body);
+  }
+  next();
+});
 app.use(express.json());
 
 // MongoDB connection
@@ -386,10 +393,16 @@ app.post('/api/auth/login', async (req, res) => {
 
 // Student Registration
 app.post('/api/auth/register', async (req, res) => {
+  console.log('========== REGISTRATION REQUEST RECEIVED ==========');
   try {
+    console.log('[DEBUG] Server /api/auth/register - raw req.body:', JSON.stringify(req.body, null, 2));
     const { firstName, middleName, lastName, studentId, gender, department, program, email, password, role } = req.body;
 
-    console.log('Registration request received:', { firstName, lastName, studentId, gender, department, program, email });
+    const emailNorm = (email || '').trim().toLowerCase();
+    const genderNorm = (gender != null && String(gender).trim()) ? String(gender).trim() : '';
+
+    console.log('[DEBUG] Server extracted gender:', gender, '| genderNorm:', genderNorm);
+    console.log('Registration request received:', { firstName, lastName, studentId, gender: genderNorm, department, program, email: emailNorm });
 
     const db = getDatabase();
     const students = db.collection(collections.students);
@@ -398,7 +411,7 @@ app.post('/api/auth/register', async (req, res) => {
     // Check if student already exists in students collection
     const existingStudent = await students.findOne({
       $or: [
-        { email: email },
+        { email: emailNorm },
         { studentId: studentId }
       ]
     });
@@ -407,16 +420,16 @@ app.post('/api/auth/register', async (req, res) => {
       console.log('Student already exists:', existingStudent.email || existingStudent.studentId);
       return res.json({
         success: false,
-        error: existingStudent.email === email
+        error: existingStudent.email === emailNorm
           ? 'A student with this email already exists'
           : 'A student with this ID already exists'
       });
     }
 
     // Also check if email exists in users collection
-    const existingUser = await users.findOne({ email: email });
+    const existingUser = await users.findOne({ email: emailNorm });
     if (existingUser) {
-      console.log('Email already registered as user:', email);
+      console.log('Email already registered as user:', emailNorm);
       return res.json({
         success: false,
         error: 'This email is already registered'
@@ -429,10 +442,10 @@ app.post('/api/auth/register', async (req, res) => {
       middleName: middleName || '',
       lastName,
       studentId,
-      gender: gender || '',
+      gender: genderNorm,
       department,
       program: program || '',
-      email,
+      email: emailNorm,
       password,
       role: role || 'student',
       createdAt: new Date(),
@@ -520,7 +533,12 @@ app.get('/api/students', async (req, res) => {
     const db = getDatabase();
     const students = db.collection(collections.students);
     const studentList = await students.find({}).toArray();
-    res.json(studentList);
+    // Only remove sensitive fields like password
+    const sanitized = studentList.map((student) => {
+      const { password, ...rest } = student;
+      return rest;
+    });
+    res.json(sanitized);
   } catch (error) {
     console.error('Error fetching students:', error);
     res.status(500).json({ error: 'Server error' });
@@ -899,28 +917,62 @@ app.delete('/api/reviewers/:id', async (req, res) => {
   }
 });
 
-// Update student endpoint
+// Update student endpoint (admin) — only whitelisted fields; never copy reviewer fields like `title`
 app.put('/api/students/:id', async (req, res) => {
   try {
     const db = getDatabase();
     const students = db.collection(collections.students);
     const { id } = req.params;
-    const updateData = req.body;
-    
-    // Remove _id from updateData if it exists
-    if (updateData._id) {
-      delete updateData._id;
+    const body = { ...req.body };
+
+    if (body._id) {
+      delete body._id;
     }
-    
+
+    const existing = await students.findOne({ _id: new ObjectId(id) });
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Student not found' });
+    }
+
+    const allowedKeys = [
+      'firstName',
+      'middleName',
+      'lastName',
+      'email',
+      'studentId',
+      'gender',
+      'department',
+      'program',
+      'role',
+      'gmail',
+      'disabled',
+      'status',
+    ];
+
+    const updateData = {};
+    for (const key of allowedKeys) {
+      if (body[key] !== undefined) {
+        updateData[key] = body[key];
+      }
+    }
+
+    const fn = updateData.firstName !== undefined ? updateData.firstName : existing.firstName;
+    const mn = updateData.middleName !== undefined ? updateData.middleName : existing.middleName;
+    const ln = updateData.lastName !== undefined ? updateData.lastName : existing.lastName;
+    updateData.name = [fn, mn, ln]
+      .filter((p) => p != null && String(p).trim() !== '')
+      .map((p) => String(p).trim())
+      .join(' ');
+
     const result = await students.updateOne(
       { _id: new ObjectId(id) },
-      { $set: updateData }
+      { $set: updateData, $unset: { title: '' } }
     );
-    
+
     if (result.matchedCount === 0) {
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
-    
+
     res.json({ success: true, message: 'Student updated successfully' });
   } catch (error) {
     console.error('Error updating student:', error);
@@ -950,21 +1002,51 @@ app.delete('/api/students/:id', async (req, res) => {
 
 // ── Student Profile & Password endpoints ──────────────────────────────────────
 
-// GET student profile by email
+/** Resolve a student by login email (matches `email` or `gmail`, case-insensitive). */
+async function findStudentByLoginEmail(students, raw) {
+  const q = (raw || '').trim();
+  if (!q) return null;
+  let s = await students.findOne({ email: q });
+  if (!s) s = await students.findOne({ gmail: q });
+  if (!s) {
+    const lower = q.toLowerCase();
+    s = await students.findOne({ $or: [{ email: lower }, { gmail: lower }] });
+  }
+  if (!s) {
+    const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`^${esc}$`, 'i');
+    s = await students.findOne({ $or: [{ email: re }, { gmail: re }] });
+  }
+  return s;
+}
+
+function studentProfilePayload(student) {
+  // Convert MongoDB document to plain object
+  const plain = JSON.parse(JSON.stringify(student));
+  const { password, sex, ...safe } = plain;
+  const gmail = safe.gmail || safe.email || '';
+  const gender = String(safe.gender || sex || '').trim();
+  console.log('[DEBUG] studentProfilePayload - raw gender from DB:', safe.gender, '| sex:', sex, '| computed gender:', gender);
+  return { ...safe, gmail, gender };
+}
+
+// GET student profile by email (or gmail), case-insensitive fallback
 app.get('/api/student/profile', async (req, res) => {
   try {
-    const { email } = req.query;
-    if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
+    const raw = (req.query.email || '').trim();
+    console.log('[DEBUG] GET /api/student/profile - query email:', raw);
+    if (!raw) return res.status(400).json({ success: false, error: 'Email is required' });
 
     const db = getDatabase();
     const students = db.collection(collections.students);
-    const student = await students.findOne({ email });
+    const student = await findStudentByLoginEmail(students, raw);
+    if (!student) {
+      console.log('[DEBUG] Student not found for email:', raw);
+      return res.status(404).json({ success: false, error: 'Student not found' });
+    }
+    console.log('[DEBUG] Student found:', student.email, '| gender in DB:', student.gender);
 
-    if (!student) return res.status(404).json({ success: false, error: 'Student not found' });
-
-    // Derive a gmail field (stored as either `gmail` or `email`)
-    const gmail = student.gmail || student.email || '';
-    res.json({ success: true, student: { ...student, gmail } });
+    res.json({ success: true, student: studentProfilePayload(student) });
   } catch (error) {
     console.error('Error fetching student profile:', error);
     res.status(500).json({ success: false, error: 'Server error' });
@@ -980,7 +1062,7 @@ app.put('/api/student/profile', async (req, res) => {
     const db = getDatabase();
     const students = db.collection(collections.students);
 
-    const student = await students.findOne({ email });
+    const student = await findStudentByLoginEmail(students, email);
     if (!student) return res.status(404).json({ success: false, error: 'Student not found' });
 
     const updateFields = {
@@ -989,10 +1071,10 @@ app.put('/api/student/profile', async (req, res) => {
       ...(middleName  !== undefined && { middleName }),
       ...(lastName    !== undefined && { lastName }),
       ...(studentId   !== undefined && { studentId }),
-      ...(gender      !== undefined && { gender }),
+      ...(gender      !== undefined && { gender: (gender != null && String(gender).trim()) ? String(gender).trim() : '' }),
       ...(department  !== undefined && { department }),
       ...(program     !== undefined && { program }),
-      ...(gmail       !== undefined && { gmail }),
+      ...(gmail       !== undefined && { gmail: (gmail || '').trim().toLowerCase() }),
     };
 
     // Rebuild full name for backwards-compat
@@ -1001,10 +1083,13 @@ app.put('/api/student/profile', async (req, res) => {
     const ln = lastName   ?? student.lastName   ?? '';
     updateFields.name = [fn, mn, ln].filter(Boolean).join(' ');
 
-    await students.updateOne({ email }, { $set: updateFields });
+    await students.updateOne({ _id: student._id }, { $set: updateFields });
 
-    const updated = await students.findOne({ email });
-    res.json({ success: true, student: { ...updated, gmail: updated.gmail || updated.email || '' } });
+    const updated = await students.findOne({ _id: student._id });
+    res.json({
+      success: true,
+      student: studentProfilePayload(updated)
+    });
   } catch (error) {
     console.error('Error updating student profile:', error);
     res.status(500).json({ success: false, error: 'Server error' });
@@ -1026,14 +1111,14 @@ app.put('/api/student/password', async (req, res) => {
     const db = getDatabase();
     const students = db.collection(collections.students);
 
-    const student = await students.findOne({ email });
+    const student = await findStudentByLoginEmail(students, email);
     if (!student) return res.status(404).json({ success: false, error: 'Student not found' });
 
     if (student.password !== currentPassword) {
       return res.status(400).json({ success: false, error: 'Current password is incorrect' });
     }
 
-    await students.updateOne({ email }, { $set: { password: newPassword, updatedAt: new Date() } });
+    await students.updateOne({ _id: student._id }, { $set: { password: newPassword, updatedAt: new Date() } });
 
     res.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
@@ -1943,157 +2028,6 @@ app.post('/api/verify-otp', (req, res) => {
   }
 });
 
-// Get student profile endpoint
-app.get('/api/student/profile', async (req, res) => {
-  try {
-    const { email } = req.query;
-
-    if (!email) {
-      return res.status(400).json({ success: false, error: 'Email is required' });
-    }
-
-    const db = getDatabase();
-    const students = db.collection(collections.students);
-
-    const student = await students.findOne({ email });
-
-    if (!student) {
-      // Return 200 so the browser doesn't log a "Failed to load resource" 404
-      return res.json({ success: false, error: 'Student not found' });
-    }
-
-    // Auto-clear profilePicture if the file no longer exists on disk
-    let profilePicture = student.profilePicture || null;
-    if (profilePicture) {
-      const picFile = path.join(profilePicsDir, path.basename(profilePicture));
-      if (!fs.existsSync(picFile)) {
-        profilePicture = null;
-        await students.updateOne({ email }, { $set: { profilePicture: null } });
-      }
-    }
-
-    res.json({
-      success: true,
-      student: {
-        firstName: student.firstName || '',
-        middleName: student.middleName || '',
-        lastName: student.lastName || '',
-        studentId: student.studentId || '',
-        department: student.department || '',
-        program: student.program || '',
-        gmail: student.email || '',
-        profilePicture,
-        createdAt: student.createdAt
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching student profile:', error);
-    res.status(500).json({ success: false, error: 'Server error' });
-  }
-});
-
-// Update student profile endpoint
-app.put('/api/student/profile', async (req, res) => {
-  try {
-    const { email, firstName, middleName, lastName, studentId, gender, department, program, gmail } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ success: false, error: 'Email is required' });
-    }
-
-    const db = getDatabase();
-    const students = db.collection(collections.students);
-
-    // Check if student exists
-    const existingStudent = await students.findOne({ email });
-    if (!existingStudent) {
-      return res.status(404).json({ success: false, error: 'Student not found' });
-    }
-
-    // Update student profile
-    const updateData = {
-      ...(firstName && { firstName }),
-      ...(middleName && { middleName }),
-      ...(lastName && { lastName }),
-      ...(studentId && { studentId }),
-      ...(gender && { gender }),
-      ...(department && { department }),
-      ...(program && { program }),
-      ...(gmail && { gmail }),
-      updatedAt: new Date()
-    };
-    
-    const result = await students.updateOne(
-      { email },
-      { $set: updateData }
-    );
-    
-    if (result.modifiedCount === 0) {
-      return res.status(404).json({ success: false, error: 'No changes made or student not found' });
-    }
-    
-    res.json({
-      success: true,
-      message: 'Profile updated successfully',
-      student: {
-        firstName: firstName || existingStudent.firstName,
-        middleName: middleName || existingStudent.middleName,
-        lastName: lastName || existingStudent.lastName,
-        studentId: studentId || existingStudent.studentId,
-        gender: gender || existingStudent.gender,
-        department: department || existingStudent.department,
-        program: program || existingStudent.program,
-        gmail: gmail || existingStudent.email,
-        updatedAt: new Date()
-      }
-    });
-  } catch (error) {
-    console.error('Error updating student profile:', error);
-    res.status(500).json({ success: false, error: 'Server error' });
-  }
-});
-
-// Student Password Change
-app.put('/api/student/password', async (req, res) => {
-  try {
-    const { email, currentPassword, newPassword } = req.body;
-    
-    if (!email || !currentPassword || !newPassword) {
-      return res.status(400).json({ success: false, error: 'Email, current password, and new password are required' });
-    }
-    
-    const db = getDatabase();
-    const students = db.collection(collections.students);
-    
-    // Find student
-    const student = await students.findOne({ email });
-    if (!student) {
-      return res.status(404).json({ success: false, error: 'Student not found' });
-    }
-    
-    // Verify current password
-    if (student.password !== currentPassword) {
-      return res.status(401).json({ success: false, error: 'Current password is incorrect' });
-    }
-    
-    // Validate new password
-    if (newPassword.length < 6) {
-      return res.status(400).json({ success: false, error: 'New password must be at least 6 characters' });
-    }
-    
-    // Update password
-    await students.updateOne(
-      { email },
-      { $set: { password: newPassword, updatedAt: new Date() } }
-    );
-    
-    res.json({ success: true, message: 'Password updated successfully' });
-  } catch (error) {
-    console.error('Error changing password:', error);
-    res.status(500).json({ success: false, error: 'Server error' });
-  }
-});
-
 // Upload student profile picture
 app.post('/api/student/profile/picture', uploadProfilePic.single('profilePicture'), async (req, res) => {
   try {
@@ -2166,30 +2100,6 @@ app.put('/api/student/change-password', async (req, res) => {
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
     console.error('Error changing password:', error);
-    res.status(500).json({ success: false, error: 'Server error' });
-  }
-});
-
-// Change reviewer password endpoint
-app.put('/api/reviewer/change-password', async (req, res) => {
-  try {
-    const { email, currentPassword, newPassword } = req.body;
-    if (!email || !currentPassword || !newPassword) {
-      return res.status(400).json({ success: false, error: 'All fields are required' });
-    }
-    const db = getDatabase();
-    const reviewers = db.collection(collections.reviewers);
-    const reviewer = await reviewers.findOne({ email });
-    if (!reviewer) {
-      return res.status(404).json({ success: false, error: 'Reviewer not found' });
-    }
-    if (reviewer.password !== currentPassword) {
-      return res.status(400).json({ success: false, error: 'Current password is incorrect' });
-    }
-    await reviewers.updateOne({ email }, { $set: { password: newPassword, updatedAt: new Date() } });
-    res.json({ success: true, message: 'Password updated successfully' });
-  } catch (error) {
-    console.error('Error changing reviewer password:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

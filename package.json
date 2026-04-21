@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "server": "node server.js",
     "start": "npm run server & npm run dev",
-    "migrate": "node scripts/migrate-to-gridfs.js"
+    "migrate": "node scripts/migrate-to-gridfs.js",
+    "db:unset-gender": "node scripts/remove-student-gender-fields.js"
   },
   "dependencies": {
     "cors": "^2.8.6",

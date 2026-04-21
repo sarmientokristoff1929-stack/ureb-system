@@ -281,6 +281,39 @@
   box-shadow: 0 10px 30px rgba(122, 158, 126, 0.3);
 }
 
+.login-btn-primary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.login-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: white;
+  color: #5C6B73;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  font-weight: 600;
+  border: 2px solid #D4E4D4;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.login-btn-secondary:hover:not(:disabled) {
+  border-color: #7A9E7E;
+  color: #4A6B4E;
+}
+
+.login-btn-secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .login-modal-submit {
   width: 100%;
   margin-top: 0.5rem;
@@ -424,6 +457,33 @@
   animation: fadeIn 0.3s ease;
 }
 
+.pre-register-modal-overlay {
+  z-index: 1100;
+}
+
+.pre-register-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.pre-register-modal-actions .pre-register-btn {
+  width: 100%;
+  margin-top: 0;
+}
+
+@media (min-width: 480px) {
+  .pre-register-modal-actions {
+    flex-direction: row;
+  }
+
+  .pre-register-modal-actions .pre-register-btn {
+    flex: 1;
+    width: auto;
+  }
+}
+
 .success-modal-container {
   background: white;
   border-radius: 16px;
@@ -433,6 +493,10 @@
   width: 90%;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.3s ease;
+}
+
+.success-modal-container.pre-register-modal-container {
+  max-width: 420px;
 }
 
 .success-icon {
@@ -457,6 +521,40 @@
   font-size: 1rem;
   line-height: 1.5;
   margin: 0 0 1.5rem 0;
+}
+
+.registration-data-reminder {
+  text-align: left;
+  background: #fff8e6;
+  border: 1px solid #f0d78c;
+  border-radius: 12px;
+  padding: 1rem 1.125rem;
+  margin: 0 0 1.25rem 0;
+}
+
+.registration-data-reminder strong {
+  display: block;
+  color: #92400e;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.5rem;
+}
+
+.registration-data-reminder p {
+  margin: 0;
+  color: #78350f;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.registration-data-reminder--modal {
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.registration-data-reminder--modal p {
+  font-size: 0.9375rem;
 }
 
 .success-timer {

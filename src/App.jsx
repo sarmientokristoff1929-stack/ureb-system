@@ -3,14 +3,12 @@ import LandingPage from './components/LandingPage'
 import AdminDashboard from './components/admindashboard'
 import ReviewerDashboard from './components/reviewerdashboard'
 import StudentDashboard from './components/studentdashboard'
-import { authenticateUser } from './services/api'
-
-const API_URL = import.meta.env.VITE_API_URL
+import { authenticateUser, API_BASE_URL } from './services/api'
 
 // Keep the Render free-tier server warm so OTP sending is always fast.
 // Fires immediately on page load, then every 10 minutes while the tab is open.
 function pingServer() {
-  fetch(`${API_URL}/api/check-gmail-exists`, {
+  fetch(`${API_BASE_URL}/check-gmail-exists`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ gmail: '' }),
@@ -57,7 +55,7 @@ function App() {
         // For students, check if account is disabled before allowing login
         if (result.user.role === 'student') {
           try {
-            const studentsRes = await fetch(`${import.meta.env.VITE_API_URL}/api/students`);
+            const studentsRes = await fetch(`${API_BASE_URL}/students`);
             if (studentsRes.ok) {
               const students = await studentsRes.json();
               const studentRecord = Array.isArray(students)
@@ -99,7 +97,11 @@ function App() {
 
   const handleRegister = async (registrationData) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
+      console.log('[DEBUG] App.handleRegister - API_BASE_URL:', API_BASE_URL);
+      console.log('[DEBUG] App.handleRegister - VITE_API_URL:', import.meta.env.VITE_API_URL);
+      console.log('[DEBUG] App.handleRegister - registrationData:', { ...registrationData, password: '[HIDDEN]' });
+      console.log('[DEBUG] App.handleRegister - gender:', registrationData.gender);
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

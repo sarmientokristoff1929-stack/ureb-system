@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { API_BASE_URL } from '../services/api';
 import './LoginModal.css';
 
 const ShieldIcon = () => (
@@ -36,6 +37,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [showDisabledModal, setShowDisabledModal] = useState(false);
 
   // Registration form states
@@ -43,6 +45,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [middleName, setMiddleName] = useState('');
   const [lastName, setLastName] = useState('');
   const [studentId, setStudentId] = useState('');
+  const [gender, setGender] = useState('');
   const [department, setDepartment] = useState('');
   const [program, setProgram] = useState('');
   const [regGmail, setRegGmail] = useState('');
@@ -53,9 +56,11 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [passwordError, setPasswordError] = useState('');
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [registerLoading, setRegisterLoading] = useState(false);
   const [gmailExists, setGmailExists] = useState(false);
   const [checkingGmail, setCheckingGmail] = useState(false);
   const debounceTimer = useRef(null);
+  const pendingRegistrationRef = useRef(null);
 
   // Gmail validation function
   const validateGmail = (gmail) => {
@@ -71,7 +76,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     }
     setCheckingGmail(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/check-gmail-exists`, {
+      const response = await fetch(`${API_BASE_URL}/check-gmail-exists`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gmail }),
@@ -244,6 +249,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     setMiddleName('');
     setLastName('');
     setStudentId('');
+    setGender('');
     setDepartment('');
     setProgram('');
     setRegGmail('');
@@ -253,7 +259,10 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     setPasswordError('');
     setPasswordTouched(false);
     setShowSuccessModal(false);
+    setRegisterLoading(false);
+    setShowRegistrationForm(false);
     setGmailExists(false);
+    pendingRegistrationRef.current = null;
   };
 
   const handleLoginSubmit = async (e) => {
@@ -306,6 +315,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       middleName,
       lastName,
       studentId,
+      gender,
       department,
       program,
       email: regGmail,  // Changed from gmail to email
@@ -313,39 +323,73 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       role: 'student'
     };
 
-    const result = await onRegister(userData);
+    console.log('[DEBUG] Registration - userData:', { ...userData, password: '[HIDDEN]' });
+    console.log('[DEBUG] Registration - gender value:', gender, '| type:', typeof gender);
 
-    if (result.success) {
-      // Show success modal
-      setShowSuccessModal(true);
-      // Clear form but don't close modal
-      setFirstName('');
-      setMiddleName('');
-      setLastName('');
-      setStudentId('');
-      setDepartment('');
-      setProgram('');
-      setRegGmail('');
-      setGmailExists(false);
-      setRegPassword('');
-      setConfirmPassword('');
-      setPasswordError('');
-      setPasswordTouched(false);
+    // Direct registration without pre-register reminder (now shown before form)
+    handleDirectRegister(userData);
+  };
 
-      // Auto-redirect to login after 3 seconds
-      setTimeout(() => {
-        setShowSuccessModal(false);
-        setIsRegistering(false);
-        setError('');
-      }, 3000);
-    } else {
-      setError(result.error || 'Registration failed');
+  const handleDirectRegister = async (userData) => {
+    setRegisterLoading(true);
+    setError('');
+
+    try {
+      const result = await onRegister(userData);
+
+      if (result.success) {
+        setShowSuccessModal(true);
+        setFirstName('');
+        setMiddleName('');
+        setLastName('');
+        setStudentId('');
+        setGender('');
+        setDepartment('');
+        setProgram('');
+        setRegGmail('');
+        setGmailExists(false);
+        setRegPassword('');
+        setConfirmPassword('');
+        setPasswordError('');
+        setPasswordTouched(false);
+
+        setTimeout(() => {
+          setShowSuccessModal(false);
+          setIsRegistering(false);
+          setShowRegistrationForm(false);
+          setError('');
+        }, 3000);
+      } else {
+        setError(result.error || 'Registration failed');
+      }
+    } catch (err) {
+      console.error('Registration error:', err);
+      setError('Registration failed. Please try again.');
+    } finally {
+      setRegisterLoading(false);
     }
   };
 
+  const handleCancelPreRegisterReminder = () => {
+    setIsRegistering(false);
+    setShowRegistrationForm(false);
+  };
+
+  const handleConfirmPreRegisterReminder = () => {
+    setShowRegistrationForm(true);
+  };
+
   const toggleMode = () => {
-    setIsRegistering(!isRegistering);
-    resetForm();
+    if (!isRegistering) {
+      // Switching to register mode - show reminder first
+      setIsRegistering(true);
+      resetForm();
+    } else {
+      // Switching back to login
+      setIsRegistering(false);
+      setShowRegistrationForm(false);
+      resetForm();
+    }
   };
 
   return (
@@ -361,6 +405,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
           </div>
           <div className="login-modal-right">
             {isRegistering ? (
+              showRegistrationForm ? (
               <form className="login-modal-form" onSubmit={handleRegisterSubmit}>
                 {error && <div className="login-error-message">{error}</div>}
 
@@ -422,6 +467,22 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                     inputMode="text"
                     pattern="[0-9\-]+"
                   />
+                </div>
+
+                <div className="login-form-group">
+                  <label htmlFor="gender">Gender </label>
+                  <select
+                    id="gender"
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value)}
+                    required
+                  >
+                    <option value="">Select your gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                    <option value="Prefer not to say">Prefer not to say</option>
+                  </select>
                 </div>
 
                 <div className="login-form-group">
@@ -549,10 +610,45 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                   </div>
                 </div>
 
-                <button type="submit" className="login-btn-primary login-modal-submit">
-                  Create Account
+                <button type="submit" className="login-btn-primary login-modal-submit" disabled={registerLoading}>
+                  {registerLoading ? 'Creating account…' : 'Create Account'}
                 </button>
               </form>
+              ) : (
+                // Pre-register reminder shown before form
+                <div className="pre-register-reminder-inline">
+                  <div className="success-icon" style={{ marginBottom: '1rem' }}>
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#388E3C" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2 2 7l10 5 10-5-10-5z" />
+                      <path d="M2 17l10 5 10-5" />
+                      <path d="M2 12l10 5 10-5" />
+                    </svg>
+                  </div>
+                  <h2 style={{ color: '#2e7d32', marginBottom: '0.5rem' }}>Welcome, Students!</h2>
+                  <div className="registration-data-reminder registration-data-reminder--modal" style={{ marginBottom: '1.5rem', borderColor: '#388E3C', backgroundColor: '#f1f8e9' }}>
+                    <p>
+                      Welcome to UREB! Before you register, please ensure all your information is accurate.
+                      We'll use your Gmail and student details for important updates about your research protocols.
+                    </p>
+                  </div>
+                  <div className="pre-register-modal-actions" style={{ justifyContent: 'center' }}>
+                    <button
+                      type="button"
+                      className="login-btn-secondary pre-register-btn"
+                      onClick={handleCancelPreRegisterReminder}
+                    >
+                      Go back
+                    </button>
+                    <button
+                      type="button"
+                      className="login-btn-primary login-modal-submit pre-register-btn"
+                      onClick={handleConfirmPreRegisterReminder}
+                    >
+                      Continue
+                    </button>
+                  </div>
+                </div>
+              )
             ) : (
               <form className="login-modal-form" onSubmit={handleLoginSubmit}>
                 {error && <div className="login-error-message">{error}</div>}

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { API_BASE_URL } from '../services/api';
 import './studentdashboard.css';
-
-const API = `${import.meta.env.VITE_API_URL}/api`;
 
 // localStorage helpers for deleted proposals (Render deployment workaround)
 const getDeletedProposalIds = () => {
@@ -169,7 +168,7 @@ const StudentDashboard = ({ onLogout }) => {
     const fetchMessageCount = async () => {
       if (!userInfo?.email) return;
       try {
-        const response = await fetch(`${API}/messages/${encodeURIComponent(userInfo.email)}`);
+        const response = await fetch(`${API_BASE_URL}/messages/${encodeURIComponent(userInfo.email)}`);
         const data = await response.json();
         const unreadAdminMessages = data.filter((m) => 
           m.recipientEmail === userInfo.email && 
@@ -248,7 +247,7 @@ const StudentDashboard = ({ onLogout }) => {
   const refreshMessageCount = async () => {
     if (!userInfo?.email) return;
     try {
-      const response = await fetch(`${API}/messages/${encodeURIComponent(userInfo.email)}`);
+      const response = await fetch(`${API_BASE_URL}/messages/${encodeURIComponent(userInfo.email)}`);
       const data = await response.json();
       const unreadAdminMessages = data.filter((m) => 
         m.recipientEmail === userInfo.email && 
@@ -367,7 +366,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
   useEffect(() => {
     const fetchStudentData = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/student/profile?email=${encodeURIComponent(userInfo.email)}`);
+        const response = await fetch(`${API_BASE_URL}/student/profile?email=${encodeURIComponent(userInfo.email)}`);
         const result = await response.json();
         if (result.success) {
           setStudentData(result.student);
@@ -423,7 +422,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
     setSaveLoading(true);
     setError('');
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/student/profile`, {
+      const response = await fetch(`${API_BASE_URL}/student/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userInfo.email, ...editedInfo }),
@@ -439,6 +438,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
           lastName: result.student.lastName,
           email: result.student.gmail,
           studentId: result.student.studentId,
+          gender: result.student.gender,
           department: result.student.department,
           program: result.student.program,
         };
@@ -480,7 +480,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/student/password`, {
+      const response = await fetch(`${API_BASE_URL}/student/change-password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -561,7 +561,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
             {[
               { label: 'Full Name', value: fullName },
               { label: 'Student ID', value: studentData?.studentId },
-              { label: 'Gender', value: studentData?.gender },
+              { label: 'Gender', value: studentData?.gender || studentData?.sex },
               { label: 'Department', value: studentData?.department },
               { label: 'Program', value: studentData?.program },
               { label: 'Gmail', value: studentData?.gmail },
@@ -605,10 +605,10 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
                   value={editedInfo.gender}
                   onChange={e => setEditedInfo(p => ({ ...p, gender: e.target.value }))}
                 >
-                  <option value="">Select Gender</option>
+                  <option value="">Select gender</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
-                  <option value="LGBTQ+">LGBTQ+</option>
+                  <option value="Other">Other</option>
                   <option value="Prefer not to say">Prefer not to say</option>
                 </select>
               </div>
@@ -749,9 +749,9 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
       try {
         // Fetch real data from APIs
         const [proposalsResponse, reviewsResponse, notificationsResponse] = await Promise.all([
-          fetch(`${import.meta.env.VITE_API_URL}/api/proposals/student/${encodeURIComponent(userInfo.email)}`),
-          fetch(`${import.meta.env.VITE_API_URL}/api/reviews/student/${encodeURIComponent(userInfo.email)}`),
-          fetch(`${import.meta.env.VITE_API_URL}/api/messages/${encodeURIComponent(userInfo.email)}`)
+          fetch(`${API_BASE_URL}/proposals/student/${encodeURIComponent(userInfo.email)}`),
+          fetch(`${API_BASE_URL}/reviews/student/${encodeURIComponent(userInfo.email)}`),
+          fetch(`${API_BASE_URL}/messages/${encodeURIComponent(userInfo.email)}`)
         ]);
 
         // Check responses are OK before parsing
@@ -803,7 +803,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
     const checkDueReminders = async () => {
       if (!userInfo?.email) return;
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/proposals/student/${encodeURIComponent(userInfo.email)}`);
+        const response = await fetch(`${API_BASE_URL}/proposals/student/${encodeURIComponent(userInfo.email)}`);
         if (response.ok) {
           const proposals = await response.json();
           const reminders = [];
@@ -855,7 +855,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
     setDeleteTargetId(null);
     setDeleteModalOpen(false);
     // Try server in background
-    fetch(`${import.meta.env.VITE_API_URL}/api/proposals/${idToDelete}`, { method: 'DELETE' })
+    fetch(`${API_BASE_URL}/proposals/${idToDelete}`, { method: 'DELETE' })
       .catch(err => console.error('Background proposal delete failed:', err));
   };
 
@@ -1052,7 +1052,7 @@ const NotificationsContent = ({ userInfo }) => {
     const fetchExpiringProposals = async () => {
       if (!userInfo?.email) return;
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/proposals/student/${encodeURIComponent(userInfo.email)}`);
+        const response = await fetch(`${API_BASE_URL}/proposals/student/${encodeURIComponent(userInfo.email)}`);
         if (response.ok) {
           const proposals = await response.json();
           const expiringNotifs = [];
@@ -1264,7 +1264,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
       submitData.append('studentEmail', user?.email || '');
       submitData.append('studentName', user?.name || '');
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/student/submit-files`, {
+      const response = await fetch(`${API_BASE_URL}/student/submit-files`, {
         method: 'POST',
         body: submitData
       });
@@ -1851,7 +1851,7 @@ const MessagesContent = ({ userInfo, onMessageRead }) => {
     const fetchMessages = async () => {
       if (!userInfo?.email) return;
       try {
-        const response = await fetch(`${API}/messages/${encodeURIComponent(userInfo.email)}`);
+        const response = await fetch(`${API_BASE_URL}/messages/${encodeURIComponent(userInfo.email)}`);
         const data = await response.json();
         const adminMessages = data
           .filter((m) => m.recipientEmail === userInfo.email && m.type === 'admin_to_student')
@@ -1891,7 +1891,7 @@ const MessagesContent = ({ userInfo, onMessageRead }) => {
 
   const confirmDelete = async () => {
     try {
-      const response = await fetch(`${API}/messages/${deleteTargetId}`, { method: 'DELETE' });
+      const response = await fetch(`${API_BASE_URL}/messages/${deleteTargetId}`, { method: 'DELETE' });
       if (response.ok) {
         setMessages(prev => prev.filter(msg => msg._id !== deleteTargetId));
       }
@@ -1904,7 +1904,7 @@ const MessagesContent = ({ userInfo, onMessageRead }) => {
 
   const markAsRead = async (messageId) => {
     try {
-      const response = await fetch(`${API}/messages/${messageId}/read`, { 
+      const response = await fetch(`${API_BASE_URL}/messages/${messageId}/read`, { 
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -1968,7 +1968,7 @@ const MessagesContent = ({ userInfo, onMessageRead }) => {
       if (replyTargetMsg?._id) formData.append('replyToMessageId', replyTargetMsg._id);
       replyFiles.forEach(f => formData.append('files', f));
 
-      const res = await fetch(`${API}/messages/reply`, { method: 'POST', body: formData });
+      const res = await fetch(`${API_BASE_URL}/messages/reply`, { method: 'POST', body: formData });
       const data = await res.json();
       if (data.success) {
         closeReplyModal();
@@ -2066,7 +2066,7 @@ const MessagesContent = ({ userInfo, onMessageRead }) => {
                     {msg.files.map((file, i) => {
                       const storedName = getStoredFilename(file.path);
                       const downloadUrl = storedName
-                        ? `${API}/download/${storedName}?name=${encodeURIComponent(file.filename)}`
+                        ? `${API_BASE_URL}/download/${storedName}?name=${encodeURIComponent(file.filename)}`
                         : null;
                       return (
                         <div key={i} className="sm-file-chip">
@@ -2241,8 +2241,8 @@ const HistoryContent = () => {
 
       try {
         const [proposalsResponse, reviewsResponse] = await Promise.all([
-          fetch(`${import.meta.env.VITE_API_URL}/api/proposals/student/${encodeURIComponent(userInfo.email)}`),
-          fetch(`${import.meta.env.VITE_API_URL}/api/reviews/student/${encodeURIComponent(userInfo.email)}`)
+          fetch(`${API_BASE_URL}/proposals/student/${encodeURIComponent(userInfo.email)}`),
+          fetch(`${API_BASE_URL}/reviews/student/${encodeURIComponent(userInfo.email)}`)
         ]);
 
         if (!proposalsResponse.ok || !reviewsResponse.ok) {

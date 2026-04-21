@@ -1,5 +1,6 @@
-// API service for client-side requests
-const API_BASE_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+// API service for client-side requests — empty VITE_API_URL uses same-origin `/api` (Vite dev proxy → server)
+const apiOrigin = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+export const API_BASE_URL = apiOrigin ? `${apiOrigin}/api` : '/api';
 
 // Authentication
 export const authenticateUser = async (email, password) => {

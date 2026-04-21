@@ -4204,29 +4204,60 @@ const ManageUsersContent = () => {
 
     setEditingUser({ ...user, userType });
 
-    setEditFormData({
+    // Students: do not preload reviewer/admin-only fields (`title`, full `name`) or they get $set on the student document.
+    if (userType === 'student') {
 
-      firstName: user.firstName || '',
+      setEditFormData({
 
-      middleName: user.middleName || '',
+        firstName: user.firstName || '',
 
-      lastName: user.lastName || '',
+        middleName: user.middleName || '',
 
-      title: user.title || '',
+        lastName: user.lastName || '',
 
-      name: user.name || '',
+        email: user.email || '',
 
-      email: user.email || '',
+        department: user.department || '',
 
-      department: user.department || '',
+        role: user.role || '',
 
-      role: user.role || '',
+        studentId: user.studentId || '',
 
-      studentId: user.studentId || '',
+        gender: user.gender || '',
 
-      program: user.program || ''
+        program: user.program || ''
 
-    });
+      });
+
+    } else {
+
+      setEditFormData({
+
+        firstName: user.firstName || '',
+
+        middleName: user.middleName || '',
+
+        lastName: user.lastName || '',
+
+        title: user.title || '',
+
+        name: user.name || '',
+
+        email: user.email || '',
+
+        department: user.department || '',
+
+        role: user.role || '',
+
+        studentId: user.studentId || '',
+
+        gender: user.gender || '',
+
+        program: user.program || ''
+
+      });
+
+    }
 
     setIsEditModalOpen(true);
 
@@ -5234,6 +5265,8 @@ const ManageUsersContent = () => {
 
                   <th>Student ID</th>
 
+                  <th>Gender</th>
+
                   <th>Email</th>
 
                   <th>Department</th>
@@ -5254,7 +5287,7 @@ const ManageUsersContent = () => {
 
                   <tr>
 
-                    <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-medium)' }}>
+                    <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-medium)' }}>
 
                       No students found.
 
@@ -5271,6 +5304,8 @@ const ManageUsersContent = () => {
                       <td>{student.name || `${student.firstName} ${student.lastName}`}</td>
 
                       <td>{student.studentId}</td>
+
+                      <td>{student.gender || 'Not set'}</td>
 
                       <td>{student.email}</td>
 
@@ -5582,6 +5617,40 @@ const ManageUsersContent = () => {
                     onChange={handleEditInputChange}
 
                   />
+
+                </div>
+
+              )}
+
+
+
+              {editingUser?.userType === 'student' && (
+
+                <div className="form-group">
+
+                  <label>Gender</label>
+
+                  <select
+
+                    name="gender"
+
+                    value={editFormData.gender || ''}
+
+                    onChange={handleEditInputChange}
+
+                  >
+
+                    <option value="">Select Gender</option>
+
+                    <option value="Male">Male</option>
+
+                    <option value="Female">Female</option>
+
+                    <option value="Other">Other</option>
+
+                    <option value="Prefer not to say">Prefer not to say</option>
+
+                  </select>
 
                 </div>
 
