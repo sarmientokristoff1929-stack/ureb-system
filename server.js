@@ -395,13 +395,18 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/register', async (req, res) => {
   console.log('========== REGISTRATION REQUEST RECEIVED ==========');
   try {
-    console.log('[DEBUG] Server /api/auth/register - raw req.body:', JSON.stringify(req.body, null, 2));
+    // Log all keys in req.body to verify gender is present
+    console.log('[DEBUG] Request body keys:', Object.keys(req.body));
+    console.log('[DEBUG] Raw req.body.gender:', req.body.gender);
+    console.log('[DEBUG] Server /api/auth/register - full req.body:', JSON.stringify(req.body, null, 2));
+
     const { firstName, middleName, lastName, studentId, gender, department, program, email, password, role } = req.body;
 
     const emailNorm = (email || '').trim().toLowerCase();
     const genderNorm = (gender != null && String(gender).trim()) ? String(gender).trim() : '';
 
-    console.log('[DEBUG] Server extracted gender:', gender, '| genderNorm:', genderNorm);
+    console.log('[DEBUG] Extracted gender from destructuring:', gender);
+    console.log('[DEBUG] Computed genderNorm:', genderNorm);
     console.log('Registration request received:', { firstName, lastName, studentId, gender: genderNorm, department, program, email: emailNorm });
 
     const db = getDatabase();
@@ -454,9 +459,12 @@ app.post('/api/auth/register', async (req, res) => {
     };
 
     console.log('Creating new student:', { ...newStudent, password: '[HIDDEN]' });
+    console.log('[DEBUG] About to insert - gender value:', newStudent.gender);
     const result = await students.insertOne(newStudent);
+    console.log('[DEBUG] Insert result:', result);
     console.log('Student created successfully with ID:', result.insertedId);
 
+    console.log('[DEBUG] Sending response with gender:', newStudent.gender);
     res.json({
       success: true,
       message: 'Registration successful',
