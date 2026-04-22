@@ -5646,6 +5646,8 @@ const ManageUsersContent = () => {
 
                     <option value="Female">Female</option>
 
+                    <option value="LGBTQ">LGBTQ</option>
+
                     <option value="Other">Other</option>
 
                     <option value="Prefer not to say">Prefer not to say</option>
