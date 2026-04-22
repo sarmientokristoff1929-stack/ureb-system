@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 5003;
 
 // Startup log to confirm server version
 console.log('******************************************');
-console.log('*** SERVER STARTING WITH GENDER FIX  ***');
+console.log('*** SERVER v2.0 - GENDER FIX ACTIVE  ***');
 console.log('******************************************');
 
 // Middleware
@@ -29,6 +29,11 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json());
+
+// Version endpoint to verify deployment
+app.get('/api/version', (req, res) => {
+  res.json({ version: '2.0-gender-fix', genderSupport: true, timestamp: new Date().toISOString() });
+});
 
 // MongoDB connection
 const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/ureb_system';
