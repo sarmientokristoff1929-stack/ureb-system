@@ -485,11 +485,8 @@ app.post('/api/auth/register', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[DEBUG] Registration error:', error.message);
-    console.error('[DEBUG] Registration error stack:', error.stack);
-    if (!res.headersSent) {
-      res.status(500).json({ success: false, error: 'Server error during registration: ' + error.message });
-    }
+    console.error('Registration error:', error);
+    res.status(500).json({ success: false, error: 'Server error during registration' });
   }
 });
 
