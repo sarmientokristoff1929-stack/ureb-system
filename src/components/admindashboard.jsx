@@ -2353,6 +2353,36 @@ const AddReviewerContent = () => {
 
             </div>
 
+            <div className="form-group">
+
+              <label>Gender</label>
+
+              <select
+
+                name="gender"
+
+                value={formData.gender || ''}
+
+                onChange={handleInputChange}
+
+              >
+
+                <option value="">Select Gender</option>
+
+                <option value="Male">Male</option>
+
+                <option value="Female">Female</option>
+
+                <option value="LGBTQ">LGBTQ</option>
+
+                <option value="Other">Other</option>
+
+                <option value="Prefer not to say">Prefer not to say</option>
+
+              </select>
+
+            </div>
+
           </div>
 
           <div className="form-group">
@@ -4229,6 +4259,30 @@ const ManageUsersContent = () => {
 
       });
 
+    } else if (userType === 'reviewer') {
+
+      setEditFormData({
+
+        firstName: user.firstName || '',
+
+        middleName: user.middleName || '',
+
+        lastName: user.lastName || '',
+
+        title: user.title || '',
+
+        name: user.name || '',
+
+        email: user.email || '',
+
+        department: user.department || '',
+
+        role: user.role || '',
+
+        gender: user.gender || ''
+
+      });
+
     } else {
 
       setEditFormData({
@@ -4249,11 +4303,7 @@ const ManageUsersContent = () => {
 
         role: user.role || '',
 
-        studentId: user.studentId || '',
-
-        gender: user.gender || '',
-
-        program: user.program || ''
+        gender: user.gender || ''
 
       });
 
@@ -5559,7 +5609,7 @@ const ManageUsersContent = () => {
 
 
               {editingUser?.userType === 'reviewer' && (
-
+                <>
                 <div className="form-group">
 
                   <label>Title (optional)</label>
@@ -5596,6 +5646,36 @@ const ManageUsersContent = () => {
 
                 </div>
 
+                <div className="form-group">
+
+                  <label>Gender</label>
+
+                  <select
+
+                    name="gender"
+
+                    value={editFormData.gender || ''}
+
+                    onChange={handleEditInputChange}
+
+                  >
+
+                    <option value="">Select Gender</option>
+
+                    <option value="Male">Male</option>
+
+                    <option value="Female">Female</option>
+
+                    <option value="LGBTQ">LGBTQ</option>
+
+                    <option value="Other">Other</option>
+
+                    <option value="Prefer not to say">Prefer not to say</option>
+
+                  </select>
+
+                </div>
+                </>
               )}
 
 
