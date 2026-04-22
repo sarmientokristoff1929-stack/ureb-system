@@ -2059,6 +2059,8 @@ const AddReviewerContent = () => {
 
       title: '',
 
+      gender: '',
+
       email: '',
 
       password: '',
@@ -2157,6 +2159,7 @@ const AddReviewerContent = () => {
       middleName: '',
       lastName: '',
       title: '',
+      gender: '',
       email: '',
       password: '',
       department: '',
@@ -2228,6 +2231,7 @@ const AddReviewerContent = () => {
         middleName: '',
         lastName: '',
         title: '',
+        gender: '',
         email: '',
         password: '',
         department: '',
@@ -5117,6 +5121,8 @@ const ManageUsersContent = () => {
 
                   <th>Email</th>
 
+                  <th>Gender</th>
+
                   <th>Department</th>
 
                   <th>Created Date</th>
@@ -5135,7 +5141,7 @@ const ManageUsersContent = () => {
 
                   <tr>
 
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-medium)' }}>
+                    <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-medium)' }}>
 
                       No reviewers found.
 
@@ -5152,6 +5158,8 @@ const ManageUsersContent = () => {
                       <td>{formatReviewerName(reviewer)}</td>
 
                       <td>{reviewer.email}</td>
+
+                      <td>{reviewer.gender || 'Not set'}</td>
 
                       <td>{reviewer.department || 'Not specified'}</td>
 
