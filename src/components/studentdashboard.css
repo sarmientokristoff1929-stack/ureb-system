@@ -493,7 +493,8 @@
   letter-spacing: 0.06em;
 }
 
-.sp-field input {
+.sp-field input,
+.sp-field select {
   padding: 0.55rem 0.8rem;
   border: 1px solid #d4dcd4;
   border-radius: 7px;
@@ -505,7 +506,8 @@
   width: 100%;
   box-sizing: border-box;
 }
-.sp-field input:focus {
+.sp-field input:focus,
+.sp-field select:focus {
   outline: none;
   border-color: var(--primary-green);
   box-shadow: 0 0 0 3px rgba(122, 158, 126, 0.13);
@@ -822,7 +824,8 @@
     font-size: 0.62rem;
   }
 
-  .sp-field input {
+  .sp-field input,
+  .sp-field select {
     padding: 0.45rem 0.65rem;
     font-size: 0.8rem;
   }
@@ -894,7 +897,8 @@
     font-size: 0.72rem;
   }
 
-  .sp-field input {
+  .sp-field input,
+  .sp-field select {
     padding: 0.4rem 0.55rem;
     font-size: 0.75rem;
   }
