@@ -14,6 +14,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5003;
 
+// Startup log to confirm server version
+console.log('******************************************');
+console.log('*** SERVER STARTING WITH GENDER FIX  ***');
+console.log('******************************************');
+
 // Middleware
 app.use(cors());
 // Debug middleware to log registration requests
@@ -480,8 +485,11 @@ app.post('/api/auth/register', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ success: false, error: 'Server error during registration' });
+    console.error('[DEBUG] Registration error:', error.message);
+    console.error('[DEBUG] Registration error stack:', error.stack);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: 'Server error during registration: ' + error.message });
+    }
   }
 });
 
