@@ -3672,20 +3672,20 @@ const FileTemplatesContent = () => {
 
   const templates = [
     {
-      id: 1,
-      name: 'Form 10 (A) — Informed Consent Form',
-      description: 'Informed Consent Form for research participants.',
-      filename: 'Form 10 (A) INFORMED CONSENT FORM (3).docx',
-      category: 'Compliance',
-      color: '#c2410c',
-    },
-    {
       id: 2,
       name: 'Form 8 (A) — Checklist for Investigations',
       description: 'Checklist for investigations involving human participants.',
       filename: 'Form 8 (A) CHECKLIST FOR INVESTIGATIONS INVOLVING (3).docx',
       category: 'Review',
       color: '#0891b2',
+    },
+    {
+      id: 1,
+      name: 'Form 10 (A) — Informed Consent Form',
+      description: 'Informed Consent Form for research participants.',
+      filename: 'Form 10 (A) INFORMED CONSENT FORM (3).docx',
+      category: 'Compliance',
+      color: '#c2410c',
     },
   ];
 
@@ -3764,7 +3764,7 @@ const FileTemplatesContent = () => {
                       View
                     </button>
                     <a
-                      href={`/api/templates/${encodeURIComponent(tpl.filename)}`}
+                      href={`${import.meta.env.VITE_API_URL || ''}/api/templates/${encodeURIComponent(tpl.filename)}`}
                       download={tpl.filename}
                       className="ft-download-btn"
                     >
@@ -3785,7 +3785,7 @@ const FileTemplatesContent = () => {
           onClose={() => setViewingFile(null)}
           onDownload={() => {
             const link = document.createElement('a');
-            link.href = `/api/templates/${encodeURIComponent(viewingFile.filename)}`;
+            link.href = `${import.meta.env.VITE_API_URL || ''}/api/templates/${encodeURIComponent(viewingFile.filename)}`;
             link.download = viewingFile.filename;
             link.click();
           }}
