@@ -2256,28 +2256,8 @@ const FileViewer = ({ file, onClose }) => {
       );
     }
 
-    // For Office files, we need the public URL
-    const isTemplate = file.filename.includes('Form ') || file.filename.includes('.docx');
-    const fileApiUrl = isTemplate
-      ? `${window.location.origin}/api/templates/${encodeURIComponent(file.filename)}`
-      : `${import.meta.env.VITE_API_URL}/api/download/${file.filename}`;
-    const viewerUrl = getMicrosoftViewerUrl(fileApiUrl);
-    
-    return (
-      <div style={{ height: '70vh', width: '100%' }}>
-        <iframe
-          src={viewerUrl}
-          width="100%"
-          height="100%"
-          style={{ border: 'none', borderRadius: '8px' }}
-          title="Office Document Viewer"
-          allow="fullscreen"
-        />
-        <p style={{ textAlign: 'center', marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--text-medium)' }}>
-          If the document doesn't load, please use the Download button below.
-        </p>
-      </div>
-    );
+    // For production, use a component that handles viewer errors
+    return <OfficeDocumentViewer file={file} fileUrl={fileUrl} />;
   }
 
   // For other file types, show download option
@@ -2294,6 +2274,109 @@ const FileViewer = ({ file, onClose }) => {
       <p style={{ fontSize: '0.9rem', color: 'var(--text-medium)', marginTop: '0.5rem' }}>
         Please download the file to view its contents.
       </p>
+    </div>
+  );
+};
+
+// Office Document Viewer Component with error handling for production
+const OfficeDocumentViewer = ({ file, fileUrl }) => {
+  const [viewerFailed, setViewerFailed] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const getMicrosoftViewerUrl = (url) => {
+    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+  };
+
+  const getGoogleDocsViewerUrl = (url) => {
+    return `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(url)}`;
+  };
+
+  useEffect(() => {
+    // Set a timeout to detect if the viewer fails to load properly
+    const timer = setTimeout(() => {
+      // If still loading after 8 seconds, consider it failed
+      if (isLoading) {
+        setViewerFailed(true);
+        setIsLoading(false);
+      }
+    }, 8000);
+
+    return () => clearTimeout(timer);
+  }, [isLoading]);
+
+  const handleIframeLoad = () => {
+    setIsLoading(false);
+  };
+
+  // Construct the public URL for the file
+  const isTemplate = file.filename.includes('Form ') || file.filename.includes('.docx');
+  const fileApiUrl = isTemplate
+    ? `${window.location.origin}/api/templates/${encodeURIComponent(file.filename)}`
+    : `${import.meta.env.VITE_API_URL}/api/download/${file.filename}`;
+
+  // If Microsoft viewer fails, try Google Docs viewer as fallback
+  const viewerUrl = viewerFailed 
+    ? getGoogleDocsViewerUrl(fileApiUrl)
+    : getMicrosoftViewerUrl(fileApiUrl);
+
+  if (viewerFailed && isLoading === false) {
+    // Both viewers failed, show download fallback
+    return (
+      <div style={{ padding: '3rem 2rem', textAlign: 'center', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📄</div>
+        <h3 style={{ color: '#1e293b', marginBottom: '0.5rem', fontSize: '1.1rem' }}>Document Preview</h3>
+        <p style={{ color: '#64748b', marginBottom: '1.5rem', maxWidth: '400px', margin: '0 auto 1.5rem' }}>
+          The document viewer could not load this file. Please download it to view.
+        </p>
+        <a href={fileUrl} download={file.originalname || file.filename} style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          padding: '0.75rem 1.5rem',
+          background: '#4a7c59',
+          color: 'white',
+          borderRadius: '6px',
+          textDecoration: 'none',
+          fontWeight: '500',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download {file.originalname || file.filename}
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ height: '70vh', width: '100%' }}>
+      {isLoading && (
+        <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+          <div style={{ marginBottom: '1rem' }}>Loading document preview...</div>
+          <div style={{ width: '40px', height: '40px', border: '3px solid #e2e8f0', borderTopColor: '#4a7c59', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto' }} />
+        </div>
+      )}
+      <iframe
+        src={viewerUrl}
+        width="100%"
+        height={isLoading ? '0' : '100%'}
+        style={{ border: 'none', borderRadius: '8px', display: isLoading ? 'none' : 'block' }}
+        title="Office Document Viewer"
+        allow="fullscreen"
+        onLoad={handleIframeLoad}
+        onError={() => {
+          setViewerFailed(true);
+          setIsLoading(false);
+        }}
+      />
+      {!isLoading && (
+        <p style={{ textAlign: 'center', marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--text-medium)' }}>
+          If the document doesn't load, please use the Download button below.
+        </p>
+      )}
     </div>
   );
 };
