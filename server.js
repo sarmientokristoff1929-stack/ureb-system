@@ -637,7 +637,7 @@ app.post('/api/users', async (req, res) => {
 app.post('/api/users/detailed', async (req, res) => {
   try {
     console.log('Request body:', req.body);
-    const { firstName, middleName, lastName, title, email, password, role, department } = req.body;
+    const { firstName, middleName, lastName, title, gender, email, password, role, department } = req.body;
     const db = getDatabase();
 
     // Choose collection based on role
@@ -669,6 +669,7 @@ app.post('/api/users/detailed', async (req, res) => {
       middleName: middleName || '',
       lastName,
       title: title || '',
+      gender: gender || '',
       name: fullName, // Keep full name for backward compatibility
       email,
       password,
@@ -688,6 +689,7 @@ app.post('/api/users/detailed', async (req, res) => {
         middleName: newUser.middleName,
         lastName: newUser.lastName,
         title: newUser.title,
+        gender: newUser.gender,
         name: newUser.name,
         email: newUser.email,
         role: newUser.role,
