@@ -3543,20 +3543,22 @@ const SubmittedReviewsContent = () => {
 
 
 const FileTemplatesContent = () => {
+  const [viewingFile, setViewingFile] = useState(null);
+
   const templates = [
     {
       id: 1,
-      name: 'Form 10 (B) — Informed Consent Assessment Form',
-      description: 'Informed Consent Assessment Form for evaluating participant consent processes.',
-      filename: 'Form-10-B-INFORMED-CONSENT-ASSESSMENT-FORM-Copy.docx',
+      name: 'Form 10 (A) — Informed Consent Form',
+      description: 'Informed Consent Form for research participants.',
+      filename: 'Form 10 (A) INFORMED CONSENT FORM (3).docx',
       category: 'Compliance',
       color: '#c2410c',
     },
     {
       id: 2,
-      name: 'Form 11 — Expedited/Full Review Checklist',
-      description: 'Findings of the Review Panel checklist for expedited and full review processes.',
-      filename: 'Form-11-EXPEDITEDFULL-REVIEW-CHECKLIST-FINDINGS-OF-THE-REVIEW-PANEL-FORM-Copy-Copy.docx',
+      name: 'Form 8 (A) — Checklist for Investigations',
+      description: 'Checklist for investigations involving human participants.',
+      filename: 'Form 8 (A) CHECKLIST FOR INVESTIGATIONS INVOLVING (3).docx',
       category: 'Review',
       color: '#0891b2',
     },
@@ -3575,6 +3577,13 @@ const FileTemplatesContent = () => {
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
       <polyline points="7 10 12 15 17 10" />
       <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+
+  const ViewIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   );
 
@@ -3607,24 +3616,59 @@ const FileTemplatesContent = () => {
                 <p className="ft-card-desc">{tpl.description}</p>
                 <div className="ft-card-footer">
                   <span className="ft-filename">{tpl.filename}</span>
-                  <a
-                    href={`/${tpl.filename}`}
-                    download={tpl.filename}
-                    className="ft-download-btn"
-                  >
-                    <DownloadIcon />
-                    Download
-                  </a>
+                  <div className="ft-actions" style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      onClick={() => setViewingFile({ filename: tpl.filename, originalname: tpl.name })}
+                      className="ft-view-btn"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        padding: '0.5rem 0.75rem',
+                        background: '#f0fdf4',
+                        border: '1px solid #86efac',
+                        borderRadius: '6px',
+                        color: '#166534',
+                        fontSize: '0.85rem',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <ViewIcon />
+                      View
+                    </button>
+                    <a
+                      href={`/api/templates/${encodeURIComponent(tpl.filename)}`}
+                      download={tpl.filename}
+                      className="ft-download-btn"
+                    >
+                      <DownloadIcon />
+                      Download
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
           );
         })}
       </div>
+
+      {viewingFile && (
+        <FileViewerModal
+          viewingFile={viewingFile}
+          onClose={() => setViewingFile(null)}
+          onDownload={() => {
+            const link = document.createElement('a');
+            link.href = `/api/templates/${encodeURIComponent(viewingFile.filename)}`;
+            link.download = viewingFile.filename;
+            link.click();
+          }}
+        />
+      )}
     </div>
   );
 };
-
 
 // Success Modal Component
 const SuccessModal = ({ isOpen, onClose }) => {
