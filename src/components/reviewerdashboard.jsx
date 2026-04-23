@@ -2222,6 +2222,40 @@ const FileViewer = ({ file, onClose }) => {
 
   // Microsoft Office Documents - Use Microsoft Online Viewer
   if (['word', 'excel', 'powerpoint'].includes(fileType)) {
+    // Check if running locally - Office Viewer can't access localhost
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    if (isLocalhost) {
+      return (
+        <div style={{ padding: '3rem 2rem', textAlign: 'center', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📄</div>
+          <h3 style={{ color: '#1e293b', marginBottom: '0.5rem', fontSize: '1.1rem' }}>Document Preview</h3>
+          <p style={{ color: '#64748b', marginBottom: '1.5rem', maxWidth: '400px', margin: '0 auto 1.5rem' }}>
+            Preview is not available for local files. Microsoft Office Viewer requires a publicly accessible URL.
+          </p>
+          <a href={fileUrl} download={file.originalname || file.filename} style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.75rem 1.5rem',
+            background: '#4a7c59',
+            color: 'white',
+            borderRadius: '6px',
+            textDecoration: 'none',
+            fontWeight: '500',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download {file.originalname || file.filename}
+          </a>
+        </div>
+      );
+    }
+
     // For Office files, we need the public URL
     const isTemplate = file.filename.includes('Form ') || file.filename.includes('.docx');
     const fileApiUrl = isTemplate
