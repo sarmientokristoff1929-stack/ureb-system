@@ -2043,7 +2043,11 @@ const FileViewer = ({ file, onClose }) => {
       setError(null);
 
       try {
-        const downloadUrl = `${import.meta.env.VITE_API_URL}/api/download/${file.filename}`;
+        // Use templates endpoint for template files, download endpoint for uploaded files
+        const isTemplate = file.filename.includes('Form ') || file.filename.includes('.docx');
+        const downloadUrl = isTemplate 
+          ? `${import.meta.env.VITE_API_URL || ''}/api/templates/${encodeURIComponent(file.filename)}`
+          : `${import.meta.env.VITE_API_URL}/api/download/${file.filename}`;
         const response = await fetch(downloadUrl);
         
         if (!response.ok) {
@@ -2219,7 +2223,11 @@ const FileViewer = ({ file, onClose }) => {
   // Microsoft Office Documents - Use Microsoft Online Viewer
   if (['word', 'excel', 'powerpoint'].includes(fileType)) {
     // For Office files, we need the public URL
-    const viewerUrl = getMicrosoftViewerUrl(`${import.meta.env.VITE_API_URL}/api/download/${file.filename}`);
+    const isTemplate = file.filename.includes('Form ') || file.filename.includes('.docx');
+    const fileApiUrl = isTemplate
+      ? `${window.location.origin}/api/templates/${encodeURIComponent(file.filename)}`
+      : `${import.meta.env.VITE_API_URL}/api/download/${file.filename}`;
+    const viewerUrl = getMicrosoftViewerUrl(fileApiUrl);
     
     return (
       <div style={{ height: '70vh', width: '100%' }}>
