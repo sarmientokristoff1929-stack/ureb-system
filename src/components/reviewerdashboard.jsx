@@ -2043,11 +2043,11 @@ const FileViewer = ({ file, onClose }) => {
       setError(null);
 
       try {
-        // Use templates endpoint for template files, download endpoint for uploaded files
-        const isTemplate = file.filename.includes('Form ') || file.filename.includes('.docx');
+        // Use templates endpoint for template files (identified by "Form " prefix), download endpoint for uploaded files
+        const isTemplate = file.filename.includes('Form ');
         const downloadUrl = isTemplate 
-          ? `${import.meta.env.VITE_API_URL || ''}/api/templates/${encodeURIComponent(file.filename)}`
-          : `${import.meta.env.VITE_API_URL}/api/download/${file.filename}`;
+          ? `${import.meta.env.VITE_API_URL}/api/templates/${encodeURIComponent(file.filename)}`
+          : `${import.meta.env.VITE_API_URL}/api/download/${encodeURIComponent(file.filename)}`;
         const response = await fetch(downloadUrl);
         
         if (!response.ok) {
@@ -2308,11 +2308,11 @@ const OfficeDocumentViewer = ({ file, fileUrl }) => {
     setIsLoading(false);
   };
 
-  // Construct the public URL for the file
-  const isTemplate = file.filename.includes('Form ') || file.filename.includes('.docx');
+  // Construct the public URL for the file (for external viewers like Microsoft/Google)
+  const isTemplate = file.filename.includes('Form ');
   const fileApiUrl = isTemplate
-    ? `${window.location.origin}/api/templates/${encodeURIComponent(file.filename)}`
-    : `${import.meta.env.VITE_API_URL}/api/download/${file.filename}`;
+    ? `${import.meta.env.VITE_API_URL}/api/templates/${encodeURIComponent(file.filename)}`
+    : `${import.meta.env.VITE_API_URL}/api/download/${encodeURIComponent(file.filename)}`;
 
   // If Microsoft viewer fails, try Google Docs viewer as fallback
   const viewerUrl = viewerFailed 
