@@ -586,7 +586,9 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
                   <label htmlFor={id}>{label}</label>
                   <input id={id} type="text" value={editedInfo[key]}
                     onChange={e => setEditedInfo(p => ({ ...p, [key]: e.target.value }))}
-                    placeholder={ph} />
+                    placeholder={ph}
+                    autoComplete="off"
+                    data-lpignore="true" />
                 </div>
               ))}
             </div>
@@ -609,8 +611,6 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
                   <option value="LGBTQ">LGBTQ</option>
-                  <option value="Other">Other</option>
-                  <option value="Prefer not to say">Prefer not to say</option>
                 </select>
               </div>
             </div>
@@ -620,7 +620,8 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
                 <label htmlFor="sp-gmail">Gmail Address</label>
                 <input id="sp-gmail" type="email" value={editedInfo.gmail}
                   onChange={e => setEditedInfo(p => ({ ...p, gmail: e.target.value }))}
-                  placeholder="example@gmail.com" />
+                  placeholder="example@gmail.com"
+                  autoComplete="off" />
               </div>
               <div className="sp-field">
                 <label htmlFor="sp-dept">Department</label>

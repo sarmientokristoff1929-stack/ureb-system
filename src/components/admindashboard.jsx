@@ -2378,19 +2378,10 @@ const AddReviewerContent = () => {
                 <option value="Female">Female</option>
 
                 <option value="LGBTQ">LGBTQ</option>
-
-                <option value="Other">Other</option>
-
-                <option value="Prefer not to say">Prefer not to say</option>
-
               </select>
-
             </div>
-
           </div>
-
           <div className="form-group">
-
             <label>Email Address</label>
 
             <input
@@ -5675,19 +5666,10 @@ const ManageUsersContent = () => {
                     <option value="Female">Female</option>
 
                     <option value="LGBTQ">LGBTQ</option>
-
-                    <option value="Other">Other</option>
-
-                    <option value="Prefer not to say">Prefer not to say</option>
-
                   </select>
-
                 </div>
                 </>
               )}
-
-
-
               {editingUser?.userType === 'student' && (
 
                 <div className="form-group">
@@ -5735,19 +5717,9 @@ const ManageUsersContent = () => {
                     <option value="Female">Female</option>
 
                     <option value="LGBTQ">LGBTQ</option>
-
-                    <option value="Other">Other</option>
-
-                    <option value="Prefer not to say">Prefer not to say</option>
-
                   </select>
-
                 </div>
-
               )}
-
-
-
               <div className="form-group">
 
                 <label>Email Address</label>
