@@ -545,6 +545,12 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     const resetUrl = `${baseUrl}?resetToken=${token}`;
 
     // Send email
+    console.log('[forgot-password] Email config check:', {
+      hasGmailEmail: !!process.env.GMAIL_EMAIL,
+      hasGmailAppPassword: !!process.env.GMAIL_APP_PASSWORD,
+      gmailEmail: process.env.GMAIL_EMAIL ? '***HIDDEN***' : 'NOT SET'
+    });
+
     if (process.env.GMAIL_EMAIL && process.env.GMAIL_APP_PASSWORD) {
       const mailOptions = {
         from: `UREB System <${process.env.GMAIL_EMAIL}>`,
@@ -568,9 +574,13 @@ app.post('/api/auth/forgot-password', async (req, res) => {
           </div>
         `,
       };
+      console.log('[forgot-password] Attempting to send email to:', emailNorm);
+      console.log('[forgot-password] Reset URL:', resetUrl);
       transporter.sendMail(mailOptions)
-        .then(() => console.log('[forgot-password] Reset email sent to:', emailNorm))
-        .catch(err => console.error('[forgot-password] Email failed:', err.message));
+        .then(() => console.log('[forgot-password] ✅ Reset email SENT to:', emailNorm))
+        .catch(err => console.error('[forgot-password] ❌ Email FAILED:', err.message, err.stack));
+    } else {
+      console.log('[forgot-password] ⚠️ SKIPPING email send - missing GMAIL_EMAIL or GMAIL_APP_PASSWORD');
     }
 
     res.json({ success: true, message: 'If that email is registered, a reset link has been sent.' });
