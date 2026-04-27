@@ -39,6 +39,11 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [showDisabledModal, setShowDisabledModal] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState(false);
+  const [forgotError, setForgotError] = useState('');
 
   // Registration form states
   const [firstName, setFirstName] = useState('');
@@ -263,6 +268,38 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     setShowRegistrationForm(false);
     setGmailExists(false);
     pendingRegistrationRef.current = null;
+    setShowForgotPassword(false);
+    setForgotEmail('');
+    setForgotLoading(false);
+    setForgotSuccess(false);
+    setForgotError('');
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setForgotError('');
+    if (!forgotEmail.trim()) {
+      setForgotError('Please enter your email address');
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setForgotSuccess(true);
+      } else {
+        setForgotError(result.error || 'Something went wrong. Please try again.');
+      }
+    } catch {
+      setForgotError('Network error. Please try again.');
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
   const handleLoginSubmit = async (e) => {
@@ -688,7 +725,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                     <input type="checkbox" />
                     <span>Remember me</span>
                   </label>
-                  <a href="#" className="login-forgot-password">Forgot password?</a>
+                  <a href="#" className="login-forgot-password" onClick={(e) => { e.preventDefault(); setShowForgotPassword(true); }}>Forgot password?</a>
                 </div>
                 <button type="submit" className="login-btn-primary login-modal-submit">
                   Sign In
@@ -746,6 +783,78 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
             <div className="success-timer">
               <div className="timer-bar"></div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Forgot Password Modal */}
+      {showForgotPassword && (
+        <div className="success-modal-overlay" style={{ zIndex: 2100 }}>
+          <div className="success-modal-container" style={{ maxWidth: '440px' }}>
+            <button
+              className="login-modal-close"
+              onClick={() => { setShowForgotPassword(false); setForgotSuccess(false); setForgotError(''); setForgotEmail(''); }}
+              aria-label="Close modal"
+              style={{ position: 'absolute', top: '1rem', right: '1rem' }}
+            >
+              <XIcon />
+            </button>
+            {forgotSuccess ? (
+              <>
+                <div className="success-icon">
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#388E3C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                </div>
+                <h2 style={{ color: '#388E3C' }}>Check Your Email</h2>
+                <p>If an account exists for <strong>{forgotEmail}</strong>, you will receive a password reset link shortly. The link expires in 15 minutes.</p>
+                <button
+                  className="login-btn-primary login-modal-submit"
+                  style={{ marginTop: '1.25rem' }}
+                  onClick={() => { setShowForgotPassword(false); setForgotSuccess(false); setForgotEmail(''); }}
+                >
+                  Back to Login
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="success-icon">
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#7A9E7E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                </div>
+                <h2 style={{ color: '#2D3436' }}>Forgot Password?</h2>
+                <p style={{ marginBottom: '1.25rem' }}>Enter your email address and we'll send you a link to reset your password.</p>
+                <form onSubmit={handleForgotPassword}>
+                  {forgotError && <div className="login-error-message" style={{ marginBottom: '0.75rem' }}>{forgotError}</div>}
+                  <div className="login-form-group" style={{ marginBottom: '0' }}>
+                    <label htmlFor="forgotEmail">Email Address</label>
+                    <input
+                      type="email"
+                      id="forgotEmail"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder="Enter your registered email"
+                      required
+                      autoFocus
+                    />
+                  </div>
+                  <button type="submit" className="login-btn-primary login-modal-submit" disabled={forgotLoading} style={{ marginTop: '1.25rem' }}>
+                    {forgotLoading ? 'Sending…' : 'Send Reset Link'}
+                  </button>
+                </form>
+                <button
+                  type="button"
+                  className="login-btn-secondary"
+                  style={{ marginTop: '0.75rem', width: '100%' }}
+                  onClick={() => { setShowForgotPassword(false); setForgotError(''); }}
+                >
+                  Back to Login
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
