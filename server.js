@@ -6,7 +6,6 @@ import nodemailer from 'nodemailer';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 // Load environment variables
@@ -79,12 +78,21 @@ export const getDatabase = () => {
 // Initialize database connection and run migrations
 connectToDatabase().then(async (db) => {
   try {
-    // Migration: Add 'title' field to existing reviewers that don't have it
     const reviewers = db.collection('reviewers');
-    const result = await reviewers.updateMany(
+    
+    // Migration: Add 'title' field to existing reviewers that don't have it
+    const titleResult = await reviewers.updateMany(
       { title: { $exists: false } },
       { $set: { title: '' } }
     );
+    console.log('Title migration result:', titleResult.modifiedCount, 'reviewers updated');
+    
+    // Migration: Add 'reviewerType' field to existing reviewers that don't have it
+    const reviewerTypeResult = await reviewers.updateMany(
+      { reviewerType: { $exists: false } },
+      { $set: { reviewerType: '' } }
+    );
+    console.log('ReviewerType migration result:', reviewerTypeResult.modifiedCount, 'reviewers updated');
   } catch (error) {
     console.error('Migration error:', error);
   }
@@ -274,8 +282,7 @@ const collections = {
   reviews: 'reviews',
   messages: 'messages',
   notifications: 'notifications',
-  assignments: 'assignments',
-  password_resets: 'password_resets'
+  assignments: 'assignments'
 };
 
 // API Routes
@@ -497,165 +504,6 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-// Forgot Password — generate token & send reset email
-app.post('/api/auth/forgot-password', async (req, res) => {
-  try {
-    const { email } = req.body;
-    const emailNorm = (email || '').trim().toLowerCase();
-    if (!emailNorm) return res.status(400).json({ success: false, error: 'Email is required' });
-
-    const db = getDatabase();
-    const users = db.collection(collections.users);
-    const students = db.collection(collections.students);
-    const reviewers = db.collection(collections.reviewers);
-    const resets = db.collection(collections.password_resets);
-
-    // Find user across all collections
-    let user = await users.findOne({ email: emailNorm });
-    let userType = 'user';
-    if (!user) {
-      user = await students.findOne({ email: emailNorm });
-      userType = 'student';
-    }
-    if (!user) {
-      user = await students.findOne({ gmail: emailNorm });
-      userType = 'student';
-    }
-    if (!user) {
-      user = await reviewers.findOne({ email: emailNorm });
-      userType = 'reviewer';
-    }
-
-    // Always return success to avoid email-enumeration attacks
-    if (!user) {
-      console.log('[forgot-password] No account found for:', emailNorm);
-      return res.json({ success: true, message: 'If that email is registered, a reset link has been sent.' });
-    }
-
-    // Generate secure token
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-
-    // Remove any existing tokens for this email, then save new one
-    await resets.deleteMany({ email: emailNorm });
-    await resets.insertOne({ email: emailNorm, userType, token, expiresAt, createdAt: new Date() });
-
-    // Build reset URL (frontend SPA reads ?resetToken= from URL)
-    const baseUrl = process.env.FRONTEND_URL || `http://localhost:5173`;
-    const resetUrl = `${baseUrl}?resetToken=${token}`;
-
-    // Send email
-    console.log('[forgot-password] Email config check:', {
-      hasGmailEmail: !!process.env.GMAIL_EMAIL,
-      hasGmailAppPassword: !!process.env.GMAIL_APP_PASSWORD,
-      gmailEmail: process.env.GMAIL_EMAIL ? '***HIDDEN***' : 'NOT SET'
-    });
-
-    if (process.env.GMAIL_EMAIL && process.env.GMAIL_APP_PASSWORD) {
-      const mailOptions = {
-        from: `UREB System <${process.env.GMAIL_EMAIL}>`,
-        to: emailNorm,
-        subject: 'UREB System — Password Reset',
-        html: `
-          <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-            <div style="background:#7A9E7E;color:white;padding:20px;text-align:center;border-radius:8px 8px 0 0;">
-              <h1 style="margin:0;font-size:24px;">Password Reset Request</h1>
-            </div>
-            <div style="background:#f9f9f9;padding:30px;border-radius:0 0 8px 8px;border:1px solid #ddd;border-top:none;">
-              <p style="color:#555;line-height:1.6;">You requested a password reset for your UREB System account.</p>
-              <p style="color:#555;line-height:1.6;">Click the button below to set a new password. This link expires in <strong>15 minutes</strong>.</p>
-              <div style="text-align:center;margin:30px 0;">
-                <a href="${resetUrl}" style="background:#7A9E7E;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;display:inline-block;">Reset Password</a>
-              </div>
-              <p style="color:#999;font-size:13px;line-height:1.5;">If you did not request this, you can safely ignore this email. Your password will remain unchanged.</p>
-              <hr style="border:none;border-top:1px solid #ddd;margin:20px 0;">
-              <p style="color:#999;font-size:12px;margin:0;">Sent via UREB System on ${new Date().toLocaleString()}</p>
-            </div>
-          </div>
-        `,
-      };
-      console.log('[forgot-password] Attempting to send email to:', emailNorm);
-      console.log('[forgot-password] Reset URL:', resetUrl);
-      transporter.sendMail(mailOptions)
-        .then(() => console.log('[forgot-password] ✅ Reset email SENT to:', emailNorm))
-        .catch(err => console.error('[forgot-password] ❌ Email FAILED:', err.message, err.stack));
-    } else {
-      console.log('[forgot-password] ⚠️ SKIPPING email send - missing GMAIL_EMAIL or GMAIL_APP_PASSWORD');
-    }
-
-    res.json({ success: true, message: 'If that email is registered, a reset link has been sent.' });
-  } catch (error) {
-    console.error('Forgot-password error:', error);
-    res.status(500).json({ success: false, error: 'Server error' });
-  }
-});
-
-// Reset Password — verify token & update password
-app.post('/api/auth/reset-password', async (req, res) => {
-  try {
-    const { token, newPassword } = req.body;
-    if (!token || !newPassword) {
-      return res.status(400).json({ success: false, error: 'Token and new password are required' });
-    }
-    if (newPassword.length < 8) {
-      return res.status(400).json({ success: false, error: 'New password must be at least 8 characters' });
-    }
-
-    const db = getDatabase();
-    const resets = db.collection(collections.password_resets);
-
-    // Find valid, non-expired token
-    const resetRecord = await resets.findOne({ token, expiresAt: { $gt: new Date() } });
-    if (!resetRecord) {
-      return res.status(400).json({ success: false, error: 'Reset link is invalid or has expired. Please request a new one.' });
-    }
-
-    const { email, userType } = resetRecord;
-
-    // Update password in the appropriate collection
-    let updateResult;
-    if (userType === 'student') {
-      const students = db.collection(collections.students);
-      updateResult = await students.updateOne(
-        { email },
-        { $set: { password: newPassword, updatedAt: new Date() } }
-      );
-      // Also try gmail field
-      if (updateResult.matchedCount === 0) {
-        updateResult = await students.updateOne(
-          { gmail: email },
-          { $set: { password: newPassword, updatedAt: new Date() } }
-        );
-      }
-    } else if (userType === 'reviewer') {
-      const reviewers = db.collection(collections.reviewers);
-      updateResult = await reviewers.updateOne(
-        { email },
-        { $set: { password: newPassword, updatedAt: new Date() } }
-      );
-    } else {
-      const users = db.collection(collections.users);
-      updateResult = await users.updateOne(
-        { email },
-        { $set: { password: newPassword, updatedAt: new Date() } }
-      );
-    }
-
-    if (!updateResult || updateResult.matchedCount === 0) {
-      return res.status(404).json({ success: false, error: 'Account not found' });
-    }
-
-    // Delete used token
-    await resets.deleteOne({ token });
-
-    console.log('[reset-password] Password updated for:', email);
-    res.json({ success: true, message: 'Password has been reset successfully. You can now log in with your new password.' });
-  } catch (error) {
-    console.error('Reset-password error:', error);
-    res.status(500).json({ success: false, error: 'Server error' });
-  }
-});
-
 // User operations
 app.get('/api/users', async (req, res) => {
   try {
@@ -798,7 +646,7 @@ app.post('/api/users', async (req, res) => {
 app.post('/api/users/detailed', async (req, res) => {
   try {
     console.log('Request body:', req.body);
-    const { firstName, middleName, lastName, title, gender, email, password, role, department } = req.body;
+    const { firstName, middleName, lastName, title, gender, email, password, role, department, reviewerType } = req.body;
     const db = getDatabase();
 
     // Choose collection based on role
@@ -820,7 +668,7 @@ app.post('/api/users/detailed', async (req, res) => {
     let fullName = baseName;
     if (title && prefixMap[title]) {
       fullName = `${prefixMap[title]} ${baseName}`;
-    } else if (title === 'RN' || title === 'LPT' || title === 'MSN' || title === 'RN/LPT' || title === 'RN/MSN') {
+    } else if (title === 'RN' || title === 'LPT' || title === 'MSN' || title === 'RN/LPT' || title === 'RN/MSN' || title === 'MIT') {
       fullName = `${baseName}, ${title}`;
     }
 
@@ -836,6 +684,7 @@ app.post('/api/users/detailed', async (req, res) => {
       password,
       role: role || 'reviewer',
       department: department || 'Not specified',
+      reviewerType: reviewerType || '',
       createdAt: new Date()
     };
 
@@ -854,7 +703,8 @@ app.post('/api/users/detailed', async (req, res) => {
         name: newUser.name,
         email: newUser.email,
         role: newUser.role,
-        department: newUser.department
+        department: newUser.department,
+        reviewerType: newUser.reviewerType
       }
     });
   } catch (error) {
@@ -1046,6 +896,22 @@ app.put('/api/reviewers/:id', async (req, res) => {
     if (!existingReviewer) {
       console.log('Reviewer not found with ID:', id);
       return res.status(404).json({ success: false, error: 'Reviewer not found' });
+    }
+
+    // Check email uniqueness if email is being updated
+    if (updateData.email) {
+      const newEmail = updateData.email.toLowerCase().trim();
+      const currentEmail = (existingReviewer.email || '').toLowerCase().trim();
+      
+      if (newEmail !== currentEmail) {
+        const emailExists = await reviewers.findOne({ 
+          email: newEmail,
+          _id: { $ne: new ObjectId(id) }
+        });
+        if (emailExists) {
+          return res.status(400).json({ success: false, error: 'Email is already in use by another reviewer' });
+        }
+      }
     }
     
     const result = await reviewers.updateOne(

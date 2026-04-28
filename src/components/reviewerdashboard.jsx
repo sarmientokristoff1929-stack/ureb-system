@@ -719,6 +719,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
   const [pwdError, setPwdError] = useState('');
   const [pwdSuccess, setPwdSuccess] = useState('');
   const [pwdLoading, setPwdLoading] = useState(false);
+  const [reviewerType, setReviewerType] = useState('');
 
   // Only sync profileData from userInfo when NOT editing (prevents resetting while user types)
   useEffect(() => {
@@ -726,6 +727,27 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
       setProfileData({ name: userInfo.name, email: userInfo.email || '' });
     }
   }, [userInfo, isEditing]);
+
+  // Fetch reviewer type when component mounts
+  useEffect(() => {
+    const fetchReviewerType = async () => {
+      if (!userInfo?.email) return;
+      try {
+        const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+        const listRes = await fetch(`${API_BASE}/reviewers`);
+        const reviewers = await listRes.json();
+        const reviewer = Array.isArray(reviewers)
+          ? reviewers.find(r => (r.email || '').toLowerCase() === (userInfo?.email || '').toLowerCase())
+          : null;
+        if (reviewer?.reviewerType) {
+          setReviewerType(reviewer.reviewerType);
+        }
+      } catch (err) {
+        console.error('Error fetching reviewer type:', err);
+      }
+    };
+    fetchReviewerType();
+  }, [userInfo?.email]);
 
   // Hero card always shows the saved userInfo name; edit field uses profileData for live input
   const fullName = userInfo?.name || profileData.name || 'Reviewer';
@@ -742,6 +764,15 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
   const handleSave = async () => {
     if (!profileData.name.trim()) {
       setError('Name cannot be empty.');
+      return;
+    }
+    if (!profileData.email.trim()) {
+      setError('Email cannot be empty.');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(profileData.email.trim())) {
+      setError('Please enter a valid email address.');
       return;
     }
     setLoading(true);
@@ -762,17 +793,38 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
         return;
       }
 
-      // Step 2: Use the standard update endpoint that is already correctly deployed on Render
+      const newEmail = profileData.email.trim().toLowerCase();
+      const currentEmail = (userInfo?.email || '').toLowerCase();
+      
+      // Check if email is being changed and if it's already taken by another reviewer
+      if (newEmail !== currentEmail) {
+        const emailExists = reviewers.some(r => 
+          (r.email || '').toLowerCase() === newEmail && 
+          String(r._id) !== String(reviewer._id)
+        );
+        if (emailExists) {
+          setError('This email is already in use by another account.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Step 2: Use the standard update endpoint
       const reviewerId = String(reviewer._id);
+      const updateData = { 
+        name: profileData.name.trim(),
+        email: newEmail
+      };
+      
       const updateRes = await fetch(`${API_BASE}/reviewers/${reviewerId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: profileData.name.trim() }),
+        body: JSON.stringify(updateData),
       });
       const result = await updateRes.json();
 
       if (result.success) {
-        const updatedUser = { ...userInfo, name: profileData.name.trim() };
+        const updatedUser = { ...userInfo, name: profileData.name.trim(), email: newEmail };
         setUserInfo(updatedUser);
         localStorage.setItem('ureb_user', JSON.stringify(updatedUser));
         setIsEditing(false);
@@ -907,6 +959,11 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
             {[
               { label: 'Full Name', value: fullName },
               { label: 'Email', value: userInfo?.email },
+              { label: 'Reviewer Type', value: reviewerType ? 
+                (reviewerType === 'preliminary' ? 'Preliminary Reviewer' : 
+                 reviewerType === 'secondary' ? 'Secondary Reviewer' : 
+                 reviewerType === 'both' ? 'Both (Preliminary & Secondary)' : reviewerType) 
+                : null },
             ].map(({ label, value }) => (
               <div className="sp-info-row" key={label}>
                 <span className="sp-info-label">{label}</span>
@@ -929,14 +986,15 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
                 />
               </div>
               <div className="sp-field">
-                <label>Email Address</label>
+                <label htmlFor="rp-email">Email Address</label>
                 <input
+                  id="rp-email"
                   type="email"
                   value={profileData.email}
-                  disabled
-                  style={{ backgroundColor: '#f5f7f5', cursor: 'not-allowed', color: '#999' }}
+                  onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="Enter your email"
                 />
-                <small style={{ color: '#94a3b8', fontSize: '0.72rem' }}>Email cannot be changed</small>
+                <small style={{ color: '#94a3b8', fontSize: '0.72rem' }}>Email must be unique</small>
               </div>
             </div>
             <div className="sp-form-actions">

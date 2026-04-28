@@ -60,9 +60,9 @@ const formatReviewerName = (reviewer) => {
 
 
 
-  // Suffix titles: RN, LPT, MSN, RN/LPT, RN/MSN
+  // Suffix titles: RN, LPT, MSN, RN/LPT, RN/MSN, MIT
 
-  if (title === 'RN' || title === 'LPT' || title === 'MSN' || title === 'RN/LPT' || title === 'RN/MSN') {
+  if (title === 'RN' || title === 'LPT' || title === 'MSN' || title === 'RN/LPT' || title === 'RN/MSN' || title === 'MIT') {
 
     // Check if name already ends with the title to avoid duplication
 
@@ -2033,23 +2033,7 @@ const AddReviewerContent = () => {
 
     const savedFormData = localStorage.getItem('addReviewerForm');
 
-    if (savedFormData) {
-
-      try {
-
-        return JSON.parse(savedFormData);
-
-      } catch (error) {
-
-        console.error('Error parsing saved form data:', error);
-
-        localStorage.removeItem('addReviewerForm');
-
-      }
-
-    }
-
-    return {
+    const defaultFormData = {
 
       firstName: '',
 
@@ -2070,6 +2054,26 @@ const AddReviewerContent = () => {
       reviewerType: ''
 
     };
+
+    if (savedFormData) {
+
+      try {
+
+        const parsed = JSON.parse(savedFormData);
+
+        return { ...defaultFormData, ...parsed };
+
+      } catch (error) {
+
+        console.error('Error parsing saved form data:', error);
+
+        localStorage.removeItem('addReviewerForm');
+
+      }
+
+    }
+
+    return defaultFormData;
 
   };
 
@@ -2353,6 +2357,8 @@ const AddReviewerContent = () => {
 
                 <option value="RN/MSN">RN/MSN</option>
 
+                <option value="MIT">MIT</option>
+
               </select>
 
             </div>
@@ -2499,6 +2505,8 @@ const AddReviewerContent = () => {
                 <option value="preliminary">Preliminary Reviewer</option>
 
                 <option value="secondary">Secondary Reviewer</option>
+
+                <option value="both">Both (Preliminary & Secondary)</option>
 
               </select>
 
@@ -4274,7 +4282,9 @@ const ManageUsersContent = () => {
 
         role: user.role || '',
 
-        gender: user.gender || ''
+        gender: user.gender || '',
+
+        reviewerType: user.reviewerType || ''
 
       });
 
@@ -5666,6 +5676,20 @@ const ManageUsersContent = () => {
                     <option value="Female">Female</option>
 
                     <option value="LGBTQ">LGBTQ</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Reviewer Type</label>
+                  <select
+                    name="reviewerType"
+                    value={editFormData.reviewerType || ''}
+                    onChange={handleEditInputChange}
+                  >
+                    <option value="">Select Reviewer Type</option>
+                    <option value="preliminary">Preliminary Reviewer</option>
+                    <option value="secondary">Secondary Reviewer</option>
+                    <option value="both">Both (Preliminary & Secondary)</option>
                   </select>
                 </div>
                 </>
