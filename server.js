@@ -599,6 +599,54 @@ app.put('/api/users/update-superadmin', async (req, res) => {
   }
 });
 
+// Admin recovery endpoint - creates a default admin account if none exists
+app.post('/api/recover-admin', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const users = db.collection(collections.users);
+    
+    // Check if any admin already exists
+    const existingAdmin = await users.findOne({ role: { $in: ['admin', 'superadmin'] } });
+    if (existingAdmin) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Admin account already exists. Cannot create duplicate.' 
+      });
+    }
+    
+    // Create default admin account
+    const adminUser = {
+      name: 'System Administrator',
+      email: 'admin@ureb.local',
+      password: 'admin123',
+      role: 'superadmin',
+      department: 'Administration',
+      createdAt: new Date()
+    };
+    
+    const result = await users.insertOne(adminUser);
+    console.log('Admin account recovered:', result.insertedId);
+    
+    res.json({
+      success: true,
+      message: 'Admin account recovered successfully',
+      admin: {
+        _id: result.insertedId,
+        name: adminUser.name,
+        email: adminUser.email,
+        role: adminUser.role
+      },
+      loginCredentials: {
+        email: adminUser.email,
+        password: adminUser.password
+      }
+    });
+  } catch (error) {
+    console.error('Error recovering admin:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 app.post('/api/users', async (req, res) => {
   try {
     console.log('Request body:', req.body);
