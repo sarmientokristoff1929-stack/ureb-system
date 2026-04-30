@@ -177,6 +177,19 @@ export const markNotificationAsRead = async (id) => {
   }
 };
 
+export const deleteNotification = async (id) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/notifications/${id}/delete`, {
+      method: 'POST',
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error deleting notification:', error);
+    return { success: false, error: 'Failed to delete notification' };
+  }
+};
+
 export const markAllNotificationsAsRead = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/notifications/read-all`, {
@@ -520,6 +533,13 @@ export const downloadFile = (filename) => {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+};
+
+// File view - open file in browser for preview
+export const viewFile = (filename) => {
+  if (!filename) return;
+  const viewUrl = `${API_BASE_URL}/view/${encodeURIComponent(filename)}`;
+  window.open(viewUrl, '_blank', 'noopener,noreferrer');
 };
 
 // Get notifications for a specific user

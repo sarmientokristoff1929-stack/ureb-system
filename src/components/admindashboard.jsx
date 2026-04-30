@@ -60,9 +60,9 @@ const formatReviewerName = (reviewer) => {
 
 
 
-  // Suffix titles: RN, LPT, MSN, RN/LPT, RN/MSN, MIT
+  // Suffix titles: RN, LPT, MSN, RN/LPT, RN/MSN, MIT, DBM
 
-  if (title === 'RN' || title === 'LPT' || title === 'MSN' || title === 'RN/LPT' || title === 'RN/MSN' || title === 'MIT') {
+  if (title === 'RN' || title === 'LPT' || title === 'MSN' || title === 'RN/LPT' || title === 'RN/MSN' || title === 'MIT' || title === 'DBM') {
 
     // Check if name already ends with the title to avoid duplication
 
@@ -2359,6 +2359,8 @@ const AddReviewerContent = () => {
 
                 <option value="MIT">MIT</option>
 
+                <option value="DBM">DBM</option>
+
               </select>
 
             </div>
@@ -2479,6 +2481,8 @@ const AddReviewerContent = () => {
                 <option value="ICS">ICS- Indigenous Community Studies</option>
 
                 <option value="Community Representatives">Community Representatives</option>
+
+                <option value="UREB Board">UREB Board - University Research Ethics Board</option>
 
               </select>
 
@@ -5651,6 +5655,10 @@ const ManageUsersContent = () => {
 
                     <option value="RN/MSN">RN/MSN</option>
 
+                <option value="MIT">MIT</option>
+
+                <option value="DBM">DBM</option>
+
                   </select>
 
                 </div>
@@ -5815,6 +5823,8 @@ const ManageUsersContent = () => {
                   <option value="ICS">ICS- Indigenous Community Studies</option>
 
                   <option value="Community Representatives">Community Representatives</option>
+
+                  <option value="UREB Board">UREB Board - University Research Ethics Board</option>
 
                 </select>
 
@@ -6465,6 +6475,8 @@ const NotificationContent = ({ setActiveTab, onRefreshCount }) => {
 
   const [loading, setLoading] = useState(true);
 
+  const [expandedGroups, setExpandedGroups] = useState({}); // Track which reviewer groups are expanded
+
 
 
   useEffect(() => {
@@ -6492,7 +6504,16 @@ const NotificationContent = ({ setActiveTab, onRefreshCount }) => {
 
       const deleted = getDeletedIds();
 
-      setNotifications(data.filter(n => !deleted.includes(n._id)));
+      const filtered = data.filter(n => !deleted.includes(n._id));
+      setNotifications(filtered);
+
+      // Auto-expand all groups by default
+      const groups = groupByReviewer(filtered);
+      const allExpanded = {};
+      Object.keys(groups).forEach(reviewer => {
+        allExpanded[reviewer] = true;
+      });
+      setExpandedGroups(allExpanded);
 
     } catch (error) {
 
@@ -6504,6 +6525,57 @@ const NotificationContent = ({ setActiveTab, onRefreshCount }) => {
 
     }
 
+  };
+
+  // Helper to extract reviewer name from notification
+  const getReviewerFromNotification = (notification) => {
+    // Try different fields where reviewer info might be stored
+    if (notification.reviewerName) return notification.reviewerName;
+    if (notification.senderName) return notification.senderName;
+    if (notification.recipientName) return notification.recipientName;
+    if (notification.reviewerEmail) return notification.reviewerEmail;
+    if (notification.senderEmail) return notification.senderEmail;
+    // Extract from message if possible
+    if (notification.message) {
+      const match = notification.message.match(/^([^\s]+\s+[^\s]+)\s+submitted/);
+      if (match) return match[1];
+    }
+    return 'System';
+  };
+
+  // Group notifications by reviewer
+  const groupByReviewer = (notifs) => {
+    return notifs.reduce((acc, notif) => {
+      const reviewer = getReviewerFromNotification(notif);
+      if (!acc[reviewer]) acc[reviewer] = [];
+      acc[reviewer].push(notif);
+      return acc;
+    }, {});
+  };
+
+  const toggleGroup = (reviewer) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [reviewer]: !prev[reviewer]
+    }));
+  };
+
+  const expandAll = () => {
+    const groups = groupByReviewer(notifications);
+    const allExpanded = {};
+    Object.keys(groups).forEach(reviewer => {
+      allExpanded[reviewer] = true;
+    });
+    setExpandedGroups(allExpanded);
+  };
+
+  const collapseAll = () => {
+    const groups = groupByReviewer(notifications);
+    const allCollapsed = {};
+    Object.keys(groups).forEach(reviewer => {
+      allCollapsed[reviewer] = false;
+    });
+    setExpandedGroups(allCollapsed);
   };
 
 
@@ -6641,6 +6713,9 @@ const NotificationContent = ({ setActiveTab, onRefreshCount }) => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  // Group notifications by reviewer
+  const groupedNotifications = groupByReviewer(notifications);
+  const reviewers = Object.keys(groupedNotifications).sort();
 
 
   return (
@@ -6651,11 +6726,26 @@ const NotificationContent = ({ setActiveTab, onRefreshCount }) => {
 
         <h2>Notifications {unreadCount > 0 && <span className="unread-badge">{unreadCount}</span>}</h2>
 
-        {unreadCount > 0 && (
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
 
-          <button className="btn-primary" onClick={handleMarkAllAsRead}>Mark All as Read</button>
+          {reviewers.length > 0 && (
+            <>
+              <button className="btn-secondary" onClick={expandAll} style={{ fontSize: '0.85rem', padding: '6px 12px' }}>
+                Expand All
+              </button>
+              <button className="btn-secondary" onClick={collapseAll} style={{ fontSize: '0.85rem', padding: '6px 12px' }}>
+                Collapse All
+              </button>
+            </>
+          )}
 
-        )}
+          {unreadCount > 0 && (
+
+            <button className="btn-primary" onClick={handleMarkAllAsRead}>Mark All as Read</button>
+
+          )}
+
+        </div>
 
       </div>
 
@@ -6679,59 +6769,141 @@ const NotificationContent = ({ setActiveTab, onRefreshCount }) => {
 
         ) : (
 
-          notifications.map((notification) => (
+          reviewers.map((reviewer) => {
 
-            <div
+            const reviewerNotifs = groupedNotifications[reviewer];
 
-              key={notification._id}
+            const unreadInGroup = reviewerNotifs.filter(n => !n.read).length;
 
-              className={`notification-item ${!notification.read ? 'unread' : ''}`}
+            const isExpanded = expandedGroups[reviewer] !== false;
 
-              onClick={() => handleNotificationClick(notification)}
+            return (
 
-              style={{ cursor: notification.type === 'review_submitted' ? 'pointer' : (!notification.read ? 'pointer' : 'default') }}
+              <div key={reviewer} style={{ marginBottom: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
 
-            >
+                {/* Reviewer Header - Click to toggle */}
 
-              <div className="notification-icon assigned">
+                <div
 
-                {getNotificationIcon(notification.type)}
+                  onClick={() => toggleGroup(reviewer)}
+
+                  style={{
+
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    backgroundColor: isExpanded ? '#f9fafb' : '#f3f4f6',
+                    cursor: 'pointer',
+                    borderBottom: isExpanded ? '1px solid #e5e7eb' : 'none',
+                    transition: 'background-color 0.2s'
+                  }}
+
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e5e7eb'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isExpanded ? '#f9fafb' : '#f3f4f6'}
+
+                >
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+
+                    <span style={{ fontWeight: 600, color: '#374151' }}>{reviewer}</span>
+
+                    <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>({reviewerNotifs.length})</span>
+
+                    {unreadInGroup > 0 && (
+
+                      <span className="unread-badge" style={{ fontSize: '0.75rem' }}>{unreadInGroup} new</span>
+
+                    )}
+
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+
+                    <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+
+                      {isExpanded ? '▼' : '▶'}
+
+                    </span>
+
+                  </div>
+
+                </div>
+
+                {/* Notifications List for this reviewer */}
+
+                {isExpanded && (
+
+                  <div style={{ backgroundColor: '#fff' }}>
+
+                    {reviewerNotifs.map((notification) => (
+
+                      <div
+
+                        key={notification._id}
+
+                        className={`notification-item ${!notification.read ? 'unread' : ''}`}
+
+                        onClick={() => handleNotificationClick(notification)}
+
+                        style={{
+                          cursor: notification.type === 'review_submitted' ? 'pointer' : (!notification.read ? 'pointer' : 'default'),
+                          borderBottom: '1px solid #f3f4f6',
+                          margin: 0,
+                          borderRadius: 0
+                        }}
+
+                      >
+
+                        <div className="notification-icon assigned">
+
+                          {getNotificationIcon(notification.type)}
+
+                        </div>
+
+                        <div className="notification-info" style={{ flex: 1 }}>
+
+                          <h4>{notification.title}</h4>
+
+                          <p>{notification.message}</p>
+
+                          <span className="activity-time">{formatTimeAgo(notification.createdAt)}</span>
+
+                        </div>
+
+                        {!notification.read && <span className="unread-badge">New</span>}
+
+                        <button
+
+                          className="notif-delete-btn"
+
+                          onClick={(e) => handleDeleteNotification(e, notification._id)}
+
+                          title="Delete notification"
+
+                        >
+
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+
+                            <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+
+                          </svg>
+
+                        </button>
+
+                      </div>
+
+                    ))}
+
+                  </div>
+
+                )}
 
               </div>
 
-              <div className="notification-info">
+            );
 
-                <h4>{notification.title}</h4>
-
-                <p>{notification.message}</p>
-
-                <span className="activity-time">{formatTimeAgo(notification.createdAt)}</span>
-
-              </div>
-
-              {!notification.read && <span className="unread-badge">New</span>}
-
-              <button
-
-                className="notif-delete-btn"
-
-                onClick={(e) => handleDeleteNotification(e, notification._id)}
-
-                title="Delete notification"
-
-              >
-
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-
-                  <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-
-                </svg>
-
-              </button>
-
-            </div>
-
-          ))
+          })
 
         )}
 
@@ -7595,6 +7767,10 @@ const MessagesInboxContent = ({ onMessageRead }) => {
 
   const [deleteAllModalOpen, setDeleteAllModalOpen] = useState(false);
 
+  const [expandedGroups, setExpandedGroups] = useState({}); // Track which sender groups are expanded
+
+  const [searchQuery, setSearchQuery] = useState(''); // Search filter for sender names
+
 
 
 
@@ -7657,7 +7833,16 @@ const MessagesInboxContent = ({ onMessageRead }) => {
 
         // Apply localStorage read overrides so read state persists through refreshes
         const readIds = (() => { try { return JSON.parse(localStorage.getItem('read_messages') || '[]'); } catch { return []; } })();
-        setMessages(sorted.map(m => readIds.includes(String(m._id)) ? { ...m, read: true } : m));
+        const processed = sorted.map(m => readIds.includes(String(m._id)) ? { ...m, read: true } : m);
+        setMessages(processed);
+
+        // Auto-expand all groups by default
+        const groups = groupBySender(processed);
+        const allExpanded = {};
+        Object.keys(groups).forEach(sender => {
+          allExpanded[sender] = true;
+        });
+        setExpandedGroups(allExpanded);
 
 
 
@@ -7704,6 +7889,46 @@ const MessagesInboxContent = ({ onMessageRead }) => {
   }, [userInfo.email]);
 
 
+
+  // Helper to get sender name from message
+  const getSenderFromMessage = (message) => {
+    return message.senderName || message.senderEmail || 'Unknown';
+  };
+
+  // Group messages by sender
+  const groupBySender = (msgs) => {
+    return msgs.reduce((acc, msg) => {
+      const sender = getSenderFromMessage(msg);
+      if (!acc[sender]) acc[sender] = [];
+      acc[sender].push(msg);
+      return acc;
+    }, {});
+  };
+
+  const toggleGroup = (sender) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [sender]: !prev[sender]
+    }));
+  };
+
+  const expandAll = () => {
+    const groups = groupBySender(messages);
+    const allExpanded = {};
+    Object.keys(groups).forEach(sender => {
+      allExpanded[sender] = true;
+    });
+    setExpandedGroups(allExpanded);
+  };
+
+  const collapseAll = () => {
+    const groups = groupBySender(messages);
+    const allCollapsed = {};
+    Object.keys(groups).forEach(sender => {
+      allCollapsed[sender] = false;
+    });
+    setExpandedGroups(allCollapsed);
+  };
 
   const formatInboxDate = (dateStr) => {
 
@@ -7906,7 +8131,84 @@ const MessagesInboxContent = ({ onMessageRead }) => {
 
           </div>
 
+          {/* Search Input */}
+          <div className="inbox-search" style={{ flex: '1', maxWidth: '300px', margin: '0 16px' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                style={{ position: 'absolute', left: '12px', color: '#9ca3af', pointerEvents: 'none' }}
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search reviewer name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px 8px 40px',
+                  borderRadius: '8px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  transition: 'border-color 0.2s, box-shadow 0.2s'
+                }}
+                onFocus={(e) => e.currentTarget.style.borderColor = '#3b82f6'}
+                onBlur={(e) => e.currentTarget.style.borderColor = '#d1d5db'}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  style={{
+                    position: 'absolute',
+                    right: '8px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#9ca3af',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  title="Clear search"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className="inbox-header-actions">
+
+            {messages.length > 0 && (
+              <>
+                <button
+                  className="inbox-mark-all-btn"
+                  onClick={expandAll}
+                  style={{ fontSize: '0.85rem', padding: '6px 12px' }}
+                >
+                  Expand All
+                </button>
+                <button
+                  className="inbox-mark-all-btn"
+                  onClick={collapseAll}
+                  style={{ fontSize: '0.85rem', padding: '6px 12px' }}
+                >
+                  Collapse All
+                </button>
+              </>
+            )}
 
             {unreadCount > 0 && (
 
@@ -7977,107 +8279,144 @@ const MessagesInboxContent = ({ onMessageRead }) => {
 
           ) : (
 
-            messages.map((message, index) => (
+            (() => {
+              // Filter messages based on search query
+              const filteredMessages = searchQuery.trim()
+                ? messages.filter(m => {
+                    const senderName = (m.senderName || m.senderEmail || '').toLowerCase();
+                    const subject = (m.subject || '').toLowerCase();
+                    const query = searchQuery.toLowerCase();
+                    return senderName.includes(query) || subject.includes(query);
+                  })
+                : messages;
 
-              <div
-
-                key={index}
-
-                className={`inbox-row ${!message.read ? 'unread' : ''}`}
-
-                onClick={() => openMessageModal(message)}
-
-              >
-
-                {/* Unread indicator column */}
-
-                <div className="inbox-unread-indicator">
-
-                  {!message.read && <span className="inbox-unread-dot" />}
-
-                </div>
-
-
-
-                {/* Avatar */}
-
-                <div className="inbox-avatar">
-
-                  {(message.senderName || message.senderEmail).charAt(0).toUpperCase()}
-
-                </div>
-
-
-
-                {/* Content */}
-
-                <div className="inbox-row-content">
-
-                  <div className="inbox-row-top">
-
-                    <span className="inbox-sender-name">
-
-                      {message.senderName || message.senderEmail}
-
-                    </span>
-
-                    <div className="inbox-row-actions">
-
-                      {!message.read && (
-                        <button
-                          className="inbox-mark-read-btn"
-                          onClick={(e) => markSingleAsRead(e, message)}
-                          title="Mark as read"
-                        >
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                          Mark as read
-                        </button>
-                      )}
-
-                      <span className="inbox-row-date">
-
-                        {formatInboxDate(message.createdAt || message.sentAt)}
-
-                      </span>
-
-                      <button
-                        className="inbox-trash-btn"
-                        onClick={(e) => openInboxDeleteModal(e, message._id)}
-                        title="Delete message"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                          <path d="M10 11v6M14 11v6" />
-                          <path d="M9 6V4h6v2" />
-                        </svg>
-                      </button>
-
+              // Show empty state if no matches
+              if (filteredMessages.length === 0) {
+                return (
+                  <div className="inbox-empty">
+                    <div className="inbox-empty-icon">
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.3-4.3" />
+                      </svg>
                     </div>
-
+                    <p>No messages found</p>
+                    <span>No results for "{searchQuery}"</span>
                   </div>
+                );
+              }
 
-                  <div className="inbox-row-bottom">
-
-                    <span className="inbox-subject">{message.subject}</span>
-
-                    {message.submissionType === 'resubmission' && (
-
-                      <span className="inbox-badge resubmission">Resubmission</span>
-
+              const grouped = groupBySender(filteredMessages);
+              const senders = Object.keys(grouped).sort();
+              return senders.map((sender) => {
+                const senderMessages = grouped[sender];
+                const unreadInGroup = senderMessages.filter(m => !m.read).length;
+                const isExpanded = expandedGroups[sender] !== false;
+                return (
+                  <div key={sender} style={{ marginBottom: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
+                    {/* Sender Header - Click to toggle */}
+                    <div
+                      onClick={() => toggleGroup(sender)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '12px 16px',
+                        backgroundColor: isExpanded ? '#f9fafb' : '#f3f4f6',
+                        cursor: 'pointer',
+                        borderBottom: isExpanded ? '1px solid #e5e7eb' : 'none',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e5e7eb'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isExpanded ? '#f9fafb' : '#f3f4f6'}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontWeight: 600, color: '#374151' }}>{sender}</span>
+                        <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>({senderMessages.length})</span>
+                        {unreadInGroup > 0 && (
+                          <span style={{ fontSize: '0.75rem', backgroundColor: '#ef4444', color: '#fff', padding: '2px 8px', borderRadius: '9999px' }}>{unreadInGroup} new</span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                          {isExpanded ? '▼' : '▶'}
+                        </span>
+                      </div>
+                    </div>
+                    {/* Messages List for this sender */}
+                    {isExpanded && (
+                      <div style={{ backgroundColor: '#fff' }}>
+                        {senderMessages.map((message) => (
+                          <div
+                            key={message._id}
+                            className={`inbox-row ${!message.read ? 'unread' : ''}`}
+                            onClick={() => openMessageModal(message)}
+                            style={{
+                              borderBottom: '1px solid #f3f4f6',
+                              margin: 0,
+                              borderRadius: 0
+                            }}
+                          >
+                            {/* Unread indicator column */}
+                            <div className="inbox-unread-indicator">
+                              {!message.read && <span className="inbox-unread-dot" />}
+                            </div>
+                            {/* Avatar */}
+                            <div className="inbox-avatar">
+                              {(message.senderName || message.senderEmail).charAt(0).toUpperCase()}
+                            </div>
+                            {/* Content */}
+                            <div className="inbox-row-content">
+                              <div className="inbox-row-top">
+                                <span className="inbox-sender-name">
+                                  {message.senderName || message.senderEmail}
+                                </span>
+                                <div className="inbox-row-actions">
+                                  {!message.read && (
+                                    <button
+                                      className="inbox-mark-read-btn"
+                                      onClick={(e) => markSingleAsRead(e, message)}
+                                      title="Mark as read"
+                                    >
+                                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="20 6 9 17 4 12" />
+                                      </svg>
+                                      Mark as read
+                                    </button>
+                                  )}
+                                  <span className="inbox-row-date">
+                                    {formatInboxDate(message.createdAt || message.sentAt)}
+                                  </span>
+                                  <button
+                                    className="inbox-trash-btn"
+                                    onClick={(e) => openInboxDeleteModal(e, message._id)}
+                                    title="Delete message"
+                                  >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <polyline points="3 6 5 6 21 6" />
+                                      <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                                      <path d="M10 11v6M14 11v6" />
+                                      <path d="M9 6V4h6v2" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="inbox-row-bottom">
+                                <span className="inbox-subject">{message.subject}</span>
+                                {message.submissionType === 'resubmission' && (
+                                  <span className="inbox-badge resubmission">Resubmission</span>
+                                )}
+                                <span className="inbox-preview"> — {message.message}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     )}
-
-                    <span className="inbox-preview"> — {message.message}</span>
-
                   </div>
-
-                </div>
-
-              </div>
-
-            ))
+                );
+              });
+            })()
 
           )}
 
@@ -8407,12 +8746,32 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
                       </div>
 
-                      <button className="msg-file-download" onClick={() => handleDownloadFile(fileKey, fileData)}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
-                        </svg>
-                        Download
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {/* View File Button */}
+                        <button
+                          className="msg-file-download"
+                          onClick={() => {
+                            import('../services/api.js').then(({ viewFile }) => {
+                              viewFile(fileData.filename);
+                            });
+                          }}
+                          title="View file"
+                          style={{ backgroundColor: '#3b82f6', color: '#fff' }}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                          View
+                        </button>
+                        {/* Download File Button */}
+                        <button className="msg-file-download" onClick={() => handleDownloadFile(fileKey, fileData)}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                          </svg>
+                          Download
+                        </button>
+                      </div>
 
                     </div>
 
@@ -8468,17 +8827,37 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
                       </div>
 
-                      <button className="msg-file-download" onClick={() => handleDownloadFile(storedName, { filename: storedName, originalname: displayName })}>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {/* View File Button */}
+                        <button
+                          className="msg-file-download"
+                          onClick={() => {
+                            import('../services/api.js').then(({ viewFile }) => {
+                              viewFile(storedName);
+                            });
+                          }}
+                          title="View file"
+                          style={{ backgroundColor: '#3b82f6', color: '#fff' }}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                          View
+                        </button>
+                        {/* Download File Button */}
+                        <button className="msg-file-download" onClick={() => handleDownloadFile(storedName, { filename: storedName, originalname: displayName })}>
 
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
 
-                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
 
-                        </svg>
+                          </svg>
 
-                        Download
+                          Download
 
-                      </button>
+                        </button>
+                      </div>
 
                     </div>
                   );
@@ -8526,17 +8905,37 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
                     </div>
 
-                    <button className="msg-file-download" onClick={() => handleDownloadFile(fileKey, fileData)}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {/* View File Button */}
+                      <button
+                        className="msg-file-download"
+                        onClick={() => {
+                          import('../services/api.js').then(({ viewFile }) => {
+                            viewFile(fileData.filename);
+                          });
+                        }}
+                        title="View file"
+                        style={{ backgroundColor: '#3b82f6', color: '#fff' }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        View
+                      </button>
+                      {/* Download File Button */}
+                      <button className="msg-file-download" onClick={() => handleDownloadFile(fileKey, fileData)}>
 
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
 
-                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
 
-                      </svg>
+                        </svg>
 
-                      Download
+                        Download
 
-                    </button>
+                      </button>
+                    </div>
 
                   </div>
 

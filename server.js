@@ -1499,7 +1499,7 @@ app.post('/api/student/submit-files', upload.fields([
         assignedFiles: files,
         reviewPeriod: {
           startDate: new Date(),
-          endDate: null
+          endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 2 weeks from now
         },
         status: 'Pending',
         assignedBy: studentName || studentEmail || 'Student',
@@ -1930,10 +1930,50 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
     const { reviewerEmail } = req.params;
     const db = getDatabase();
     const assignments = db.collection(collections.assignments);
+    const notifications = db.collection(collections.notifications);
 
     const assignmentList = await assignments.find({
       reviewerEmail: reviewerEmail
     }).sort({ createdAt: -1 }).toArray();
+
+    // Check for assignments with review deadlines within 3 days and create notifications
+    const today = new Date();
+    for (const assignment of assignmentList) {
+      // Get effective end date (use stored endDate or calculate 2 weeks from start)
+      let endDate;
+      if (assignment.reviewPeriod?.endDate) {
+        endDate = new Date(assignment.reviewPeriod.endDate);
+      } else {
+        const baseDate = new Date(assignment.reviewPeriod?.startDate || assignment.createdAt || Date.now());
+        endDate = new Date(baseDate.getTime() + 14 * 24 * 60 * 60 * 1000);
+      }
+
+      const daysUntilDeadline = Math.ceil((endDate - today) / (1000 * 3600 * 24));
+
+      // Create notification if deadline is within 3 days (but not already passed)
+      if (daysUntilDeadline <= 3 && daysUntilDeadline > 0) {
+        // Check if notification already exists for this assignment
+        const existingNotif = await notifications.findOne({
+          recipientEmail: reviewerEmail,
+          type: 'review_deadline',
+          proposalId: assignment.proposalId?.toString?.() || assignment.proposalId
+        });
+
+        if (!existingNotif) {
+          await notifications.insertOne({
+            recipientEmail: reviewerEmail,
+            title: 'Upcoming Review Deadline',
+            message: `Your review for "${assignment.researchTitle || assignment.protocolCode || 'Untitled'}" is due in ${daysUntilDeadline} day(s). The review period ends on ${endDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. Please ensure your review is completed before the deadline.`,
+            type: 'review_deadline',
+            proposalId: assignment.proposalId?.toString?.() || assignment.proposalId,
+            protocolCode: assignment.protocolCode,
+            deadlineDate: endDate,
+            read: false,
+            createdAt: new Date()
+          });
+        }
+      }
+    }
 
     res.json(assignmentList);
   } catch (error) {

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 import './reviewerdashboard.css';
 
-import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, getReviewerAssignments, downloadReviewerFile, deleteMessage, markMessageAsRead, changeReviewerPassword, getReviewerProfile } from '../services/api';
+import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, getReviewerAssignments, downloadReviewerFile, deleteMessage, markMessageAsRead, changeReviewerPassword, getReviewerProfile, getUserNotifications, markNotificationAsRead, deleteNotification } from '../services/api';
 
 
 
@@ -301,24 +301,19 @@ const ReviewerDashboard = ({ onLogout }) => {
       const user = JSON.parse(savedUser);
       setUserInfo(user);
 
-      // Fetch expiring proposals count for badge
-      import('../services/api').then(({ getReviewerAssignments }) => {
+      // Fetch assignments and notifications for badges
+      import('../services/api').then(({ getReviewerAssignments, getUserNotifications }) => {
         getReviewerAssignments(user.email).then((assignments) => {
           const deletedIds = getDeletedAssignmentIds();
           const readIds = getReadAssignmentIds();
           const activeAssignments = assignments.filter((a) => !deletedIds.includes(String(a._id)) && !readIds.includes(String(a._id)));
           setAssignedCount(activeAssignments.length);
+        }).catch(() => { });
 
-          const today = new Date();
-          let count = 0;
-          assignments.forEach((p) => {
-            const submitted = new Date(p.submissionDate || p.createdAt || Date.now());
-            const deadline = new Date(submitted);
-            deadline.setFullYear(deadline.getFullYear() + 1);
-            const days = Math.ceil((deadline - today) / (1000 * 3600 * 24));
-            if (days <= 3) count++;
-          });
-          setNotifCount(count);
+        // Fetch unread notifications count (including deadline notifications)
+        getUserNotifications(user.email).then((notifications) => {
+          const unreadCount = notifications.filter(n => !n.read).length;
+          setNotifCount(unreadCount);
         }).catch(() => { });
       });
     }
@@ -614,17 +609,28 @@ const ReviewerDashboard = ({ onLogout }) => {
 
 
 
-// ── Reviewer Notifications Content ──
 const ReviewerNotificationsContent = ({ userInfo }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchExpiring = async () => {
+    const fetchNotifications = async () => {
       if (!userInfo?.email) return;
       try {
+        // Fetch DB notifications (including deadline notifications)
+        const dbNotifs = await getUserNotifications(userInfo.email);
+        const notifs = dbNotifs.map(n => ({
+          id: n._id,
+          type: n.type === 'review_deadline' ? 'warning' : (n.type === 'assignment' ? 'info' : 'warning'),
+          title: n.title,
+          message: n.message,
+          time: new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          read: n.read,
+          _raw: n
+        }));
+
+        // Also check for expiring proposals (1-year validity)
         const assignments = await getReviewerAssignments(userInfo.email);
-        const notifs = [];
         const today = new Date();
 
         assignments.forEach((proposal) => {
@@ -634,23 +640,30 @@ const ReviewerNotificationsContent = ({ userInfo }) => {
           const daysRemaining = Math.ceil((deadlineDate - today) / (1000 * 3600 * 24));
 
           if (daysRemaining <= 3 && daysRemaining > 0) {
-            notifs.push({
-              id: `exp-${proposal._id}`,
-              type: 'warning',
-              title: 'Proposal Expiring Soon',
-              message: `"${proposal.researchTitle || 'Untitled'}" is expiring in ${daysRemaining} day(s). The 1-year review period ends on ${deadlineDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`,
-              time: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-              read: false,
-            });
+            // Avoid duplicate if DB notification already covers this
+            const exists = notifs.some(n => n._raw?.proposalId?.toString() === (proposal.proposalId?.toString?.() || proposal.proposalId));
+            if (!exists) {
+              notifs.push({
+                id: `exp-${proposal._id}`,
+                type: 'warning',
+                title: 'Proposal Expiring Soon',
+                message: `"${proposal.researchTitle || 'Untitled'}" is expiring in ${daysRemaining} day(s). The 1-year review period ends on ${deadlineDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`,
+                time: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                read: false,
+              });
+            }
           } else if (daysRemaining <= 0) {
-            notifs.push({
-              id: `exp-${proposal._id}`,
-              type: 'danger',
-              title: 'Proposal Expired',
-              message: `"${proposal.researchTitle || 'Untitled'}" has exceeded the 1-year review validity period (expired ${deadlineDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}).`,
-              time: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-              read: false,
-            });
+            const exists = notifs.some(n => n._raw?.proposalId?.toString() === (proposal.proposalId?.toString?.() || proposal.proposalId));
+            if (!exists) {
+              notifs.push({
+                id: `exp-${proposal._id}`,
+                type: 'danger',
+                title: 'Proposal Expired',
+                message: `"${proposal.researchTitle || 'Untitled'}" has exceeded the 1-year review validity period (expired ${deadlineDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}).`,
+                time: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                read: false,
+              });
+            }
           }
         });
 
@@ -661,12 +674,42 @@ const ReviewerNotificationsContent = ({ userInfo }) => {
         setLoading(false);
       }
     };
-    fetchExpiring();
+    fetchNotifications();
   }, [userInfo]);
 
-  const markAsRead = (id) => {
-    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+  const markAsRead = async (id) => {
+    try {
+      // If it's a DB notification (ObjectId format), mark via API
+      if (typeof id === 'string' && id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id)) {
+        await markNotificationAsRead(id);
+      }
+      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
   };
+
+  const handleDelete = async (id) => {
+    try {
+      // If it's a DB notification (ObjectId format), delete via API
+      if (typeof id === 'string' && id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id)) {
+        await deleteNotification(id);
+      }
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+    } catch (err) {
+      console.error('Error deleting notification:', err);
+    }
+  };
+
+  // Trash/Delete icon component
+  const TrashIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <line x1="10" y1="11" x2="10" y2="17" />
+      <line x1="14" y1="11" x2="14" y2="17" />
+    </svg>
+  );
 
   return (
     <div className="content-section">
@@ -681,12 +724,46 @@ const ReviewerNotificationsContent = ({ userInfo }) => {
             <div
               key={notif.id}
               className={`notification-item ${!notif.read ? 'unread' : ''} ${notif.type}`}
+              style={{ position: 'relative' }}
             >
               <div className="notification-icon">
                 {notif.type === 'warning' && <span>!</span>}
                 {notif.type === 'danger' && <span>✕</span>}
               </div>
-              <div className="notification-content">
+              <div className="notification-content" style={{ position: 'relative', paddingRight: '30px' }}>
+                {/* Delete icon at top right */}
+                <button
+                  onClick={() => handleDelete(notif.id)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#ef4444';
+                    e.currentTarget.style.transform = 'scale(1.15)';
+                    e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = '#999';
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: '0',
+                    right: '0',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#999',
+                    padding: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '50%',
+                    transition: 'all 0.2s ease',
+                    transform: 'scale(1)'
+                  }}
+                  title="Delete notification"
+                >
+                  <TrashIcon />
+                </button>
                 <h4>{notif.title}</h4>
                 <p>{notif.message}</p>
                 <span className="notification-time">{notif.time}</span>
@@ -1825,6 +1902,16 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
     return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
+  const getEffectiveEndDate = (assignment) => {
+    if (assignment.reviewPeriod?.endDate) {
+      return assignment.reviewPeriod.endDate;
+    }
+    // Default: 2 weeks from startDate or createdAt
+    const baseDate = new Date(assignment.reviewPeriod?.startDate || assignment.createdAt || Date.now());
+    const twoWeeksLater = new Date(baseDate.getTime() + 14 * 24 * 60 * 60 * 1000);
+    return twoWeeksLater.toISOString();
+  };
+
   const handleDownload = async (file) => {
     if (!file?.filename) return;
     await downloadReviewerFile(file.filename, file.originalname || file.filename);
@@ -1937,7 +2024,7 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                 <p><strong>Assigned by:</strong> {assignment.assignedBy || 'Admin'}</p>
                 <div className="proposal-meta">
                   <span><strong>Review Start:</strong> {formatDate(assignment.reviewPeriod?.startDate)}</span>
-                  <span><strong>Review End:</strong> {formatDate(assignment.reviewPeriod?.endDate)}</span>
+                  <span><strong>Review End:</strong> {formatDate(getEffectiveEndDate(assignment))}</span>
                   <span><strong>Assigned:</strong> {formatDate(assignment.createdAt)}</span>
                   <span><strong>Files:</strong> {fileEntries.length} document{fileEntries.length !== 1 ? 's' : ''}</span>
                 </div>
