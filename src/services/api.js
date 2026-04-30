@@ -538,8 +538,21 @@ export const downloadFile = (filename) => {
 // File view - open file in browser for preview
 export const viewFile = (filename) => {
   if (!filename) return;
-  const viewUrl = `${API_BASE_URL}/view/${encodeURIComponent(filename)}`;
-  window.open(viewUrl, '_blank', 'noopener,noreferrer');
+
+  const fileExt = filename.split('.').pop().toLowerCase();
+  const isWordFile = ['doc', 'docx'].includes(fileExt);
+  const isExcelFile = ['xls', 'xlsx'].includes(fileExt);
+
+  if (isWordFile || isExcelFile) {
+    // Use Microsoft Office Online Viewer for Office documents
+    const encodedUrl = encodeURIComponent(`${API_BASE_URL}/view/${encodeURIComponent(filename)}`);
+    const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodedUrl}`;
+    window.open(officeViewerUrl, '_blank', 'noopener,noreferrer');
+  } else {
+    // For PDFs, images, and other viewable files, use direct view
+    const viewUrl = `${API_BASE_URL}/view/${encodeURIComponent(filename)}`;
+    window.open(viewUrl, '_blank', 'noopener,noreferrer');
+  }
 };
 
 // Get notifications for a specific user
