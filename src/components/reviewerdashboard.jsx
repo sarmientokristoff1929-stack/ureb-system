@@ -2581,7 +2581,7 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
       copyOfInstrument: null,
       ethicsReviewFee: null,
       form7: null,
-      decision: 'approve',
+      decision: 'approved_no_revision',
       comment: ''
     };
   });
@@ -2698,7 +2698,7 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
         copyOfInstrument: null,
         ethicsReviewFee: null,
         form7: null,
-        decision: 'approve',
+        decision: 'approved_no_revision',
         comment: ''
       });
       setSelectedProposal(null);
@@ -2888,21 +2888,31 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
                 <input
                   type="radio"
                   name="decision"
-                  value="approve"
-                  checked={reviewData.decision === 'approve'}
+                  value="approved_no_revision"
+                  checked={reviewData.decision === 'approved_no_revision'}
                   onChange={(e) => setReviewData(prev => ({ ...prev, decision: e.target.value }))}
                 />
-                <span className="decision-label approve">Approve</span>
+                <span className="decision-label approve">Approved with no Revision</span>
               </label>
               <label className="decision-option">
                 <input
                   type="radio"
                   name="decision"
-                  value="revision"
-                  checked={reviewData.decision === 'revision'}
+                  value="approved_minor_revision"
+                  checked={reviewData.decision === 'approved_minor_revision'}
                   onChange={(e) => setReviewData(prev => ({ ...prev, decision: e.target.value }))}
                 />
-                <span className="decision-label revision">Request Revision</span>
+                <span className="decision-label revision">Approved with minor Revision</span>
+              </label>
+              <label className="decision-option">
+                <input
+                  type="radio"
+                  name="decision"
+                  value="approved_major_revision"
+                  checked={reviewData.decision === 'approved_major_revision'}
+                  onChange={(e) => setReviewData(prev => ({ ...prev, decision: e.target.value }))}
+                />
+                <span className="decision-label revision">Approved with Major revision</span>
               </label>
               <label className="decision-option">
                 <input
@@ -2970,7 +2980,7 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
                 copyOfInstrument: null,
                 ethicsReviewFee: null,
                 form7: null,
-                decision: 'approve',
+                decision: 'approved_no_revision',
                 comment: ''
               });
               setSelectedProposal(null);
@@ -2982,9 +2992,7 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
       </form>
     </div>
   );
-};
-
-
+}
 
 const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
   const [proposals, setProposals] = useState([]);
@@ -3640,34 +3648,40 @@ const SubmittedReviewsContent = () => {
 
   const getDecisionClass = (decision) => {
     switch (decision) {
-      case 'approve': return 'sr-decision--approved';
-      case 'revision': return 'sr-decision--revision';
-      case 'reject': return 'sr-decision--rejected';
-      default: return 'sr-decision--pending';
+      case 'approved_no_revision':
+      case 'approved_minor_revision':
+      case 'approved_major_revision':
+        return 'sr-decision--approved';
+      case 'reject':
+        return 'sr-decision--rejected';
+      default:
+        return 'sr-decision--pending';
     }
   };
 
   const getDecisionLabel = (decision) => {
     switch (decision) {
-      case 'approve': return 'Approved';
-      case 'revision': return 'Revision';
-      case 'reject': return 'Rejected';
-      default: return 'Pending';
+      case 'approved_no_revision':
+        return 'Approved with no Revision';
+      case 'approved_minor_revision':
+        return 'Approved with minor Revision';
+      case 'approved_major_revision':
+        return 'Approved with Major revision';
+      case 'reject':
+        return 'Rejected';
+      default:
+        return 'Pending';
     }
   };
 
   const getDecisionIcon = (decision) => {
     switch (decision) {
-      case 'approve':
+      case 'approved_no_revision':
+      case 'approved_minor_revision':
+      case 'approved_major_revision':
         return (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
-          </svg>
-        );
-      case 'revision':
-        return (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M1 4v6h6" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
           </svg>
         );
       case 'reject':
@@ -3687,7 +3701,11 @@ const SubmittedReviewsContent = () => {
 
   const stats = {
     total: submittedReviews.length,
-    approved: submittedReviews.filter(r => r.decision === 'approve').length,
+    approved: submittedReviews.filter(r =>
+      r.decision === 'approved_no_revision' ||
+      r.decision === 'approved_minor_revision' ||
+      r.decision === 'approved_major_revision'
+    ).length,
     revision: submittedReviews.filter(r => r.decision === 'revision').length,
     rejected: submittedReviews.filter(r => r.decision === 'reject').length
   };

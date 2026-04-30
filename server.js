@@ -1950,8 +1950,8 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
 
       const daysUntilDeadline = Math.ceil((endDate - today) / (1000 * 3600 * 24));
 
-      // Create notification if deadline is within 3 days (but not already passed)
-      if (daysUntilDeadline <= 3 && daysUntilDeadline > 0) {
+      // Create notification if deadline is within 15 days (TESTING: change back to 3 after)
+      if (daysUntilDeadline <= 15 && daysUntilDeadline > 0) {
         // Check if notification already exists for this assignment
         const existingNotif = await notifications.findOne({
           recipientEmail: reviewerEmail,
