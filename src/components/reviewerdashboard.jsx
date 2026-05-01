@@ -283,9 +283,9 @@ const ReviewerDashboard = ({ onLogout }) => {
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     { id: 'assigned-proposals', label: 'Assigned Proposals', icon: <FileCheckIcon />, badge: assignedCount > 0 ? assignedCount : null },
     { id: 'file-templates', label: 'File Templates', icon: <FileTemplatesIcon /> },
-    { id: 'pending-reviews', label: 'Submit Review', icon: <ClockIcon /> },
+    { id: 'pending-reviews', label: 'Submit Review', icon: <ClockIcon />, subtext: '(Preliminary Reviewer)' },
     // Only show Submit Secondary File for Preliminary Reviewers
-    ...(!isSecondaryReviewer ? [{ id: 'submit-secondary-file', label: 'Submit Secondary File', icon: <SubmitSecondaryFileIcon /> }] : []),
+    ...(!isSecondaryReviewer ? [{ id: 'submit-secondary-file', label: 'Submit Secondary File', icon: <SubmitSecondaryFileIcon />, subtext: '(Secondary Reviewer)' }] : []),
     { id: 'submitted-reviews', label: 'Submitted Reviews', icon: <CheckIcon /> },
     { id: 'messages', label: 'Messages', icon: <MessageIcon /> },
     { id: 'notifications', label: 'Notifications', icon: <BellIcon />, badge: notifCount > 0 ? notifCount : null },
@@ -530,7 +530,10 @@ const ReviewerDashboard = ({ onLogout }) => {
             >
 
               {item.icon}
-              <span>{item.label}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <span>{item.label}</span>
+                {item.subtext && <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>{item.subtext}</span>}
+              </div>
               {item.badge && (
                 <span className="nav-badge">{item.badge}</span>
               )}
@@ -3033,6 +3036,7 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
       }
     }
     return {
+      protocolCode: '',
       urebForm10B: null,
       urebForm11: null,
       additionalFiles: []
@@ -3044,6 +3048,7 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
   // Save data to localStorage whenever secondaryFileData changes
   useEffect(() => {
     const dataToSave = {
+      protocolCode: secondaryFileData.protocolCode || '',
       urebForm10BFileName: secondaryFileData.urebForm10B?.name || null,
       urebForm11FileName: secondaryFileData.urebForm11?.name || null,
       additionalFileNames: secondaryFileData.additionalFiles.map(f => f?.name || null)
@@ -3118,7 +3123,8 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
         reviewerEmail: user?.email,
         reviewerName: user?.name || user?.email,
         decision: 'secondary_file', // Special decision type for secondary files
-        comment: 'Secondary files submitted',
+        comment: `Secondary files submitted for Protocol Code: ${secondaryFileData.protocolCode}`,
+        protocolCode: secondaryFileData.protocolCode,
         urebForm10B: secondaryFileData.urebForm10B,
         urebForm11: secondaryFileData.urebForm11,
         additionalFiles: secondaryFileData.additionalFiles.filter(f => f !== null)
@@ -3136,6 +3142,7 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
 
       // Reset form
       setSecondaryFileData({
+        protocolCode: '',
         urebForm10B: null,
         urebForm11: null,
         additionalFiles: []
@@ -3338,6 +3345,21 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
       <h2>Submit Secondary File</h2>
 
       <form onSubmit={handleSubmit} className="review-form">
+        {/* Protocol Code Input */}
+        <div className="form-section">
+          <div className="form-group">
+            <label className="form-label">Protocol Code</label>
+            <input
+              type="text"
+              className="form-input"
+              value={secondaryFileData.protocolCode}
+              onChange={(e) => setSecondaryFileData(prev => ({ ...prev, protocolCode: e.target.value }))}
+              placeholder="Enter Protocol Code (e.g., UREB-2026-001)"
+              required
+            />
+          </div>
+        </div>
+
         {/* Document upload section - Secondary Reviewer Layout */}
         <div className="form-section">
           <div className="documents-grid secondary-reviewer-layout">
@@ -3402,6 +3424,7 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
             className="btn-secondary"
             onClick={() => {
               setSecondaryFileData({
+                protocolCode: '',
                 urebForm10B: null,
                 urebForm11: null,
                 additionalFiles: []

@@ -1654,7 +1654,7 @@ app.post('/api/reviews', upload.fields([
   { name: 'form7', maxCount: 1 }
 ]), async (req, res) => {
   try {
-    const { proposalId, reviewerEmail, reviewerName, decision, comment, overallRating, comments, recommendations } = req.body;
+    const { proposalId, reviewerEmail, reviewerName, decision, comment, overallRating, comments, recommendations, protocolCode: submittedProtocolCode } = req.body;
     const db = getDatabase();
     const reviews = db.collection(collections.reviews);
     const proposals = db.collection(collections.proposals);
@@ -1687,6 +1687,7 @@ app.post('/api/reviews', upload.fields([
       overallRating: overallRating || decision || '',
       comments: comments || comment || '',
       recommendations: recommendations || '',
+      protocolCode: submittedProtocolCode || '',
       files,
       status: 'completed',
       createdAt: new Date(),
@@ -1718,15 +1719,20 @@ app.post('/api/reviews', upload.fields([
 
     // Fetch proposal details for notification
     let proposalTitle = 'Unknown Proposal';
-    let protocolCode = '';
+    let protocolCode = submittedProtocolCode || '';
     try {
       const proposal = await proposals.findOne({ _id: new ObjectId(proposalId) });
       if (proposal) {
         proposalTitle = proposal.researchTitle || 'Untitled Proposal';
-        protocolCode = proposal.protocolCode || '';
+        protocolCode = submittedProtocolCode || proposal.protocolCode || '';
       }
     } catch (e) {
       console.log('Could not fetch proposal for notification:', e.message);
+    }
+    // If still no protocol code, try to extract from comment or use a default
+    if (!protocolCode && comment && comment.includes('Protocol Code:')) {
+      const match = comment.match(/Protocol Code:\s*([^\s]+)/);
+      if (match) protocolCode = match[1];
     }
 
     // Create notification for admin
