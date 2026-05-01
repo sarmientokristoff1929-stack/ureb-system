@@ -1732,8 +1732,8 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
     // Create notification for admin
     const notification = {
       type: 'review_submitted',
-      title: 'New Review Submitted',
-      message: `${reviewerName || reviewerEmail} submitted a review for "${protocolCode ? '(Protocol Code: ' + protocolCode + ')' : proposalTitle}" — Decision: ${decision || overallRating}`,
+      title: `${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle}`,
+      message: `A new review has been submitted for ${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle} by ${reviewerName || reviewerEmail}. The decision is ${decision || overallRating}.`,
       reviewId: result.insertedId.toString(),
       proposalId,
       reviewerEmail,
@@ -1749,8 +1749,8 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
     const messageRecord = {
       senderEmail: reviewerEmail,
       recipientEmail: process.env.GMAIL_EMAIL || 'admin',
-      subject: `Review Submitted: ${protocolCode ? '(Protocol Code: ' + protocolCode + ')' : proposalTitle}`,
-      message: `${reviewerName || reviewerEmail} submitted a review for "${protocolCode ? '(Protocol Code: ' + protocolCode + ')' : proposalTitle}" with decision: ${decision || overallRating}. Files have been uploaded for admin review.`,
+      subject: `${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle}`,
+      message: `${reviewerName || reviewerEmail} submitted a review for "${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle}" with decision: ${decision || overallRating}. Files have been uploaded for admin review.`,
       senderName: reviewerName || reviewerEmail,
       type: 'reviewer_to_admin',
       reviewId: result.insertedId.toString(),
