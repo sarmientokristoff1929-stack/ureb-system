@@ -2024,7 +2024,23 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                 <p><strong>Assigned by:</strong> {assignment.assignedBy || 'Admin'}</p>
                 <div className="proposal-meta">
                   <span><strong>Review Start:</strong> {formatDate(assignment.reviewPeriod?.startDate)}</span>
-                  <span><strong>Review End:</strong> {formatDate(getEffectiveEndDate(assignment))}</span>
+                  <span>
+                    <strong>Review End:</strong> {formatDate(getEffectiveEndDate(assignment))}
+                    <span
+                      style={{
+                        marginLeft: '8px',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.7rem',
+                        fontWeight: '600',
+                        textTransform: 'uppercase',
+                        backgroundColor: assignment.protocolCode ? '#3b82f6' : '#10b981',
+                        color: 'white'
+                      }}
+                    >
+                      {assignment.protocolCode ? 'Admin' : 'Student'}
+                    </span>
+                  </span>
                   <span><strong>Assigned:</strong> {formatDate(assignment.createdAt)}</span>
                   <span><strong>Files:</strong> {fileEntries.length} document{fileEntries.length !== 1 ? 's' : ''}</span>
                 </div>
@@ -3009,7 +3025,8 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
         return {
           ...parsed,
           urebForm10B: null,
-          urebForm11: null
+          urebForm11: null,
+          additionalFiles: []
         };
       } catch (error) {
         console.error('Error parsing saved secondary file data:', error);
@@ -3017,7 +3034,8 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
     }
     return {
       urebForm10B: null,
-      urebForm11: null
+      urebForm11: null,
+      additionalFiles: []
     };
   });
 
@@ -3027,7 +3045,8 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
   useEffect(() => {
     const dataToSave = {
       urebForm10BFileName: secondaryFileData.urebForm10B?.name || null,
-      urebForm11FileName: secondaryFileData.urebForm11?.name || null
+      urebForm11FileName: secondaryFileData.urebForm11?.name || null,
+      additionalFileNames: secondaryFileData.additionalFiles.map(f => f?.name || null)
     };
     localStorage.setItem('secondaryFileDraftData', JSON.stringify(dataToSave));
   }, [secondaryFileData]);
@@ -3061,6 +3080,28 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
     }));
   };
 
+  const handleAdditionalFileChange = (index, file) => {
+    setSecondaryFileData(prev => {
+      const newFiles = [...prev.additionalFiles];
+      newFiles[index] = file;
+      return { ...prev, additionalFiles: newFiles };
+    });
+  };
+
+  const addAdditionalFile = () => {
+    setSecondaryFileData(prev => ({
+      ...prev,
+      additionalFiles: [...prev.additionalFiles, null]
+    }));
+  };
+
+  const removeAdditionalFile = (index) => {
+    setSecondaryFileData(prev => {
+      const newFiles = prev.additionalFiles.filter((_, i) => i !== index);
+      return { ...prev, additionalFiles: newFiles };
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -3079,7 +3120,8 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
         decision: 'secondary_file', // Special decision type for secondary files
         comment: 'Secondary files submitted',
         urebForm10B: secondaryFileData.urebForm10B,
-        urebForm11: secondaryFileData.urebForm11
+        urebForm11: secondaryFileData.urebForm11,
+        additionalFiles: secondaryFileData.additionalFiles.filter(f => f !== null)
       });
 
       if (!result.success) {
@@ -3095,7 +3137,8 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
       // Reset form
       setSecondaryFileData({
         urebForm10B: null,
-        urebForm11: null
+        urebForm11: null,
+        additionalFiles: []
       });
       setSelectedProposal(null);
 
@@ -3133,6 +3176,85 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
       <polyline points="10 9 9 9 8 9"></polyline>
     </svg>
   );
+
+  const AdditionalFileUpload = ({ index, file, onChange, onRemove }) => {
+    const [isDragging, setIsDragging] = useState(false);
+    const inputId = `additional-file-${index}`;
+
+    const handleDragOver = (e) => {
+      e.preventDefault();
+      setIsDragging(true);
+    };
+
+    const handleDragLeave = (e) => {
+      e.preventDefault();
+      setIsDragging(false);
+    };
+
+    const handleDrop = (e) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        onChange(index, files[0]);
+      }
+    };
+
+    return (
+      <div className="form-group" style={{ marginBottom: 0, position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+          <label className="form-label" style={{ marginBottom: 0 }}>Additional File #{index + 1}</label>
+          <button
+            type="button"
+            onClick={() => onRemove(index)}
+            className="btn-secondary"
+            style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+            title="Remove file"
+          >
+            Remove
+          </button>
+        </div>
+        <div
+          className={`file-upload ${isDragging ? 'dragging' : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <input
+            type="file"
+            id={inputId}
+            accept=".pdf,.doc,.docx"
+            onChange={(e) => onChange(index, e.target.files[0])}
+            className="file-input"
+            style={{ display: 'none' }}
+          />
+          <label htmlFor={inputId} className="file-upload-label">
+            <div className="file-upload-icon">
+              <FileUploadIcon />
+            </div>
+            <div className="file-upload-text">
+              <p>Attach file or drag and drop here</p>
+              <span>PDF, DOC, DOCX (MAX. 10MB)</span>
+            </div>
+          </label>
+          {file && (
+            <div className="attached-file">
+              <span>
+                <FileIcon /> {file.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => onChange(index, null)}
+                className="remove-file"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const FileUploadComponent = ({ label, field, accept = ".pdf,.doc,.docx" }) => {
     const [isDragging, setIsDragging] = useState(false);
@@ -3211,7 +3333,6 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
     );
   }
 
-
   return (
     <div className="content-section">
       <h2>Submit Secondary File</h2>
@@ -3228,6 +3349,33 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
               label="UREB Form 11"
               field="urebForm11"
             />
+          </div>
+
+          {/* Additional Files Section */}
+          <div className="additional-files-section" style={{ marginTop: '24px' }}>
+            <div className="documents-grid secondary-reviewer-layout">
+              {secondaryFileData.additionalFiles.map((file, index) => (
+                <AdditionalFileUpload
+                  key={index}
+                  index={index}
+                  file={file}
+                  onChange={handleAdditionalFileChange}
+                  onRemove={removeAdditionalFile}
+                />
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={addAdditionalFile}
+              className="btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '20px', padding: '10px 16px' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Add Another File
+            </button>
           </div>
         </div>
 
@@ -3255,7 +3403,8 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
             onClick={() => {
               setSecondaryFileData({
                 urebForm10B: null,
-                urebForm11: null
+                urebForm11: null,
+                additionalFiles: []
               });
               setSelectedProposal(null);
             }}
@@ -3267,8 +3416,6 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
     </div>
   );
 };
-
-
 
 const TrashIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
