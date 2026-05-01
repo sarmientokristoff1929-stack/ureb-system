@@ -3151,7 +3151,7 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
 
     } catch (error) {
       console.error('Error submitting secondary files:', error);
-      alert('Error submitting secondary files. Please try again.');
+      alert('Error: ' + (error.message || 'Failed to submit secondary files. Please try again.'));
     } finally {
       setIsSubmitting(false);
     }

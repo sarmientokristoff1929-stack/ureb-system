@@ -1640,20 +1640,11 @@ app.get('/api/reviews/:id', async (req, res) => {
 });
 
 // Submit a review with file uploads
-app.post('/api/reviews', upload.fields([
-  { name: 'proposal', maxCount: 1 },
-  { name: 'approvalSheet', maxCount: 1 },
-  { name: 'urebForm2', maxCount: 1 },
-  { name: 'urebForm10B', maxCount: 1 },
-  { name: 'urebForm11', maxCount: 1 },
-  { name: 'applicationForm6', maxCount: 1 },
-  { name: 'accomplishedForm8', maxCount: 1 },
-  { name: 'accomplishForm10A', maxCount: 1 },
-  { name: 'copyOfInstrument', maxCount: 1 },
-  { name: 'ethicsReviewFee', maxCount: 1 },
-  { name: 'form7', maxCount: 1 }
-]), async (req, res) => {
+app.post('/api/reviews', upload.any(), async (req, res) => {
   try {
+    console.log('Received review submission:', req.body);
+    console.log('Files received:', req.files?.map(f => ({ fieldname: f.fieldname, originalname: f.originalname, size: f.size })));
+    
     const { proposalId, reviewerEmail, reviewerName, decision, comment, overallRating, comments, recommendations, protocolCode: submittedProtocolCode } = req.body;
     const db = getDatabase();
     const reviews = db.collection(collections.reviews);
@@ -1662,17 +1653,20 @@ app.post('/api/reviews', upload.fields([
 
     // Process uploaded files → GridFS
     const files = {};
-    if (req.files) {
-      for (const fieldname of Object.keys(req.files)) {
-        const fileArray = req.files[fieldname];
-        if (fileArray && fileArray.length > 0) {
-          const gfsFilename = await uploadToGridFS(fileArray[0]);
-          files[fieldname] = {
-            filename: gfsFilename,
-            originalname: fileArray[0].originalname,
-            size: fileArray[0].size,
-            mimetype: fileArray[0].mimetype
-          };
+    if (req.files && Array.isArray(req.files)) {
+      for (const file of req.files) {
+        if (file) {
+          try {
+            const gfsFilename = await uploadToGridFS(file);
+            files[file.fieldname] = {
+              filename: gfsFilename,
+              originalname: file.originalname,
+              size: file.size,
+              mimetype: file.mimetype
+            };
+          } catch (fileError) {
+            console.error('Error uploading file to GridFS:', fileError);
+          }
         }
       }
     }
@@ -1776,6 +1770,7 @@ app.post('/api/reviews', upload.fields([
     });
   } catch (error) {
     console.error('Error submitting review:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ success: false, error: 'Server error: ' + error.message });
   }
 });
@@ -2795,6 +2790,22 @@ app.post('/api/send-message-to-student', upload.any(), (req, res) => {
         .then(() => console.log('Email sent to:', studentEmail))
         .catch(err => console.error('Email failed:', err.message));
     }
+});
+
+// Multer error handling middleware
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    console.error('Multer error:', err);
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ success: false, error: 'File too large. Max size is 10MB.' });
+    }
+    return res.status(400).json({ success: false, error: 'File upload error: ' + err.message });
+  }
+  if (err) {
+    console.error('Server error:', err);
+    return res.status(500).json({ success: false, error: 'Server error: ' + err.message });
+  }
+  next();
 });
 
 // Start server

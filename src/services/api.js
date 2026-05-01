@@ -100,18 +100,31 @@ export const submitReview = async (reviewData) => {
     formData.append('reviewerName', reviewData.reviewerName || '');
     formData.append('decision', reviewData.decision || '');
     formData.append('comment', reviewData.comment || '');
+    formData.append('protocolCode', reviewData.protocolCode || '');
 
     // Append file fields if they exist
     const fileFields = [
       'proposal', 'approvalSheet', 'urebForm2', 'urebForm10B', 'urebForm11',
-      'applicationForm6', 'accomplishedForm8', 'accomplishForm10A', 
+      'applicationForm6', 'accomplishedForm8', 'accomplishForm10A',
       'copyOfInstrument', 'ethicsReviewFee', 'form7'
     ];
     fileFields.forEach(field => {
       if (reviewData[field] instanceof File) {
+        console.log(`Appending ${field}:`, reviewData[field].name, reviewData[field].size);
         formData.append(field, reviewData[field]);
       }
     });
+
+    // Append additional files if they exist
+    if (reviewData.additionalFiles && Array.isArray(reviewData.additionalFiles)) {
+      console.log('Additional files count:', reviewData.additionalFiles.length);
+      reviewData.additionalFiles.forEach((file, index) => {
+        console.log(`Additional file ${index}:`, file instanceof File, file?.name, file?.size);
+        if (file instanceof File) {
+          formData.append(`additionalFile${index}`, file);
+        }
+      });
+    }
 
     const response = await fetch(`${API_BASE_URL}/reviews`, {
       method: 'POST',
