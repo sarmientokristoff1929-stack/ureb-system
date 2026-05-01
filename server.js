@@ -1739,7 +1739,7 @@ app.post('/api/reviews', upload.fields([
     const notification = {
       type: 'review_submitted',
       title: 'New Review Submitted',
-      message: `${reviewerName || reviewerEmail} submitted a review for "${protocolCode ? protocolCode + ': ' : ''}${proposalTitle}" — Decision: ${decision || overallRating}`,
+      message: `${reviewerName || reviewerEmail} submitted a review for "${protocolCode ? '(Protocol Code: ' + protocolCode + ')' : proposalTitle}" — Decision: ${decision || overallRating}`,
       reviewId: result.insertedId.toString(),
       proposalId,
       reviewerEmail,
@@ -1755,8 +1755,8 @@ app.post('/api/reviews', upload.fields([
     const messageRecord = {
       senderEmail: reviewerEmail,
       recipientEmail: process.env.GMAIL_EMAIL || 'admin',
-      subject: `Review Submitted: ${protocolCode ? protocolCode + ': ' : ''}${proposalTitle}`,
-      message: `${reviewerName || reviewerEmail} submitted a review for "${protocolCode ? protocolCode + ': ' : ''}${proposalTitle}" with decision: ${decision || overallRating}. Files have been uploaded for admin review.`,
+      subject: `Review Submitted: ${protocolCode ? '(Protocol Code: ' + protocolCode + ')' : proposalTitle}`,
+      message: `${reviewerName || reviewerEmail} submitted a review for "${protocolCode ? '(Protocol Code: ' + protocolCode + ')' : proposalTitle}" with decision: ${decision || overallRating}. Files have been uploaded for admin review.`,
       senderName: reviewerName || reviewerEmail,
       type: 'reviewer_to_admin',
       reviewId: result.insertedId.toString(),
