@@ -2620,6 +2620,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         reviewerEmail: reviewer.email,
         reviewerName: resolvedName,
         protocolCode: protocolCode,
+        researchTitle: `Assigned Files - ${protocolCode}`,
         assignedFiles: uploadedFiles,
         reviewPeriod: {
           startDate: new Date(startDate),

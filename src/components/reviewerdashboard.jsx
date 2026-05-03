@@ -1991,7 +1991,7 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
             <div className={`proposal-card ${!isRead ? 'unread' : ''}`} key={String(assignment._id)}>
               <div className="proposal-header">
                 <div className="proposal-header-left" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <h3>{assignment.protocolCode || 'No Protocol Code'}</h3>
+                  <h3><span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#000000', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Proposal Title:</span> <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#6b7280' }}>{assignment.researchTitle || 'No Title'}</span></h3>
                   <span style={{
                     padding: '0.2rem 0.6rem',
                     borderRadius: '12px',
@@ -2024,26 +2024,31 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
               </div>
 
               <div className="proposal-content">
-                <p><strong>Assigned by:</strong> {assignment.assignedBy || 'Admin'}</p>
+                <p>
+                  <strong>Assigned by:</strong> {assignment.assignedBy || 'Admin'}
+                  <span
+                    style={{
+                      marginLeft: '8px',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontSize: '0.7rem',
+                      fontWeight: '600',
+                      textTransform: 'uppercase',
+                      backgroundColor: assignment.protocolCode ? '#3b82f6' : '#10b981',
+                      color: 'white'
+                    }}
+                  >
+                    {assignment.protocolCode ? 'Admin' : 'Student'}
+                  </span>
+                </p>
+                {assignment.protocolCode && (
+                  <p style={{ fontStyle: 'italic', color: '#4b5563', marginBottom: '0.5rem' }}>
+                    <strong>Protocol Code:</strong> {assignment.protocolCode}
+                  </p>
+                )}
                 <div className="proposal-meta">
                   <span><strong>Review Start:</strong> {formatDate(assignment.reviewPeriod?.startDate)}</span>
-                  <span>
-                    <strong>Review End:</strong> {formatDate(getEffectiveEndDate(assignment))}
-                    <span
-                      style={{
-                        marginLeft: '8px',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        fontSize: '0.7rem',
-                        fontWeight: '600',
-                        textTransform: 'uppercase',
-                        backgroundColor: assignment.protocolCode ? '#3b82f6' : '#10b981',
-                        color: 'white'
-                      }}
-                    >
-                      {assignment.protocolCode ? 'Admin' : 'Student'}
-                    </span>
-                  </span>
+                  <span><strong>Review End:</strong> {formatDate(getEffectiveEndDate(assignment))}</span>
                   <span><strong>Assigned:</strong> {formatDate(assignment.createdAt)}</span>
                   <span><strong>Files:</strong> {fileEntries.length} document{fileEntries.length !== 1 ? 's' : ''}</span>
                 </div>
@@ -2549,6 +2554,7 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
   const [proposals, setProposals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProposal, setSelectedProposal] = useState(null);
+  const [reviewerName, setReviewerName] = useState('');
 
   // List of Secondary Reviewers
   const secondaryReviewers = [
@@ -2636,6 +2642,7 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
       // Check if current user is a Secondary Reviewer by name
       const userIsSecondary = secondaryReviewers.includes(user.name);
       setIsSecondaryReviewer(userIsSecondary);
+      setReviewerName(user.name || user.email);
 
       console.log('User:', user.name, 'isSecondaryReviewer:', userIsSecondary);
 
@@ -2647,11 +2654,16 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
     if (!userEmail) return;
     setLoading(true);
     try {
-      const data = await getProposalsByReviewer(userEmail);
-      const assignedProposals = data.filter(p => p.status === 'In Progress' || p.status === 'Assigned');
-      setProposals(assignedProposals);
+      const assignments = await getReviewerAssignments(userEmail);
+      const mappedProposals = assignments.map(a => ({
+        _id: a.proposalId || a._id,
+        researchTitle: a.researchTitle || 'Untitled Proposal',
+        protocolCode: a.protocolCode || '',
+        proponent: a.proponent || a.studentName || 'Unknown'
+      }));
+      setProposals(mappedProposals);
     } catch (error) {
-      console.error('Error fetching proposals:', error);
+      console.error('Error fetching assignments:', error);
     } finally {
       setLoading(false);
     }
@@ -2840,6 +2852,40 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
       <h2>Submit Review</h2>
 
       <form onSubmit={handleSubmit} className="review-form">
+        {/* Proposal Selection Dropdown */}
+        <div className="form-section" style={{ overflow: 'hidden' }}>
+          <label className="form-label" style={{ fontWeight: '600', color: '#000', marginBottom: '0.5rem', display: 'block' }}>
+            Select Assigned Proposal
+            {reviewerName && proposals.length > 0 && (
+              <span style={{ fontWeight: '500', color: '#6b7280', fontSize: '0.85rem', marginLeft: '0.5rem' }}>
+                - {reviewerName} ({proposals.length} proposal{proposals.length !== 1 ? 's' : ''} assigned)
+              </span>
+            )}
+          </label>
+          <select
+            className="form-input"
+            style={{ width: '100%', maxWidth: '100%', padding: '0.75rem', fontSize: '0.95rem', boxSizing: 'border-box', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: '#fff', display: 'block' }}
+            value={selectedProposal?._id || ''}
+            onChange={(e) => {
+              const selected = proposals.find(p => p._id === e.target.value);
+              setSelectedProposal(selected || null);
+            }}
+            required
+          >
+            <option value="">-- Choose a proposal --</option>
+            {proposals.map((proposal) => (
+              <option key={proposal._id} value={proposal._id}>
+                {proposal.researchTitle || proposal.protocolCode || 'Untitled Proposal'} {proposal.protocolCode ? `(Code: ${proposal.protocolCode})` : ''}
+              </option>
+            ))}
+          </select>
+          {proposals.length === 0 && (
+            <p style={{ color: '#dc2626', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+              No assigned proposals found. Please check your assignments.
+            </p>
+          )}
+        </div>
+
         {/* Document upload section - conditional based on reviewer type */}
         <div className="form-section">
           {isSecondaryReviewer ? (
@@ -3068,11 +3114,16 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
     if (!userEmail) return;
     setLoading(true);
     try {
-      const data = await getProposalsByReviewer(userEmail);
-      const assignedProposals = data.filter(p => p.status === 'In Progress' || p.status === 'Assigned');
-      setProposals(assignedProposals);
+      const assignments = await getReviewerAssignments(userEmail);
+      const mappedProposals = assignments.map(a => ({
+        _id: a.proposalId || a._id,
+        researchTitle: a.researchTitle || 'Untitled Proposal',
+        protocolCode: a.protocolCode || '',
+        proponent: a.proponent || a.studentName || 'Unknown'
+      }));
+      setProposals(mappedProposals);
     } catch (error) {
-      console.error('Error fetching proposals:', error);
+      console.error('Error fetching assignments:', error);
     } finally {
       setLoading(false);
     }
