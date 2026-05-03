@@ -2075,16 +2075,33 @@ const MessagesContent = ({ userInfo, onMessageRead }) => {
                           <FileIcon />
                           <span className="sm-file-name">{file.filename}</span>
                           <span className="sm-file-size">({(file.size / 1024).toFixed(1)} KB)</span>
-                          {downloadUrl && (
-                            <a
-                              href={downloadUrl}
-                              download={file.filename}
-                              className="sm-download-btn"
-                              title="Download file"
-                            >
-                              <DownloadIcon />
-                              Download
-                            </a>
+                          {storedName && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  import('../services/api.js').then(({ viewFile }) => {
+                                    viewFile(storedName);
+                                  });
+                                }}
+                                title="View file"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600, padding: '0.3rem 0.7rem', borderRadius: '6px', marginLeft: 'auto' }}
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                  <circle cx="12" cy="12" r="3" />
+                                </svg>
+                                View
+                              </button>
+                              <a
+                                href={downloadUrl}
+                                download={file.filename}
+                                title="Download file"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#7A9E7E', color: '#fff', fontSize: '0.78rem', fontWeight: 600, padding: '0.3rem 0.7rem', borderRadius: '6px', textDecoration: 'none' }}
+                              >
+                                <DownloadIcon />
+                                Download
+                              </a>
+                            </>
                           )}
                         </div>
                       );
