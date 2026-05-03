@@ -2746,10 +2746,9 @@ app.post('/api/send-message-to-student', upload.any(), (req, res) => {
       let emailContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: #7A9E7E; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h1 style="margin: 0; font-size: 24px;">UREB System Message</h1>
+            <h1 style="margin: 0; font-size: 24px;">admin</h1>
           </div>
           <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; border: 1px solid #ddd; border-top: none;">
-            <h2 style="color: #333; margin-bottom: 20px;">Message from UREB Administrator</h2>
             <div style="background: white; padding: 20px; border-radius: 6px; border-left: 4px solid #7A9E7E; margin-bottom: 20px;">
               <p style="margin: 0; line-height: 1.6; color: #555;">${message}</p>
             </div>
@@ -2778,9 +2777,9 @@ app.post('/api/send-message-to-student', upload.any(), (req, res) => {
       `;
 
       transporter.sendMail({
-        from: `UREB System <${process.env.GMAIL_EMAIL}>`,
+        from: `admin <${process.env.GMAIL_EMAIL}>`,
         to: studentEmail,
-        subject: `Message from UREB Administrator${files.length > 0 ? ` (${files.length} files attached)` : ''}`,
+        subject: `admin`,
         html: emailContent,
         attachments: files.map(file => ({
           filename: file.originalname,
@@ -2828,10 +2827,9 @@ app.post('/api/send-message-to-reviewer', express.json(), (req, res) => {
     const emailContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: #7A9E7E; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-          <h1 style="margin: 0; font-size: 24px;">UREB System Message</h1>
+          <h1 style="margin: 0; font-size: 24px;">admin</h1>
         </div>
         <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; border: 1px solid #ddd; border-top: none;">
-          <h2 style="color: #333; margin-bottom: 20px;">Message from UREB Administrator</h2>
           <div style="background: white; padding: 20px; border-radius: 6px; border-left: 4px solid #7A9E7E; margin-bottom: 20px;">
             <p style="margin: 0; line-height: 1.6; color: #555;">${message}</p>
           </div>
@@ -2845,9 +2843,9 @@ app.post('/api/send-message-to-reviewer', express.json(), (req, res) => {
     `;
 
     transporter.sendMail({
-      from: `UREB System <${process.env.GMAIL_EMAIL}>`,
+      from: `admin <${process.env.GMAIL_EMAIL}>`,
       to: reviewerEmail,
-      subject: `Message from UREB Administrator`,
+      subject: `admin`,
       html: emailContent,
     })
       .then(() => console.log('Email sent to reviewer:', reviewerEmail))
