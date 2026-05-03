@@ -96,6 +96,7 @@
 .grm-stat--blue  { border-color: #bfdbfe; background: #eff6ff; }
 .grm-stat--purple{ border-color: #ddd6fe; background: #f5f3ff; }
 .grm-stat--green { border-color: #bbf7d0; background: #f0fdf4; }
+.grm-stat--orange { border-color: #fed7aa; background: #fff7ed; }
 
 .grm-stat-val {
   font-size: 1.35rem;
@@ -107,6 +108,7 @@
 .grm-stat--blue   .grm-stat-val { color: #2563eb; }
 .grm-stat--purple .grm-stat-val { color: #7c3aed; }
 .grm-stat--green  .grm-stat-val { color: #16a34a; }
+.grm-stat--orange .grm-stat-val { color: #ea580c; }
 
 .grm-stat-lbl {
   font-size: 0.68rem;

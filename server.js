@@ -2793,6 +2793,68 @@ app.post('/api/send-message-to-student', upload.any(), (req, res) => {
     }
 });
 
+// Send message to reviewer endpoint
+app.post('/api/send-message-to-reviewer', express.json(), (req, res) => {
+  const { reviewerEmail, recipientName: clientRecipientName, message } = req.body;
+
+  // Validate required fields
+  if (!reviewerEmail || !message) {
+    return res.status(400).json({
+      success: false,
+      error: 'Reviewer email and message are required'
+    });
+  }
+
+  const recipientName = clientRecipientName || reviewerEmail;
+
+  // Respond immediately
+  res.json({ success: true, message: 'Message sent successfully', recipientName });
+
+  // Save message to DB in background
+  const db = getDatabase();
+  const messages = db.collection(collections.messages);
+  messages.insertOne({
+    senderEmail: process.env.GMAIL_EMAIL || 'admin',
+    recipientEmail: reviewerEmail,
+    recipientName,
+    message,
+    sentAt: new Date(),
+    type: 'admin_to_reviewer',
+    status: 'sent'
+  }).catch(err => console.error('Failed to save message to DB:', err.message));
+
+  // Send email in background
+  if (process.env.GMAIL_EMAIL && process.env.GMAIL_APP_PASSWORD) {
+    const emailContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: #7A9E7E; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">UREB System Message</h1>
+        </div>
+        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; border: 1px solid #ddd; border-top: none;">
+          <h2 style="color: #333; margin-bottom: 20px;">Message from UREB Administrator</h2>
+          <div style="background: white; padding: 20px; border-radius: 6px; border-left: 4px solid #7A9E7E; margin-bottom: 20px;">
+            <p style="margin: 0; line-height: 1.6; color: #555;">${message}</p>
+          </div>
+          <div style="border-top: 1px solid #ddd; padding-top: 20px; margin-top: 20px;">
+            <p style="margin: 0; font-size: 12px; color: #999;">
+              Sent via UREB System on ${new Date().toLocaleString()}
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    transporter.sendMail({
+      from: `UREB System <${process.env.GMAIL_EMAIL}>`,
+      to: reviewerEmail,
+      subject: `Message from UREB Administrator`,
+      html: emailContent,
+    })
+      .then(() => console.log('Email sent to reviewer:', reviewerEmail))
+      .catch(err => console.error('Email failed:', err.message));
+  }
+});
+
 // Multer error handling middleware
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {

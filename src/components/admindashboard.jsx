@@ -860,6 +860,10 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
+    { id: 'message-reviewer', label: 'Message Reviewer', icon: <MessageIcon /> },
+
+
+
     { id: 'add-reviewer', label: 'Add Reviewer', icon: <UserPlusIcon /> },
 
 
@@ -872,11 +876,11 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
-    { id: 'notification', label: 'Notification (File)', icon: <NotificationIcon />, badge: notifCount > 0 ? notifCount : null },
-
-
-
     { id: 'messages-inbox', label: 'Messages Inbox', icon: <MessageIcon />, badge: messageCount > 0 ? messageCount : null },
+
+
+
+    { id: 'notification', label: 'Notification (File)', icon: <NotificationIcon />, badge: notifCount > 0 ? notifCount : null },
 
 
 
@@ -965,6 +969,26 @@ const AdminDashboard = ({ onLogout }) => {
         return <MessageResearcherContent />;
 
 
+
+      case 'message-reviewer':
+
+
+
+        return <MessageReviewerContent />;
+
+
+
+      case 'add-reviewer':
+
+
+
+        return <AddReviewerContent />;
+
+
+
+      case 'mark-completed-review':
+
+        return <MarkCompletedReviewContent />;
 
       case 'manage-users':
 
@@ -4074,6 +4098,387 @@ const MessageResearcherContent = () => {
         </form>
 
       </div>
+
+      {/* Message Sent Success Modal */}
+
+      {isMessageSuccessModalOpen && (
+
+        <div className="success-modal-overlay" onClick={() => setIsMessageSuccessModalOpen(false)}>
+
+          <div className="success-modal-container minimal" onClick={(e) => e.stopPropagation()}>
+
+            <div className="success-content minimal">
+
+              <div className="success-icon-minimal">
+
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+
+                  <polyline points="22 4 12 14.01 9 11.01" />
+
+                </svg>
+
+              </div>
+
+              <h2>Message Sent</h2>
+
+              <p>Your message was sent successfully to <strong>{messageSuccessRecipient}</strong>.</p>
+
+              <div className="success-actions minimal">
+
+                <button
+
+                  className="success-btn-done"
+
+                  onClick={() => setIsMessageSuccessModalOpen(false)}
+
+                >
+
+                  Done
+
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+    </div>
+
+  );
+
+};
+
+
+
+// Message Reviewer Content Component
+const MessageReviewerContent = () => {
+
+  const [reviewers, setReviewers] = useState([]);
+
+  const [filteredReviewers, setFilteredReviewers] = useState([]);
+
+  const [selectedReviewer, setSelectedReviewer] = useState('');
+
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const [message, setMessage] = useState('');
+
+  const [attachedFiles, setAttachedFiles] = useState([]);
+
+  const [loading, setLoading] = useState(false);
+
+  const [success, setSuccess] = useState('');
+
+  const [error, setError] = useState('');
+
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const [isMessageSuccessModalOpen, setIsMessageSuccessModalOpen] = useState(false);
+
+  const [messageSuccessRecipient, setMessageSuccessRecipient] = useState('');
+
+
+
+  useEffect(() => {
+
+    const fetchReviewers = async () => {
+
+      try {
+
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reviewers`);
+
+        const data = await response.json();
+
+        setReviewers(data);
+
+        setFilteredReviewers(data);
+
+      } catch (error) {
+
+        console.error('Error fetching reviewers:', error);
+
+        setError('Failed to fetch reviewers');
+
+      }
+
+    };
+
+    fetchReviewers();
+
+  }, []);
+
+
+
+  // Filter reviewers
+
+  useEffect(() => {
+
+    let filtered = reviewers.filter(reviewer => {
+
+      const searchLower = searchQuery.toLowerCase();
+
+      const name = (reviewer.name || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim()).toLowerCase();
+
+      const email = (reviewer.email || '').toLowerCase();
+
+      const department = (reviewer.department || '').toLowerCase();
+
+      const expertise = (reviewer.expertise || '').toLowerCase();
+
+      return name.includes(searchLower) ||
+
+        email.includes(searchLower) ||
+
+        department.includes(searchLower) ||
+
+        expertise.includes(searchLower);
+
+    });
+
+    setFilteredReviewers(filtered);
+
+  }, [reviewers, searchQuery]);
+
+
+
+  const handleSubmit = (e) => {
+
+    e.preventDefault();
+
+    if (!selectedReviewer || !message) {
+
+      setError('Please select a reviewer and enter a message');
+
+      return;
+
+    }
+
+    setError('');
+
+    const selectedReviewerObj = reviewers.find(r => r.email === selectedReviewer);
+
+    const recipientName = selectedReviewerObj
+
+      ? (selectedReviewerObj.name || `${selectedReviewerObj.firstName || ''} ${selectedReviewerObj.lastName || ''}`.trim())
+
+      : '';
+
+    // Show success immediately
+
+    setMessageSuccessRecipient(recipientName || 'reviewer');
+
+    setIsMessageSuccessModalOpen(true);
+
+    // Capture values before resetting form
+
+    const reviewerEmail = selectedReviewer;
+
+    const messageText = message;
+
+    // Reset form immediately
+
+    setSelectedReviewer('');
+
+    setMessage('');
+
+    // Send in background
+
+    fetch(`${import.meta.env.VITE_API_URL}/api/send-message-to-reviewer`, {
+
+      method: 'POST',
+
+      headers: { 'Content-Type': 'application/json' },
+
+      body: JSON.stringify({
+
+        reviewerEmail,
+
+        recipientName,
+
+        message: messageText
+
+      }),
+
+    }).catch(err => console.error('Message send failed:', err));
+
+  };
+
+
+
+  return (
+
+    <div className="form-content full-width">
+
+      <div className="form-card">
+
+        <h2>Message Reviewer</h2>
+
+        <form className="message-form" onSubmit={handleSubmit}>
+
+          <div className="form-group">
+
+            <label>Select Reviewer</label>
+
+            <div className="student-selector">
+
+              <div className="student-controls">
+
+                <input
+
+                  type="text"
+
+                  placeholder="Search by name, email, department, or expertise..."
+
+                  value={searchQuery}
+
+                  onChange={(e) => setSearchQuery(e.target.value)}
+
+                  className="student-search"
+
+                />
+
+              </div>
+
+              {searchQuery && (
+
+                <div className="search-results-info">
+
+                  Found <span className="results-count">{filteredReviewers.length}</span> reviewers matching "{searchQuery}"
+
+                  {filteredReviewers.length === 0 && " - Try different keywords"}
+
+                </div>
+
+              )}
+
+              <div className="student-dropdown">
+
+                <select
+
+                  value={selectedReviewer}
+
+                  onChange={(e) => setSelectedReviewer(e.target.value)}
+
+                  required
+
+                  className="student-select"
+
+                >
+
+                  <option value="">
+
+                    {filteredReviewers.length === 0
+
+                      ? 'No reviewers found - adjust your search'
+
+                      : `Select a reviewer (${filteredReviewers.length} available)`
+
+                    }
+
+                  </option>
+
+                  {filteredReviewers.map((reviewer) => (
+
+                    <option key={reviewer._id} value={reviewer.email}>
+
+                      {reviewer.name || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim() || reviewer.email}
+
+                      {reviewer.department && ` - ${reviewer.department}`}
+
+                      {reviewer.expertise && ` - ${reviewer.expertise}`}
+
+                    </option>
+
+                  ))}
+
+                </select>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+
+          <div className="form-group">
+
+            <label>Message</label>
+
+            <textarea
+
+              value={message}
+
+              onChange={(e) => setMessage(e.target.value)}
+
+              placeholder="Enter your message here..."
+
+              rows="6"
+
+              required
+
+            />
+
+          </div>
+
+
+
+          {error && <div className="error-message">{error}</div>}
+
+
+
+          <div className="form-actions">
+
+            <button type="submit" className="btn-primary" disabled={loading}>
+
+              {loading ? 'Sending...' : 'Send Message'}
+
+            </button>
+
+            <button
+
+              type="button"
+
+              className="btn-secondary"
+
+              onClick={() => {
+
+                setSelectedReviewer('');
+
+                setSearchQuery('');
+
+                setMessage('');
+
+                setAttachedFiles([]);
+
+                setIsDragOver(false);
+
+                setError('');
+
+                setSuccess('');
+
+              }}
+
+            >
+
+              Clear
+
+            </button>
+
+          </div>
+
+        </form>
+
+      </div>
+
+
 
       {/* Message Sent Success Modal */}
 
@@ -9719,7 +10124,6 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
         ? new Date(review.completedDate || review.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
         : 'N/A';
       const comment = (review.comment || review.comments || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const recommendations = (review.recommendations || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       return `
         <tr>
           <td>${(review.reviewerName || review.reviewer || 'N/A').replace(/</g, '&lt;')}</td>
@@ -9727,7 +10131,6 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
           <td>${review.overallRating || '—'}</td>
           <td>${date}</td>
           <td>${comment}</td>
-          <td>${recommendations}</td>
         </tr>`;
     }).join('');
 
@@ -9739,7 +10142,7 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
           <thead>
             <tr>
               <th>Reviewer</th><th>Decision</th><th>Overall Rating</th>
-              <th>Date Completed</th><th>Comments</th><th>Recommendations</th>
+              <th>Date Completed</th><th>Comments</th>
             </tr>
           </thead>
           <tbody>${renderRows(reviews)}</tbody>
@@ -9865,6 +10268,10 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
               <span className="grm-stat-val">{secondaryCompleted.length}</span>
               <span className="grm-stat-lbl">Secondary</span>
             </div>
+            <div className="grm-stat grm-stat--orange">
+              <span className="grm-stat-val">{uniquePreliminary.length + uniqueSecondary.length}</span>
+              <span className="grm-stat-lbl">Total Reviewers</span>
+            </div>
             <div className="grm-stat grm-stat--green">
               <span className="grm-stat-val">{selectedReviews.length}</span>
               <span className="grm-stat-lbl">Selected</span>
@@ -9951,7 +10358,6 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
                             <col style={{ width: '120px' }} />
                             <col style={{ width: '140px' }} />
                             <col style={{ width: '200px' }} />
-                            <col style={{ width: '200px' }} />
                           </colgroup>
                           <thead>
                             <tr>
@@ -9960,7 +10366,6 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
                               <th>Decision</th>
                               <th>Date Completed</th>
                               <th>Comments</th>
-                              <th>Recommendations</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -9979,7 +10384,6 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
                                   <td><span className={`grm-badge ${decCls}`}>{decLabel}</span></td>
                                   <td className="grm-td-date">{dateStr}</td>
                                   <td className="grm-td-text">{review.comment || review.comments || <span className="grm-muted">—</span>}</td>
-                                  <td className="grm-td-text">{review.recommendations || <span className="grm-muted">—</span>}</td>
                                 </tr>
                               );
                             })}

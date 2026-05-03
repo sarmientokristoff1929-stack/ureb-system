@@ -1991,7 +1991,7 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
             <div className={`proposal-card ${!isRead ? 'unread' : ''}`} key={String(assignment._id)}>
               <div className="proposal-header">
                 <div className="proposal-header-left" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <h3><span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#000000', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Proposal Title:</span> <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#6b7280' }}>{assignment.researchTitle || 'No Title'}</span></h3>
+                  <h3><span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#000000', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{assignment.protocolCode ? 'Protocol Code:' : 'Proposal Title:'}</span> <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#6b7280' }}>{assignment.protocolCode || assignment.researchTitle || 'No Title'}</span></h3>
                   <span style={{
                     padding: '0.2rem 0.6rem',
                     borderRadius: '12px',
