@@ -1828,9 +1828,9 @@ app.get('/api/reviews/completed/:reviewerEmail', async (req, res) => {
         } catch (e) { /* ignore */ }
         return {
           ...review,
-          proposalTitle: proposal?.researchTitle || 'Untitled Proposal',
-          protocolCode: proposal?.protocolCode || '',
-          proponent: proposal?.proponent || 'N/A'
+          proposalTitle: proposal?.researchTitle || review.researchTitle || 'Untitled Proposal',
+          protocolCode: proposal?.protocolCode || review.protocolCode || '',
+          proponent: proposal?.proponent || review.proponent || 'N/A'
         };
       })
     );
