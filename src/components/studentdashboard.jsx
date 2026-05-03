@@ -1855,9 +1855,11 @@ const MessagesContent = ({ userInfo, onMessageRead }) => {
       try {
         const response = await fetch(`${API_BASE_URL}/messages/${encodeURIComponent(userInfo.email)}`);
         const data = await response.json();
+        console.log('[Messages] All fetched messages:', data);
         const adminMessages = data
           .filter((m) => m.recipientEmail === userInfo.email && m.type === 'admin_to_student')
           .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));
+        console.log('[Messages] Admin messages with files:', adminMessages.map(m => ({ id: m._id, files: m.files })));
         setMessages(adminMessages);
       } catch (error) {
         console.error('Error fetching messages:', error);
@@ -2066,7 +2068,9 @@ const MessagesContent = ({ userInfo, onMessageRead }) => {
                   </span>
                   <div className="sm-attachments-list">
                     {msg.files.map((file, i) => {
+                      console.log(`[File ${i}] file.path:`, file.path, '| file.filename:', file.filename);
                       const storedName = getStoredFilename(file.path);
+                      console.log(`[File ${i}] storedName:`, storedName);
                       const downloadUrl = storedName
                         ? `${API_BASE_URL}/download/${storedName}?name=${encodeURIComponent(file.filename)}`
                         : null;
@@ -2075,8 +2079,8 @@ const MessagesContent = ({ userInfo, onMessageRead }) => {
                           <FileIcon />
                           <span className="sm-file-name">{file.filename}</span>
                           <span className="sm-file-size">({(file.size / 1024).toFixed(1)} KB)</span>
-                          {storedName && (
-                            <>
+                          {storedName ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
                               <button
                                 onClick={() => {
                                   import('../services/api.js').then(({ viewFile }) => {
@@ -2084,7 +2088,7 @@ const MessagesContent = ({ userInfo, onMessageRead }) => {
                                   });
                                 }}
                                 title="View file"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600, padding: '0.3rem 0.7rem', borderRadius: '6px', marginLeft: 'auto' }}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600, padding: '0.3rem 0.7rem', borderRadius: '6px', whiteSpace: 'nowrap' }}
                               >
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -2096,12 +2100,14 @@ const MessagesContent = ({ userInfo, onMessageRead }) => {
                                 href={downloadUrl}
                                 download={file.filename}
                                 title="Download file"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#7A9E7E', color: '#fff', fontSize: '0.78rem', fontWeight: 600, padding: '0.3rem 0.7rem', borderRadius: '6px', textDecoration: 'none' }}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#7A9E7E', color: '#fff', fontSize: '0.78rem', fontWeight: 600, padding: '0.3rem 0.7rem', borderRadius: '6px', textDecoration: 'none', whiteSpace: 'nowrap' }}
                               >
                                 <DownloadIcon />
                                 Download
                               </a>
-                            </>
+                            </div>
+                          ) : (
+                            <span style={{ color: '#999', fontSize: '0.75rem', marginLeft: 'auto', fontStyle: 'italic' }}>No file access</span>
                           )}
                         </div>
                       );

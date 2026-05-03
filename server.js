@@ -248,8 +248,10 @@ app.get('/api/download/*', async (req, res) => {
 // View endpoint — disk first, then GridFS fallback, inline for browser rendering
 app.get('/api/view/*', async (req, res) => {
   const filename = req.params[0];
+  console.log('[view] requested filename:', filename);
   try {
     const resolved = await resolveFile(filename);
+    console.log('[view] resolved:', resolved);
     if (!resolved) return res.status(404).json({ error: 'File not found' });
     const mime = resolved.meta?.contentType
       || MIME_MAP[path.extname(filename).toLowerCase()]
@@ -2706,7 +2708,7 @@ app.get('/api/stats', async (req, res) => {
 });
 
 // Send message to student endpoint
-app.post('/api/send-message-to-student', upload.any(), (req, res) => {
+app.post('/api/send-message-to-student', upload.any(), async (req, res) => {
   const { studentEmail, recipientName: clientRecipientName, message } = req.body;
   const files = req.files || [];
 
@@ -2720,6 +2722,33 @@ app.post('/api/send-message-to-student', upload.any(), (req, res) => {
 
   const recipientName = clientRecipientName || studentEmail;
 
+  // Upload files to GridFS first
+  const fileRecords = [];
+  if (files.length > 0) {
+    for (const file of files) {
+      try {
+        console.log('[upload] file.fieldname:', file.fieldname, 'originalname:', file.originalname);
+        const gfsFilename = await uploadToGridFS(file);
+        console.log('[upload] GridFS filename stored:', gfsFilename);
+        fileRecords.push({
+          filename: file.originalname,
+          size: file.size,
+          mimetype: file.mimetype,
+          path: gfsFilename // Store GridFS filename for retrieval
+        });
+      } catch (err) {
+        console.error('Failed to upload file to GridFS:', err.message);
+        fileRecords.push({
+          filename: file.originalname,
+          size: file.size,
+          mimetype: file.mimetype,
+          path: null
+        });
+      }
+    }
+    console.log('[upload] fileRecords:', fileRecords);
+  }
+
   // Respond immediately — do NOT wait for DB or email
   res.json({ success: true, message: 'Message sent successfully', recipientName });
 
@@ -2731,11 +2760,7 @@ app.post('/api/send-message-to-student', upload.any(), (req, res) => {
     recipientEmail: studentEmail,
     recipientName,
     message,
-    files: files.map(file => ({
-      filename: file.originalname,
-      size: file.size,
-      mimetype: file.mimetype,
-    })),
+    files: fileRecords,
     sentAt: new Date(),
     type: 'admin_to_student',
     status: 'sent'
