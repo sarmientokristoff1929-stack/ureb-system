@@ -2344,7 +2344,7 @@ app.post('/api/messages/reply', upload.array('files', 10), async (req, res) => {
 });
 
 // Student message to admin (with optional file attachments)
-app.post('/api/messages/student-to-admin', upload.array('files', 10), async (req, res) => {
+app.post('/api/messages/student-to-admin', upload.any(), async (req, res) => {
   try {
     const { senderEmail, senderName, subject, message } = req.body;
     const files = req.files || [];
@@ -2356,18 +2356,29 @@ app.post('/api/messages/student-to-admin', upload.array('files', 10), async (req
     const db = getDatabase();
     const messages = db.collection(collections.messages);
 
+    // Upload files to GridFS and collect file records
+    const fileRecords = [];
+    for (const file of files) {
+      try {
+        const gfsFilename = await uploadToGridFS(file);
+        fileRecords.push({
+          filename: gfsFilename,
+          originalname: file.originalname,
+          size: file.size,
+          mimetype: file.mimetype
+        });
+      } catch (err) {
+        console.error('[student-to-admin] Error uploading file to GridFS:', err);
+      }
+    }
+
     const newMessage = {
       senderEmail,
       senderName: senderName || 'Student',
       recipientEmail: process.env.GMAIL_EMAIL || 'admin',
       subject: subject || 'Message from Student',
       message,
-      files: files.map(f => ({
-        filename: f.originalname,
-        size: f.size,
-        mimetype: f.mimetype,
-        path: f.path
-      })),
+      files: fileRecords,
       sentAt: new Date(),
       createdAt: new Date(),
       type: 'student_to_admin',
