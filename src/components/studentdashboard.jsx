@@ -33,6 +33,12 @@ const BellIcon = () => (
   </svg>
 );
 
+const MessageIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
 const FilePlusIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -189,6 +195,7 @@ const StudentDashboard = ({ onLogout }) => {
     { id: 'add-files', label: 'Add Files', icon: <FilePlusIcon /> },
     { id: 'file-templates', label: 'File Templates', icon: <FileTemplatesIcon /> },
     { id: 'messages', label: 'Messages', icon: <MailIcon />, badge: messageCount > 0 ? messageCount : null },
+    { id: 'message-admin', label: 'Message Admin', icon: <MessageIcon /> },
     { id: 'notifications', label: 'Notifications', icon: <BellIcon /> },
     { id: 'history', label: 'History', icon: <HistoryIcon /> },
     { id: 'profile', label: 'Profile', icon: <ProfileIcon /> },
@@ -231,6 +238,8 @@ const StudentDashboard = ({ onLogout }) => {
         return <FileTemplatesContent />;
       case 'messages':
         return <MessagesContent userInfo={userInfo} onMessageRead={refreshMessageCount} />;
+      case 'message-admin':
+        return <MessageAdminContent userInfo={userInfo} />;
       case 'history':
         return <HistoryContent />;
       case 'profile':
@@ -2512,6 +2521,363 @@ const HistoryContent = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const MessageAdminContent = ({ userInfo }) => {
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!message.trim()) {
+      setError('Please enter a message');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    setError('');
+    setSending(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('senderEmail', userInfo?.email || '');
+      formData.append('senderName', userInfo?.name || 'Student');
+      formData.append('subject', subject || 'Message from Student');
+      formData.append('message', message);
+      attachedFiles.forEach((file, index) => {
+        formData.append(`file${index}`, file);
+      });
+
+      const response = await fetch(`${API_BASE_URL}/messages/student-to-admin`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setSuccess(true);
+        setSubject('');
+        setMessage('');
+        setAttachedFiles([]);
+        setTimeout(() => setSuccess(false), 3000);
+      } else {
+        setError(result.error || 'Failed to send message');
+      }
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setError('Failed to send message. Please try again.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    const validTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+      'image/jpeg',
+      'image/jpg',
+      'image/png'
+    ];
+    const validFiles = files.filter(file => validTypes.includes(file.type) && file.size <= 10 * 1024 * 1024);
+
+    if (validFiles.length > 0) {
+      setAttachedFiles(prev => [...prev, ...validFiles]);
+    }
+
+    if (validFiles.length !== files.length) {
+      setError('Some files were invalid or too large (max 10MB) and were not added');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  const handleRemoveFile = (index) => {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const validTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+      'image/jpeg',
+      'image/jpg',
+      'image/png'
+    ];
+    const validFiles = files.filter(file => validTypes.includes(file.type) && file.size <= 10 * 1024 * 1024);
+
+    if (validFiles.length > 0) {
+      setAttachedFiles(prev => [...prev, ...validFiles]);
+    }
+
+    if (validFiles.length !== files.length) {
+      setError('Some files were invalid or too large (max 10MB) and were not added');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  return (
+    <div className="content-section" style={{ padding: '1rem' }}>
+      <div className="form-card" style={{ marginLeft: '0.5rem', width: '100%' }}>
+        <h2>Message Admin</h2>
+        <p style={{ color: '#666', marginBottom: '1.5rem' }}>
+          Send a message directly to the UREB admin. You can attach files if needed.
+        </p>
+
+        {success && (
+          <div className="success-banner" style={{
+            background: '#f0fdf4',
+            border: '1px solid #86efac',
+            borderRadius: '8px',
+            padding: '1rem',
+            marginBottom: '1rem',
+            color: '#166534',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            Message sent successfully!
+          </div>
+        )}
+
+        {error && (
+          <div className="error-banner" style={{
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '8px',
+            padding: '1rem',
+            marginBottom: '1rem',
+            color: '#dc2626'
+          }}>
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group" style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+              Subject (Optional)
+            </label>
+            <input
+              type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Enter message subject..."
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                fontSize: '1rem'
+              }}
+            />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+              Message <span style={{ color: '#dc2626' }}>*</span>
+            </label>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Type your message here..."
+              required
+              rows={6}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                fontSize: '1rem',
+                resize: 'vertical'
+              }}
+            />
+          </div>
+
+          {/* File Upload Area */}
+          <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+              Attach Files (Optional)
+            </label>
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              style={{
+                border: `2px dashed ${isDragOver ? '#4a7c59' : '#ddd'}`,
+                borderRadius: '8px',
+                padding: '2rem',
+                textAlign: 'center',
+                background: isDragOver ? '#f0fdf4' : '#fafafa',
+                transition: 'all 0.2s'
+              }}
+            >
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="1.5" style={{ marginBottom: '0.5rem' }}>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              <p style={{ color: '#666', margin: '0.5rem 0' }}>
+                Drag and drop files here, or{' '}
+                <label style={{ color: '#4a7c59', cursor: 'pointer', textDecoration: 'underline' }}>
+                  browse
+                  <input
+                    type="file"
+                    multiple
+                    onChange={handleFileChange}
+                    style={{ display: 'none' }}
+                    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                  />
+                </label>
+              </p>
+              <p style={{ color: '#999', fontSize: '0.85rem', margin: 0 }}>
+                Maximum file size: 10MB. Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG
+              </p>
+            </div>
+          </div>
+
+          {/* Attached Files List */}
+          {attachedFiles.length > 0 && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                Attached Files ({attachedFiles.length})
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                {attachedFiles.map((file, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.5rem 0.75rem',
+                      background: '#f0f0f0',
+                      borderRadius: '6px',
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    <FileIcon />
+                    <span style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {file.name}
+                    </span>
+                    <span style={{ color: '#999', fontSize: '0.8rem' }}>
+                      ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFile(index)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#666',
+                        padding: '0.25rem',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                      title="Remove file"
+                    >
+                      <XIcon />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="form-actions" style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setSubject('');
+                setMessage('');
+                setAttachedFiles([]);
+                setError('');
+              }}
+              disabled={sending}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: '#f0f0f0',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: sending ? 'not-allowed' : 'pointer',
+                fontSize: '1rem',
+                color: '#666'
+              }}
+            >
+              Clear
+            </button>
+            <button
+              type="submit"
+              disabled={sending}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: sending ? '#ccc' : '#4a7c59',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: sending ? 'not-allowed' : 'pointer',
+                fontSize: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              {sending ? (
+                <>
+                  <span className="spinner" style={{
+                    width: '16px',
+                    height: '16px',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTopColor: 'white',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }} />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                  Send Message
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

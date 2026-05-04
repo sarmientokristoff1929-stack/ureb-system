@@ -2343,6 +2343,45 @@ app.post('/api/messages/reply', upload.array('files', 10), async (req, res) => {
   }
 });
 
+// Student message to admin (with optional file attachments)
+app.post('/api/messages/student-to-admin', upload.array('files', 10), async (req, res) => {
+  try {
+    const { senderEmail, senderName, subject, message } = req.body;
+    const files = req.files || [];
+
+    if (!senderEmail || !message) {
+      return res.status(400).json({ success: false, error: 'Sender email and message are required' });
+    }
+
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const newMessage = {
+      senderEmail,
+      senderName: senderName || 'Student',
+      recipientEmail: process.env.GMAIL_EMAIL || 'admin',
+      subject: subject || 'Message from Student',
+      message,
+      files: files.map(f => ({
+        filename: f.originalname,
+        size: f.size,
+        mimetype: f.mimetype,
+        path: f.path
+      })),
+      sentAt: new Date(),
+      createdAt: new Date(),
+      type: 'student_to_admin',
+      read: false
+    };
+
+    const result = await messages.insertOne(newMessage);
+    res.json({ success: true, message: { _id: result.insertedId, ...newMessage } });
+  } catch (error) {
+    console.error('Error sending student message:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // Reviewer message to admin
 app.post('/api/messages/to-admin', async (req, res) => {
   try {
