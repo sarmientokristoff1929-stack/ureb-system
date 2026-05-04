@@ -2343,6 +2343,38 @@ app.post('/api/messages/reply', upload.array('files', 10), async (req, res) => {
   }
 });
 
+// Reviewer message to admin
+app.post('/api/messages/to-admin', async (req, res) => {
+  try {
+    const { senderEmail, senderName, subject, message } = req.body;
+
+    if (!senderEmail || !message) {
+      return res.status(400).json({ success: false, error: 'Sender email and message are required' });
+    }
+
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const newMessage = {
+      senderEmail,
+      senderName: senderName || 'Reviewer',
+      recipientEmail: process.env.GMAIL_EMAIL || 'admin',
+      subject,
+      message,
+      sentAt: new Date(),
+      createdAt: new Date(),
+      type: 'reviewer_to_admin',
+      read: false
+    };
+
+    const result = await messages.insertOne(newMessage);
+    res.json({ success: true, message: { _id: result.insertedId, ...newMessage } });
+  } catch (error) {
+    console.error('Error sending reviewer message:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 app.get('/api/messages/:userId', async (req, res) => {
   try {
     const { userId } = req.params;

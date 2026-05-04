@@ -242,8 +242,11 @@ const ReviewerDashboard = ({ onLogout }) => {
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
   const [notifCount, setNotifCount] = useState(0);
   const [assignedCount, setAssignedCount] = useState(0);
+  const [messageCount, setMessageCount] = useState(0);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSecondaryReviewer, setIsSecondaryReviewer] = useState(false);
+  const [isPreliminaryReviewer, setIsPreliminaryReviewer] = useState(false);
+  const [reviewerType, setReviewerType] = useState('');
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileData, setProfileData] = useState({ name: '', email: '' });
@@ -273,6 +276,44 @@ const ReviewerDashboard = ({ onLogout }) => {
     }
   }, []);
 
+  // Fetch reviewer type from API to determine menu visibility
+  useEffect(() => {
+    const fetchReviewerType = async () => {
+      const savedUser = localStorage.getItem('ureb_user');
+      if (!savedUser) return;
+      
+      const user = JSON.parse(savedUser);
+      try {
+        const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+        const listRes = await fetch(`${API_BASE}/reviewers`);
+        const reviewers = await listRes.json();
+        const reviewer = Array.isArray(reviewers)
+          ? reviewers.find(r => (r.email || '').toLowerCase() === (user?.email || '').toLowerCase())
+          : null;
+        
+        if (reviewer?.reviewerType) {
+          setReviewerType(reviewer.reviewerType);
+          // Set flags based on reviewer type
+          setIsPreliminaryReviewer(reviewer.reviewerType === 'preliminary' || reviewer.reviewerType === 'both');
+          setIsSecondaryReviewer(reviewer.reviewerType === 'secondary' || reviewer.reviewerType === 'both');
+        } else {
+          // Fallback: if no reviewerType, check secondary list for backward compatibility
+          const userIsSecondary = secondaryReviewers.includes(user.name);
+          setIsSecondaryReviewer(userIsSecondary);
+          setIsPreliminaryReviewer(!userIsSecondary); // Assume preliminary if not in secondary list
+          setReviewerType(userIsSecondary ? 'secondary' : 'preliminary');
+        }
+      } catch (err) {
+        console.error('Error fetching reviewer type:', err);
+        // Fallback on error
+        const userIsSecondary = secondaryReviewers.includes(user.name);
+        setIsSecondaryReviewer(userIsSecondary);
+        setIsPreliminaryReviewer(!userIsSecondary);
+      }
+    };
+    fetchReviewerType();
+  }, []);
+
   const CheckIcon = () => (
     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="20 6 9 17 4 12"></polyline>
@@ -283,11 +324,12 @@ const ReviewerDashboard = ({ onLogout }) => {
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     { id: 'assigned-proposals', label: 'Assigned Proposals', icon: <FileCheckIcon />, badge: assignedCount > 0 ? assignedCount : null },
     { id: 'file-templates', label: 'File Templates', icon: <FileTemplatesIcon /> },
-    { id: 'pending-reviews', label: 'Submit Review', icon: <ClockIcon />, subtext: '(Preliminary Reviewer)' },
-    // Only show Submit Secondary File for Preliminary Reviewers
-    ...(!isSecondaryReviewer ? [{ id: 'submit-secondary-file', label: 'Submit Secondary File', icon: <SubmitSecondaryFileIcon />, subtext: '(Secondary Reviewer)' }] : []),
+    // Show Submit Review only for Preliminary Reviewers or Both
+    ...(isPreliminaryReviewer ? [{ id: 'pending-reviews', label: 'Submit Review', icon: <ClockIcon />, subtext: '(Preliminary Reviewer)' }] : []),
+    // Show Submit Secondary File only for Secondary Reviewers or Both
+    ...(isSecondaryReviewer ? [{ id: 'submit-secondary-file', label: 'Submit Secondary File', icon: <SubmitSecondaryFileIcon />, subtext: '(Secondary Reviewer)' }] : []),
     { id: 'submitted-reviews', label: 'Submitted Reviews', icon: <CheckIcon /> },
-    { id: 'messages', label: 'Messages', icon: <MessageIcon /> },
+    { id: 'messages', label: 'Messages', icon: <MessageIcon />, badge: messageCount > 0 ? messageCount : null },
     { id: 'notifications', label: 'Notifications', icon: <BellIcon />, badge: notifCount > 0 ? notifCount : null },
     { id: 'profile-settings', label: 'Profile Settings', icon: <ProfileIcon /> }
   ];
@@ -301,8 +343,8 @@ const ReviewerDashboard = ({ onLogout }) => {
       const user = JSON.parse(savedUser);
       setUserInfo(user);
 
-      // Fetch assignments and notifications for badges
-      import('../services/api').then(({ getReviewerAssignments, getUserNotifications }) => {
+      // Fetch assignments, notifications, and messages for badges
+      import('../services/api').then(({ getReviewerAssignments, getUserNotifications, getMessagesByUser }) => {
         getReviewerAssignments(user.email).then((assignments) => {
           const deletedIds = getDeletedAssignmentIds();
           const readIds = getReadAssignmentIds();
@@ -314,6 +356,12 @@ const ReviewerDashboard = ({ onLogout }) => {
         getUserNotifications(user.email).then((notifications) => {
           const unreadCount = notifications.filter(n => !n.read).length;
           setNotifCount(unreadCount);
+        }).catch(() => { });
+
+        // Fetch unread messages from admin
+        getMessagesByUser(user.email).then((messages) => {
+          const adminUnreadCount = messages.filter(m => m.type === 'admin_to_reviewer' && !m.read).length;
+          setMessageCount(adminUnreadCount);
         }).catch(() => { });
       });
     }
@@ -330,7 +378,19 @@ const ReviewerDashboard = ({ onLogout }) => {
 
   }, []);
 
-
+  // Refresh message count for badge
+  const refreshMessageCount = () => {
+    const savedUser = localStorage.getItem('ureb_user');
+    if (savedUser) {
+      const user = JSON.parse(savedUser);
+      import('../services/api').then(({ getMessagesByUser }) => {
+        getMessagesByUser(user.email).then((messages) => {
+          const adminUnreadCount = messages.filter(m => m.type === 'admin_to_reviewer' && !m.read).length;
+          setMessageCount(adminUnreadCount);
+        }).catch(() => { });
+      });
+    }
+  };
 
   const handleLogout = () => {
 
@@ -471,7 +531,7 @@ const ReviewerDashboard = ({ onLogout }) => {
 
       case 'messages':
 
-        return <MessagesContent />;
+        return <MessagesContent userInfo={userInfo} onMessageRead={refreshMessageCount} />;
 
       default:
 
@@ -2655,7 +2715,9 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
     setLoading(true);
     try {
       const assignments = await getReviewerAssignments(userEmail);
-      const mappedProposals = assignments.map(a => ({
+      // Filter out admin-created assignments, only show student proposals
+      const studentAssignments = assignments.filter(a => a.assignedBy !== 'admin');
+      const mappedProposals = studentAssignments.map(a => ({
         _id: a.proposalId || a._id,
         researchTitle: a.researchTitle || 'Untitled Proposal',
         protocolCode: a.protocolCode || '',
@@ -3501,11 +3563,16 @@ const TrashIcon = () => (
   </svg>
 );
 
-const MessagesContent = () => {
+const MessagesContent = ({ onMessageRead, userInfo }) => {
 
   const [messages, setMessages] = useState([]);
 
   const [loading, setLoading] = useState(true);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeMessage, setComposeMessage] = useState('');
+  const [composeSubject, setComposeSubject] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendSuccess, setSendSuccess] = useState(false);
 
 
 
@@ -3560,10 +3627,55 @@ const MessagesContent = () => {
     const result = await markMessageAsRead(messageId);
     if (result && result.success !== false) {
       setMessages(prev => prev.map(m => (m._id || m.id) === messageId ? { ...m, read: true } : m));
+      if (onMessageRead) {
+        onMessageRead();
+      }
     }
   };
 
+  const openCompose = () => {
+    setComposeOpen(true);
+    setComposeMessage('');
+    setComposeSubject('');
+    setSendSuccess(false);
+  };
 
+  const closeCompose = () => {
+    if (sending) return;
+    setComposeOpen(false);
+  };
+
+  const handleSendMessage = async () => {
+    if (!composeMessage.trim()) return;
+    setSending(true);
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+      const response = await fetch(`${API_BASE}/messages/to-admin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senderEmail: userInfo?.email || '',
+          senderName: userInfo?.name || 'Reviewer',
+          subject: composeSubject,
+          message: composeMessage
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSendSuccess(true);
+        setTimeout(() => {
+          closeCompose();
+        }, 1500);
+      } else {
+        alert('Failed to send message. Please try again.');
+      }
+    } catch (err) {
+      console.error('Send message error:', err);
+      alert('Failed to send message. Please try again.');
+    } finally {
+      setSending(false);
+    }
+  };
 
   const formatTimeAgo = (dateString) => {
 
@@ -3645,15 +3757,15 @@ const MessagesContent = () => {
 
                 <div className="sender-avatar">
 
-                  {(message.senderName || message.senderEmail || 'U').charAt(0).toUpperCase()}
+                  {(message.senderName || (message.type === 'admin_to_reviewer' ? 'Administrator' : message.senderEmail) || 'U').charAt(0).toUpperCase()}
 
                 </div>
 
                 <div className="sender-info">
 
-                  <h4>{message.senderName || message.senderEmail || 'Unknown'}</h4>
+                  <h4>{message.senderName || (message.type === 'admin_to_reviewer' ? 'UREB Administrator' : message.senderEmail) || 'Unknown'}</h4>
 
-                  <span>{formatTimeAgo(message.createdAt)}</span>
+                  <span>{formatTimeAgo(message.sentAt || message.createdAt)}</span>
 
                 </div>
 
@@ -3674,7 +3786,7 @@ const MessagesContent = () => {
 
             <div className="message-content">
 
-              <h4>{message.subject || 'No Subject'}</h4>
+              {message.subject && <h4>{message.subject}</h4>}
 
               <p>{message.message || 'No content'}</p>
 
@@ -3700,6 +3812,95 @@ const MessagesContent = () => {
         ))}
 
       </div>
+
+      <div className="message-compose-section" style={{ marginTop: '2rem', padding: '1rem', borderTop: '1px solid #e5e7eb' }}>
+        <button
+          className="btn-primary"
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', fontSize: '1rem' }}
+          onClick={openCompose}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+            <polyline points="22,6 12,13 2,6"></polyline>
+          </svg>
+          Message Admin
+        </button>
+      </div>
+
+      {/* Compose Modal */}
+      {composeOpen && (
+        <div className="rm-overlay" onClick={(e) => { if (e.target.classList.contains('rm-overlay')) closeCompose(); }}>
+          <div className="rm-container">
+            <div className="rm-header">
+              <div className="rm-header-left">
+                <div className="rm-header-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                    <polyline points="22,6 12,13 2,6"></polyline>
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="rm-title">Message Administrator</h3>
+                  <p className="rm-subtitle">Send a message directly to the UREB Admin</p>
+                </div>
+              </div>
+              <button className="rm-close" onClick={closeCompose} disabled={sending}>✕</button>
+            </div>
+
+            <div className="rm-body">
+              {sendSuccess ? (
+                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                  <div style={{ width: '60px', height: '60px', background: '#22c55e', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </div>
+                  <h3 style={{ color: '#22c55e', marginBottom: '0.5rem' }}>Message Sent!</h3>
+                  <p style={{ color: '#6b7280' }}>Your message has been sent to the administrator.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="rm-field">
+                    <label className="rm-label">Subject (optional)</label>
+                    <input
+                      type="text"
+                      value={composeSubject}
+                      onChange={(e) => setComposeSubject(e.target.value)}
+                      placeholder="Enter subject..."
+                      className="rm-input"
+                      disabled={sending}
+                    />
+                  </div>
+                  <div className="rm-field">
+                    <label className="rm-label">Message</label>
+                    <textarea
+                      value={composeMessage}
+                      onChange={(e) => setComposeMessage(e.target.value)}
+                      placeholder="Type your message here..."
+                      rows="6"
+                      className="rm-textarea"
+                      disabled={sending}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            {!sendSuccess && (
+              <div className="rm-footer">
+                <button className="rm-cancel-btn" onClick={closeCompose} disabled={sending}>Cancel</button>
+                <button
+                  className="rm-send-btn"
+                  onClick={handleSendMessage}
+                  disabled={sending || !composeMessage.trim()}
+                >
+                  {sending ? 'Sending...' : 'Send Message'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
 
