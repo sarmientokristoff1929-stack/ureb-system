@@ -684,23 +684,29 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
               className="uploaded-profile-picture"
               onError={(e) => {
                 console.error('[DEBUG] Profile image failed to load:', profilePicUrl);
+                console.error('[DEBUG] Image element:', e.target);
+                console.error('[DEBUG] Image src:', e.target.src);
+                console.error('[DEBUG] Image naturalWidth:', e.target.naturalWidth);
+                console.error('[DEBUG] Image naturalHeight:', e.target.naturalHeight);
                 e.target.style.display = 'none';
                 // Show fallback initials
                 const fallback = e.target.parentElement?.querySelector('.sp-hero-avatar');
                 if (fallback) fallback.style.display = 'flex';
               }}
+              onLoad={(e) => {
+                console.log('[DEBUG] Profile image loaded successfully:', profilePicUrl);
+                console.log('[DEBUG] Image dimensions:', e.target.naturalWidth, 'x', e.target.naturalHeight);
+              }}
             />
           )}
           
           {/* Fallback initials - shown when no URL, or hidden when image loads successfully */}
-          {!uploadingPic && (
-            <div 
-              className="sp-hero-avatar" 
-              style={{ display: !profilePicUrl ? 'flex' : 'none' }}
-            >
-              {initials}
-            </div>
-          )}
+          <div 
+            className="sp-hero-avatar" 
+            style={{ display: (!uploadingPic && !profilePicUrl) ? 'flex' : 'none' }}
+          >
+            {initials}
+          </div>
 
           {/* Hover overlay - shows "Upload Picture" on hover */}
           {!uploadingPic && (

@@ -418,11 +418,14 @@ app.post('/api/auth/login', async (req, res) => {
       lastLogin: new Date()
     };
     
-    // Include profile picture for students (from GridFS)
+    // Include profile picture for students and reviewers (from GridFS)
     console.log('[DEBUG] Login - user.profilePictureGridFS:', user.profilePictureGridFS);
     if (userType === 'student' && user.profilePictureGridFS) {
       userResponse.profilePicture = `/api/student/profile/picture/${user.profilePictureGridFS}`;
-      console.log('[DEBUG] Login - Added profilePicture to response:', userResponse.profilePicture);
+      console.log('[DEBUG] Login - Added student profilePicture to response:', userResponse.profilePicture);
+    } else if (userType === 'reviewer' && user.profilePictureGridFS) {
+      userResponse.profilePicture = `/api/reviewer/profile/picture/${user.profilePictureGridFS}`;
+      console.log('[DEBUG] Login - Added reviewer profilePicture to response:', userResponse.profilePicture);
     }
 
     res.json({
@@ -2346,6 +2349,105 @@ app.delete('/api/student/account', async (req, res) => {
     res.json({ success: true, message: 'Account deleted successfully' });
   } catch (error) {
     console.error('Error deleting account:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Upload reviewer profile picture to GridFS
+app.post('/api/reviewer/profile/picture', uploadProfilePic.single('profilePicture'), async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || !req.file) {
+      return res.status(400).json({ success: false, error: 'Email and image are required' });
+    }
+    const db = getDatabase();
+    const reviewers = db.collection(collections.reviewers);
+    const reviewer = await reviewers.findOne({ email });
+    if (!reviewer) {
+      return res.status(404).json({ success: false, error: 'Reviewer not found' });
+    }
+    
+    // Delete old picture from GridFS if it exists
+    if (reviewer.profilePictureGridFS) {
+      await deleteFromGridFS(reviewer.profilePictureGridFS);
+    }
+    
+    // Upload new picture to GridFS
+    const gridFSFilename = await uploadProfilePicToGridFS(req.file, reviewer._id.toString());
+    
+    // Store GridFS filename in reviewer document
+    await reviewers.updateOne({ email }, { 
+      $set: { 
+        profilePictureGridFS: gridFSFilename, 
+        updatedAt: new Date() 
+      },
+      $unset: { profilePicture: '' }
+    });
+    
+    res.json({ success: true, profilePicture: `/api/reviewer/profile/picture/${gridFSFilename}` });
+  } catch (error) {
+    console.error('Error uploading reviewer profile picture:', error);
+    res.status(500).json({ success: false, error: error.message || 'Server error' });
+  }
+});
+
+// Delete reviewer profile picture from GridFS
+app.delete('/api/reviewer/profile/picture', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'Email is required' });
+    }
+    const db = getDatabase();
+    const reviewers = db.collection(collections.reviewers);
+    const reviewer = await reviewers.findOne({ email });
+    if (!reviewer) {
+      return res.status(404).json({ success: false, error: 'Reviewer not found' });
+    }
+    
+    // Delete from GridFS
+    if (reviewer.profilePictureGridFS) {
+      await deleteFromGridFS(reviewer.profilePictureGridFS);
+    }
+    
+    await reviewers.updateOne({ email }, { 
+      $set: { updatedAt: new Date() },
+      $unset: { profilePictureGridFS: '', profilePicture: '' }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting reviewer profile picture:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Serve reviewer profile picture from GridFS
+app.get('/api/reviewer/profile/picture/:filename', async (req, res) => {
+  try {
+    const { filename } = req.params;
+    console.log('[DEBUG] GridFS Reviewer - Requested filename:', filename);
+    
+    const files = await gfsBucket.find({ filename }).toArray();
+    console.log('[DEBUG] GridFS Reviewer - Found files:', files.length);
+    
+    if (!files || files.length === 0) {
+      console.log('[DEBUG] GridFS Reviewer - File not found:', filename);
+      return res.status(404).json({ success: false, error: 'File not found' });
+    }
+    
+    const file = files[0];
+    console.log('[DEBUG] GridFS Reviewer - Serving file:', file.filename, 'Content-Type:', file.contentType);
+    res.set('Content-Type', file.contentType || 'image/jpeg');
+    
+    const downloadStream = gfsBucket.openDownloadStream(file._id);
+    downloadStream.pipe(res);
+    
+    downloadStream.on('error', (err) => {
+      console.error('[DEBUG] GridFS Reviewer - Error streaming file:', err);
+      res.status(500).json({ success: false, error: 'Error streaming file' });
+    });
+  } catch (error) {
+    console.error('[DEBUG] GridFS Reviewer - Error serving profile picture:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

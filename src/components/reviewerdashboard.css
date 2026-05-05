@@ -1819,6 +1819,18 @@
   justify-content: center;
   font-weight: 600;
   font-size: 0.9rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.header-profile-pic {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 .content-body {
@@ -4336,6 +4348,144 @@
   border-radius: 4px;
   margin-bottom: 0.35rem;
   border: 1px solid rgba(255,255,255,0.25);
+}
+
+/* Avatar wrapper for profile picture upload */
+.sp-avatar-wrapper {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Fallback avatar initials */
+.sp-hero-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.15) 100%);
+  border: 2px solid rgba(255,255,255,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -1px;
+  backdrop-filter: blur(4px);
+}
+
+/* Loading spinner */
+.sp-avatar-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.sp-avatar-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2.5px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: sm-spin 0.7s linear infinite;
+}
+
+@keyframes sm-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Uploaded profile picture */
+.uploaded-profile-picture {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255,255,255,0.4);
+  z-index: 1;
+}
+
+/* Hover overlay - shows "Upload Picture" on hover */
+.sp-avatar-hover-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.25s ease;
+  z-index: 10;
+  cursor: pointer;
+}
+
+.sp-avatar-hover-overlay svg {
+  width: 24px;
+  height: 24px;
+  color: #fff;
+  stroke-width: 2;
+}
+
+.sp-avatar-hover-overlay span {
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+  line-height: 1;
+}
+
+/* Show hover overlay on wrapper hover (when not loading) */
+.sp-avatar-wrapper:hover .sp-avatar-hover-overlay {
+  opacity: 1;
+  visibility: visible;
+}
+
+.sp-avatar-wrapper:hover .uploaded-profile-picture,
+.sp-avatar-wrapper:hover .sp-hero-avatar {
+  filter: brightness(0.8);
+}
+
+/* Responsive adjustments for avatar wrapper */
+@media (max-width: 768px) {
+  .sp-avatar-wrapper { width: 50px; height: 50px; }
+  .sp-hero-avatar { width: 50px; height: 50px; font-size: 1.25rem; }
+  .uploaded-profile-picture { width: 50px; height: 50px; }
+  .sp-avatar-hover-overlay { width: 50px; height: 50px; }
+  .sp-avatar-hover-overlay svg { width: 20px; height: 20px; }
+  .sp-avatar-hover-overlay span { font-size: 0.55rem; }
+  .sp-avatar-loading { width: 50px; height: 50px; }
+}
+
+@media (max-width: 480px) {
+  .sp-avatar-wrapper { width: 42px; height: 42px; }
+  .sp-hero-avatar { width: 42px; height: 42px; font-size: 1.05rem; }
+  .uploaded-profile-picture { width: 42px; height: 42px; }
+  .sp-avatar-hover-overlay { width: 42px; height: 42px; }
+  .sp-avatar-hover-overlay svg { width: 18px; height: 18px; }
+  .sp-avatar-hover-overlay span { font-size: 0.5rem; }
+  .sp-avatar-loading { width: 42px; height: 42px; }
 }
 
 .sp-hero-email {
