@@ -409,15 +409,23 @@ app.post('/api/auth/login', async (req, res) => {
 
     console.log(`Login successful for ${email}: role=${role}, userType=${userType}`);
 
+    // Build user response with profile picture for students
+    const userResponse = {
+      email: user.email,
+      name: user.name || `${user.firstName} ${user.lastName}`,
+      role: role,
+      userType: userType,
+      lastLogin: new Date()
+    };
+    
+    // Include profile picture for students (from GridFS)
+    if (userType === 'student' && user.profilePictureGridFS) {
+      userResponse.profilePicture = `/api/student/profile/picture/${user.profilePictureGridFS}`;
+    }
+
     res.json({
       success: true,
-      user: {
-        email: user.email,
-        name: user.name || `${user.firstName} ${user.lastName}`,
-        role: role,
-        userType: userType,
-        lastLogin: new Date()
-      }
+      user: userResponse
     });
   } catch (error) {
     console.error('Login error:', error);

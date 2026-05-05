@@ -339,7 +339,20 @@ const StudentDashboard = ({ onLogout }) => {
           <h1>{menuItems.find(item => item.id === activeTab)?.label || 'Dashboard'}</h1>
           <div className="user-info">
             <span>Welcome, {userInfo?.name || 'Student'}</span>
-            <div className="user-avatar">{userInfo?.name?.charAt(0).toUpperCase() || 'S'}</div>
+            {userInfo?.profilePicture ? (
+              <img
+                src={userInfo.profilePicture}
+                alt="Profile"
+                className="user-avatar user-avatar-img"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div className="user-avatar" style={{ display: userInfo?.profilePicture ? 'none' : 'flex' }}>
+              {userInfo?.name?.charAt(0).toUpperCase() || 'S'}
+            </div>
           </div>
         </header>
 
@@ -645,12 +658,14 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
             </div>
           ) : profilePicUrl ? (
             <img
+              key={profilePicUrl}
               src={profilePicUrl}
               alt="Profile"
               className="sp-hero-avatar-img"
               onError={(e) => {
                 e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'flex';
+                const fallback = e.target.nextElementSibling;
+                if (fallback) fallback.style.display = 'flex';
               }}
             />
           ) : null}
