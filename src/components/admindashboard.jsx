@@ -978,18 +978,6 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
-      case 'add-reviewer':
-
-
-
-        return <AddReviewerContent />;
-
-
-
-      case 'mark-completed-review':
-
-        return <MarkCompletedReviewContent />;
-
       case 'manage-users':
 
 
