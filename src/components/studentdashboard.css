@@ -3083,18 +3083,24 @@
   height: 80px;
 }
 
+/* Base avatar styles - shared by all avatar types */
 .sp-hero-avatar,
-.sp-hero-avatar-img,
+.uploaded-profile-picture,
 .sp-avatar-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.55);
+  border: 3px solid rgba(255, 255, 255, 0.8);
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
+/* Initials fallback avatar */
 .sp-hero-avatar {
-  background: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.15));
   color: #fff;
   font-size: 1.75rem;
   font-weight: 700;
@@ -3103,18 +3109,23 @@
   justify-content: center;
   letter-spacing: 0.02em;
   backdrop-filter: blur(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.sp-hero-avatar-img {
+/* Uploaded profile picture */
+.uploaded-profile-picture {
   object-fit: cover;
   display: block;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* Loading state */
 .sp-avatar-loading {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .sp-avatar-spinner {
@@ -3126,51 +3137,54 @@
   animation: sm-spin 0.7s linear infinite;
 }
 
-/* Camera upload button — bottom-right of avatar */
-.sp-avatar-upload-btn {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 26px;
-  height: 26px;
-  background: #fff;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
-  transition: background 0.18s, transform 0.18s;
-  color: var(--primary-green, #7A9E7E);
-}
-
-.sp-avatar-upload-btn:hover {
-  background: var(--pale-green, #E8F0E8);
-  transform: scale(1.1);
-}
-
-/* Trash delete button — top-right of avatar */
-.sp-avatar-delete-btn {
+/* Hover overlay - shows "Upload Picture" on hover */
+.sp-avatar-hover-overlay {
   position: absolute;
   top: 0;
-  right: -2px;
-  width: 22px;
-  height: 22px;
-  background: #ef4444;
-  border: none;
+  left: 0;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 4px;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.25s ease;
+  z-index: 10;
   cursor: pointer;
-  color: #fff;
-  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.35);
-  transition: background 0.18s, transform 0.18s;
 }
 
-.sp-avatar-delete-btn:hover {
-  background: #dc2626;
-  transform: scale(1.1);
+.sp-avatar-hover-overlay svg {
+  width: 24px;
+  height: 24px;
+  color: #fff;
+  stroke-width: 2;
+}
+
+.sp-avatar-hover-overlay span {
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+  line-height: 1;
+}
+
+/* Show hover overlay on wrapper hover (when not loading) */
+.sp-avatar-wrapper:hover .sp-avatar-hover-overlay {
+  opacity: 1;
+  visibility: visible;
+}
+
+.sp-avatar-wrapper:hover .uploaded-profile-picture,
+.sp-avatar-wrapper:hover .sp-hero-avatar {
+  filter: brightness(0.8);
 }
 
 .sp-hero-info {
@@ -3886,18 +3900,18 @@
 
 /* Clickable avatar cursor */
 .user-avatar.clickable,
-.sp-hero-avatar-img.clickable {
+.uploaded-profile-picture.clickable {
   cursor: pointer;
   transition: transform 0.2s ease;
 }
 
 .user-avatar.clickable:hover,
-.sp-hero-avatar-img.clickable:hover {
+.uploaded-profile-picture.clickable:hover {
   transform: scale(1.05);
 }
 
 .user-avatar.clickable:active,
-.sp-hero-avatar-img.clickable:active {
+.uploaded-profile-picture.clickable:active {
   transform: scale(0.95);
 }
 

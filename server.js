@@ -419,8 +419,10 @@ app.post('/api/auth/login', async (req, res) => {
     };
     
     // Include profile picture for students (from GridFS)
+    console.log('[DEBUG] Login - user.profilePictureGridFS:', user.profilePictureGridFS);
     if (userType === 'student' && user.profilePictureGridFS) {
       userResponse.profilePicture = `/api/student/profile/picture/${user.profilePictureGridFS}`;
+      console.log('[DEBUG] Login - Added profilePicture to response:', userResponse.profilePicture);
     }
 
     res.json({
@@ -1149,6 +1151,8 @@ function studentProfilePayload(student) {
   if (safe.profilePictureGridFS) {
     profilePicture = `/api/student/profile/picture/${safe.profilePictureGridFS}`;
   }
+  console.log('[DEBUG] studentProfilePayload - profilePictureGridFS:', safe.profilePictureGridFS);
+  console.log('[DEBUG] studentProfilePayload - computed profilePicture:', profilePicture);
   console.log('[DEBUG] studentProfilePayload - raw gender from DB:', safe.gender, '| sex:', sex, '| computed gender:', gender);
   return { ...safe, gmail, gender, profilePicture };
 }
@@ -2271,24 +2275,29 @@ app.delete('/api/student/profile/picture', async (req, res) => {
 app.get('/api/student/profile/picture/:filename', async (req, res) => {
   try {
     const { filename } = req.params;
+    console.log('[DEBUG] GridFS - Requested filename:', filename);
+    
     const files = await gfsBucket.find({ filename }).toArray();
+    console.log('[DEBUG] GridFS - Found files:', files.length);
     
     if (!files || files.length === 0) {
+      console.log('[DEBUG] GridFS - File not found:', filename);
       return res.status(404).json({ success: false, error: 'File not found' });
     }
     
     const file = files[0];
+    console.log('[DEBUG] GridFS - Serving file:', file.filename, 'Content-Type:', file.contentType);
     res.set('Content-Type', file.contentType || 'image/jpeg');
     
     const downloadStream = gfsBucket.openDownloadStream(file._id);
     downloadStream.pipe(res);
     
     downloadStream.on('error', (err) => {
-      console.error('Error streaming file:', err);
+      console.error('[DEBUG] GridFS - Error streaming file:', err);
       res.status(500).json({ success: false, error: 'Error streaming file' });
     });
   } catch (error) {
-    console.error('Error serving profile picture:', error);
+    console.error('[DEBUG] GridFS - Error serving profile picture:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

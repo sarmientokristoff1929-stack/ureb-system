@@ -395,16 +395,21 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
         const response = await fetch(`${API_BASE_URL}/student/profile?email=${encodeURIComponent(userInfo.email)}`);
         const result = await response.json();
         if (result.success) {
-          setStudentData(result.student);
+          // Add cache-busting timestamp to profile picture URL
+          const student = result.student;
+          if (student.profilePicture) {
+            student.profilePicture = `${student.profilePicture}?t=${Date.now()}`;
+          }
+          setStudentData(student);
           setEditedInfo({
-            firstName: result.student.firstName || '',
-            middleName: result.student.middleName || '',
-            lastName: result.student.lastName || '',
-            studentId: result.student.studentId || '',
-            gender: result.student.gender || '',
-            department: result.student.department || '',
-            program: result.student.program || '',
-            gmail: result.student.gmail || '',
+            firstName: student.firstName || '',
+            middleName: student.middleName || '',
+            lastName: student.lastName || '',
+            studentId: student.studentId || '',
+            gender: student.gender || '',
+            department: student.department || '',
+            program: student.program || '',
+            gmail: student.gmail || '',
           });
         } else {
           setError(result.error || 'Failed to fetch profile data');
@@ -417,7 +422,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
       }
     };
     fetchStudentData();
-  }, [userInfo]);
+  }, [userInfo.email]);
 
   const getFullName = () => {
     if (!studentData) return userInfo?.name || 'Student';
@@ -464,8 +469,10 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
       const result = await response.json();
 
       if (result.success) {
-        setStudentData(prev => ({ ...prev, profilePicture: result.profilePicture }));
-        const updatedUser = { ...userInfo, profilePicture: result.profilePicture };
+        // Add timestamp for cache-busting to force image reload
+        const imageUrlWithCache = `${result.profilePicture}?t=${Date.now()}`;
+        setStudentData(prev => ({ ...prev, profilePicture: imageUrlWithCache }));
+        const updatedUser = { ...userInfo, profilePicture: imageUrlWithCache };
         setUserInfo(updatedUser);
         localStorage.setItem('ureb_user', JSON.stringify(updatedUser));
         setSuccessMsg('Profile picture updated successfully');
@@ -644,61 +651,66 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
   const fullName = getFullName();
   const initials = fullName.charAt(0).toUpperCase();
   const profilePicUrl = studentData?.profilePicture || userInfo?.profilePicture;
+  
+  // Debug logging
+  console.log('[DEBUG] Profile Picture URL:', profilePicUrl);
+  console.log('[DEBUG] studentData:', studentData);
+  console.log('[DEBUG] userInfo:', userInfo);
 
   return (
     <div className="sp-wrapper">
 
       {/* ── Hero Card ── */}
       <div className="sp-hero-card">
-        {/* Avatar with upload/delete functionality */}
-        <div className="sp-avatar-wrapper">
-          {uploadingPic ? (
+        {/* Avatar with upload functionality */}
+        <div 
+          className="sp-avatar-wrapper"
+          onClick={!uploadingPic ? handleProfilePicClick : undefined}
+          style={{ cursor: uploadingPic ? 'default' : 'pointer' }}
+        >
+          {/* Loading state */}
+          {uploadingPic && (
             <div className="sp-avatar-loading">
               <div className="sp-avatar-spinner" />
             </div>
-          ) : profilePicUrl ? (
+          )}
+          
+          {/* Profile image - shown when URL exists and not loading */}
+          {!uploadingPic && profilePicUrl && (
             <img
               key={profilePicUrl}
               src={profilePicUrl}
               alt="Profile"
-              className="sp-hero-avatar-img"
+              className="uploaded-profile-picture"
               onError={(e) => {
+                console.error('[DEBUG] Profile image failed to load:', profilePicUrl);
                 e.target.style.display = 'none';
-                const fallback = e.target.nextElementSibling;
+                // Show fallback initials
+                const fallback = e.target.parentElement?.querySelector('.sp-hero-avatar');
                 if (fallback) fallback.style.display = 'flex';
               }}
             />
-          ) : null}
-          <div className="sp-hero-avatar" style={{ display: profilePicUrl ? 'none' : 'flex' }}>
-            {initials}
-          </div>
-
-          {/* Upload button */}
-          <button
-            className="sp-avatar-upload-btn"
-            onClick={handleProfilePicClick}
-            disabled={uploadingPic}
-            title="Upload profile picture"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
-              <circle cx="12" cy="13" r="3"/>
-            </svg>
-          </button>
-
-          {/* Delete button - only show if profile picture exists */}
-          {profilePicUrl && (
-            <button
-              className="sp-avatar-delete-btn"
-              onClick={handleProfilePicDelete}
-              disabled={uploadingPic}
-              title="Remove profile picture"
+          )}
+          
+          {/* Fallback initials - shown when no URL, or hidden when image loads successfully */}
+          {!uploadingPic && (
+            <div 
+              className="sp-hero-avatar" 
+              style={{ display: !profilePicUrl ? 'flex' : 'none' }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6"/>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              {initials}
+            </div>
+          )}
+
+          {/* Hover overlay - shows "Upload Picture" on hover */}
+          {!uploadingPic && (
+            <div className="sp-avatar-hover-overlay">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+                <circle cx="12" cy="13" r="3"/>
               </svg>
-            </button>
+              <span>Upload Picture</span>
+            </div>
           )}
 
           {/* Hidden file input */}
