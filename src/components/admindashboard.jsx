@@ -8174,6 +8174,11 @@ const MessagesInboxContent = ({ onMessageRead }) => {
 
   const [expandedGroups, setExpandedGroups] = useState({}); // Track which sender groups are expanded
 
+  const [expandedCategories, setExpandedCategories] = useState({
+    'reviewer': true,
+    'student': true
+  }); // Track which message categories are expanded
+
   const [searchQuery, setSearchQuery] = useState(''); // Search filter for sender names
 
 
@@ -8314,6 +8319,13 @@ const MessagesInboxContent = ({ onMessageRead }) => {
     setExpandedGroups(prev => ({
       ...prev,
       [sender]: !prev[sender]
+    }));
+  };
+
+  const toggleCategory = (category) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
     }));
   };
 
@@ -8711,116 +8723,174 @@ const MessagesInboxContent = ({ onMessageRead }) => {
                 );
               }
 
-              const grouped = groupBySender(filteredMessages);
-              const senders = Object.keys(grouped).sort();
-              return senders.map((sender) => {
-                const senderMessages = grouped[sender];
-                const unreadInGroup = senderMessages.filter(m => !m.read).length;
-                const isExpanded = expandedGroups[sender] !== false;
+              // Separate messages by type
+              const reviewerMessages = filteredMessages.filter(m => m.type === 'reviewer_to_admin');
+              const studentMessages = filteredMessages.filter(m => m.type === 'student_to_admin');
+              
+              const renderMessageGroup = (messages, categoryTitle, categoryIcon, categoryColor, categoryKey) => {
+                if (messages.length === 0) return null;
+                const grouped = groupBySender(messages);
+                const senders = Object.keys(grouped).sort();
+                const senderCount = senders.length;
+                const totalUnread = messages.filter(m => !m.read).length;
+                const isCategoryExpanded = expandedCategories[categoryKey] !== false;
+                
                 return (
-                  <div key={sender} style={{ marginBottom: '12px', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
-                    {/* Sender Header - Click to toggle */}
-                    <div
-                      onClick={() => toggleGroup(sender)}
+                  <div key={categoryTitle} style={{ marginBottom: '24px' }}>
+                    {/* Category Header - Click to toggle */}
+                    <div 
+                      onClick={() => toggleCategory(categoryKey)}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'space-between',
+                        gap: '10px',
                         padding: '12px 16px',
-                        backgroundColor: isExpanded ? '#f9fafb' : '#f3f4f6',
-                        cursor: 'pointer',
-                        borderBottom: isExpanded ? '1px solid #e5e7eb' : 'none',
-                        transition: 'background-color 0.2s'
+                        backgroundColor: categoryColor,
+                        borderRadius: isCategoryExpanded ? '8px 8px 0 0' : '8px',
+                        border: '1px solid #e5e7eb',
+                        borderBottom: isCategoryExpanded ? 'none' : '1px solid #e5e7eb',
+                        cursor: 'pointer'
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e5e7eb'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isExpanded ? '#f9fafb' : '#f3f4f6'}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontWeight: 600, color: '#374151' }}>{sender}</span>
-                        <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>({senderMessages.length})</span>
-                        {unreadInGroup > 0 && (
-                          <span style={{ fontSize: '0.75rem', backgroundColor: '#ef4444', color: '#fff', padding: '2px 8px', borderRadius: '9999px' }}>{unreadInGroup} new</span>
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-                          {isExpanded ? '▼' : '▶'}
-                        </span>
-                      </div>
+                      <span style={{ fontSize: '0.9rem' }}>{isCategoryExpanded ? '▼' : '▶'}</span>
+                      <span style={{ fontSize: '1.2rem' }}>{categoryIcon}</span>
+                      <span style={{ fontWeight: 700, fontSize: '1rem', color: '#1f2937' }}>{categoryTitle}</span>
+                      <span style={{ fontSize: '0.85rem', color: '#6b7280', marginLeft: '4px' }}>({senderCount} {categoryKey === 'reviewer' ? 'Reviewers' : 'Students'})</span>
+                      {totalUnread > 0 && (
+                        <span style={{ 
+                          fontSize: '0.75rem', 
+                          backgroundColor: '#ef4444', 
+                          color: '#fff', 
+                          padding: '3px 10px', 
+                          borderRadius: '9999px',
+                          marginLeft: '8px',
+                          fontWeight: 600
+                        }}>{totalUnread} unread</span>
+                      )}
                     </div>
-                    {/* Messages List for this sender */}
-                    {isExpanded && (
-                      <div style={{ backgroundColor: '#fff' }}>
-                        {senderMessages.map((message) => (
-                          <div
-                            key={message._id}
-                            className={`inbox-row ${!message.read ? 'unread' : ''}`}
-                            onClick={() => openMessageModal(message)}
-                            style={{
-                              borderBottom: '1px solid #f3f4f6',
-                              margin: 0,
-                              borderRadius: 0
-                            }}
-                          >
-                            {/* Unread indicator column */}
-                            <div className="inbox-unread-indicator">
-                              {!message.read && <span className="inbox-unread-dot" />}
-                            </div>
-                            {/* Avatar */}
-                            <div className="inbox-avatar">
-                              {(message.senderName || message.senderEmail).charAt(0).toUpperCase()}
-                            </div>
-                            {/* Content */}
-                            <div className="inbox-row-content">
-                              <div className="inbox-row-top">
-                                <span className="inbox-sender-name">
-                                  {message.senderName || message.senderEmail}
-                                </span>
-                                <div className="inbox-row-actions">
-                                  {!message.read && (
-                                    <button
-                                      className="inbox-mark-read-btn"
-                                      onClick={(e) => markSingleAsRead(e, message)}
-                                      title="Mark as read"
-                                    >
-                                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                        <polyline points="20 6 9 17 4 12" />
-                                      </svg>
-                                      Mark as read
-                                    </button>
-                                  )}
-                                  <span className="inbox-row-date">
-                                    {formatInboxDate(message.createdAt || message.sentAt)}
-                                  </span>
-                                  <button
-                                    className="inbox-trash-btn"
-                                    onClick={(e) => openInboxDeleteModal(e, message._id)}
-                                    title="Delete message"
-                                  >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <polyline points="3 6 5 6 21 6" />
-                                      <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                                      <path d="M10 11v6M14 11v6" />
-                                      <path d="M9 6V4h6v2" />
-                                    </svg>
-                                  </button>
-                                </div>
-                              </div>
-                              <div className="inbox-row-bottom">
-                                <span className="inbox-subject">{message.subject}</span>
-                                {message.submissionType === 'resubmission' && (
-                                  <span className="inbox-badge resubmission">Resubmission</span>
+                    {/* Senders in this category */}
+                    {isCategoryExpanded && (
+                    <div style={{ border: '1px solid #e5e7eb', borderTop: 'none', borderRadius: '0 0 8px 8px' }}>
+                      {senders.map((sender) => {
+                        const senderMessages = grouped[sender];
+                        const unreadInGroup = senderMessages.filter(m => !m.read).length;
+                        const isExpanded = expandedGroups[sender] !== false;
+                        return (
+                          <div key={sender} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                            {/* Sender Header - Click to toggle */}
+                            <div
+                              onClick={() => toggleGroup(sender)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '10px 16px',
+                                backgroundColor: isExpanded ? '#f9fafb' : '#fff',
+                                cursor: 'pointer',
+                                borderLeft: '4px solid ' + categoryColor,
+                                transition: 'background-color 0.2s'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isExpanded ? '#f9fafb' : '#fff'}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{ fontWeight: 600, color: '#374151', fontSize: '0.95rem' }}>{sender}</span>
+                                <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>({senderMessages.length})</span>
+                                {unreadInGroup > 0 && (
+                                  <span style={{ fontSize: '0.7rem', backgroundColor: '#ef4444', color: '#fff', padding: '2px 8px', borderRadius: '9999px' }}>{unreadInGroup} new</span>
                                 )}
-                                <span className="inbox-preview"> — {message.message}</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                                  {isExpanded ? '▼' : '▶'}
+                                </span>
                               </div>
                             </div>
+                            {/* Messages List for this sender */}
+                            {isExpanded && (
+                              <div style={{ backgroundColor: '#fff' }}>
+                                {senderMessages.map((message) => (
+                                  <div
+                                    key={message._id}
+                                    className={`inbox-row ${!message.read ? 'unread' : ''}`}
+                                    onClick={() => openMessageModal(message)}
+                                    style={{
+                                      borderBottom: '1px solid #f3f4f6',
+                                      margin: 0,
+                                      borderRadius: 0
+                                    }}
+                                  >
+                                    {/* Unread indicator column */}
+                                    <div className="inbox-unread-indicator">
+                                      {!message.read && <span className="inbox-unread-dot" />}
+                                    </div>
+                                    {/* Avatar */}
+                                    <div className="inbox-avatar">
+                                      {(message.senderName || message.senderEmail).charAt(0).toUpperCase()}
+                                    </div>
+                                    {/* Content */}
+                                    <div className="inbox-row-content">
+                                      <div className="inbox-row-top">
+                                        <span className="inbox-sender-name">
+                                          {message.senderName || message.senderEmail}
+                                        </span>
+                                        <div className="inbox-row-actions">
+                                          {!message.read && (
+                                            <button
+                                              className="inbox-mark-read-btn"
+                                              onClick={(e) => markSingleAsRead(e, message)}
+                                              title="Mark as read"
+                                            >
+                                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                <polyline points="20 6 9 17 4 12" />
+                                              </svg>
+                                              Mark as read
+                                            </button>
+                                          )}
+                                          <span className="inbox-row-date">
+                                            {formatInboxDate(message.createdAt || message.sentAt)}
+                                          </span>
+                                          <button
+                                            className="inbox-trash-btn"
+                                            onClick={(e) => openInboxDeleteModal(e, message._id)}
+                                            title="Delete message"
+                                          >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                              <polyline points="3 6 5 6 21 6" />
+                                              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                                              <path d="M10 11v6M14 11v6" />
+                                              <path d="M9 6V4h6v2" />
+                                            </svg>
+                                          </button>
+                                        </div>
+                                      </div>
+                                      <div className="inbox-row-bottom">
+                                        <span className="inbox-subject">{message.subject}</span>
+                                        {message.submissionType === 'resubmission' && (
+                                          <span className="inbox-badge resubmission">Resubmission</span>
+                                        )}
+                                        <span className="inbox-preview"> — {message.message}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })}
+                    </div>
                     )}
                   </div>
                 );
-              });
+              };
+
+              return (
+                <>
+                  {renderMessageGroup(reviewerMessages, 'Reviewer Messages', '👤', '#dbeafe', 'reviewer')}
+                  {renderMessageGroup(studentMessages, 'Student Messages', '🎓', '#dcfce7', 'student')}
+                </>
+              );
             })()
 
           )}
@@ -9207,8 +9277,8 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, on
               <div className="msg-modal-files-list">
 
                 {message.files.map((file, i) => {
-                  const storedName = file.path ? file.path.split(/[\\/]/).pop() : file.filename;
-                  const displayName = file.filename;
+                  const storedName = file.filename;
+                  const displayName = file.originalname || file.filename;
                   return (
                     <div key={i} className="msg-file-card">
 

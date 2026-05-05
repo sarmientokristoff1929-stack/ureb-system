@@ -372,6 +372,10 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
   const [pwdSuccess, setPwdSuccess] = useState('');
   const [showPwd, setShowPwd] = useState({ current: false, newPwd: false, confirm: false });
 
+  // Profile picture state
+  const [uploadingPic, setUploadingPic] = useState(false);
+  const fileInputRef = useRef(null);
+
   useEffect(() => {
     const fetchStudentData = async () => {
       try {
@@ -406,6 +410,101 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
     if (!studentData) return userInfo?.name || 'Student';
     const parts = [studentData.firstName, studentData.middleName, studentData.lastName].filter(Boolean);
     return parts.length > 0 ? parts.join(' ') : (studentData.name || userInfo?.name || 'Student');
+  };
+
+  const handleProfilePicClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleProfilePicUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      setError('Please upload a valid image file (JPEG, PNG, WebP, or GIF)');
+      setTimeout(() => setError(''), 4000);
+      return;
+    }
+
+    // Validate file size (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Image size must be less than 2MB');
+      setTimeout(() => setError(''), 4000);
+      return;
+    }
+
+    setUploadingPic(true);
+    setError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('profilePicture', file);
+      formData.append('email', userInfo.email);
+
+      const response = await fetch(`${API_BASE_URL}/student/profile/picture`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setStudentData(prev => ({ ...prev, profilePicture: result.profilePicture }));
+        const updatedUser = { ...userInfo, profilePicture: result.profilePicture };
+        setUserInfo(updatedUser);
+        localStorage.setItem('ureb_user', JSON.stringify(updatedUser));
+        setSuccessMsg('Profile picture updated successfully');
+        setTimeout(() => setSuccessMsg(''), 4000);
+      } else {
+        setError(result.error || 'Failed to upload profile picture');
+        setTimeout(() => setError(''), 4000);
+      }
+    } catch (err) {
+      console.error('Error uploading profile picture:', err);
+      setError('Failed to upload profile picture');
+      setTimeout(() => setError(''), 4000);
+    } finally {
+      setUploadingPic(false);
+      // Reset file input
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleProfilePicDelete = async () => {
+    if (!window.confirm('Are you sure you want to remove your profile picture?')) return;
+
+    setUploadingPic(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/student/profile/picture`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userInfo.email }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setStudentData(prev => ({ ...prev, profilePicture: null }));
+        const updatedUser = { ...userInfo, profilePicture: null };
+        setUserInfo(updatedUser);
+        localStorage.setItem('ureb_user', JSON.stringify(updatedUser));
+        setSuccessMsg('Profile picture removed successfully');
+        setTimeout(() => setSuccessMsg(''), 4000);
+      } else {
+        setError(result.error || 'Failed to remove profile picture');
+        setTimeout(() => setError(''), 4000);
+      }
+    } catch (err) {
+      console.error('Error removing profile picture:', err);
+      setError('Failed to remove profile picture');
+      setTimeout(() => setError(''), 4000);
+    } finally {
+      setUploadingPic(false);
+    }
   };
 
   const handleEdit = () => { setIsEditing(true); setError(''); setSuccessMsg(''); };
@@ -531,13 +630,71 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
 
   const fullName = getFullName();
   const initials = fullName.charAt(0).toUpperCase();
+  const profilePicUrl = studentData?.profilePicture || userInfo?.profilePicture;
 
   return (
     <div className="sp-wrapper">
 
       {/* ── Hero Card ── */}
       <div className="sp-hero-card">
-        <div className="sp-avatar">{initials}</div>
+        {/* Avatar with upload/delete functionality */}
+        <div className="sp-avatar-wrapper">
+          {uploadingPic ? (
+            <div className="sp-avatar-loading">
+              <div className="sp-avatar-spinner" />
+            </div>
+          ) : profilePicUrl ? (
+            <img
+              src={profilePicUrl}
+              alt="Profile"
+              className="sp-hero-avatar-img"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+          ) : null}
+          <div className="sp-hero-avatar" style={{ display: profilePicUrl ? 'none' : 'flex' }}>
+            {initials}
+          </div>
+
+          {/* Upload button */}
+          <button
+            className="sp-avatar-upload-btn"
+            onClick={handleProfilePicClick}
+            disabled={uploadingPic}
+            title="Upload profile picture"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+              <circle cx="12" cy="13" r="3"/>
+            </svg>
+          </button>
+
+          {/* Delete button - only show if profile picture exists */}
+          {profilePicUrl && (
+            <button
+              className="sp-avatar-delete-btn"
+              onClick={handleProfilePicDelete}
+              disabled={uploadingPic}
+              title="Remove profile picture"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+            </button>
+          )}
+
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+            onChange={handleProfilePicUpload}
+            style={{ display: 'none' }}
+          />
+        </div>
         <div className="sp-hero-info">
           <h2 className="sp-hero-name">{fullName}</h2>
           {studentData?.studentId && (
@@ -2651,22 +2808,64 @@ const MessageAdminContent = ({ userInfo }) => {
           Send a message directly to the UREB admin. You can attach files if needed.
         </p>
 
+        {/* Success Modal */}
         {success && (
-          <div className="success-banner" style={{
-            background: '#f0fdf4',
-            border: '1px solid #86efac',
-            borderRadius: '8px',
-            padding: '1rem',
-            marginBottom: '1rem',
-            color: '#166534',
+          <div className="mini-modal-overlay" onClick={() => setSuccess(false)} style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem'
+            justifyContent: 'center',
+            zIndex: 9999
           }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            Message sent successfully!
+            <div className="mini-modal" onClick={e => e.stopPropagation()} style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '2rem',
+              maxWidth: '400px',
+              width: '90%',
+              textAlign: 'center',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)'
+            }}>
+              <div style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                background: '#f0fdf4',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1rem'
+              }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#166534" strokeWidth="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <h3 style={{ margin: '0 0 0.5rem', color: '#166534', fontSize: '1.25rem' }}>
+                Message Sent!
+              </h3>
+              <p style={{ margin: '0 0 1.5rem', color: '#666' }}>
+                Your message has been sent to the admin successfully.
+              </p>
+              <button
+                onClick={() => setSuccess(false)}
+                style={{
+                  padding: '0.75rem 2rem',
+                  background: '#4a7c59',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                  cursor: 'pointer'
+                }}
+              >
+                OK
+              </button>
+            </div>
           </div>
         )}
 

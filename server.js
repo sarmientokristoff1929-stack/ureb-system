@@ -126,20 +126,9 @@ async function uploadToGridFS(file) {
   });
 }
 
-// Profile picture multer config (images only, 2 MB)
-const profilePicsDir = path.join(uploadsDir, 'profile-pictures');
-if (!fs.existsSync(profilePicsDir)) fs.mkdirSync(profilePicsDir, { recursive: true });
-
-const profilePicStorage = multer.diskStorage({
-  destination: function (req, file, cb) { cb(null, profilePicsDir); },
-  filename: function (req, file, cb) {
-    const suffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, 'avatar-' + suffix + path.extname(file.originalname));
-  }
-});
-
+// Profile picture multer config (memory storage for GridFS, images only, 2 MB)
 const uploadProfilePic = multer({
-  storage: profilePicStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 },
   fileFilter: function (req, file, cb) {
     const ok = /jpeg|jpg|png|webp|gif/.test(path.extname(file.originalname).toLowerCase())
@@ -147,6 +136,30 @@ const uploadProfilePic = multer({
     ok ? cb(null, true) : cb(new Error('Only image files are allowed'));
   }
 });
+
+// Upload profile picture buffer to GridFS
+async function uploadProfilePicToGridFS(file, userId) {
+  const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+  const filename = `avatar-${userId}-${uniqueSuffix}${path.extname(file.originalname)}`;
+  return new Promise((resolve, reject) => {
+    const uploadStream = gfsBucket.openUploadStream(filename, { contentType: file.mimetype });
+    uploadStream.end(file.buffer);
+    uploadStream.on('finish', () => resolve(filename));
+    uploadStream.on('error', reject);
+  });
+}
+
+// Delete file from GridFS by filename
+async function deleteFromGridFS(filename) {
+  try {
+    const files = await gfsBucket.find({ filename }).toArray();
+    for (const file of files) {
+      await gfsBucket.delete(file._id);
+    }
+  } catch (err) {
+    console.error('Error deleting from GridFS:', err);
+  }
+}
 
 // Shared nodemailer transporter (created once, reused for all emails)
 const transporter = nodemailer.createTransport({
@@ -1123,8 +1136,13 @@ function studentProfilePayload(student) {
   const { password, sex, ...safe } = plain;
   const gmail = safe.gmail || safe.email || '';
   const gender = String(safe.gender || sex || '').trim();
+  // Build profile picture URL from GridFS filename
+  let profilePicture = safe.profilePicture || null;
+  if (safe.profilePictureGridFS) {
+    profilePicture = `/api/student/profile/picture/${safe.profilePictureGridFS}`;
+  }
   console.log('[DEBUG] studentProfilePayload - raw gender from DB:', safe.gender, '| sex:', sex, '| computed gender:', gender);
-  return { ...safe, gmail, gender };
+  return { ...safe, gmail, gender, profilePicture };
 }
 
 // GET student profile by email (or gmail), case-insensitive fallback
@@ -2173,7 +2191,7 @@ app.post('/api/verify-otp', (req, res) => {
   }
 });
 
-// Upload student profile picture
+// Upload student profile picture to GridFS
 app.post('/api/student/profile/picture', uploadProfilePic.single('profilePicture'), async (req, res) => {
   try {
     const { email } = req.body;
@@ -2186,21 +2204,32 @@ app.post('/api/student/profile/picture', uploadProfilePic.single('profilePicture
     if (!student) {
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
-    // Delete old picture file if it exists
-    if (student.profilePicture) {
-      const oldFile = path.join(profilePicsDir, path.basename(student.profilePicture));
-      if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile);
+    
+    // Delete old picture from GridFS if it exists
+    if (student.profilePictureGridFS) {
+      await deleteFromGridFS(student.profilePictureGridFS);
     }
-    const pictureUrl = `/uploads/profile-pictures/${req.file.filename}`;
-    await students.updateOne({ email }, { $set: { profilePicture: pictureUrl, updatedAt: new Date() } });
-    res.json({ success: true, profilePicture: pictureUrl });
+    
+    // Upload new picture to GridFS
+    const gridFSFilename = await uploadProfilePicToGridFS(req.file, student._id.toString());
+    
+    // Store GridFS filename in student document
+    await students.updateOne({ email }, { 
+      $set: { 
+        profilePictureGridFS: gridFSFilename, 
+        updatedAt: new Date() 
+      },
+      $unset: { profilePicture: '' } // Remove old field if exists
+    });
+    
+    res.json({ success: true, profilePicture: `/api/student/profile/picture/${gridFSFilename}` });
   } catch (error) {
     console.error('Error uploading profile picture:', error);
     res.status(500).json({ success: false, error: error.message || 'Server error' });
   }
 });
 
-// Delete student profile picture
+// Delete student profile picture from GridFS
 app.delete('/api/student/profile/picture', async (req, res) => {
   try {
     const { email } = req.body;
@@ -2213,14 +2242,45 @@ app.delete('/api/student/profile/picture', async (req, res) => {
     if (!student) {
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
-    if (student.profilePicture) {
-      const picFile = path.join(profilePicsDir, path.basename(student.profilePicture));
-      if (fs.existsSync(picFile)) fs.unlinkSync(picFile);
+    
+    // Delete from GridFS
+    if (student.profilePictureGridFS) {
+      await deleteFromGridFS(student.profilePictureGridFS);
     }
-    await students.updateOne({ email }, { $set: { profilePicture: null, updatedAt: new Date() } });
+    
+    await students.updateOne({ email }, { 
+      $set: { updatedAt: new Date() },
+      $unset: { profilePictureGridFS: '', profilePicture: '' }
+    });
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting profile picture:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Serve profile picture from GridFS
+app.get('/api/student/profile/picture/:filename', async (req, res) => {
+  try {
+    const { filename } = req.params;
+    const files = await gfsBucket.find({ filename }).toArray();
+    
+    if (!files || files.length === 0) {
+      return res.status(404).json({ success: false, error: 'File not found' });
+    }
+    
+    const file = files[0];
+    res.set('Content-Type', file.contentType || 'image/jpeg');
+    
+    const downloadStream = gfsBucket.openDownloadStream(file._id);
+    downloadStream.pipe(res);
+    
+    downloadStream.on('error', (err) => {
+      console.error('Error streaming file:', err);
+      res.status(500).json({ success: false, error: 'Error streaming file' });
+    });
+  } catch (error) {
+    console.error('Error serving profile picture:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
