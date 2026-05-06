@@ -2901,7 +2901,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       // Notify the reviewer
       await notifications.insertOne({
         recipientEmail: reviewer.email,
-        recipientName: resolvedName,
+        recipientName: reviewer.email,
         title: 'New Files Assigned for Review',
         message: `You have been assigned ${Object.keys(uploadedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
         type: 'assignment',
@@ -3144,7 +3144,7 @@ app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     console.error('Multer error:', err);
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ success: false, error: 'File too large. Max size is 10MB.' });
+      return res.status(400).json({ success: false, error: 'File too large. Max size is 10MB.' });  
     }
     return res.status(400).json({ success: false, error: 'File upload error: ' + err.message });
   }
