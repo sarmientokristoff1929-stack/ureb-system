@@ -14,6 +14,11 @@ export const authenticateUser = async (email, password) => {
     });
     
     const data = await response.json();
+    if (data.success && data.user && data.user.profilePicture) {
+      if (data.user.profilePicture.startsWith('/api') && API_BASE_URL.startsWith('http')) {
+        data.user.profilePicture = `${API_BASE_URL.replace(/\/api$/, '')}${data.user.profilePicture}`;
+      }
+    }
     return data;
   } catch (error) {
     console.error('Authentication error:', error);

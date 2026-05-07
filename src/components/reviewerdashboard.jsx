@@ -644,12 +644,21 @@ const ReviewerDashboard = ({ onLogout }) => {
             <div className="user-avatar">
               {userInfo.profilePicture ? (
                 <img 
+                  key={userInfo.profilePicture}
                   src={userInfo.profilePicture} 
                   alt="Profile" 
                   className="header-profile-pic"
+                  onLoad={(e) => {
+                    e.target.style.display = 'block';
+                    if (e.target.nextSibling) {
+                      e.target.nextSibling.style.display = 'none';
+                    }
+                  }}
                   onError={(e) => {
                     e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
+                    if (e.target.nextSibling) {
+                      e.target.nextSibling.style.display = 'flex';
+                    }
                   }}
                 />
               ) : null}
@@ -900,7 +909,11 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
         if (reviewer) {
           // Add cache-busting timestamp to profile picture URL
           if (reviewer.profilePictureGridFS) {
-            reviewer.profilePicture = `/api/reviewer/profile/picture/${reviewer.profilePictureGridFS}?t=${Date.now()}`;
+            let picUrl = `/api/reviewer/profile/picture/${reviewer.profilePictureGridFS}`;
+            if (API_BASE.startsWith('http')) {
+              picUrl = `${API_BASE.replace(/\/api$/, '')}${picUrl}`;
+            }
+            reviewer.profilePicture = `${picUrl}?t=${Date.now()}`;
           }
           setReviewerData(reviewer);
         }
@@ -978,7 +991,11 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
 
       if (result.success) {
         // Add timestamp for cache-busting
-        const imageUrlWithCache = `${result.profilePicture}?t=${Date.now()}`;
+        let picUrl = result.profilePicture;
+        if (picUrl.startsWith('/api') && API_BASE.startsWith('http')) {
+           picUrl = `${API_BASE.replace(/\/api$/, '')}${picUrl}`;
+        }
+        const imageUrlWithCache = `${picUrl}?t=${Date.now()}`;
         setReviewerData(prev => ({ ...prev, profilePicture: imageUrlWithCache }));
         const updatedUser = { ...userInfo, profilePicture: imageUrlWithCache };
         setUserInfo(updatedUser);
@@ -1195,6 +1212,11 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
               src={profilePicUrl}
               alt="Profile"
               className="uploaded-profile-picture"
+              onLoad={(e) => {
+                e.target.style.display = 'block';
+                const fallback = e.target.parentElement?.querySelector('.sp-hero-avatar');
+                if (fallback) fallback.style.display = 'none';
+              }}
               onError={(e) => {
                 e.target.style.display = 'none';
                 const fallback = e.target.parentElement?.querySelector('.sp-hero-avatar');
@@ -3619,19 +3641,32 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
       <h2>Submit Secondary File</h2>
 
       <form onSubmit={handleSubmit} className="review-form">
-        {/* Protocol Code Input */}
-        <div className="form-section">
-          <div className="form-group">
-            <label className="form-label">Protocol Code</label>
-            <input
-              type="text"
-              className="form-input"
-              value={secondaryFileData.protocolCode}
-              onChange={(e) => setSecondaryFileData(prev => ({ ...prev, protocolCode: e.target.value }))}
-              placeholder="Enter Protocol Code (e.g., UREB-2026-001)"
-              required
-            />
-          </div>
+        {/* Protocol Code Dropdown */}
+        <div className="form-section" style={{ overflow: 'hidden' }}>
+          <label className="form-label" style={{ fontWeight: '600', color: '#000', marginBottom: '0.5rem', display: 'block' }}>
+            Protocol Code
+          </label>
+          <select
+            className="form-input"
+            style={{ width: '100%', maxWidth: '100%', padding: '0.75rem', fontSize: '0.95rem', boxSizing: 'border-box', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: '#fff', display: 'block' }}
+            value={secondaryFileData.protocolCode}
+            onChange={(e) => setSecondaryFileData(prev => ({ ...prev, protocolCode: e.target.value }))}
+
+            required
+            disabled={loading}
+          >
+            <option value="">{loading ? 'Loading...' : '-- Select Protocol Code --'}</option>
+            {proposals.filter(p => p.protocolCode).map((proposal, index) => (
+              <option key={index} value={proposal.protocolCode}>
+                {proposal.protocolCode}
+              </option>
+            ))}
+          </select>
+          {proposals.length === 0 && !loading && (
+            <p style={{ color: '#dc2626', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+              No protocol codes found. Please check your assignments.
+            </p>
+          )}
         </div>
 
         {/* Document upload section - Secondary Reviewer Layout */}
@@ -3882,97 +3917,83 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
 
 
 
-  if (messages.length === 0) {
-
-    return (
-
-      <div className="content-section">
-
-        <h2>Messages</h2>
-
-        <div className="empty-state">No messages yet.</div>
-
-      </div>
-
-    );
-
-  }
-
-
-
   return (
 
     <div className="content-section">
 
       <h2>Messages</h2>
 
-      <div className="messages-list">
+      {messages.length === 0 ? (
+        <div className="empty-state">No messages yet.</div>
+      ) : (
+        <div className="messages-list">
 
-        {messages.map((message) => (
+          {messages.map((message) => (
 
-          <div className={`message-item ${!message.read ? 'unread' : ''}`} key={message._id || message.id}>
+            <div className={`message-item ${!message.read ? 'unread' : ''}`} key={message._id || message.id}>
 
-            <div className="message-header">
+              <div className="message-header">
 
-              <div className="message-sender">
+                <div className="message-sender">
 
-                <div className="sender-avatar">
+                  <div className="sender-avatar">
 
-                  {(message.senderName || (message.type === 'admin_to_reviewer' ? 'Administrator' : message.senderEmail) || 'U').charAt(0).toUpperCase()}
+                    {(message.senderName || (message.type === 'admin_to_reviewer' ? 'Administrator' : message.senderEmail) || 'U').charAt(0).toUpperCase()}
+
+                  </div>
+
+                  <div className="sender-info">
+
+                    <h4>{message.senderName || (message.type === 'admin_to_reviewer' ? 'UREB Administrator' : message.senderEmail) || 'Unknown'}</h4>
+
+                    <span>{formatTimeAgo(message.sentAt || message.createdAt)}</span>
+
+                  </div>
 
                 </div>
 
-                <div className="sender-info">
-
-                  <h4>{message.senderName || (message.type === 'admin_to_reviewer' ? 'UREB Administrator' : message.senderEmail) || 'Unknown'}</h4>
-
-                  <span>{formatTimeAgo(message.sentAt || message.createdAt)}</span>
-
+                <div className="message-header-right">
+                  {!message.read && <span className="unread-badge">New</span>}
+                  <button
+                    className="message-delete-btn"
+                    onClick={() => handleDeleteMessage(message._id || message.id)}
+                    title="Delete message"
+                  >
+                    <TrashIcon />
+                  </button>
                 </div>
 
               </div>
 
-              <div className="message-header-right">
-                {!message.read && <span className="unread-badge">New</span>}
-                <button
-                  className="message-delete-btn"
-                  onClick={() => handleDeleteMessage(message._id || message.id)}
-                  title="Delete message"
-                >
-                  <TrashIcon />
-                </button>
+              <div className="message-content">
+
+                {message.subject && <h4>{message.subject}</h4>}
+
+                <p>{message.message || 'No content'}</p>
+
+              </div>
+
+              <div className="message-actions">
+
+                {!message.read && (
+
+                  <button
+                    className="btn-secondary"
+                    onClick={() => handleMarkAsRead(message._id || message.id)}
+                  >
+                    Mark as Read
+                  </button>
+
+                )}
+
               </div>
 
             </div>
 
-            <div className="message-content">
+          ))}
 
-              {message.subject && <h4>{message.subject}</h4>}
-
-              <p>{message.message || 'No content'}</p>
-
-            </div>
-
-            <div className="message-actions">
-
-              {!message.read && (
-
-                <button
-                  className="btn-secondary"
-                  onClick={() => handleMarkAsRead(message._id || message.id)}
-                >
-                  Mark as Read
-                </button>
-
-              )}
-
-            </div>
-
-          </div>
-
-        ))}
-
-      </div>
+        </div>
+      )}
 
       <div className="message-compose-section" style={{ marginTop: '2rem', padding: '1rem', borderTop: '1px solid #e5e7eb' }}>
         <button

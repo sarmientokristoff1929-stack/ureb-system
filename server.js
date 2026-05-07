@@ -1257,6 +1257,164 @@ app.put('/api/student/password', async (req, res) => {
   }
 });
 
+// POST upload/update student profile picture
+app.post('/api/student/profile/picture', uploadProfilePic.single('profilePicture'), async (req, res) => {
+  try {
+    const email = req.body.email;
+    if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
+    if (!req.file) return res.status(400).json({ success: false, error: 'No image provided' });
+
+    const db = getDatabase();
+    const students = db.collection(collections.students);
+    const student = await findStudentByLoginEmail(students, email);
+    if (!student) return res.status(404).json({ success: false, error: 'Student not found' });
+
+    // Delete old picture if exists
+    if (student.profilePictureGridFS) {
+      await deleteFromGridFS(student.profilePictureGridFS);
+    }
+
+    const filename = await uploadProfilePicToGridFS(req.file, student._id.toString());
+    
+    await students.updateOne(
+      { _id: student._id },
+      { $set: { profilePictureGridFS: filename, updatedAt: new Date() } }
+    );
+
+    res.json({ 
+      success: true, 
+      profilePicture: `/api/student/profile/picture/${filename}` 
+    });
+  } catch (error) {
+    console.error('Error uploading profile picture:', error);
+    res.status(500).json({ success: false, error: 'Server error uploading image' });
+  }
+});
+
+// DELETE student profile picture
+app.delete('/api/student/profile/picture', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
+
+    const db = getDatabase();
+    const students = db.collection(collections.students);
+    const student = await findStudentByLoginEmail(students, email);
+    if (!student) return res.status(404).json({ success: false, error: 'Student not found' });
+
+    if (student.profilePictureGridFS) {
+      await deleteFromGridFS(student.profilePictureGridFS);
+      await students.updateOne(
+        { _id: student._id },
+        { $unset: { profilePictureGridFS: "" }, $set: { updatedAt: new Date() } }
+      );
+    }
+
+    res.json({ success: true, message: 'Profile picture removed successfully' });
+  } catch (error) {
+    console.error('Error removing profile picture:', error);
+    res.status(500).json({ success: false, error: 'Server error removing image' });
+  }
+});
+
+// GET student profile picture from GridFS
+app.get('/api/student/profile/picture/:filename', async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const files = await gfsBucket.find({ filename }).toArray();
+    if (!files || files.length === 0) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+
+    res.setHeader('Content-Type', files[0].contentType || 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+    gfsBucket.openDownloadStreamByName(filename).pipe(res);
+  } catch (error) {
+    console.error('Error serving profile picture:', error);
+    res.status(500).json({ error: 'Server error serving image' });
+  }
+});
+
+// POST upload/update reviewer profile picture
+app.post('/api/reviewer/profile/picture', uploadProfilePic.single('profilePicture'), async (req, res) => {
+  try {
+    const email = req.body.email;
+    if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
+    if (!req.file) return res.status(400).json({ success: false, error: 'No image provided' });
+
+    const db = getDatabase();
+    const reviewers = db.collection(collections.reviewers);
+    
+    // Find reviewer (case-insensitive email)
+    const reviewer = await reviewers.findOne({ email: new RegExp(`^${email}$`, 'i') });
+    if (!reviewer) return res.status(404).json({ success: false, error: 'Reviewer not found' });
+
+    // Delete old picture if exists
+    if (reviewer.profilePictureGridFS) {
+      await deleteFromGridFS(reviewer.profilePictureGridFS);
+    }
+
+    const filename = await uploadProfilePicToGridFS(req.file, reviewer._id.toString());
+    
+    await reviewers.updateOne(
+      { _id: reviewer._id },
+      { $set: { profilePictureGridFS: filename, updatedAt: new Date() } }
+    );
+
+    res.json({ 
+      success: true, 
+      profilePicture: `/api/reviewer/profile/picture/${filename}` 
+    });
+  } catch (error) {
+    console.error('Error uploading reviewer profile picture:', error);
+    res.status(500).json({ success: false, error: 'Server error uploading image' });
+  }
+});
+
+// DELETE reviewer profile picture
+app.delete('/api/reviewer/profile/picture', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
+
+    const db = getDatabase();
+    const reviewers = db.collection(collections.reviewers);
+    const reviewer = await reviewers.findOne({ email: new RegExp(`^${email}$`, 'i') });
+    if (!reviewer) return res.status(404).json({ success: false, error: 'Reviewer not found' });
+
+    if (reviewer.profilePictureGridFS) {
+      await deleteFromGridFS(reviewer.profilePictureGridFS);
+      await reviewers.updateOne(
+        { _id: reviewer._id },
+        { $unset: { profilePictureGridFS: "" }, $set: { updatedAt: new Date() } }
+      );
+    }
+
+    res.json({ success: true, message: 'Profile picture removed successfully' });
+  } catch (error) {
+    console.error('Error removing reviewer profile picture:', error);
+    res.status(500).json({ success: false, error: 'Server error removing image' });
+  }
+});
+
+// GET reviewer profile picture from GridFS
+app.get('/api/reviewer/profile/picture/:filename', async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const files = await gfsBucket.find({ filename }).toArray();
+    if (!files || files.length === 0) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+
+    res.setHeader('Content-Type', files[0].contentType || 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+    gfsBucket.openDownloadStreamByName(filename).pipe(res);
+  } catch (error) {
+    console.error('Error serving reviewer profile picture:', error);
+    res.status(500).json({ error: 'Server error serving image' });
+  }
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Proposal operations
