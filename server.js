@@ -1323,6 +1323,11 @@ app.get('/api/student/profile/picture/:filename', async (req, res) => {
     const filename = req.params.filename;
     const files = await gfsBucket.find({ filename }).toArray();
     if (!files || files.length === 0) {
+      // Fallback: check local uploads directory for legacy file-system images
+      const localPath = path.resolve('uploads', 'profile-pictures', filename);
+      if (fs.existsSync(localPath)) {
+        return res.sendFile(path.resolve(localPath));
+      }
       return res.status(404).json({ error: 'Image not found' });
     }
 
@@ -1403,6 +1408,11 @@ app.get('/api/reviewer/profile/picture/:filename', async (req, res) => {
     const filename = req.params.filename;
     const files = await gfsBucket.find({ filename }).toArray();
     if (!files || files.length === 0) {
+      // Fallback: check local uploads directory for legacy file-system images
+      const localPath = path.resolve('uploads', 'profile-pictures', filename);
+      if (fs.existsSync(localPath)) {
+        return res.sendFile(path.resolve(localPath));
+      }
       return res.status(404).json({ error: 'Image not found' });
     }
 
@@ -2590,6 +2600,11 @@ app.get('/api/reviewer/profile/picture/:filename', async (req, res) => {
     
     if (!files || files.length === 0) {
       console.log('[DEBUG] GridFS Reviewer - File not found:', filename);
+      // Fallback: check local uploads directory for legacy file-system images
+      const localPath = path.resolve('uploads', 'profile-pictures', filename);
+      if (fs.existsSync(localPath)) {
+        return res.sendFile(path.resolve(localPath));
+      }
       return res.status(404).json({ success: false, error: 'File not found' });
     }
     

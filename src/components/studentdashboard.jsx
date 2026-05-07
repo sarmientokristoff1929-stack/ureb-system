@@ -144,6 +144,7 @@ const StudentDashboard = ({ onLogout }) => {
   const [userInfo, setUserInfo] = useState(null);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
+  const [headerImgError, setHeaderImgError] = useState(false);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('ureb_user');
@@ -168,6 +169,11 @@ const StudentDashboard = ({ onLogout }) => {
       setActiveTab(currentTab);
     }
   }, []);
+
+  // Reset header image error when profile picture URL changes
+  useEffect(() => {
+    setHeaderImgError(false);
+  }, [userInfo?.profilePicture]);
 
   // Fetch message count for badge
   useEffect(() => {
@@ -339,18 +345,15 @@ const StudentDashboard = ({ onLogout }) => {
           <h1>{menuItems.find(item => item.id === activeTab)?.label || 'Dashboard'}</h1>
           <div className="user-info">
             <span>Welcome, {userInfo?.name || 'Student'}</span>
-            {userInfo?.profilePicture ? (
+            {userInfo?.profilePicture && !headerImgError ? (
               <img
                 src={userInfo.profilePicture}
                 alt="Profile"
                 className="user-avatar user-avatar-img"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'flex';
-                }}
+                onError={() => setHeaderImgError(true)}
               />
             ) : null}
-            <div className="user-avatar" style={{ display: userInfo?.profilePicture ? 'none' : 'flex' }}>
+            <div className="user-avatar" style={{ display: (userInfo?.profilePicture && !headerImgError) ? 'none' : 'flex' }}>
               {userInfo?.name?.charAt(0).toUpperCase() || 'S'}
             </div>
           </div>
@@ -387,6 +390,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
 
   // Profile picture state
   const [uploadingPic, setUploadingPic] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -395,11 +399,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
         const response = await fetch(`${API_BASE_URL}/student/profile?email=${encodeURIComponent(userInfo.email)}`);
         const result = await response.json();
         if (result.success) {
-          // Add cache-busting timestamp to profile picture URL
           const student = result.student;
-          if (student.profilePicture) {
-            student.profilePicture = `${student.profilePicture}?t=${Date.now()}`;
-          }
           setStudentData(student);
           setEditedInfo({
             firstName: student.firstName || '',
@@ -423,6 +423,11 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
     };
     fetchStudentData();
   }, [userInfo.email]);
+
+  // Reset image error when the URL changes (e.g. after upload)
+  useEffect(() => {
+    setImgError(false);
+  }, [studentData?.profilePicture]);
 
   const getFullName = () => {
     if (!studentData) return userInfo?.name || 'Student';
@@ -469,10 +474,8 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
       const result = await response.json();
 
       if (result.success) {
-        // Add timestamp for cache-busting to force image reload
-        const imageUrlWithCache = `${result.profilePicture}?t=${Date.now()}`;
-        setStudentData(prev => ({ ...prev, profilePicture: imageUrlWithCache }));
-        const updatedUser = { ...userInfo, profilePicture: imageUrlWithCache };
+        setStudentData(prev => ({ ...prev, profilePicture: result.profilePicture }));
+        const updatedUser = { ...userInfo, profilePicture: result.profilePicture };
         setUserInfo(updatedUser);
         localStorage.setItem('ureb_user', JSON.stringify(updatedUser));
         setSuccessMsg('Profile picture updated successfully');
@@ -675,35 +678,21 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
             </div>
           )}
           
-          {/* Profile image - shown when URL exists and not loading */}
-          {!uploadingPic && profilePicUrl && (
+          {/* Profile image - shown when URL exists, not loading, and no error */}
+          {!uploadingPic && profilePicUrl && !imgError && (
             <img
-              key={profilePicUrl}
               src={profilePicUrl}
               alt="Profile"
               className="uploaded-profile-picture"
-              onError={(e) => {
-                console.error('[DEBUG] Profile image failed to load:', profilePicUrl);
-                console.error('[DEBUG] Image element:', e.target);
-                console.error('[DEBUG] Image src:', e.target.src);
-                console.error('[DEBUG] Image naturalWidth:', e.target.naturalWidth);
-                console.error('[DEBUG] Image naturalHeight:', e.target.naturalHeight);
-                e.target.style.display = 'none';
-                // Show fallback initials
-                const fallback = e.target.parentElement?.querySelector('.sp-hero-avatar');
-                if (fallback) fallback.style.display = 'flex';
-              }}
-              onLoad={(e) => {
-                console.log('[DEBUG] Profile image loaded successfully:', profilePicUrl);
-                console.log('[DEBUG] Image dimensions:', e.target.naturalWidth, 'x', e.target.naturalHeight);
-              }}
+              onError={() => setImgError(true)}
+              onLoad={() => setImgError(false)}
             />
           )}
           
-          {/* Fallback initials - shown when no URL, or hidden when image loads successfully */}
+          {/* Fallback initials - shown when no URL or image failed to load */}
           <div 
             className="sp-hero-avatar" 
-            style={{ display: (!uploadingPic && !profilePicUrl) ? 'flex' : 'none' }}
+            style={{ display: (!uploadingPic && (!profilePicUrl || imgError)) ? 'flex' : 'none' }}
           >
             {initials}
           </div>
