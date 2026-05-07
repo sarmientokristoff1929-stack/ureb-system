@@ -3000,7 +3000,13 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
     
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
-    
+
+    // Check if protocolCode already exists
+    const existingProposal = await proposals.findOne({ protocolCode });
+    if (existingProposal) {
+      return res.status(400).json({ success: false, error: `Protocol Code "${protocolCode}" already exists. Please use a unique Protocol Code.` });
+    }
+
     // Create a new proposal document for the assigned files
     const newProposal = {
       protocolCode,

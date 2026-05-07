@@ -2991,6 +2991,10 @@ const AssignFileContent = () => {
 
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+
+  const [errorMessage, setErrorMessage] = useState('');
+
   const [validationErrors, setValidationErrors] = useState({});
 
 
@@ -3229,7 +3233,9 @@ const AssignFileContent = () => {
 
       } else {
 
-        setIsSuccessModalOpen(true);
+        setErrorMessage(result.error || 'Failed to assign files to reviewers.');
+
+        setIsErrorModalOpen(true);
 
       }
 
@@ -3237,7 +3243,9 @@ const AssignFileContent = () => {
 
       console.error('Error assigning file:', error);
 
-      setIsSuccessModalOpen(true);
+      setErrorMessage('An unexpected error occurred. Please try again.');
+
+      setIsErrorModalOpen(true);
 
     } finally {
 
@@ -3580,6 +3588,36 @@ const AssignFileContent = () => {
                 </button>
 
               </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {/* Error Modal */}
+
+      {isErrorModalOpen && (
+
+        <div className="error-modal-overlay">
+
+          <div className="error-modal-container">
+
+            <div className="error-content">
+
+              <div className="error-icon">✕</div>
+
+              <h3>Assignment Failed</h3>
+
+              <p>{errorMessage}</p>
+
+              <button className="error-close-btn" onClick={() => setIsErrorModalOpen(false)}>
+
+                OK
+
+              </button>
 
             </div>
 
