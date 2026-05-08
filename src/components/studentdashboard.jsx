@@ -376,7 +376,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedInfo, setEditedInfo] = useState({
     firstName: '', middleName: '', lastName: '',
-    studentId: '', gender: '', department: '', program: '', gmail: '',
+    studentId: '', gender: '', department: '', program: '', gmail: '', facebookLink: '',
   });
   const [loading, setLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
@@ -425,6 +425,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
             department: student.department || '',
             program: student.program || '',
             gmail: student.gmail || '',
+            facebookLink: student.facebookLink || '',
           });
           setCoMembers(Array.isArray(student.coMembers) ? student.coMembers : []);
         } else {
@@ -786,6 +787,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
             <span className="sp-id-badge">ID&nbsp;{studentData.studentId}</span>
           )}
           <p className="sp-hero-email">{studentData?.gmail || userInfo?.email || '—'}</p>
+          <p className="sp-hero-role">Principal Investigator (Leader)</p>
         </div>
         {!isEditing && (
           <button className="sp-btn sp-btn--outline sp-edit-trigger" onClick={handleEdit}>
@@ -816,10 +818,19 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
               { label: 'Department', value: studentData?.department },
               { label: 'Program', value: studentData?.program },
               { label: 'Gmail', value: studentData?.gmail },
-            ].map(({ label, value }) => (
+              { label: 'Facebook', value: studentData?.facebookLink, isLink: true },
+            ].map(({ label, value, isLink }) => (
               <div className="sp-info-row" key={label}>
                 <span className="sp-info-label">{label}</span>
-                <span className="sp-info-value">{value || <em className="sp-not-set">Not set</em>}</span>
+                <span className="sp-info-value">
+                  {isLink && value ? (
+                    <a href={value.startsWith('http') ? value : `https://${value}`} target="_blank" rel="noopener noreferrer" style={{ color: '#0866FF', textDecoration: 'none', fontWeight: 600 }}>
+                      {value}
+                    </a>
+                  ) : (
+                    value || <em className="sp-not-set">Not set</em>
+                  )}
+                </span>
               </div>
             ))}
           </div>
@@ -882,12 +893,18 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
               </div>
             </div>
 
-            <div className="sp-field-row sp-field-row--1">
+            <div className="sp-field-row sp-field-row--2">
               <div className="sp-field">
                 <label htmlFor="sp-prog">Program</label>
                 <input id="sp-prog" type="text" value={editedInfo.program}
                   onChange={e => setEditedInfo(p => ({ ...p, program: e.target.value }))}
                   placeholder="e.g. BS Computer Science" />
+              </div>
+              <div className="sp-field">
+                <label htmlFor="sp-fb">Facebook URL</label>
+                <input id="sp-fb" type="url" value={editedInfo.facebookLink}
+                  onChange={e => setEditedInfo(p => ({ ...p, facebookLink: e.target.value }))}
+                  placeholder="https://facebook.com/yourprofile" />
               </div>
             </div>
 

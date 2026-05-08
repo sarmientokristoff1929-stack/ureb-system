@@ -1072,6 +1072,7 @@ app.put('/api/students/:id', async (req, res) => {
       'disabled',
       'status',
       'coMembers',
+      'facebookLink',
     ];
 
     const updateData = {};
@@ -1188,7 +1189,7 @@ app.get('/api/student/profile', async (req, res) => {
 // PUT update student profile by email
 app.put('/api/student/profile', async (req, res) => {
   try {
-    const { email, firstName, middleName, lastName, studentId, gender, department, program, gmail, coMembers } = req.body;
+    const { email, firstName, middleName, lastName, studentId, gender, department, program, gmail, coMembers, facebookLink } = req.body;
     if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
 
     const db = getDatabase();
@@ -1208,6 +1209,7 @@ app.put('/api/student/profile', async (req, res) => {
       ...(program !== undefined && { program }),
       ...(gmail !== undefined && { gmail: (gmail || '').trim().toLowerCase() }),
       ...(coMembers !== undefined && { coMembers: Array.isArray(coMembers) ? coMembers : [] }),
+      ...(facebookLink !== undefined && { facebookLink }),
     };
 
     // Rebuild full name for backwards-compat

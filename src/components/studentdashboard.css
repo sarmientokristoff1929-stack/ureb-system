@@ -368,9 +368,17 @@
 }
 
 .sp-hero-email {
-  margin: 0;
+  margin: 0 0 0.2rem;
   font-size: 0.8rem;
   color: rgba(255,255,255,0.8);
+}
+
+.sp-hero-role {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.95);
+  letter-spacing: 0.01em;
 }
 
 .sp-edit-trigger {
@@ -764,6 +772,12 @@
 
   .sp-hero-email {
     font-size: 0.7rem;
+    margin-bottom: 0.15rem;
+  }
+
+  .sp-hero-role {
+    font-size: 0.75rem;
+    margin: 0;
   }
 
   .sp-edit-trigger {

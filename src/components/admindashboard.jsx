@@ -4792,9 +4792,8 @@ const ManageUsersContent = () => {
         gender: user.gender || '',
 
         program: user.program || '',
-
-        coMembers: user.coMembers || []
-
+        coMembers: user.coMembers || [],
+        facebookLink: user.facebookLink || ''
       });
 
     } else if (userType === 'reviewer') {
@@ -6373,25 +6372,27 @@ const ManageUsersContent = () => {
 
 
               {editingUser?.userType === 'student' && (
-
+                <>
                 <div className="form-group">
-
                   <label>Program</label>
-
                   <input
-
                     type="text"
-
                     name="program"
-
                     value={editFormData.program || ''}
-
                     onChange={handleEditInputChange}
-
                   />
-
                 </div>
-
+                <div className="form-group">
+                  <label>Facebook URL</label>
+                  <input
+                    type="url"
+                    name="facebookLink"
+                    value={editFormData.facebookLink || ''}
+                    onChange={handleEditInputChange}
+                    placeholder="https://facebook.com/profilename"
+                  />
+                </div>
+                </>
               )}
 
 
