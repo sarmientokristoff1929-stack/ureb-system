@@ -281,7 +281,7 @@ const ReviewerDashboard = ({ onLogout }) => {
     const fetchReviewerType = async () => {
       const savedUser = localStorage.getItem('ureb_user');
       if (!savedUser) return;
-      
+
       const user = JSON.parse(savedUser);
       try {
         const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
@@ -290,7 +290,7 @@ const ReviewerDashboard = ({ onLogout }) => {
         const reviewer = Array.isArray(reviewers)
           ? reviewers.find(r => (r.email || '').toLowerCase() === (user?.email || '').toLowerCase())
           : null;
-        
+
         if (reviewer?.reviewerType) {
           setReviewerType(reviewer.reviewerType);
           // Set flags based on reviewer type
@@ -643,10 +643,10 @@ const ReviewerDashboard = ({ onLogout }) => {
 
             <div className="user-avatar">
               {userInfo.profilePicture ? (
-                <img 
+                <img
                   key={userInfo.profilePicture}
-                  src={userInfo.profilePicture} 
-                  alt="Profile" 
+                  src={userInfo.profilePicture}
+                  alt="Profile"
                   className="header-profile-pic"
                   onLoad={(e) => {
                     e.target.style.display = 'block';
@@ -882,7 +882,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
   const [pwdSuccess, setPwdSuccess] = useState('');
   const [pwdLoading, setPwdLoading] = useState(false);
   const [reviewerType, setReviewerType] = useState('');
-  
+
   // Profile picture state
   const [uploadingPic, setUploadingPic] = useState(false);
   const [reviewerData, setReviewerData] = useState(null);
@@ -894,7 +894,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
       setProfileData({ name: userInfo.name, email: userInfo.email || '' });
     }
   }, [userInfo, isEditing]);
-  
+
   // Fetch reviewer data including profile picture
   useEffect(() => {
     const fetchReviewerData = async () => {
@@ -993,7 +993,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
         // Add timestamp for cache-busting
         let picUrl = result.profilePicture;
         if (picUrl.startsWith('/api') && API_BASE.startsWith('http')) {
-           picUrl = `${API_BASE.replace(/\/api$/, '')}${picUrl}`;
+          picUrl = `${API_BASE.replace(/\/api$/, '')}${picUrl}`;
         }
         const imageUrlWithCache = `${picUrl}?t=${Date.now()}`;
         setReviewerData(prev => ({ ...prev, profilePicture: imageUrlWithCache }));
@@ -1042,7 +1042,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
     setError('');
     try {
       const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
-      
+
       // Step 1: Fetch the reviewer record to get the MongoDB document ID
       const listRes = await fetch(`${API_BASE}/reviewers`);
       const reviewers = await listRes.json();
@@ -1058,11 +1058,11 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
 
       const newEmail = profileData.email.trim().toLowerCase();
       const currentEmail = (userInfo?.email || '').toLowerCase();
-      
+
       // Check if email is being changed and if it's already taken by another reviewer
       if (newEmail !== currentEmail) {
-        const emailExists = reviewers.some(r => 
-          (r.email || '').toLowerCase() === newEmail && 
+        const emailExists = reviewers.some(r =>
+          (r.email || '').toLowerCase() === newEmail &&
           String(r._id) !== String(reviewer._id)
         );
         if (emailExists) {
@@ -1074,11 +1074,11 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
 
       // Step 2: Use the standard update endpoint
       const reviewerId = String(reviewer._id);
-      const updateData = { 
+      const updateData = {
         name: profileData.name.trim(),
         email: newEmail
       };
-      
+
       const updateRes = await fetch(`${API_BASE}/reviewers/${reviewerId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -1193,7 +1193,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
       {/* ── Hero Card ── */}
       <div className="sp-hero-card">
         {/* Avatar with upload functionality */}
-        <div 
+        <div
           className="sp-avatar-wrapper"
           onClick={!uploadingPic ? handleProfilePicClick : undefined}
           style={{ cursor: uploadingPic ? 'default' : 'pointer' }}
@@ -1204,7 +1204,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
               <div className="sp-avatar-spinner" />
             </div>
           )}
-          
+
           {/* Profile image - shown when URL exists and not loading */}
           {!uploadingPic && profilePicUrl && (
             <img
@@ -1224,10 +1224,10 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
               }}
             />
           )}
-          
+
           {/* Fallback initials - shown when no URL */}
-          <div 
-            className="sp-hero-avatar" 
+          <div
+            className="sp-hero-avatar"
             style={{ display: (!uploadingPic && !profilePicUrl) ? 'flex' : 'none' }}
           >
             {initials}
@@ -1237,8 +1237,8 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
           {!uploadingPic && (
             <div className="sp-avatar-hover-overlay">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
-                <circle cx="12" cy="13" r="3"/>
+                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                <circle cx="12" cy="13" r="3" />
               </svg>
               <span>Upload Picture</span>
             </div>
@@ -1282,11 +1282,13 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
             {[
               { label: 'Full Name', value: fullName },
               { label: 'Email', value: userInfo?.email },
-              { label: 'Reviewer Type', value: reviewerType ? 
-                (reviewerType === 'preliminary' ? 'Preliminary Reviewer' : 
-                 reviewerType === 'secondary' ? 'Secondary Reviewer' : 
-                 reviewerType === 'both' ? 'Both (Preliminary & Secondary)' : reviewerType) 
-                : null },
+              {
+                label: 'Reviewer Type', value: reviewerType ?
+                  (reviewerType === 'preliminary' ? 'Preliminary Reviewer' :
+                    reviewerType === 'secondary' ? 'Secondary Reviewer' :
+                      reviewerType === 'both' ? 'Both (Preliminary & Secondary)' : reviewerType)
+                  : null
+              },
             ].map(({ label, value }) => (
               <div className="sp-info-row" key={label}>
                 <span className="sp-info-label">{label}</span>
@@ -2361,9 +2363,9 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
 
       {/* File Viewer Modal */}
       {viewingFile && (
-        <FileViewerModal 
-          viewingFile={viewingFile} 
-          onClose={() => setViewingFile(null)} 
+        <FileViewerModal
+          viewingFile={viewingFile}
+          onClose={() => setViewingFile(null)}
           onDownload={() => handleDownload(viewingFile)}
         />
       )}
@@ -2384,16 +2386,16 @@ const FileViewerModal = ({ viewingFile, onClose, onDownload }) => {
   }, [onClose]);
 
   return (
-    <div 
-      className="modal-overlay" 
+    <div
+      className="modal-overlay"
       onClick={onClose}
       style={{ padding: '2rem' }}
     >
-      <div 
-        className="modal-container" 
+      <div
+        className="modal-container"
         onClick={e => e.stopPropagation()}
-        style={{ 
-          maxWidth: '95vw', 
+        style={{
+          maxWidth: '95vw',
           width: '95vw',
           maxHeight: '95vh',
           height: 'auto',
@@ -2407,9 +2409,9 @@ const FileViewerModal = ({ viewingFile, onClose, onDownload }) => {
           </svg>
         </button>
         <div className="modal-header" style={{ overflow: 'hidden' }}>
-          <h2 
+          <h2
             title={viewingFile.originalname || viewingFile.filename}
-            style={{ 
+            style={{
               fontSize: '1.1rem',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -2425,8 +2427,8 @@ const FileViewerModal = ({ viewingFile, onClose, onDownload }) => {
         </div>
         <div className="modal-footer">
           <button className="btn-secondary" onClick={onClose}>Close</button>
-          <button 
-            className="btn-primary" 
+          <button
+            className="btn-primary"
             onClick={onDownload}
             style={{ marginLeft: '0.5rem' }}
           >
@@ -2457,11 +2459,11 @@ const FileViewer = ({ file, onClose }) => {
       try {
         // Use templates endpoint for template files (identified by "Form " prefix), download endpoint for uploaded files
         const isTemplate = file.filename.includes('Form ');
-        const downloadUrl = isTemplate 
+        const downloadUrl = isTemplate
           ? `${import.meta.env.VITE_API_URL}/api/templates/${encodeURIComponent(file.filename)}`
           : `${import.meta.env.VITE_API_URL}/api/download/${encodeURIComponent(file.filename)}`;
         const response = await fetch(downloadUrl);
-        
+
         if (!response.ok) {
           throw new Error('Failed to load file');
         }
@@ -2473,7 +2475,7 @@ const FileViewer = ({ file, onClose }) => {
         // Determine file type
         const mimeType = blob.type;
         const extension = (file.originalname || file.filename).split('.').pop().toLowerCase();
-        
+
         if (mimeType.includes('pdf') || extension === 'pdf') {
           setFileType('pdf');
         } else if (mimeType.includes('image') || ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(extension)) {
@@ -2532,17 +2534,17 @@ const FileViewer = ({ file, onClose }) => {
 
   // Zoom controls toolbar
   const ZoomControls = () => (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      gap: '0.5rem', 
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: '0.5rem',
       padding: '0.5rem',
       borderRadius: '8px',
       marginBottom: '0.5rem',
       border: '1px solid #e2e8f0'
     }}>
-      <button 
+      <button
         onClick={() => setZoom(prev => Math.max(50, prev - 25))}
         style={{ padding: '0.25rem 0.5rem', fontSize: '0.9rem', cursor: 'pointer' }}
         title="Zoom out"
@@ -2552,14 +2554,14 @@ const FileViewer = ({ file, onClose }) => {
       <span style={{ fontSize: '0.9rem', minWidth: '60px', textAlign: 'center' }}>
         {zoom}%
       </span>
-      <button 
+      <button
         onClick={() => setZoom(prev => Math.min(200, prev + 25))}
         style={{ padding: '0.25rem 0.5rem', fontSize: '0.9rem', cursor: 'pointer' }}
         title="Zoom in"
       >
         +
       </button>
-      <button 
+      <button
         onClick={() => setZoom(100)}
         style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem', cursor: 'pointer', marginLeft: '0.5rem' }}
       >
@@ -2578,8 +2580,8 @@ const FileViewer = ({ file, onClose }) => {
             src={`${fileUrl}#zoom=${zoom}`}
             width="100%"
             height="100%"
-            style={{ 
-              border: 'none', 
+            style={{
+              border: 'none',
               borderRadius: '8px',
               background: 'white',
               minHeight: '700px'
@@ -2600,13 +2602,13 @@ const FileViewer = ({ file, onClose }) => {
           <img
             src={fileUrl}
             alt={file.originalname || file.filename}
-            style={{ 
-              maxWidth: '100%', 
+            style={{
+              maxWidth: '100%',
               maxHeight: 'none',
               width: zoom === 100 ? 'auto' : `${zoom}%`,
               height: 'auto',
               objectFit: 'contain',
-              borderRadius: '8px', 
+              borderRadius: '8px',
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
               transition: 'all 0.2s ease',
               display: 'block'
@@ -2636,7 +2638,7 @@ const FileViewer = ({ file, onClose }) => {
   if (['word', 'excel', 'powerpoint'].includes(fileType)) {
     // Check if running locally - Office Viewer can't access localhost
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    
+
     if (isLocalhost) {
       return (
         <div style={{ padding: '3rem 2rem', textAlign: 'center', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
@@ -2727,7 +2729,7 @@ const OfficeDocumentViewer = ({ file, fileUrl }) => {
     : `${import.meta.env.VITE_API_URL}/api/download/${encodeURIComponent(file.filename)}`;
 
   // If Microsoft viewer fails, try Google Docs viewer as fallback
-  const viewerUrl = viewerFailed 
+  const viewerUrl = viewerFailed
     ? getGoogleDocsViewerUrl(fileApiUrl)
     : getMicrosoftViewerUrl(fileApiUrl);
 

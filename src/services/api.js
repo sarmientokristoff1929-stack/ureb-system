@@ -12,7 +12,7 @@ export const authenticateUser = async (email, password) => {
       },
       body: JSON.stringify({ email, password }),
     });
-    
+
     const data = await response.json();
     if (data.success && data.user && data.user.profilePicture) {
       if (data.user.profilePicture.startsWith('/api') && API_BASE_URL.startsWith('http')) {
@@ -73,7 +73,7 @@ export const createProposal = async (formData) => {
       method: 'POST',
       body: formData, // FormData object (no Content-Type header needed for multipart)
     });
-    
+
     const data = await response.json();
     return data;
   } catch (error) {
@@ -135,7 +135,7 @@ export const submitReview = async (reviewData) => {
       method: 'POST',
       body: formData, // No Content-Type header — browser sets it with boundary
     });
-    
+
     // Check if response is ok before trying to parse JSON
     if (!response.ok) {
       // Try to get error message from response
@@ -149,7 +149,7 @@ export const submitReview = async (reviewData) => {
       }
       return { success: false, error: errorMessage };
     }
-    
+
     const data = await response.json();
     return data;
   } catch (error) {
@@ -629,21 +629,21 @@ export const assignFileToReviewer = async (formData) => {
 export const downloadReviewerFile = async (filename, originalName) => {
   try {
     const downloadUrl = `${API_BASE_URL.replace('/api', '')}/api/download/${filename}?name=${encodeURIComponent(originalName)}`;
-    
+
     // Try to download the file directly
     const response = await fetch(downloadUrl, {
       method: 'GET',
       mode: 'cors',
       credentials: 'omit'
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
-    
+
     // Create download link
     const link = document.createElement('a');
     link.href = url;
@@ -652,10 +652,10 @@ export const downloadReviewerFile = async (filename, originalName) => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     // Clean up the object URL
     window.URL.revokeObjectURL(url);
-    
+
     return { success: true };
   } catch (error) {
     console.error('Download failed:', error);

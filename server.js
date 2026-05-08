@@ -54,7 +54,7 @@ export const connectToDatabase = async () => {
         socketTimeoutMS: 45000,
         family: 4 // Use IPv4, skip IPv6
       };
-      
+
       client = new MongoClient(uri, options);
       await client.connect();
       db = client.db('ureb_system');
@@ -79,14 +79,14 @@ export const getDatabase = () => {
 connectToDatabase().then(async (db) => {
   try {
     const reviewers = db.collection('reviewers');
-    
+
     // Migration: Add 'title' field to existing reviewers that don't have it
     const titleResult = await reviewers.updateMany(
       { title: { $exists: false } },
       { $set: { title: '' } }
     );
     console.log('Title migration result:', titleResult.modifiedCount, 'reviewers updated');
-    
+
     // Migration: Add 'reviewerType' field to existing reviewers that don't have it
     const reviewerTypeResult = await reviewers.updateMany(
       { reviewerType: { $exists: false } },
@@ -132,7 +132,7 @@ const uploadProfilePic = multer({
   limits: { fileSize: 2 * 1024 * 1024 },
   fileFilter: function (req, file, cb) {
     const ok = /jpeg|jpg|png|webp|gif/.test(path.extname(file.originalname).toLowerCase())
-            && /image\//.test(file.mimetype);
+      && /image\//.test(file.mimetype);
     ok ? cb(null, true) : cb(new Error('Only image files are allowed'));
   }
 });
@@ -203,14 +203,14 @@ async function resolveFile(filename) {
 }
 
 const MIME_MAP = {
-  '.pdf':  'application/pdf',
-  '.jpg':  'image/jpeg', '.jpeg': 'image/jpeg',
-  '.png':  'image/png',  '.gif':  'image/gif',
+  '.pdf': 'application/pdf',
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.png': 'image/png', '.gif': 'image/gif',
   '.webp': 'image/webp',
-  '.txt':  'text/plain',
-  '.doc':  'application/msword',
+  '.txt': 'text/plain',
+  '.doc': 'application/msword',
   '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  '.xls':  'application/vnd.ms-excel',
+  '.xls': 'application/vnd.ms-excel',
   '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
 
@@ -316,7 +316,7 @@ app.post('/api/auth/login', async (req, res) => {
     console.log(`Password received: "${password}" (length: ${password?.length})`);
     console.log(`Email chars: [${email?.split('').map(c => `'${c}'`).join(', ')}]`);
     console.log(`Password chars: [${password?.split('').map(c => `'${c}'`).join(', ')}]`);
-    
+
     const db = getDatabase();
     const users = db.collection(collections.users);
     const students = db.collection(collections.students);
@@ -325,7 +325,7 @@ app.post('/api/auth/login', async (req, res) => {
     // Check in users collection first (this includes admin users)
     let user = await users.findOne({ email });
     let userType = 'user';
-    
+
     if (user) {
       console.log(`Found user in users collection: ${JSON.stringify({ email: user.email, role: user.role, name: user.name })}`);
     }
@@ -417,7 +417,7 @@ app.post('/api/auth/login', async (req, res) => {
       userType: userType,
       lastLogin: new Date()
     };
-    
+
     // Include profile picture for students and reviewers (from GridFS)
     console.log('[DEBUG] Login - user.profilePictureGridFS:', user.profilePictureGridFS);
     if (userType === 'student' && user.profilePictureGridFS) {
@@ -500,6 +500,7 @@ app.post('/api/auth/register', async (req, res) => {
       email: emailNorm,
       password,
       role: role || 'student',
+      coMembers: [],
       createdAt: new Date(),
       lastLogin: null,
       status: 'active'
@@ -562,18 +563,18 @@ app.post('/api/reviewers', async (req, res) => {
   try {
     const db = getDatabase();
     const reviewers = db.collection('reviewers');
-    
+
     const newReviewer = {
       ...req.body,
       createdAt: new Date().toISOString()
     };
-    
+
     // Check if email already exists
     const existing = await reviewers.findOne({ email: req.body.email });
     if (existing) {
       return res.status(400).json({ error: 'Reviewer with this email already exists' });
     }
-    
+
     const result = await reviewers.insertOne(newReviewer);
     res.status(201).json({ success: true, _id: result.insertedId, ...newReviewer });
   } catch (error) {
@@ -605,19 +606,19 @@ app.put('/api/users/update-superadmin', async (req, res) => {
   try {
     const db = getDatabase();
     const users = db.collection(collections.users);
-    
+
     // Find and update the System Administrator
     const result = await users.updateOne(
       { name: 'System Administrator' },
       { $set: { role: 'superadmin' } }
     );
-    
+
     if (result.matchedCount === 0) {
       return res.status(404).json({ success: false, error: 'System Administrator not found' });
     }
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       message: 'System Administrator role updated to superadmin',
       modifiedCount: result.modifiedCount
     });
@@ -632,16 +633,16 @@ app.post('/api/recover-admin', async (req, res) => {
   try {
     const db = getDatabase();
     const users = db.collection(collections.users);
-    
+
     // Check if any admin already exists
     const existingAdmin = await users.findOne({ role: { $in: ['admin', 'superadmin'] } });
     if (existingAdmin) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Admin account already exists. Cannot create duplicate.' 
+      return res.status(400).json({
+        success: false,
+        error: 'Admin account already exists. Cannot create duplicate.'
       });
     }
-    
+
     // Create default admin account
     const adminUser = {
       name: 'System Administrator',
@@ -651,10 +652,10 @@ app.post('/api/recover-admin', async (req, res) => {
       department: 'Administration',
       createdAt: new Date()
     };
-    
+
     const result = await users.insertOne(adminUser);
     console.log('Admin account recovered:', result.insertedId);
-    
+
     res.json({
       success: true,
       message: 'Admin account recovered successfully',
@@ -796,21 +797,21 @@ app.put('/api/users/:id', async (req, res) => {
     const users = db.collection(collections.users);
     const { id } = req.params;
     const updateData = req.body;
-    
+
     // Remove _id from updateData if it exists
     if (updateData._id) {
       delete updateData._id;
     }
-    
+
     const result = await users.updateOne(
       { _id: new ObjectId(id) },
       { $set: updateData }
     );
-    
+
     if (result.matchedCount === 0) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
-    
+
     res.json({ success: true, message: 'User updated successfully' });
   } catch (error) {
     console.error('Error updating user:', error);
@@ -824,13 +825,13 @@ app.delete('/api/users/:id', async (req, res) => {
     const db = getDatabase();
     const users = db.collection(collections.users);
     const { id } = req.params;
-    
+
     const result = await users.deleteOne({ _id: new ObjectId(id) });
-    
+
     if (result.deletedCount === 0) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
-    
+
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
     console.error('Error deleting user:', error);
@@ -846,51 +847,51 @@ app.put('/api/reviewers/profile', async (req, res) => {
   console.log('Request headers:', req.headers);
   console.log('Request body raw:', req.body);
   console.log('Request body JSON:', JSON.stringify(req.body, null, 2));
-  
+
   try {
     const db = getDatabase();
     const reviewers = db.collection(collections.reviewers);
     const { email, name } = req.body;
-    
+
     console.log('Extracted email:', email);
     console.log('Extracted name:', name);
-    
+
     if (!email) {
       console.log('Email validation failed - email is missing');
       return res.status(400).json({ success: false, error: 'Email is required' });
     }
-    
+
     if (!name) {
       console.log('Name validation failed - name is missing');
       return res.status(400).json({ success: false, error: 'Name is required' });
     }
-    
+
     console.log('Updating reviewer profile for email:', email);
     console.log('Update data:', { name });
-    
+
     // Check if reviewer exists
     const existingReviewer = await reviewers.findOne({ email: email });
     if (!existingReviewer) {
       console.log('Reviewer not found with email:', email);
       return res.status(404).json({ success: false, error: 'Reviewer not found' });
     }
-    
+
     console.log('Found reviewer:', existingReviewer);
-    
+
     const result = await reviewers.updateOne(
       { email: email },
       { $set: { name: name, updatedAt: new Date() } }
     );
-    
+
     console.log('Update result:', result);
-    
+
     if (result.matchedCount === 0) {
       return res.status(404).json({ success: false, error: 'Reviewer not found' });
     }
-    
+
     console.log('Profile update successful!');
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Profile updated successfully',
       reviewer: {
         name: name,
@@ -946,27 +947,27 @@ app.put('/api/reviewers/:id', async (req, res) => {
   console.log('Request method:', req.method);
   console.log('ID parameter:', req.params.id);
   console.log('Request body:', req.body);
-  
+
   try {
     const db = getDatabase();
     const reviewers = db.collection(collections.reviewers);
     const { id } = req.params;
     const updateData = req.body;
-    
+
     console.log('Updating reviewer with ID:', id);
     console.log('Update data:', updateData);
-    
+
     // Validate ObjectId format
     if (!ObjectId.isValid(id)) {
       console.log('Invalid ObjectId format:', id);
       return res.status(400).json({ success: false, error: 'Invalid reviewer ID format' });
     }
-    
+
     // Remove _id from updateData if it exists
     if (updateData._id) {
       delete updateData._id;
     }
-    
+
     // Check if reviewer exists first
     const existingReviewer = await reviewers.findOne({ _id: new ObjectId(id) });
     if (!existingReviewer) {
@@ -978,9 +979,9 @@ app.put('/api/reviewers/:id', async (req, res) => {
     if (updateData.email) {
       const newEmail = updateData.email.toLowerCase().trim();
       const currentEmail = (existingReviewer.email || '').toLowerCase().trim();
-      
+
       if (newEmail !== currentEmail) {
-        const emailExists = await reviewers.findOne({ 
+        const emailExists = await reviewers.findOne({
           email: newEmail,
           _id: { $ne: new ObjectId(id) }
         });
@@ -989,7 +990,7 @@ app.put('/api/reviewers/:id', async (req, res) => {
         }
       }
     }
-    
+
     const result = await reviewers.updateOne(
       { _id: new ObjectId(id) },
       { $set: updateData }
@@ -1026,13 +1027,13 @@ app.delete('/api/reviewers/:id', async (req, res) => {
     const db = getDatabase();
     const reviewers = db.collection(collections.reviewers);
     const { id } = req.params;
-    
+
     const result = await reviewers.deleteOne({ _id: new ObjectId(id) });
-    
+
     if (result.deletedCount === 0) {
       return res.status(404).json({ success: false, error: 'Reviewer not found' });
     }
-    
+
     res.json({ success: true, message: 'Reviewer deleted successfully' });
   } catch (error) {
     console.error('Error deleting reviewer:', error);
@@ -1070,6 +1071,7 @@ app.put('/api/students/:id', async (req, res) => {
       'gmail',
       'disabled',
       'status',
+      'coMembers',
     ];
 
     const updateData = {};
@@ -1109,13 +1111,13 @@ app.delete('/api/students/:id', async (req, res) => {
     const db = getDatabase();
     const students = db.collection(collections.students);
     const { id } = req.params;
-    
+
     const result = await students.deleteOne({ _id: new ObjectId(id) });
-    
+
     if (result.deletedCount === 0) {
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
-    
+
     res.json({ success: true, message: 'Student deleted successfully' });
   } catch (error) {
     console.error('Error deleting student:', error);
@@ -1186,7 +1188,7 @@ app.get('/api/student/profile', async (req, res) => {
 // PUT update student profile by email
 app.put('/api/student/profile', async (req, res) => {
   try {
-    const { email, firstName, middleName, lastName, studentId, gender, department, program, gmail } = req.body;
+    const { email, firstName, middleName, lastName, studentId, gender, department, program, gmail, coMembers } = req.body;
     if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
 
     const db = getDatabase();
@@ -1197,20 +1199,21 @@ app.put('/api/student/profile', async (req, res) => {
 
     const updateFields = {
       updatedAt: new Date(),
-      ...(firstName   !== undefined && { firstName }),
-      ...(middleName  !== undefined && { middleName }),
-      ...(lastName    !== undefined && { lastName }),
-      ...(studentId   !== undefined && { studentId }),
-      ...(gender      !== undefined && { gender: (gender != null && String(gender).trim()) ? String(gender).trim() : '' }),
-      ...(department  !== undefined && { department }),
-      ...(program     !== undefined && { program }),
-      ...(gmail       !== undefined && { gmail: (gmail || '').trim().toLowerCase() }),
+      ...(firstName !== undefined && { firstName }),
+      ...(middleName !== undefined && { middleName }),
+      ...(lastName !== undefined && { lastName }),
+      ...(studentId !== undefined && { studentId }),
+      ...(gender !== undefined && { gender: (gender != null && String(gender).trim()) ? String(gender).trim() : '' }),
+      ...(department !== undefined && { department }),
+      ...(program !== undefined && { program }),
+      ...(gmail !== undefined && { gmail: (gmail || '').trim().toLowerCase() }),
+      ...(coMembers !== undefined && { coMembers: Array.isArray(coMembers) ? coMembers : [] }),
     };
 
     // Rebuild full name for backwards-compat
-    const fn = firstName  ?? student.firstName  ?? '';
+    const fn = firstName ?? student.firstName ?? '';
     const mn = middleName ?? student.middleName ?? '';
-    const ln = lastName   ?? student.lastName   ?? '';
+    const ln = lastName ?? student.lastName ?? '';
     updateFields.name = [fn, mn, ln].filter(Boolean).join(' ');
 
     await students.updateOne({ _id: student._id }, { $set: updateFields });
@@ -1275,15 +1278,15 @@ app.post('/api/student/profile/picture', uploadProfilePic.single('profilePicture
     }
 
     const filename = await uploadProfilePicToGridFS(req.file, student._id.toString());
-    
+
     await students.updateOne(
       { _id: student._id },
       { $set: { profilePictureGridFS: filename, updatedAt: new Date() } }
     );
 
-    res.json({ 
-      success: true, 
-      profilePicture: `/api/student/profile/picture/${filename}` 
+    res.json({
+      success: true,
+      profilePicture: `/api/student/profile/picture/${filename}`
     });
   } catch (error) {
     console.error('Error uploading profile picture:', error);
@@ -1349,7 +1352,7 @@ app.post('/api/reviewer/profile/picture', uploadProfilePic.single('profilePictur
 
     const db = getDatabase();
     const reviewers = db.collection(collections.reviewers);
-    
+
     // Find reviewer (case-insensitive email)
     const reviewer = await reviewers.findOne({ email: new RegExp(`^${email}$`, 'i') });
     if (!reviewer) return res.status(404).json({ success: false, error: 'Reviewer not found' });
@@ -1360,15 +1363,15 @@ app.post('/api/reviewer/profile/picture', uploadProfilePic.single('profilePictur
     }
 
     const filename = await uploadProfilePicToGridFS(req.file, reviewer._id.toString());
-    
+
     await reviewers.updateOne(
       { _id: reviewer._id },
       { $set: { profilePictureGridFS: filename, updatedAt: new Date() } }
     );
 
-    res.json({ 
-      success: true, 
-      profilePicture: `/api/reviewer/profile/picture/${filename}` 
+    res.json({
+      success: true,
+      profilePicture: `/api/reviewer/profile/picture/${filename}`
     });
   } catch (error) {
     console.error('Error uploading reviewer profile picture:', error);
@@ -1467,11 +1470,11 @@ app.get('/api/proposals/student/:studentEmail', async (req, res) => {
     const { studentEmail } = req.params;
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
-    
-    const proposalList = await proposals.find({ 
-      studentEmail: studentEmail 
+
+    const proposalList = await proposals.find({
+      studentEmail: studentEmail
     }).toArray();
-    
+
     res.json(proposalList);
   } catch (error) {
     console.error('Error fetching student proposals:', error);
@@ -1485,20 +1488,20 @@ app.get('/api/proposals/:proposalId', async (req, res) => {
     const { proposalId } = req.params;
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
-    
+
     let objectId;
     try {
       objectId = new ObjectId(proposalId);
     } catch (error) {
       return res.status(400).json({ success: false, error: 'Invalid proposal ID format' });
     }
-    
+
     const proposal = await proposals.findOne({ _id: objectId });
-    
+
     if (!proposal) {
       return res.status(404).json({ success: false, error: 'Proposal not found' });
     }
-    
+
     res.json(proposal);
   } catch (error) {
     console.error('Error fetching proposal:', error);
@@ -1539,11 +1542,11 @@ app.get('/api/reviews/student/:studentEmail', async (req, res) => {
     const { studentEmail } = req.params;
     const db = getDatabase();
     const reviews = db.collection(collections.reviews);
-    
-    const reviewList = await reviews.find({ 
-      studentEmail: studentEmail 
+
+    const reviewList = await reviews.find({
+      studentEmail: studentEmail
     }).toArray();
-    
+
     res.json(reviewList);
   } catch (error) {
     console.error('Error fetching student reviews:', error);
@@ -1567,7 +1570,7 @@ app.post('/api/proposals', upload.fields([
     console.log('Creating new proposal...');
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
-    
+
     // Get form data from request body
     const {
       protocolCode,
@@ -1581,7 +1584,7 @@ app.post('/api/proposals', upload.fields([
       meetingDate,
       action
     } = req.body;
-    
+
     // Process uploaded files → GridFS
     const files = {};
     if (req.files) {
@@ -1618,13 +1621,13 @@ app.post('/api/proposals', upload.fields([
       createdAt: new Date(),
       updatedAt: new Date()
     };
-    
+
     console.log('Inserting proposal:', newProposal);
     const result = await proposals.insertOne(newProposal);
-    
+
     console.log('Proposal created successfully:', result.insertedId);
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       proposal: {
         _id: result.insertedId,
         ...newProposal
@@ -1823,18 +1826,18 @@ app.get('/api/reviews/:id', async (req, res) => {
     const { id } = req.params;
     const db = getDatabase();
     const reviews = db.collection(collections.reviews);
-    
+
     // Validate ObjectId format
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({ error: 'Invalid review ID format' });
     }
-    
+
     const review = await reviews.findOne({ _id: new ObjectId(id) });
-    
+
     if (!review) {
       return res.status(404).json({ error: 'Review not found' });
     }
-    
+
     res.json(review);
   } catch (error) {
     console.error('Error fetching review:', error);
@@ -1847,7 +1850,7 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
   try {
     console.log('Received review submission:', req.body);
     console.log('Files received:', req.files?.map(f => ({ fieldname: f.fieldname, originalname: f.originalname, size: f.size })));
-    
+
     const { proposalId, reviewerEmail, reviewerName, decision, comment, overallRating, comments, recommendations, protocolCode: submittedProtocolCode } = req.body;
     const db = getDatabase();
     const reviews = db.collection(collections.reviews);
@@ -2116,11 +2119,11 @@ app.get('/api/notifications/:email', async (req, res) => {
     const { email } = req.params;
     const db = getDatabase();
     const notifications = db.collection(collections.notifications);
-    
-    const notificationList = await notifications.find({ 
-      recipientEmail: email 
+
+    const notificationList = await notifications.find({
+      recipientEmail: email
     }).sort({ createdAt: -1 }).toArray();
-    
+
     res.json(notificationList);
   } catch (error) {
     console.error('Error fetching notifications for user:', error);
@@ -2236,7 +2239,7 @@ app.put('/api/notifications/read-all', async (req, res) => {
 app.post('/api/send-email', async (req, res) => {
   try {
     const { to, subject, body, fromEmail, fromName } = req.body;
-    
+
     // Email options
     const mailOptions = {
       from: `${fromName} <${process.env.GMAIL_EMAIL}>`,
@@ -2245,10 +2248,10 @@ app.post('/api/send-email', async (req, res) => {
       text: body,
       html: `<p>${body.replace(/\n/g, '<br>')}</p>`
     };
-    
+
     // Send email
     await transporter.sendMail(mailOptions);
-    
+
     res.json({ success: true, message: 'Email sent successfully' });
   } catch (error) {
     console.error('Error sending email:', error);
@@ -2268,13 +2271,13 @@ function generateOTP() {
 app.post('/api/check-gmail-exists', async (req, res) => {
   try {
     const { gmail } = req.body;
-    
+
     // Validate Gmail address
     const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail.com$/;
     if (!gmailRegex.test(gmail)) {
       return res.json({ exists: false });
     }
-    
+
     const db = getDatabase();
     const students = db.collection(collections.students);
     const users = db.collection(collections.users);
@@ -2286,7 +2289,7 @@ app.post('/api/check-gmail-exists', async (req, res) => {
     const existingReviewer = await reviewers.findOne({ email: gmail });
 
     const exists = !!(existingStudent || existingUser || existingReviewer);
-    
+
     res.json({ exists });
   } catch (error) {
     console.error('Error checking Gmail existence:', error);
@@ -2342,31 +2345,31 @@ app.post('/api/send-otp', (req, res) => {
 app.post('/api/verify-otp', (req, res) => {
   try {
     const { gmail, otp } = req.body;
-    
+
     // Get stored OTP
     const storedData = otpStore.get(gmail);
-    
+
     if (!storedData) {
       return res.json({ success: false, error: 'OTP not found or expired' });
     }
-    
+
     // Check expiry
     if (new Date() > storedData.expiry) {
       otpStore.delete(gmail);
       return res.json({ success: false, error: 'OTP expired' });
     }
-    
+
     // Verify OTP
     if (storedData.otp !== otp) {
       return res.json({ success: false, error: 'Invalid OTP' });
     }
-    
+
     // OTP is valid, remove it from store
     otpStore.delete(gmail);
-    
-    res.json({ 
-      success: true, 
-      message: 'OTP verified successfully' 
+
+    res.json({
+      success: true,
+      message: 'OTP verified successfully'
     });
   } catch (error) {
     console.error('Error verifying OTP:', error);
@@ -2387,24 +2390,24 @@ app.post('/api/student/profile/picture', uploadProfilePic.single('profilePicture
     if (!student) {
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
-    
+
     // Delete old picture from GridFS if it exists
     if (student.profilePictureGridFS) {
       await deleteFromGridFS(student.profilePictureGridFS);
     }
-    
+
     // Upload new picture to GridFS
     const gridFSFilename = await uploadProfilePicToGridFS(req.file, student._id.toString());
-    
+
     // Store GridFS filename in student document
-    await students.updateOne({ email }, { 
-      $set: { 
-        profilePictureGridFS: gridFSFilename, 
-        updatedAt: new Date() 
+    await students.updateOne({ email }, {
+      $set: {
+        profilePictureGridFS: gridFSFilename,
+        updatedAt: new Date()
       },
       $unset: { profilePicture: '' } // Remove old field if exists
     });
-    
+
     res.json({ success: true, profilePicture: `/api/student/profile/picture/${gridFSFilename}` });
   } catch (error) {
     console.error('Error uploading profile picture:', error);
@@ -2425,13 +2428,13 @@ app.delete('/api/student/profile/picture', async (req, res) => {
     if (!student) {
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
-    
+
     // Delete from GridFS
     if (student.profilePictureGridFS) {
       await deleteFromGridFS(student.profilePictureGridFS);
     }
-    
-    await students.updateOne({ email }, { 
+
+    await students.updateOne({ email }, {
       $set: { updatedAt: new Date() },
       $unset: { profilePictureGridFS: '', profilePicture: '' }
     });
@@ -2447,22 +2450,22 @@ app.get('/api/student/profile/picture/:filename', async (req, res) => {
   try {
     const { filename } = req.params;
     console.log('[DEBUG] GridFS - Requested filename:', filename);
-    
+
     const files = await gfsBucket.find({ filename }).toArray();
     console.log('[DEBUG] GridFS - Found files:', files.length);
-    
+
     if (!files || files.length === 0) {
       console.log('[DEBUG] GridFS - File not found:', filename);
       return res.status(404).json({ success: false, error: 'File not found' });
     }
-    
+
     const file = files[0];
     console.log('[DEBUG] GridFS - Serving file:', file.filename, 'Content-Type:', file.contentType);
     res.set('Content-Type', file.contentType || 'image/jpeg');
-    
+
     const downloadStream = gfsBucket.openDownloadStream(file._id);
     downloadStream.pipe(res);
-    
+
     downloadStream.on('error', (err) => {
       console.error('[DEBUG] GridFS - Error streaming file:', err);
       res.status(500).json({ success: false, error: 'Error streaming file' });
@@ -2534,24 +2537,24 @@ app.post('/api/reviewer/profile/picture', uploadProfilePic.single('profilePictur
     if (!reviewer) {
       return res.status(404).json({ success: false, error: 'Reviewer not found' });
     }
-    
+
     // Delete old picture from GridFS if it exists
     if (reviewer.profilePictureGridFS) {
       await deleteFromGridFS(reviewer.profilePictureGridFS);
     }
-    
+
     // Upload new picture to GridFS
     const gridFSFilename = await uploadProfilePicToGridFS(req.file, reviewer._id.toString());
-    
+
     // Store GridFS filename in reviewer document
-    await reviewers.updateOne({ email }, { 
-      $set: { 
-        profilePictureGridFS: gridFSFilename, 
-        updatedAt: new Date() 
+    await reviewers.updateOne({ email }, {
+      $set: {
+        profilePictureGridFS: gridFSFilename,
+        updatedAt: new Date()
       },
       $unset: { profilePicture: '' }
     });
-    
+
     res.json({ success: true, profilePicture: `/api/reviewer/profile/picture/${gridFSFilename}` });
   } catch (error) {
     console.error('Error uploading reviewer profile picture:', error);
@@ -2572,13 +2575,13 @@ app.delete('/api/reviewer/profile/picture', async (req, res) => {
     if (!reviewer) {
       return res.status(404).json({ success: false, error: 'Reviewer not found' });
     }
-    
+
     // Delete from GridFS
     if (reviewer.profilePictureGridFS) {
       await deleteFromGridFS(reviewer.profilePictureGridFS);
     }
-    
-    await reviewers.updateOne({ email }, { 
+
+    await reviewers.updateOne({ email }, {
       $set: { updatedAt: new Date() },
       $unset: { profilePictureGridFS: '', profilePicture: '' }
     });
@@ -2594,10 +2597,10 @@ app.get('/api/reviewer/profile/picture/:filename', async (req, res) => {
   try {
     const { filename } = req.params;
     console.log('[DEBUG] GridFS Reviewer - Requested filename:', filename);
-    
+
     const files = await gfsBucket.find({ filename }).toArray();
     console.log('[DEBUG] GridFS Reviewer - Found files:', files.length);
-    
+
     if (!files || files.length === 0) {
       console.log('[DEBUG] GridFS Reviewer - File not found:', filename);
       // Fallback: check local uploads directory for legacy file-system images
@@ -2607,14 +2610,14 @@ app.get('/api/reviewer/profile/picture/:filename', async (req, res) => {
       }
       return res.status(404).json({ success: false, error: 'File not found' });
     }
-    
+
     const file = files[0];
     console.log('[DEBUG] GridFS Reviewer - Serving file:', file.filename, 'Content-Type:', file.contentType);
     res.set('Content-Type', file.contentType || 'image/jpeg');
-    
+
     const downloadStream = gfsBucket.openDownloadStream(file._id);
     downloadStream.pipe(res);
-    
+
     downloadStream.on('error', (err) => {
       console.error('[DEBUG] GridFS Reviewer - Error streaming file:', err);
       res.status(500).json({ success: false, error: 'Error streaming file' });
@@ -2631,7 +2634,7 @@ app.post('/api/messages', async (req, res) => {
     const { senderEmail, recipientEmail, subject, message, senderName } = req.body;
     const db = getDatabase();
     const messages = db.collection(collections.messages);
-    
+
     const newMessage = {
       senderEmail,
       recipientEmail,
@@ -2641,10 +2644,10 @@ app.post('/api/messages', async (req, res) => {
       createdAt: new Date(),
       read: false
     };
-    
+
     const result = await messages.insertOne(newMessage);
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: {
         _id: result.insertedId,
         ...newMessage
@@ -2825,10 +2828,10 @@ app.delete('/api/messages/:messageId', async (req, res) => {
   try {
     const { messageId } = req.params;
     console.log('Attempting to delete message with ID:', messageId);
-    
+
     const db = getDatabase();
     const messages = db.collection(collections.messages);
-    
+
     let objectId;
     try {
       objectId = new ObjectId(messageId);
@@ -2836,15 +2839,15 @@ app.delete('/api/messages/:messageId', async (req, res) => {
       console.error('Invalid ObjectId format:', messageId);
       return res.status(400).json({ success: false, error: 'Invalid message ID format' });
     }
-    
+
     const result = await messages.deleteOne({ _id: objectId });
     console.log('Delete result:', result);
-    
+
     if (result.deletedCount === 0) {
       console.log('Message not found with ID:', messageId);
       return res.status(404).json({ success: false, error: 'Message not found' });
     }
-    
+
     console.log('Message deleted successfully:', messageId);
     res.json({ success: true, message: 'Message deleted successfully' });
   } catch (error) {
@@ -2857,28 +2860,28 @@ app.delete('/api/messages/:messageId', async (req, res) => {
 app.put('/api/messages/:id/read', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     if (!id) {
       return res.status(400).json({ success: false, error: 'Message ID is required' });
     }
-    
+
     const db = getDatabase();
     const messages = db.collection(collections.messages);
-    
+
     const result = await messages.updateOne(
       { _id: new ObjectId(id) },
       { $set: { read: true } }
     );
-    
+
     if (result.matchedCount === 0) {
       return res.status(404).json({ success: false, error: 'Message not found' });
     }
-    
+
     console.log(`Marked message ${id} as read`);
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Message marked as read',
-      modifiedCount: result.modifiedCount 
+      modifiedCount: result.modifiedCount
     });
   } catch (error) {
     console.error('Error marking message as read:', error);
@@ -2890,11 +2893,11 @@ app.put('/api/messages/:id/read', async (req, res) => {
 app.put('/api/messages/read-all', async (req, res) => {
   try {
     const { email } = req.body;
-    
+
     if (!email) {
       return res.status(400).json({ success: false, error: 'Email is required' });
     }
-    
+
     const db = getDatabase();
     const messages = db.collection(collections.messages);
     const students = db.collection(collections.students);
@@ -2909,30 +2912,30 @@ app.put('/api/messages/read-all', async (req, res) => {
 
     // Use the same query logic as the get messages endpoint
     const query = isAdmin
-      ? { 
-          $or: [
-            { recipientEmail: email, read: { $ne: true } }, 
-            { senderEmail: email, read: { $ne: true } }, 
-            { type: 'student_to_admin', read: { $ne: true } }
-          ]
-        }
-      : { 
-          $or: [
-            { recipientEmail: email, read: { $ne: true } }, 
-            { senderEmail: email, read: { $ne: true } }
-          ]
-        };
-    
+      ? {
+        $or: [
+          { recipientEmail: email, read: { $ne: true } },
+          { senderEmail: email, read: { $ne: true } },
+          { type: 'student_to_admin', read: { $ne: true } }
+        ]
+      }
+      : {
+        $or: [
+          { recipientEmail: email, read: { $ne: true } },
+          { senderEmail: email, read: { $ne: true } }
+        ]
+      };
+
     const result = await messages.updateMany(
       query,
       { $set: { read: true } }
     );
-    
+
     console.log(`Marked ${result.modifiedCount} messages as read for user: ${email}`);
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: `Marked ${result.modifiedCount} messages as read`,
-      modifiedCount: result.modifiedCount 
+      modifiedCount: result.modifiedCount
     });
   } catch (error) {
     console.error('Error marking all messages as read:', error);
@@ -2967,15 +2970,15 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       startDate,
       endDate
     } = req.body;
-    
+
     // Collect all uploaded files
     const uploadedFiles = {};
     const documentKeys = [
-      'urebForm16', 'urebForm10B', 'urebForm11', 'urebForm2', 'urebForm6', 
-      'urebForm7', 'urebForm8A', 'urebForm10A', 'approvedProposal', 
+      'urebForm16', 'urebForm10B', 'urebForm11', 'urebForm2', 'urebForm6',
+      'urebForm7', 'urebForm8A', 'urebForm10A', 'approvedProposal',
       'questionnaire', 'cvOfProponent'
     ];
-    
+
     for (const key of documentKeys) {
       const files = req.files && req.files[key];
       if (files && files.length > 0) {
@@ -2988,16 +2991,16 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         };
       }
     }
-    
+
     // Validation
     if (!protocolCode || !secondaryReviewer1 || !secondaryReviewer2 || !startDate || !endDate) {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
-    
+
     if (Object.keys(uploadedFiles).length === 0) {
       return res.status(400).json({ success: false, error: 'At least one document must be uploaded' });
     }
-    
+
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
 
@@ -3027,10 +3030,10 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       createdAt: new Date(),
       updatedAt: new Date()
     };
-    
+
     const result = await proposals.insertOne(newProposal);
     console.log('Files assigned to reviewers:', result.insertedId);
-    
+
     // Create assignments for each reviewer to access these files
     const assignments = db.collection(collections.assignments);
     const reviewerCollection = db.collection(collections.reviewers);
@@ -3109,7 +3112,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       createdAt: new Date()
     });
     console.log(`Admin notification created with reviewers: ${assignedReviewerNames.join(', ')}`);
-    
+
     res.json({
       success: true,
       message: 'Files successfully assigned to reviewers',
@@ -3129,12 +3132,12 @@ app.get('/api/stats', async (req, res) => {
     const proposals = db.collection(collections.proposals);
     const reviews = db.collection(collections.reviews);
     const users = db.collection(collections.users);
-    
+
     const proposalCount = await proposals.countDocuments();
     const pendingReviewCount = await reviews.countDocuments({ status: 'pending' });
     const approvedCount = await proposals.countDocuments({ status: 'approved' });
     const activeReviewersCount = await users.countDocuments({ role: 'reviewer' });
-    
+
     res.json({
       totalProposals: proposalCount,
       pendingReviews: pendingReviewCount,
@@ -3206,9 +3209,9 @@ app.post('/api/send-message-to-student', upload.any(), async (req, res) => {
     status: 'sent'
   }).catch(err => console.error('Failed to save message to DB:', err.message));
 
-    // Send email in background (fire-and-forget)
-    if (process.env.GMAIL_EMAIL && process.env.GMAIL_APP_PASSWORD) {
-      let emailContent = `
+  // Send email in background (fire-and-forget)
+  if (process.env.GMAIL_EMAIL && process.env.GMAIL_APP_PASSWORD) {
+    let emailContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: #7A9E7E; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
             <h1 style="margin: 0; font-size: 24px;">admin</h1>
@@ -3219,19 +3222,19 @@ app.post('/api/send-message-to-student', upload.any(), async (req, res) => {
             </div>
       `;
 
-      if (files.length > 0) {
-        emailContent += `
+    if (files.length > 0) {
+      emailContent += `
           <div style="background: #e8f5e8; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
             <h3 style="margin: 0 0 10px 0; color: #4a6b4e;">Attached Files (${files.length}):</h3>
             <ul style="margin: 0; padding-left: 20px; color: #555;">
         `;
-        files.forEach(file => {
-          emailContent += `<li style="margin-bottom: 5px;">${file.originalname} (${(file.size / 1024).toFixed(1)} KB)</li>`;
-        });
-        emailContent += `</ul></div>`;
-      }
+      files.forEach(file => {
+        emailContent += `<li style="margin-bottom: 5px;">${file.originalname} (${(file.size / 1024).toFixed(1)} KB)</li>`;
+      });
+      emailContent += `</ul></div>`;
+    }
 
-      emailContent += `
+    emailContent += `
             <div style="border-top: 1px solid #ddd; padding-top: 20px; margin-top: 20px;">
               <p style="margin: 0; font-size: 12px; color: #999;">
                 Sent via UREB System on ${new Date().toLocaleString()}
@@ -3241,20 +3244,20 @@ app.post('/api/send-message-to-student', upload.any(), async (req, res) => {
         </div>
       `;
 
-      transporter.sendMail({
-        from: `admin <${process.env.GMAIL_EMAIL}>`,
-        to: studentEmail,
-        subject: `admin`,
-        html: emailContent,
-        attachments: files.map(file => ({
-          filename: file.originalname,
-          content: file.buffer,
-          contentType: file.mimetype,
-        })),
-      })
-        .then(() => console.log('Email sent to:', studentEmail))
-        .catch(err => console.error('Email failed:', err.message));
-    }
+    transporter.sendMail({
+      from: `admin <${process.env.GMAIL_EMAIL}>`,
+      to: studentEmail,
+      subject: `admin`,
+      html: emailContent,
+      attachments: files.map(file => ({
+        filename: file.originalname,
+        content: file.buffer,
+        contentType: file.mimetype,
+      })),
+    })
+      .then(() => console.log('Email sent to:', studentEmail))
+      .catch(err => console.error('Email failed:', err.message));
+  }
 });
 
 // Send message to reviewer endpoint
@@ -3323,7 +3326,7 @@ app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     console.error('Multer error:', err);
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ success: false, error: 'File too large. Max size is 10MB.' });  
+      return res.status(400).json({ success: false, error: 'File too large. Max size is 10MB.' });
     }
     return res.status(400).json({ success: false, error: 'File upload error: ' + err.message });
   }

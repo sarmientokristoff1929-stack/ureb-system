@@ -699,7 +699,26 @@ const CheckCircleIcon = () => (
   </svg>
 );
 
+const Trash2Icon = () => (
+
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+
+    <polyline points="3 6 5 6 21 6"></polyline>
+
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+
+    <line x1="10" y1="11" x2="10" y2="17"></line>
+
+    <line x1="14" y1="11" x2="14" y2="17"></line>
+
+  </svg>
+
+);
+
+
+
 const SearchIcon = () => (
+
 
 
 
@@ -1349,8 +1368,16 @@ const DashboardContent = () => {
 
 
   const [recentActivity, setRecentActivity] = useState([]);
+  const [deletedActivityIds, setDeletedActivityIds] = useState(() => {
+    const saved = localStorage.getItem('deleted_admin_activities');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [showAllActivity, setShowAllActivity] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [activityToDelete, setActivityToDelete] = useState(null);
   const ACTIVITY_LIMIT = 5;
+
+
 
   const [activityLoading, setActivityLoading] = useState(true);
 
@@ -1470,7 +1497,7 @@ const DashboardContent = () => {
 
           .map(proposal => ({
 
-
+            id: proposal._id,
 
             type: 'proposal',
 
@@ -1493,6 +1520,7 @@ const DashboardContent = () => {
 
 
           }));
+
 
 
 
@@ -1573,6 +1601,28 @@ const DashboardContent = () => {
 
 
   const closeGenerateReportModal = () => setIsGenerateReportModalOpen(false);
+
+
+
+  const handleDeleteActivity = (e, activityId) => {
+    e.stopPropagation();
+    setActivityToDelete(activityId);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDeleteActivity = () => {
+    if (activityToDelete) {
+      const updatedDeletedIds = [...deletedActivityIds, activityToDelete];
+      setDeletedActivityIds(updatedDeletedIds);
+      localStorage.setItem('deleted_admin_activities', JSON.stringify(updatedDeletedIds));
+      setDeleteModalOpen(false);
+      setActivityToDelete(null);
+    }
+  };
+
+  const filteredActivity = recentActivity.filter(activity => !deletedActivityIds.includes(activity.id));
+
+
 
 
 
@@ -1811,11 +1861,11 @@ const DashboardContent = () => {
 
 
 
-                  {(showAllActivity ? recentActivity : recentActivity.slice(0, ACTIVITY_LIMIT)).map((activity, index) => (
+                  {(showAllActivity ? filteredActivity : filteredActivity.slice(0, ACTIVITY_LIMIT)).map((activity) => (
 
 
 
-                    <div key={index} className="activity-item">
+                    <div key={activity.id} className="activity-item">
 
 
 
@@ -1857,6 +1907,14 @@ const DashboardContent = () => {
 
                       </div>
 
+                      <button 
+                        className="delete-activity-btn" 
+                        onClick={(e) => handleDeleteActivity(e, activity.id)}
+                        title="Remove activity"
+                      >
+                        <Trash2Icon />
+                      </button>
+
 
 
                     </div>
@@ -1871,7 +1929,8 @@ const DashboardContent = () => {
 
 
 
-                {recentActivity.length > ACTIVITY_LIMIT && (
+                {filteredActivity.length > ACTIVITY_LIMIT && (
+
 
 
 
@@ -2021,9 +2080,14 @@ const DashboardContent = () => {
 
       <GenerateReportModal isOpen={isGenerateReportModalOpen} onClose={closeGenerateReportModal} />
 
-
+      <DeleteActivityModal 
+        isOpen={deleteModalOpen} 
+        onClose={() => setDeleteModalOpen(false)} 
+        onConfirm={confirmDeleteActivity} 
+      />
 
     </div>
+
 
 
 
@@ -4622,6 +4686,40 @@ const ManageUsersContent = () => {
 
   const [editLoading, setEditLoading] = useState(false);
 
+  const [newCoMember, setNewCoMember] = useState({ name: '', email: '', role: '' });
+
+  const [showCoMemberForm, setShowCoMemberForm] = useState(false);
+
+  const addCoMemberToEdit = () => {
+
+    if (!newCoMember.name.trim() || !newCoMember.email.trim()) return;
+
+    setEditFormData(prev => ({
+
+      ...prev,
+
+      coMembers: [...(prev.coMembers || []), { ...newCoMember, id: Date.now().toString() }]
+
+    }));
+
+    setNewCoMember({ name: '', email: '', role: '' });
+
+    setShowCoMemberForm(false);
+
+  };
+
+  const removeCoMemberFromEdit = (id) => {
+
+    setEditFormData(prev => ({
+
+      ...prev,
+
+      coMembers: (prev.coMembers || []).filter(m => m.id !== id)
+
+    }));
+
+  };
+
 
 
   // Search and sort states
@@ -4693,7 +4791,9 @@ const ManageUsersContent = () => {
 
         gender: user.gender || '',
 
-        program: user.program || ''
+        program: user.program || '',
+
+        coMembers: user.coMembers || []
 
       });
 
@@ -4762,6 +4862,10 @@ const ManageUsersContent = () => {
     setEditingUser(null);
 
     setEditFormData({});
+
+    setNewCoMember({ name: '', email: '', role: '' });
+
+    setShowCoMemberForm(false);
 
   };
 
@@ -6134,6 +6238,10 @@ const ManageUsersContent = () => {
                 </>
               )}
               {editingUser?.userType === 'student' && (
+                <>
+                <div style={{ padding: '0.5rem 0', marginBottom: '1rem', borderBottom: '1.5px solid #eee' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#2d3436', margin: 0 }}>Student Information</h3>
+                </div>
 
                 <div className="form-group">
 
@@ -6152,6 +6260,7 @@ const ManageUsersContent = () => {
                   />
 
                 </div>
+                </>
 
               )}
 
@@ -6283,6 +6392,97 @@ const ManageUsersContent = () => {
 
                 </div>
 
+              )}
+
+
+
+              {editingUser?.userType === 'student' && (
+                <div className="form-group" style={{ marginTop: '1rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #e9ecef' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <label style={{ fontWeight: 600, color: '#495057', fontSize: '0.9rem', margin: 0 }}>
+                      Research Co-Members
+                    </label>
+                    {!showCoMemberForm && (
+                      <button 
+                        type="button" 
+                        className="btn-secondary" 
+                        style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                        onClick={() => setShowCoMemberForm(true)}
+                      >
+                        + Add Member
+                      </button>
+                    )}
+                  </div>
+
+                  {showCoMemberForm && (
+                    <div style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label style={{ fontSize: '0.7rem' }}>Name</label>
+                          <input
+                            type="text"
+                            value={newCoMember.name}
+                            onChange={e => setNewCoMember(p => ({ ...p, name: e.target.value }))}
+                            placeholder="Full name"
+                            style={{ padding: '0.3rem', fontSize: '0.85rem' }}
+                          />
+                        </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label style={{ fontSize: '0.7rem' }}>Email</label>
+                          <input
+                            type="email"
+                            value={newCoMember.email}
+                            onChange={e => setNewCoMember(p => ({ ...p, email: e.target.value }))}
+                            placeholder="Email address"
+                            style={{ padding: '0.3rem', fontSize: '0.85rem' }}
+                          />
+                        </div>
+                      </div>
+                      <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                        <label style={{ fontSize: '0.7rem' }}>Role</label>
+                        <input
+                          type="text"
+                          value={newCoMember.role}
+                          onChange={e => setNewCoMember(p => ({ ...p, role: e.target.value }))}
+                          placeholder="e.g. Co-Proponent"
+                          style={{ padding: '0.3rem', fontSize: '0.85rem' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                        <button type="button" className="btn-secondary" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={() => setShowCoMemberForm(false)}>Cancel</button>
+                        <button type="button" className="btn-primary" style={{ padding: '2px 12px', fontSize: '0.75rem' }} onClick={addCoMemberToEdit}>Add</button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                    {Array.isArray(editFormData?.coMembers) && editFormData.coMembers.length > 0 ? (
+                      editFormData.coMembers.map((m, idx) => (
+                        <div key={m.id || idx} style={{ padding: '0.75rem', background: '#fff', borderRadius: '6px', border: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#2d3436' }}>{m.name}</div>
+                            <div style={{ fontSize: '0.75rem', color: '#636e72', display: 'flex', gap: '0.5rem' }}>
+                              <span>{m.email}</span>
+                              {m.role && <span style={{ color: '#b2bec3' }}>•</span>}
+                              {m.role && <span>{m.role}</span>}
+                            </div>
+                          </div>
+                          <button 
+                            type="button" 
+                            style={{ background: 'none', border: 'none', color: '#ff4d4f', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 500, padding: '4px' }}
+                            onClick={() => removeCoMemberFromEdit(m.id || idx)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '1rem', color: '#adb5bd', fontSize: '0.85rem', fontStyle: 'italic', background: '#fff', borderRadius: '6px', border: '1px dashed #dee2e6' }}>
+                        No co-members listed
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
 
 
@@ -9548,7 +9748,56 @@ const SuccessModal = ({ isOpen, onClose, message }) => {
 
 
 
+const DeleteActivityModal = ({ isOpen, onClose, onConfirm }) => {
+
+  if (!isOpen) return null;
+
+
+
+  return (
+
+    <div className="logout-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+
+      <div className="logout-modal-container">
+
+        <div className="logout-modal-header delete-header">
+
+          <div className="delete-icon-circle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#DC3545" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </div>
+          <h2>Remove Activity</h2>
+
+        </div>
+
+        <div className="logout-modal-body">
+
+          <p>Are you sure you want to remove this activity from your recent list? This action cannot be undone.</p>
+
+        </div>
+
+        <div className="logout-modal-footer">
+
+          <button className="logout-modal-btn-secondary" onClick={onClose}>Cancel</button>
+
+          <button className="logout-modal-btn-danger" onClick={onConfirm}>Remove</button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  );
+
+};
+
+
+
 const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
+
 
   if (!isOpen) return null;
 

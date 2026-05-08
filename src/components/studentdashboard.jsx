@@ -396,6 +396,14 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
   const [uploadingPic, setUploadingPic] = useState(false);
   const fileInputRef = useRef(null);
 
+  // Co-members state
+  const [coMembers, setCoMembers] = useState([]);
+  const [showCoMemberForm, setShowCoMemberForm] = useState(false);
+  const [newCoMember, setNewCoMember] = useState({ name: '', email: '', role: '' });
+  const [coMemberLoading, setCoMemberLoading] = useState(false);
+  const [coMemberError, setCoMemberError] = useState('');
+  const [coMemberSuccess, setCoMemberSuccess] = useState('');
+
   useEffect(() => {
     const fetchStudentData = async () => {
       try {
@@ -418,6 +426,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
             program: student.program || '',
             gmail: student.gmail || '',
           });
+          setCoMembers(Array.isArray(student.coMembers) ? student.coMembers : []);
         } else {
           setError(result.error || 'Failed to fetch profile data');
         }
@@ -641,6 +650,48 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
     }
   };
 
+  const handleAddCoMember = () => {
+    setCoMemberError('');
+    if (!newCoMember.name.trim() || !newCoMember.email.trim()) {
+      setCoMemberError('Name and email are required');
+      return;
+    }
+    const updated = [...coMembers, { ...newCoMember, id: Date.now().toString() }];
+    setCoMembers(updated);
+    setNewCoMember({ name: '', email: '', role: '' });
+    setShowCoMemberForm(false);
+  };
+
+  const handleRemoveCoMember = (id) => {
+    setCoMembers(prev => prev.filter(m => m.id !== id));
+  };
+
+  const handleSaveCoMembers = async () => {
+    setCoMemberLoading(true);
+    setCoMemberError('');
+    setCoMemberSuccess('');
+    try {
+      const response = await fetch(`${API_BASE_URL}/student/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userInfo.email, coMembers }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setStudentData(prev => ({ ...prev, coMembers }));
+        setCoMemberSuccess('Co-members saved successfully');
+        setTimeout(() => setCoMemberSuccess(''), 4000);
+      } else {
+        setCoMemberError(result.error || 'Failed to save co-members');
+      }
+    } catch (err) {
+      console.error('Error saving co-members:', err);
+      setCoMemberError('Failed to save co-members');
+    } finally {
+      setCoMemberLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="sp-loading">
@@ -848,6 +899,105 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
                 Cancel
               </button>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Research Co-Members Card ── */}
+      <div className="sp-card">
+        <div className="sp-card-header">
+          <h3 className="sp-card-title">Research Co-Members</h3>
+          {!showCoMemberForm && (
+            <button className="sp-btn sp-btn--outline sp-btn--sm"
+              onClick={() => { setShowCoMemberForm(true); setCoMemberError(''); }}>
+              Add Co-Member
+            </button>
+          )}
+        </div>
+
+        {coMemberSuccess && <div className="sp-banner sp-banner--success">{coMemberSuccess}</div>}
+        {coMemberError && <div className="sp-banner sp-banner--error">{coMemberError}</div>}
+
+        {showCoMemberForm && (
+          <div className="sp-edit-form">
+            <div className="sp-field-row sp-field-row--3">
+              <div className="sp-field">
+                <label>Name</label>
+                <input
+                  type="text"
+                  value={newCoMember.name}
+                  onChange={e => setNewCoMember(p => ({ ...p, name: e.target.value }))}
+                  placeholder="Full name"
+                />
+              </div>
+              <div className="sp-field">
+                <label>Email</label>
+                <input
+                  type="email"
+                  value={newCoMember.email}
+                  onChange={e => setNewCoMember(p => ({ ...p, email: e.target.value }))}
+                  placeholder="example@gmail.com"
+                />
+              </div>
+              <div className="sp-field">
+                <label>Role</label>
+                <input
+                  type="text"
+                  value={newCoMember.role}
+                  onChange={e => setNewCoMember(p => ({ ...p, role: e.target.value }))}
+                  placeholder="e.g. Research Assistant"
+                />
+              </div>
+            </div>
+            <div className="sp-form-actions">
+              <button className="sp-btn sp-btn--primary" onClick={handleAddCoMember} disabled={coMemberLoading}>
+                Add
+              </button>
+              <button className="sp-btn sp-btn--ghost"
+                onClick={() => { setShowCoMemberForm(false); setNewCoMember({ name: '', email: '', role: '' }); setCoMemberError(''); }}
+                disabled={coMemberLoading}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="sp-info-list">
+          {coMembers.length === 0 ? (
+            <div className="sp-info-row" style={{ justifyContent: 'center', padding: '1.5rem 0' }}>
+              <span className="sp-not-set">No co-members added yet</span>
+            </div>
+          ) : (
+            coMembers.map((member) => (
+              <div className="sp-info-row" key={member.id} style={{ alignItems: 'center' }}>
+                <div style={{ flex: 1 }}>
+                  <span className="sp-info-value" style={{ fontWeight: 600 }}>{member.name}</span>
+                  <span className="sp-info-label" style={{ marginLeft: '0.75rem', display: 'inline', minWidth: 'auto' }}>
+                    {member.email}
+                  </span>
+                  {member.role && (
+                    <span className="sp-info-label" style={{ marginLeft: '0.75rem', display: 'inline', minWidth: 'auto' }}>
+                      — {member.role}
+                    </span>
+                  )}
+                </div>
+                <button
+                  className="sp-btn sp-btn--ghost sp-btn--sm"
+                  onClick={() => handleRemoveCoMember(member.id)}
+                  style={{ color: '#b52b2b' }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        {coMembers.length > 0 && (
+          <div className="sp-form-actions" style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid #f0f4f0' }}>
+            <button className="sp-btn sp-btn--primary" onClick={handleSaveCoMembers} disabled={coMemberLoading}>
+              {coMemberLoading ? 'Saving…' : 'Save Co-Members'}
+            </button>
           </div>
         )}
       </div>
