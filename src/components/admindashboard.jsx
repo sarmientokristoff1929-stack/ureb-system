@@ -1040,8 +1040,6 @@ const AdminDashboard = ({ onLogout }) => {
   };
 
   const handleProfilePicDelete = async () => {
-    if (!window.confirm('Are you sure you want to remove your profile picture?')) return;
-
     setUploadingPic(true);
     try {
       const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
