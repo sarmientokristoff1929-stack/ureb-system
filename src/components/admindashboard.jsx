@@ -84,6 +84,27 @@ const formatReviewerName = (reviewer) => {
 
 
 
+const CameraIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+    <circle cx="12" cy="13" r="4" />
+  </svg>
+);
+
+const TrashIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+  </svg>
+);
+
+const SettingsIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </svg>
+);
+
 // Rich Text Editor Component
 
 const RichTextEditor = ({ placeholder, content, onChange }) => {
@@ -746,6 +767,17 @@ const SearchIcon = () => (
 
 
 
+// Helper to get full URL for profile pictures
+const getProfilePicUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  const apiOrigin = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+  if (apiOrigin && path.startsWith('/')) {
+    return `${apiOrigin}${path}`;
+  }
+  return path;
+};
+
 const AdminDashboard = ({ onLogout }) => {
 
   // Initialize activeTab with localStorage data if available
@@ -781,33 +813,45 @@ const AdminDashboard = ({ onLogout }) => {
   const [messageCount, setMessageCount] = useState(0);
 
   const [notifCount, setNotifCount] = useState(0);
+  const [uploadingPic, setUploadingPic] = useState(false);
+  const [picError, setPicError] = useState('');
+  const [picSuccess, setPicSuccess] = useState('');
+  const fileInputRef = useRef(null);
 
 
 
-  // Load user info from localStorage on mount
-
+  // Load user info from localStorage on mount and refresh profile picture from server
   useEffect(() => {
-
     const savedUser = localStorage.getItem('ureb_user');
-
     if (savedUser) {
+      const parsed = JSON.parse(savedUser);
+      setUserInfo(parsed);
 
-      setUserInfo(JSON.parse(savedUser));
-
+      // Refresh profile picture from server to ensure it's up to date
+      if (parsed.email) {
+        const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+        fetch(`${API_BASE}/users`)
+          .then(r => r.json())
+          .then(users => {
+            const adminUser = Array.isArray(users)
+              ? users.find(u => (u.email || '').toLowerCase() === parsed.email.toLowerCase())
+              : null;
+            if (adminUser?.profilePictureGridFS) {
+              const picUrl = `/api/admin/profile/picture/${adminUser.profilePictureGridFS}?t=${Date.now()}`;
+              const updated = { ...parsed, profilePicture: picUrl };
+              setUserInfo(updated);
+              localStorage.setItem('ureb_user', JSON.stringify(updated));
+            }
+          })
+          .catch(() => {});
+      }
     }
-
-
 
     // Check if welcome modal has been shown in this login session
-
     const welcomeShown = sessionStorage.getItem('admin_welcome_shown');
-
     if (welcomeShown) {
-
       setShowWelcomeModal(false);
-
     }
-
   }, []);
 
 
@@ -900,9 +944,7 @@ const AdminDashboard = ({ onLogout }) => {
 
 
     { id: 'notification', label: 'Notification (File)', icon: <NotificationIcon />, badge: notifCount > 0 ? notifCount : null },
-
-
-
+    { id: 'profile', label: 'Profile Settings', icon: <SettingsIcon /> },
   ];
 
 
@@ -944,6 +986,99 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
+
+  const handleProfilePicClick = () => {
+    if (fileInputRef.current) fileInputRef.current.click();
+  };
+
+  const handleProfilePicUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setPicError('Please upload an image file (PNG, JPG, WEBP)');
+      setTimeout(() => setPicError(''), 4000);
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setPicError('File size must be less than 2MB');
+      setTimeout(() => setPicError(''), 4000);
+      return;
+    }
+
+    setUploadingPic(true);
+    setPicError('');
+
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+      const formData = new FormData();
+      formData.append('profilePicture', file);
+      formData.append('email', userInfo.email);
+
+      const response = await fetch(`${API_BASE}/admin/profile/picture`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Add timestamp for cache-busting
+        const imageUrlWithCache = `${result.profilePicture}?t=${Date.now()}`;
+        const updatedUser = { ...userInfo, profilePicture: imageUrlWithCache };
+        setUserInfo(updatedUser);
+        localStorage.setItem('ureb_user', JSON.stringify(updatedUser));
+        setPicSuccess('Profile picture updated successfully');
+        setTimeout(() => setPicSuccess(''), 4000);
+      } else {
+        setPicError(result.error || 'Failed to upload profile picture');
+        setTimeout(() => setPicError(''), 4000);
+      }
+    } catch (err) {
+      console.error('Error uploading profile picture:', err);
+      setPicError('Failed to upload profile picture');
+      setTimeout(() => setPicError(''), 4000);
+    } finally {
+      setUploadingPic(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleProfilePicDelete = async () => {
+    if (!window.confirm('Are you sure you want to remove your profile picture?')) return;
+
+    setUploadingPic(true);
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+      const response = await fetch(`${API_BASE}/admin/profile/picture`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userInfo.email }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        const updatedUser = { ...userInfo };
+        delete updatedUser.profilePicture;
+        setUserInfo(updatedUser);
+        localStorage.setItem('ureb_user', JSON.stringify(updatedUser));
+        setPicSuccess('Profile picture removed');
+        setTimeout(() => setPicSuccess(''), 4000);
+      } else {
+        setPicError(result.error || 'Failed to remove picture');
+        setTimeout(() => setPicError(''), 4000);
+      }
+    } catch (err) {
+      console.error('Error deleting profile picture:', err);
+      setPicError('Failed to remove picture');
+      setTimeout(() => setPicError(''), 4000);
+    } finally {
+      setUploadingPic(false);
+    }
+  };
 
   const renderContent = () => {
 
@@ -1005,6 +1140,19 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
+      case 'profile':
+        return (
+          <AdminProfileContent 
+            userInfo={userInfo}
+            uploadingPic={uploadingPic}
+            picError={picError}
+            picSuccess={picSuccess}
+            fileInputRef={fileInputRef}
+            handleProfilePicClick={handleProfilePicClick}
+            handleProfilePicUpload={handleProfilePicUpload}
+            handleProfilePicDelete={handleProfilePicDelete}
+          />
+        );
       case 'notification':
 
 
@@ -1269,7 +1417,35 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
-            <div className="user-avatar">{userInfo.name.charAt(0).toUpperCase()}</div>
+            <div 
+              className="user-avatar-wrapper" 
+              onClick={() => setActiveTab('profile')}
+              style={{ cursor: 'pointer' }}
+              title="Profile Settings"
+            >
+              {userInfo?.profilePicture ? (
+                <img
+                  key={userInfo.profilePicture}
+                  src={getProfilePicUrl(userInfo.profilePicture)}
+                  alt="Profile"
+                  className="header-profile-pic"
+                  onLoad={(e) => {
+                    e.target.style.display = 'block';
+                    if (e.target.nextSibling) e.target.nextSibling.style.display = 'none';
+                  }}
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div 
+                className="user-avatar"
+                style={{ display: userInfo?.profilePicture ? 'none' : 'flex' }}
+              >
+                {userInfo.name.charAt(0).toUpperCase()}
+              </div>
+            </div>
 
 
 
@@ -4627,6 +4803,93 @@ const MessageReviewerContent = () => {
 };
 
 
+
+const AdminProfileContent = ({ 
+  userInfo, 
+  uploadingPic, 
+  picError, 
+  picSuccess, 
+  fileInputRef, 
+  handleProfilePicClick, 
+  handleProfilePicUpload, 
+  handleProfilePicDelete 
+}) => {
+  return (
+    <div className="admin-profile-container">
+      <div className="profile-card">
+        <div className="profile-header">
+          <h2>Admin Profile Settings</h2>
+          <p>Manage your account information and profile picture</p>
+        </div>
+
+        <div className="profile-body">
+          <div className="profile-avatar-section">
+            <div className="avatar-display" onClick={handleProfilePicClick}>
+              {uploadingPic && (
+                <div className="avatar-loading">
+                  <div className="spinner"></div>
+                </div>
+              )}
+              {userInfo?.profilePicture ? (
+                <img 
+                  src={getProfilePicUrl(userInfo.profilePicture)} 
+                  alt="Admin Profile" 
+                  className="profile-large-avatar"
+                />
+              ) : (
+                <div className="avatar-fallback">
+                  {userInfo.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="avatar-overlay">
+                <CameraIcon />
+                <span>Change Photo</span>
+              </div>
+            </div>
+            
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              style={{ display: 'none' }} 
+              onChange={handleProfilePicUpload}
+              accept="image/*"
+            />
+
+            <div className="avatar-actions">
+              <button className="upload-btn" onClick={handleProfilePicClick}>
+                <CameraIcon /> Upload New Photo
+              </button>
+              {userInfo?.profilePicture && (
+                <button className="delete-btn" onClick={handleProfilePicDelete}>
+                  <TrashIcon /> Remove Photo
+                </button>
+              )}
+            </div>
+            
+            {picError && <p className="pic-error">{picError}</p>}
+            {picSuccess && <p className="pic-success">{picSuccess}</p>}
+          </div>
+
+          <div className="profile-info-section">
+            <div className="info-group">
+              <label>Full Name</label>
+              <input type="text" value={userInfo.name} disabled />
+            </div>
+            <div className="info-group">
+              <label>Email Address</label>
+              <input type="email" value={userInfo.email} disabled />
+            </div>
+            <div className="info-group">
+              <label>Account Role</label>
+              <input type="text" value={userInfo.role || 'Administrator'} disabled />
+            </div>
+            <p className="info-note">Contact the system administrator to change your account details.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ManageUsersContent = () => {
 

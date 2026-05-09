@@ -426,6 +426,9 @@ app.post('/api/auth/login', async (req, res) => {
     } else if (userType === 'reviewer' && user.profilePictureGridFS) {
       userResponse.profilePicture = `/api/reviewer/profile/picture/${user.profilePictureGridFS}`;
       console.log('[DEBUG] Login - Added reviewer profilePicture to response:', userResponse.profilePicture);
+    } else if (userType === 'user' && user.profilePictureGridFS) {
+      userResponse.profilePicture = `/api/admin/profile/picture/${user.profilePictureGridFS}`;
+      console.log('[DEBUG] Login - Added admin profilePicture to response:', userResponse.profilePicture);
     }
 
     res.json({
@@ -1169,6 +1172,17 @@ function reviewerProfilePayload(reviewer) {
   return { ...safe, profilePicture };
 }
 
+function adminProfilePayload(user) {
+  if (!user) return null;
+  const plain = JSON.parse(JSON.stringify(user));
+  const { password, ...safe } = plain;
+  let profilePicture = safe.profilePicture || null;
+  if (safe.profilePictureGridFS) {
+    profilePicture = `/api/admin/profile/picture/${safe.profilePictureGridFS}`;
+  }
+  return { ...safe, profilePicture };
+}
+
 // GET student profile by email (or gmail), case-insensitive fallback
 app.get('/api/student/profile', async (req, res) => {
   try {
@@ -1432,6 +1446,89 @@ app.get('/api/reviewer/profile/picture/:filename', async (req, res) => {
     gfsBucket.openDownloadStreamByName(filename).pipe(res);
   } catch (error) {
     console.error('Error serving reviewer profile picture:', error);
+    res.status(500).json({ error: 'Server error serving image' });
+  }
+});
+
+// POST upload/update admin profile picture
+app.post('/api/admin/profile/picture', uploadProfilePic.single('profilePicture'), async (req, res) => {
+  try {
+    const email = req.body.email;
+    if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
+    if (!req.file) return res.status(400).json({ success: false, error: 'No image provided' });
+
+    const db = getDatabase();
+    const users = db.collection(collections.users);
+    const user = await users.findOne({ email });
+    if (!user) return res.status(404).json({ success: false, error: 'Admin not found' });
+
+    // Delete old picture if exists
+    if (user.profilePictureGridFS) {
+      await deleteFromGridFS(user.profilePictureGridFS);
+    }
+
+    const filename = await uploadProfilePicToGridFS(req.file, user._id.toString());
+
+    await users.updateOne(
+      { _id: user._id },
+      { $set: { profilePictureGridFS: filename, updatedAt: new Date() } }
+    );
+
+    res.json({
+      success: true,
+      profilePicture: `/api/admin/profile/picture/${filename}`
+    });
+  } catch (error) {
+    console.error('Error uploading admin profile picture:', error);
+    res.status(500).json({ success: false, error: 'Server error uploading image' });
+  }
+});
+
+// DELETE admin profile picture
+app.delete('/api/admin/profile/picture', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
+
+    const db = getDatabase();
+    const users = db.collection(collections.users);
+    const user = await users.findOne({ email });
+    if (!user) return res.status(404).json({ success: false, error: 'Admin not found' });
+
+    if (user.profilePictureGridFS) {
+      await deleteFromGridFS(user.profilePictureGridFS);
+      await users.updateOne(
+        { _id: user._id },
+        { $unset: { profilePictureGridFS: "" }, $set: { updatedAt: new Date() } }
+      );
+    }
+
+    res.json({ success: true, message: 'Profile picture removed successfully' });
+  } catch (error) {
+    console.error('Error removing admin profile picture:', error);
+    res.status(500).json({ success: false, error: 'Server error removing image' });
+  }
+});
+
+// GET admin profile picture from GridFS
+app.get('/api/admin/profile/picture/:filename', async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const files = await gfsBucket.find({ filename }).toArray();
+    if (!files || files.length === 0) {
+      // Fallback: check local uploads directory for legacy file-system images
+      const localPath = path.resolve('uploads', 'profile-pictures', filename);
+      if (fs.existsSync(localPath)) {
+        return res.sendFile(path.resolve(localPath));
+      }
+      return res.status(404).json({ error: 'Image not found' });
+    }
+
+    res.setHeader('Content-Type', files[0].contentType || 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+    gfsBucket.openDownloadStreamByName(filename).pipe(res);
+  } catch (error) {
+    console.error('Error serving admin profile picture:', error);
     res.status(500).json({ error: 'Server error serving image' });
   }
 });

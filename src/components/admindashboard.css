@@ -15713,3 +15713,242 @@
   box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
 }
 
+/* ── Admin Header Profile Picture ── */
+.user-avatar-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+.header-profile-pic {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--primary-green);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* ── Admin Profile Settings Page ── */
+.admin-profile-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1rem;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.profile-card {
+  background: var(--white);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(122, 158, 126, 0.1);
+  overflow: hidden;
+  border: 1px solid var(--soft-green);
+}
+
+.profile-header {
+  background: linear-gradient(135deg, var(--primary-green), var(--dark-green));
+  padding: 2.5rem 2rem;
+  color: white;
+}
+
+.profile-header h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.profile-header p {
+  margin: 0.5rem 0 0;
+  opacity: 0.9;
+  font-size: 1rem;
+}
+
+.profile-body {
+  padding: 3rem 2rem;
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 3rem;
+}
+
+@media (max-width: 768px) {
+  .profile-body {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+}
+
+.profile-avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.avatar-display {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  cursor: pointer;
+  overflow: hidden;
+  border: 4px solid var(--soft-green);
+  background: var(--pale-green);
+  transition: all 0.3s ease;
+}
+
+.avatar-display:hover {
+  transform: scale(1.02);
+  border-color: var(--primary-green);
+}
+
+.profile-large-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4rem;
+  font-weight: 700;
+  color: var(--primary-green);
+}
+
+.avatar-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  gap: 0.5rem;
+}
+
+.avatar-display:hover .avatar-overlay {
+  opacity: 1;
+}
+
+.avatar-loading {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--soft-green);
+  border-top: 3px solid var(--primary-green);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.avatar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.upload-btn, .delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.upload-btn {
+  background: var(--primary-green);
+  color: white;
+  border: none;
+}
+
+.upload-btn:hover {
+  background: var(--dark-green);
+}
+
+.delete-btn {
+  background: white;
+  color: #DC3545;
+  border: 1px solid #FFD5D8;
+}
+
+.delete-btn:hover {
+  background: #FFF5F5;
+}
+
+.pic-error {
+  color: #DC3545;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+.pic-success {
+  color: #28A745;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+.profile-info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.info-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.info-group label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-medium);
+}
+
+.info-group input {
+  padding: 0.875rem 1rem;
+  border-radius: 10px;
+  border: 1.5px solid var(--soft-green);
+  background: var(--off-white);
+  color: var(--text-dark);
+  font-size: 1rem;
+  cursor: not-allowed;
+}
+
+.info-note {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  font-style: italic;
+  margin-top: 1rem;
+}
+
