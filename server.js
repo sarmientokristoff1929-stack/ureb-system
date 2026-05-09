@@ -552,7 +552,7 @@ app.get('/api/reviewers', async (req, res) => {
     const db = getDatabase();
     const reviewers = db.collection(collections.reviewers);
     const reviewerList = await reviewers.find({}).toArray();
-    res.json(reviewerList);
+    res.json(reviewerList.map(r => reviewerProfilePayload(r)));
   } catch (error) {
     console.error('Error fetching reviewers:', error);
     res.status(500).json({ error: 'Server error' });

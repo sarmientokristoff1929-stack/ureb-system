@@ -918,13 +918,9 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
           ? reviewers.find(r => (r.email || '').toLowerCase() === (userInfo?.email || '').toLowerCase())
           : null;
         if (reviewer) {
-          // Add cache-busting timestamp to profile picture URL
-          if (reviewer.profilePictureGridFS) {
-            let picUrl = `/api/reviewer/profile/picture/${reviewer.profilePictureGridFS}`;
-            if (API_BASE.startsWith('http')) {
-              picUrl = `${API_BASE.replace(/\/api$/, '')}${picUrl}`;
-            }
-            reviewer.profilePicture = `${picUrl}?t=${Date.now()}`;
+          // Add cache-busting timestamp to profile picture URL if it exists
+          if (reviewer.profilePicture) {
+            reviewer.profilePicture = `${reviewer.profilePicture}?t=${Date.now()}`;
           }
           setReviewerData(reviewer);
         }
@@ -1002,11 +998,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
 
       if (result.success) {
         // Add timestamp for cache-busting
-        let picUrl = result.profilePicture;
-        if (picUrl.startsWith('/api') && API_BASE.startsWith('http')) {
-          picUrl = `${API_BASE.replace(/\/api$/, '')}${picUrl}`;
-        }
-        const imageUrlWithCache = `${picUrl}?t=${Date.now()}`;
+        const imageUrlWithCache = `${result.profilePicture}?t=${Date.now()}`;
         setReviewerData(prev => ({ ...prev, profilePicture: imageUrlWithCache }));
         const updatedUser = { ...userInfo, profilePicture: imageUrlWithCache };
         setUserInfo(updatedUser);
