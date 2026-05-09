@@ -327,7 +327,7 @@
 
 
 .sidebar-header {
-  height: 72px;
+  height: 80px;
   padding: 0 1.5rem;
   border-bottom: 1px solid var(--soft-green);
   display: flex;
@@ -747,7 +747,7 @@
 
 
 .content-header {
-  height: 72px;
+  height: 80px;
   display: flex;
   align-items: center;
   justify-content: space-between;
