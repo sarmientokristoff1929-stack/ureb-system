@@ -135,6 +135,17 @@ const CheckIcon = () => (
   </svg>
 );
 
+// Helper to get full URL for profile pictures
+const getProfilePicUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  const apiOrigin = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+  if (apiOrigin && path.startsWith('/')) {
+    return `${apiOrigin}${path}`;
+  }
+  return path;
+};
+
 const StudentDashboard = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -342,7 +353,7 @@ const StudentDashboard = ({ onLogout }) => {
             {userInfo?.profilePicture && (
               <img
                 key={userInfo.profilePicture}
-                src={userInfo.profilePicture}
+                src={getProfilePicUrl(userInfo.profilePicture)}
                 alt="Profile"
                 className="user-avatar user-avatar-img"
                 onLoad={(e) => {
@@ -585,6 +596,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
           gender: result.student.gender,
           department: result.student.department,
           program: result.student.program,
+          profilePicture: result.student.profilePicture,
         };
         setUserInfo(updatedUser);
         localStorage.setItem('ureb_user', JSON.stringify(updatedUser));
@@ -737,7 +749,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
           {!uploadingPic && profilePicUrl && (
             <img
               key={profilePicUrl}
-              src={profilePicUrl}
+              src={getProfilePicUrl(profilePicUrl)}
               alt="Profile"
               className="uploaded-profile-picture"
               onLoad={(e) => {

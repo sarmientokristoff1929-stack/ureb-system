@@ -3215,7 +3215,7 @@ const AssignFileContent = () => {
 
       // Add form fields
 
-      formDataToSend.append('protocolCode', formData.protocolCode.trim());
+      formDataToSend.append('protocolCode', formData.protocolCode.toUpperCase().replace(/\s+/g, ''));
 
       formDataToSend.append('secondaryReviewer1', formData.secondaryReviewer1);
 

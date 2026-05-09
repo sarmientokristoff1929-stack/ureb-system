@@ -890,13 +890,11 @@ app.put('/api/reviewers/profile', async (req, res) => {
     }
 
     console.log('Profile update successful!');
+    const updatedReviewer = await reviewers.findOne({ email: email });
     res.json({
       success: true,
       message: 'Profile updated successfully',
-      reviewer: {
-        name: name,
-        email: email
-      }
+      reviewer: reviewerProfilePayload(updatedReviewer)
     });
   } catch (error) {
     console.error('Error updating reviewer profile:', error);
@@ -1157,10 +1155,18 @@ function studentProfilePayload(student) {
   if (safe.profilePictureGridFS) {
     profilePicture = `/api/student/profile/picture/${safe.profilePictureGridFS}`;
   }
-  console.log('[DEBUG] studentProfilePayload - profilePictureGridFS:', safe.profilePictureGridFS);
-  console.log('[DEBUG] studentProfilePayload - computed profilePicture:', profilePicture);
-  console.log('[DEBUG] studentProfilePayload - raw gender from DB:', safe.gender, '| sex:', sex, '| computed gender:', gender);
   return { ...safe, gmail, gender, profilePicture };
+}
+
+function reviewerProfilePayload(reviewer) {
+  if (!reviewer) return null;
+  const plain = JSON.parse(JSON.stringify(reviewer));
+  const { password, ...safe } = plain;
+  let profilePicture = safe.profilePicture || null;
+  if (safe.profilePictureGridFS) {
+    profilePicture = `/api/reviewer/profile/picture/${safe.profilePictureGridFS}`;
+  }
+  return { ...safe, profilePicture };
 }
 
 // GET student profile by email (or gmail), case-insensitive fallback
@@ -1588,7 +1594,7 @@ app.post('/api/proposals', upload.fields([
     } = req.body;
 
     // Trim protocolCode to avoid uniqueness issues with white space
-    if (protocolCode) protocolCode = protocolCode.trim();
+    if (protocolCode) protocolCode = protocolCode.toUpperCase().replace(/\s+/g, '');
 
     // Check if protocolCode already exists if provided
     if (protocolCode) {
@@ -1900,7 +1906,7 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
       overallRating: overallRating || decision || '',
       comments: comments || comment || '',
       recommendations: recommendations || '',
-      protocolCode: (submittedProtocolCode || '').trim(),
+      protocolCode: (submittedProtocolCode || '').toUpperCase().replace(/\s+/g, ''),
       files,
       status: 'completed',
       createdAt: new Date(),
@@ -2390,105 +2396,6 @@ app.post('/api/verify-otp', (req, res) => {
   }
 });
 
-// Upload student profile picture to GridFS
-app.post('/api/student/profile/picture', uploadProfilePic.single('profilePicture'), async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email || !req.file) {
-      return res.status(400).json({ success: false, error: 'Email and image are required' });
-    }
-    const db = getDatabase();
-    const students = db.collection(collections.students);
-    const student = await students.findOne({ email });
-    if (!student) {
-      return res.status(404).json({ success: false, error: 'Student not found' });
-    }
-
-    // Delete old picture from GridFS if it exists
-    if (student.profilePictureGridFS) {
-      await deleteFromGridFS(student.profilePictureGridFS);
-    }
-
-    // Upload new picture to GridFS
-    const gridFSFilename = await uploadProfilePicToGridFS(req.file, student._id.toString());
-
-    // Store GridFS filename in student document
-    await students.updateOne({ email }, {
-      $set: {
-        profilePictureGridFS: gridFSFilename,
-        updatedAt: new Date()
-      },
-      $unset: { profilePicture: '' } // Remove old field if exists
-    });
-
-    res.json({ success: true, profilePicture: `/api/student/profile/picture/${gridFSFilename}` });
-  } catch (error) {
-    console.error('Error uploading profile picture:', error);
-    res.status(500).json({ success: false, error: error.message || 'Server error' });
-  }
-});
-
-// Delete student profile picture from GridFS
-app.delete('/api/student/profile/picture', async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ success: false, error: 'Email is required' });
-    }
-    const db = getDatabase();
-    const students = db.collection(collections.students);
-    const student = await students.findOne({ email });
-    if (!student) {
-      return res.status(404).json({ success: false, error: 'Student not found' });
-    }
-
-    // Delete from GridFS
-    if (student.profilePictureGridFS) {
-      await deleteFromGridFS(student.profilePictureGridFS);
-    }
-
-    await students.updateOne({ email }, {
-      $set: { updatedAt: new Date() },
-      $unset: { profilePictureGridFS: '', profilePicture: '' }
-    });
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting profile picture:', error);
-    res.status(500).json({ success: false, error: 'Server error' });
-  }
-});
-
-// Serve profile picture from GridFS
-app.get('/api/student/profile/picture/:filename', async (req, res) => {
-  try {
-    const { filename } = req.params;
-    console.log('[DEBUG] GridFS - Requested filename:', filename);
-
-    const files = await gfsBucket.find({ filename }).toArray();
-    console.log('[DEBUG] GridFS - Found files:', files.length);
-
-    if (!files || files.length === 0) {
-      console.log('[DEBUG] GridFS - File not found:', filename);
-      return res.status(404).json({ success: false, error: 'File not found' });
-    }
-
-    const file = files[0];
-    console.log('[DEBUG] GridFS - Serving file:', file.filename, 'Content-Type:', file.contentType);
-    res.set('Content-Type', file.contentType || 'image/jpeg');
-
-    const downloadStream = gfsBucket.openDownloadStream(file._id);
-    downloadStream.pipe(res);
-
-    downloadStream.on('error', (err) => {
-      console.error('[DEBUG] GridFS - Error streaming file:', err);
-      res.status(500).json({ success: false, error: 'Error streaming file' });
-    });
-  } catch (error) {
-    console.error('[DEBUG] GridFS - Error serving profile picture:', error);
-    res.status(500).json({ success: false, error: 'Server error' });
-  }
-});
-
 // Change student password endpoint
 app.put('/api/student/change-password', async (req, res) => {
   try {
@@ -2498,14 +2405,14 @@ app.put('/api/student/change-password', async (req, res) => {
     }
     const db = getDatabase();
     const students = db.collection(collections.students);
-    const student = await students.findOne({ email });
+    const student = await findStudentByLoginEmail(students, email);
     if (!student) {
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
     if (student.password !== currentPassword) {
       return res.status(400).json({ success: false, error: 'Current password is incorrect' });
     }
-    await students.updateOne({ email }, { $set: { password: newPassword, updatedAt: new Date() } });
+    await students.updateOne({ _id: student._id }, { $set: { password: newPassword, updatedAt: new Date() } });
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
     console.error('Error changing password:', error);
@@ -2522,121 +2429,17 @@ app.delete('/api/student/account', async (req, res) => {
     }
     const db = getDatabase();
     const students = db.collection(collections.students);
-    const student = await students.findOne({ email });
+    const student = await findStudentByLoginEmail(students, email);
     if (!student) {
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
     if (student.password !== password) {
       return res.status(400).json({ success: false, error: 'Password is incorrect' });
     }
-    await students.deleteOne({ email });
+    await students.deleteOne({ _id: student._id });
     res.json({ success: true, message: 'Account deleted successfully' });
   } catch (error) {
     console.error('Error deleting account:', error);
-    res.status(500).json({ success: false, error: 'Server error' });
-  }
-});
-
-// Upload reviewer profile picture to GridFS
-app.post('/api/reviewer/profile/picture', uploadProfilePic.single('profilePicture'), async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email || !req.file) {
-      return res.status(400).json({ success: false, error: 'Email and image are required' });
-    }
-    const db = getDatabase();
-    const reviewers = db.collection(collections.reviewers);
-    const reviewer = await reviewers.findOne({ email });
-    if (!reviewer) {
-      return res.status(404).json({ success: false, error: 'Reviewer not found' });
-    }
-
-    // Delete old picture from GridFS if it exists
-    if (reviewer.profilePictureGridFS) {
-      await deleteFromGridFS(reviewer.profilePictureGridFS);
-    }
-
-    // Upload new picture to GridFS
-    const gridFSFilename = await uploadProfilePicToGridFS(req.file, reviewer._id.toString());
-
-    // Store GridFS filename in reviewer document
-    await reviewers.updateOne({ email }, {
-      $set: {
-        profilePictureGridFS: gridFSFilename,
-        updatedAt: new Date()
-      },
-      $unset: { profilePicture: '' }
-    });
-
-    res.json({ success: true, profilePicture: `/api/reviewer/profile/picture/${gridFSFilename}` });
-  } catch (error) {
-    console.error('Error uploading reviewer profile picture:', error);
-    res.status(500).json({ success: false, error: error.message || 'Server error' });
-  }
-});
-
-// Delete reviewer profile picture from GridFS
-app.delete('/api/reviewer/profile/picture', async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ success: false, error: 'Email is required' });
-    }
-    const db = getDatabase();
-    const reviewers = db.collection(collections.reviewers);
-    const reviewer = await reviewers.findOne({ email });
-    if (!reviewer) {
-      return res.status(404).json({ success: false, error: 'Reviewer not found' });
-    }
-
-    // Delete from GridFS
-    if (reviewer.profilePictureGridFS) {
-      await deleteFromGridFS(reviewer.profilePictureGridFS);
-    }
-
-    await reviewers.updateOne({ email }, {
-      $set: { updatedAt: new Date() },
-      $unset: { profilePictureGridFS: '', profilePicture: '' }
-    });
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting reviewer profile picture:', error);
-    res.status(500).json({ success: false, error: 'Server error' });
-  }
-});
-
-// Serve reviewer profile picture from GridFS
-app.get('/api/reviewer/profile/picture/:filename', async (req, res) => {
-  try {
-    const { filename } = req.params;
-    console.log('[DEBUG] GridFS Reviewer - Requested filename:', filename);
-
-    const files = await gfsBucket.find({ filename }).toArray();
-    console.log('[DEBUG] GridFS Reviewer - Found files:', files.length);
-
-    if (!files || files.length === 0) {
-      console.log('[DEBUG] GridFS Reviewer - File not found:', filename);
-      // Fallback: check local uploads directory for legacy file-system images
-      const localPath = path.resolve('uploads', 'profile-pictures', filename);
-      if (fs.existsSync(localPath)) {
-        return res.sendFile(path.resolve(localPath));
-      }
-      return res.status(404).json({ success: false, error: 'File not found' });
-    }
-
-    const file = files[0];
-    console.log('[DEBUG] GridFS Reviewer - Serving file:', file.filename, 'Content-Type:', file.contentType);
-    res.set('Content-Type', file.contentType || 'image/jpeg');
-
-    const downloadStream = gfsBucket.openDownloadStream(file._id);
-    downloadStream.pipe(res);
-
-    downloadStream.on('error', (err) => {
-      console.error('[DEBUG] GridFS Reviewer - Error streaming file:', err);
-      res.status(500).json({ success: false, error: 'Error streaming file' });
-    });
-  } catch (error) {
-    console.error('[DEBUG] GridFS Reviewer - Error serving profile picture:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -2985,7 +2788,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
     } = req.body;
 
     // Trim protocolCode to avoid uniqueness issues with white space
-    if (protocolCode) protocolCode = protocolCode.trim();
+    if (protocolCode) protocolCode = protocolCode.toUpperCase().replace(/\s+/g, '');
 
     // Collect all uploaded files
     const uploadedFiles = {};

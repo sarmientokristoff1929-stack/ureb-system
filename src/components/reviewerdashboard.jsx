@@ -222,6 +222,17 @@ const getReadAssignmentIds = () => {
   } catch { return []; }
 };
 
+// Helper to get full URL for profile pictures
+const getProfilePicUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  const apiOrigin = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+  if (apiOrigin && path.startsWith('/')) {
+    return `${apiOrigin}${path}`;
+  }
+  return path;
+};
+
 const ReviewerDashboard = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState(() => {
     // Restore active tab from localStorage on initial load
@@ -443,7 +454,7 @@ const ReviewerDashboard = ({ onLogout }) => {
 
       const result = await response.json();
       if (result.success) {
-        const updatedUser = { ...userInfo, name: profileData.name };
+        const updatedUser = { ...userInfo, ...result.reviewer };
         setUserInfo(updatedUser);
         localStorage.setItem('ureb_user', JSON.stringify(updatedUser));
         setEditingProfile(false);
@@ -645,7 +656,7 @@ const ReviewerDashboard = ({ onLogout }) => {
               {userInfo.profilePicture ? (
                 <img
                   key={userInfo.profilePicture}
-                  src={userInfo.profilePicture}
+                  src={getProfilePicUrl(userInfo.profilePicture)}
                   alt="Profile"
                   className="header-profile-pic"
                   onLoad={(e) => {
@@ -1209,7 +1220,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
           {!uploadingPic && profilePicUrl && (
             <img
               key={profilePicUrl}
-              src={profilePicUrl}
+              src={getProfilePicUrl(profilePicUrl)}
               alt="Profile"
               className="uploaded-profile-picture"
               onLoad={(e) => {
