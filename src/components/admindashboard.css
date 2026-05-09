@@ -327,26 +327,14 @@
 
 
 .sidebar-header {
-
-
-
-  padding: 1.5rem;
-
-
-
+  height: 72px;
+  padding: 0 1.5rem;
   border-bottom: 1px solid var(--soft-green);
-
-
-
   display: flex;
-
-
-
   align-items: center;
-
-
-
   justify-content: space-between;
+  box-sizing: border-box;
+}
 
 
 
@@ -759,33 +747,15 @@
 
 
 .content-header {
-
-
-
+  height: 72px;
   display: flex;
-
-
-
   align-items: center;
-
-
-
   justify-content: space-between;
-
-
-
-  margin-bottom: 2rem;
-
-
-
-  padding-bottom: 1rem;
-
-
-
+  margin: -1rem -1rem 2rem -1rem;
+  padding: 0 2rem;
   border-bottom: 1px solid var(--soft-green);
-
-
-
+  background: var(--white);
+  box-sizing: border-box;
 }
 
 
