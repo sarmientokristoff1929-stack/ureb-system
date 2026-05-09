@@ -98,6 +98,20 @@ const TrashIcon = () => (
   </svg>
 );
 
+const EyeIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const EyeOffIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </svg>
+);
+
 const SettingsIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3" />
@@ -817,6 +831,12 @@ const AdminDashboard = ({ onLogout }) => {
   const [picError, setPicError] = useState('');
   const [picSuccess, setPicSuccess] = useState('');
   const fileInputRef = useRef(null);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [pwdData, setPwdData] = useState({ current: '', new: '', confirm: '' });
+  const [pwdError, setPwdError] = useState('');
+  const [pwdSuccess, setPwdSuccess] = useState('');
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
 
 
 
@@ -1080,6 +1100,52 @@ const AdminDashboard = ({ onLogout }) => {
     }
   };
 
+  const handlePasswordUpdate = async (e) => {
+    e.preventDefault();
+    if (pwdData.new !== pwdData.confirm) {
+      setPwdError('New passwords do not match');
+      return;
+    }
+    if (pwdData.new.length < 6) {
+      setPwdError('Password must be at least 6 characters');
+      return;
+    }
+
+    setPwdLoading(true);
+    setPwdError('');
+    setPwdSuccess('');
+
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+      const response = await fetch(`${API_BASE}/admin/password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userInfo.email,
+          currentPassword: pwdData.current,
+          newPassword: pwdData.new
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setPwdSuccess('Password updated successfully');
+        setPwdData({ current: '', new: '', confirm: '' });
+        setTimeout(() => {
+          setShowPasswordForm(false);
+          setPwdSuccess('');
+        }, 3000);
+      } else {
+        setPwdError(result.error || 'Failed to update password');
+      }
+    } catch (err) {
+      console.error('Error updating password:', err);
+      setPwdError('Server error updating password');
+    } finally {
+      setPwdLoading(false);
+    }
+  };
+
   const renderContent = () => {
 
 
@@ -1151,6 +1217,16 @@ const AdminDashboard = ({ onLogout }) => {
             handleProfilePicClick={handleProfilePicClick}
             handleProfilePicUpload={handleProfilePicUpload}
             handleProfilePicDelete={handleProfilePicDelete}
+            showPasswordForm={showPasswordForm}
+            setShowPasswordForm={setShowPasswordForm}
+            pwdData={pwdData}
+            setPwdData={setPwdData}
+            pwdError={pwdError}
+            pwdSuccess={pwdSuccess}
+            pwdLoading={pwdLoading}
+            handlePasswordUpdate={handlePasswordUpdate}
+            showPasswords={showPasswords}
+            setShowPasswords={setShowPasswords}
           />
         );
       case 'notification':
@@ -4812,7 +4888,17 @@ const AdminProfileContent = ({
   fileInputRef, 
   handleProfilePicClick, 
   handleProfilePicUpload, 
-  handleProfilePicDelete 
+  handleProfilePicDelete,
+  showPasswordForm,
+  setShowPasswordForm,
+  pwdData,
+  setPwdData,
+  pwdError,
+  pwdSuccess,
+  pwdLoading,
+  handlePasswordUpdate,
+  showPasswords,
+  setShowPasswords
 }) => {
   const initials = (userInfo?.name || 'A').charAt(0).toUpperCase();
 
@@ -4928,6 +5014,111 @@ const AdminProfileContent = ({
         <p className="ap-info-note">
           Account details are managed by the system. Contact your system provider to make changes.
         </p>
+      </div>
+
+      {/* ── Security Card ── */}
+      <div className="ap-info-card">
+        <div className="ap-card-header">
+          <div>
+            <h3 className="ap-card-title">Security</h3>
+            <p className="ap-card-subtitle">Manage your account password and security settings</p>
+          </div>
+          {!showPasswordForm && (
+            <button 
+              className="ap-toggle-btn"
+              onClick={() => { setShowPasswordForm(true); setPwdError(''); setPwdSuccess(''); }}
+            >
+              Change Password
+            </button>
+          )}
+        </div>
+
+        {pwdSuccess && <div className="ap-banner ap-banner--success" style={{ marginBottom: '1.5rem' }}>{pwdSuccess}</div>}
+        {pwdError && <div className="ap-banner ap-banner--error" style={{ marginBottom: '1.5rem' }}>{pwdError}</div>}
+
+        {showPasswordForm && (
+          <form className="ap-password-form" onSubmit={handlePasswordUpdate}>
+            <div className="ap-edit-grid">
+              <div className="ap-field ap-field--wide">
+                <label className="ap-field-label">Current Password</label>
+                <div className="ap-password-input-wrapper">
+                  <input 
+                    type={showPasswords.current ? "text" : "password"} 
+                    className="ap-field-input" 
+                    value={pwdData.current}
+                    onChange={e => setPwdData(p => ({ ...p, current: e.target.value }))}
+                    placeholder="Enter current password"
+                    required
+                  />
+                  <button 
+                    type="button" 
+                    className="ap-password-toggle"
+                    onClick={() => setShowPasswords(p => ({ ...p, current: !p.current }))}
+                  >
+                    {showPasswords.current ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                </div>
+              </div>
+              <div className="ap-field">
+                <label className="ap-field-label">New Password</label>
+                <div className="ap-password-input-wrapper">
+                  <input 
+                    type={showPasswords.new ? "text" : "password"} 
+                    className="ap-field-input" 
+                    value={pwdData.new}
+                    onChange={e => setPwdData(p => ({ ...p, new: e.target.value }))}
+                    placeholder="At least 6 characters"
+                    required
+                  />
+                  <button 
+                    type="button" 
+                    className="ap-password-toggle"
+                    onClick={() => setShowPasswords(p => ({ ...p, new: !p.new }))}
+                  >
+                    {showPasswords.new ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                </div>
+              </div>
+              <div className="ap-field">
+                <label className="ap-field-label">Confirm New Password</label>
+                <div className="ap-password-input-wrapper">
+                  <input 
+                    type={showPasswords.confirm ? "text" : "password"} 
+                    className="ap-field-input" 
+                    value={pwdData.confirm}
+                    onChange={e => setPwdData(p => ({ ...p, confirm: e.target.value }))}
+                    placeholder="Repeat new password"
+                    required
+                  />
+                  <button 
+                    type="button" 
+                    className="ap-password-toggle"
+                    onClick={() => setShowPasswords(p => ({ ...p, confirm: !p.confirm }))}
+                  >
+                    {showPasswords.confirm ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="ap-edit-actions">
+              <button 
+                type="submit" 
+                className="ap-btn ap-btn--save" 
+                disabled={pwdLoading}
+              >
+                {pwdLoading ? 'Updating...' : 'Update Password'}
+              </button>
+              <button 
+                type="button" 
+                className="ap-btn ap-btn--cancel" 
+                onClick={() => setShowPasswordForm(false)}
+                disabled={pwdLoading}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
     </div>

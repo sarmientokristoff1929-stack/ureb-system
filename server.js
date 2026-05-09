@@ -1510,6 +1510,37 @@ app.delete('/api/admin/profile/picture', async (req, res) => {
   }
 });
 
+// PUT update admin password
+app.put('/api/admin/password', async (req, res) => {
+  try {
+    const { email, currentPassword, newPassword } = req.body;
+
+    if (!email || !currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, error: 'All fields are required' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, error: 'New password must be at least 6 characters' });
+    }
+
+    const db = getDatabase();
+    const users = db.collection(collections.users);
+
+    const user = await users.findOne({ email: new RegExp(`^${email}$`, 'i') });
+    if (!user) return res.status(404).json({ success: false, error: 'Admin not found' });
+
+    if (user.password !== currentPassword) {
+      return res.status(400).json({ success: false, error: 'Current password is incorrect' });
+    }
+
+    await users.updateOne({ _id: user._id }, { $set: { password: newPassword, updatedAt: new Date() } });
+
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Error changing admin password:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // GET admin profile picture from GridFS
 app.get('/api/admin/profile/picture/:filename', async (req, res) => {
   try {
