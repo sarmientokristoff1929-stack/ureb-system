@@ -1574,7 +1574,7 @@ app.post('/api/proposals', upload.fields([
     const proposals = db.collection(collections.proposals);
 
     // Get form data from request body
-    const {
+    let {
       protocolCode,
       researchTitle,
       proponent,
@@ -1586,6 +1586,17 @@ app.post('/api/proposals', upload.fields([
       meetingDate,
       action
     } = req.body;
+
+    // Trim protocolCode to avoid uniqueness issues with white space
+    if (protocolCode) protocolCode = protocolCode.trim();
+
+    // Check if protocolCode already exists if provided
+    if (protocolCode) {
+      const existingProposal = await proposals.findOne({ protocolCode });
+      if (existingProposal) {
+        return res.status(400).json({ success: false, error: `Protocol Code "${protocolCode}" already exists. Please use a unique Protocol Code.` });
+      }
+    }
 
     // Process uploaded files → GridFS
     const files = {};
@@ -1889,7 +1900,7 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
       overallRating: overallRating || decision || '',
       comments: comments || comment || '',
       recommendations: recommendations || '',
-      protocolCode: submittedProtocolCode || '',
+      protocolCode: (submittedProtocolCode || '').trim(),
       files,
       status: 'completed',
       createdAt: new Date(),
@@ -2965,13 +2976,16 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
   { name: 'cvOfProponent', maxCount: 1 }
 ]), async (req, res) => {
   try {
-    const {
+    let {
       protocolCode,
       secondaryReviewer1,
       secondaryReviewer2,
       startDate,
       endDate
     } = req.body;
+
+    // Trim protocolCode to avoid uniqueness issues with white space
+    if (protocolCode) protocolCode = protocolCode.trim();
 
     // Collect all uploaded files
     const uploadedFiles = {};

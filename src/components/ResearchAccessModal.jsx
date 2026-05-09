@@ -80,7 +80,7 @@ const ResearchAccessModal = ({ isOpen, onClose }) => {
                 type="text"
                 id="protocolCode"
                 value={protocolCode}
-                onChange={(e) => setProtocolCode(e.target.value.toUpperCase())}
+                onChange={(e) => setProtocolCode(e.target.value.toUpperCase().trim())}
                 placeholder="e.g., UREB-2026-001"
                 required
                 disabled={isLoading}

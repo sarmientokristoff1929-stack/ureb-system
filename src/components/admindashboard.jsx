@@ -3215,7 +3215,7 @@ const AssignFileContent = () => {
 
       // Add form fields
 
-      formDataToSend.append('protocolCode', formData.protocolCode);
+      formDataToSend.append('protocolCode', formData.protocolCode.trim());
 
       formDataToSend.append('secondaryReviewer1', formData.secondaryReviewer1);
 
@@ -6383,7 +6383,19 @@ const ManageUsersContent = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Facebook URL</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label>Facebook URL</label>
+                    {editFormData.facebookLink && (
+                      <a 
+                        href={editFormData.facebookLink.startsWith('http') ? editFormData.facebookLink : `https://${editFormData.facebookLink}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ fontSize: '0.75rem', color: '#0866FF', fontWeight: 600, textDecoration: 'none' }}
+                      >
+                        Visit Profile ↗
+                      </a>
+                    )}
+                  </div>
                   <input
                     type="url"
                     name="facebookLink"
