@@ -793,6 +793,7 @@ const AdminDashboard = ({ onLogout }) => {
 
 
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isDeletePhotoModalOpen, setIsDeletePhotoModalOpen] = useState(false);
 
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
 
@@ -1039,7 +1040,12 @@ const AdminDashboard = ({ onLogout }) => {
     }
   };
 
-  const handleProfilePicDelete = async () => {
+  const handleProfilePicDelete = () => {
+    setIsDeletePhotoModalOpen(true);
+  };
+
+  const confirmDeletePhoto = async () => {
+    setIsDeletePhotoModalOpen(false);
     setUploadingPic(true);
     try {
       const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
@@ -1520,6 +1526,7 @@ const AdminDashboard = ({ onLogout }) => {
 
 
       <LogoutModal isOpen={isLogoutModalOpen} onClose={cancelLogout} onConfirm={confirmLogout} />
+      <ConfirmDeletePhotoModal isOpen={isDeletePhotoModalOpen} onClose={() => setIsDeletePhotoModalOpen(false)} onConfirm={confirmDeletePhoto} />
 
     </div>
 
@@ -10278,43 +10285,45 @@ const DeleteActivityModal = ({ isOpen, onClose, onConfirm }) => {
 
 const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
 
-
   if (!isOpen) return null;
 
+  return (
+    <div className="logout-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="logout-modal-container">
+        <div className="logout-modal-header">
+          <h2>Confirm Logout</h2>
+        </div>
+        <div className="logout-modal-body">
+          <p>Are you sure you want to log out of the admin dashboard?</p>
+        </div>
+        <div className="logout-modal-footer">
+          <button className="logout-modal-btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="logout-modal-btn-primary" onClick={onConfirm}>Logout</button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
+const ConfirmDeletePhotoModal = ({ isOpen, onClose, onConfirm }) => {
+  if (!isOpen) return null;
 
   return (
-
     <div className="logout-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-
       <div className="logout-modal-container">
-
         <div className="logout-modal-header">
-
-          <h2>Confirm Logout</h2>
-
+          <h2>Remove Photo</h2>
         </div>
-
         <div className="logout-modal-body">
-
-          <p>Are you sure you want to log out of the admin dashboard?</p>
-
+          <p>Are you sure you want to remove your profile picture? This action cannot be undone.</p>
         </div>
-
         <div className="logout-modal-footer">
-
           <button className="logout-modal-btn-secondary" onClick={onClose}>Cancel</button>
-
-          <button className="logout-modal-btn-primary" onClick={onConfirm}>Logout</button>
-
+          <button className="logout-modal-btn-danger" onClick={onConfirm}>Remove</button>
         </div>
-
       </div>
-
     </div>
-
   );
-
 };
 
 
