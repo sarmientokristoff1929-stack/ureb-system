@@ -15732,6 +15732,283 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
+/* ── Admin Profile Page (ap-) — mirrors Student Profile (sp-) ── */
+.ap-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 860px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Hero card */
+.ap-hero-card {
+  background: linear-gradient(135deg, var(--primary-green, #7A9E7E) 0%, var(--dark-green, #4A6B4E) 100%);
+  border-radius: 16px;
+  padding: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  box-shadow: 0 8px 28px rgba(74, 107, 78, 0.25);
+  flex-wrap: wrap;
+}
+
+/* Avatar wrapper */
+.ap-avatar-wrapper {
+  position: relative;
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+}
+
+/* Base shared avatar styles */
+.ap-hero-avatar,
+.ap-profile-picture,
+.ap-avatar-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.8);
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+/* Initials fallback */
+.ap-hero-avatar {
+  background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.15));
+  color: #fff;
+  font-size: 1.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Profile photo */
+.ap-profile-picture {
+  object-fit: cover;
+  display: block;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Loading state */
+.ap-avatar-loading {
+  background: rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.ap-avatar-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2.5px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: sm-spin 0.7s linear infinite;
+}
+
+/* Hover overlay */
+.ap-avatar-hover-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.25s ease;
+  z-index: 10;
+  cursor: pointer;
+}
+
+.ap-avatar-hover-overlay svg {
+  width: 22px; height: 22px;
+  color: #fff;
+  stroke-width: 2;
+}
+
+.ap-avatar-hover-overlay span {
+  color: #fff;
+  font-size: 0.63rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+  line-height: 1;
+}
+
+.ap-avatar-wrapper:hover .ap-avatar-hover-overlay {
+  opacity: 1;
+  visibility: visible;
+}
+
+.ap-avatar-wrapper:hover .ap-profile-picture,
+.ap-avatar-wrapper:hover .ap-hero-avatar {
+  filter: brightness(0.8);
+}
+
+/* Hero text */
+.ap-hero-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ap-hero-name {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.25;
+}
+
+.ap-hero-role {
+  margin: 0 0 0.2rem;
+  font-size: 0.875rem;
+  color: rgba(255,255,255,0.85);
+  line-height: 1.4;
+}
+
+.ap-hero-email {
+  margin: 0;
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.7);
+}
+
+/* Remove photo button on hero */
+.ap-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  border: 1.5px solid rgba(255,255,255,0.35);
+  padding: 0.55rem 1.1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  flex-shrink: 0;
+  backdrop-filter: blur(4px);
+}
+
+.ap-remove-btn:hover {
+  background: rgba(239,68,68,0.4);
+  border-color: rgba(255,255,255,0.6);
+}
+
+/* Banners */
+.ap-banner {
+  border-radius: 10px;
+  padding: 0.75rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.ap-banner--success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.ap-banner--error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+/* Info card */
+.ap-info-card {
+  background: #fff;
+  border: 1px solid #e4ede4;
+  border-radius: 14px;
+  padding: 1.5rem 1.75rem;
+  box-shadow: 0 2px 8px rgba(122,158,126,0.07);
+}
+
+.ap-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.ap-card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-dark, #2D3436);
+}
+
+/* Info grid */
+.ap-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.ap-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  background: #fafcfa;
+  border: 1px solid #eef4ee;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+}
+
+.ap-info-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+  color: #b0b8c1;
+}
+
+.ap-info-value {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-dark, #2D3436);
+  line-height: 1.4;
+}
+
+.ap-info-note {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-light, #8B9A9E);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* Responsive */
+@media (max-width: 620px) {
+  .ap-info-grid { grid-template-columns: 1fr; }
+  .ap-hero-card {
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+  }
+  .ap-hero-info { text-align: center; }
+  .ap-remove-btn { width: 100%; justify-content: center; }
+}
+
 /* ── Admin Profile Settings Page ── */
 .admin-profile-container {
   max-width: 800px;

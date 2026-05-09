@@ -4814,79 +4814,122 @@ const AdminProfileContent = ({
   handleProfilePicUpload, 
   handleProfilePicDelete 
 }) => {
+  const initials = (userInfo?.name || 'A').charAt(0).toUpperCase();
+
   return (
-    <div className="admin-profile-container">
-      <div className="profile-card">
-        <div className="profile-header">
-          <h2>Admin Profile Settings</h2>
-          <p>Manage your account information and profile picture</p>
-        </div>
+    <div className="ap-wrapper">
 
-        <div className="profile-body">
-          <div className="profile-avatar-section">
-            <div className="avatar-display" onClick={handleProfilePicClick}>
-              {uploadingPic && (
-                <div className="avatar-loading">
-                  <div className="spinner"></div>
-                </div>
-              )}
-              {userInfo?.profilePicture ? (
-                <img 
-                  src={getProfilePicUrl(userInfo.profilePicture)} 
-                  alt="Admin Profile" 
-                  className="profile-large-avatar"
-                />
-              ) : (
-                <div className="avatar-fallback">
-                  {userInfo.name.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <div className="avatar-overlay">
-                <CameraIcon />
-                <span>Change Photo</span>
-              </div>
+      {/* ── Hero Card ── */}
+      <div className="ap-hero-card">
+        {/* Avatar with upload functionality */}
+        <div
+          className="ap-avatar-wrapper"
+          onClick={!uploadingPic ? handleProfilePicClick : undefined}
+          style={{ cursor: uploadingPic ? 'default' : 'pointer' }}
+        >
+          {/* Loading state */}
+          {uploadingPic && (
+            <div className="ap-avatar-loading">
+              <div className="ap-avatar-spinner" />
             </div>
-            
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              style={{ display: 'none' }} 
-              onChange={handleProfilePicUpload}
-              accept="image/*"
+          )}
+
+          {/* Profile image */}
+          {!uploadingPic && userInfo?.profilePicture && (
+            <img
+              key={userInfo.profilePicture}
+              src={getProfilePicUrl(userInfo.profilePicture)}
+              alt="Admin Profile"
+              className="ap-profile-picture"
+              onLoad={(e) => {
+                e.target.style.display = 'block';
+                const fallback = e.target.parentElement?.querySelector('.ap-hero-avatar');
+                if (fallback) fallback.style.display = 'none';
+              }}
+              onError={(e) => {
+                e.target.style.display = 'none';
+                const fallback = e.target.parentElement?.querySelector('.ap-hero-avatar');
+                if (fallback) fallback.style.display = 'flex';
+              }}
             />
+          )}
 
-            <div className="avatar-actions">
-              <button className="upload-btn" onClick={handleProfilePicClick}>
-                <CameraIcon /> Upload New Photo
-              </button>
-              {userInfo?.profilePicture && (
-                <button className="delete-btn" onClick={handleProfilePicDelete}>
-                  <TrashIcon /> Remove Photo
-                </button>
-              )}
-            </div>
-            
-            {picError && <p className="pic-error">{picError}</p>}
-            {picSuccess && <p className="pic-success">{picSuccess}</p>}
+          {/* Fallback initials */}
+          <div
+            className="ap-hero-avatar"
+            style={{ display: (!uploadingPic && !userInfo?.profilePicture) ? 'flex' : 'none' }}
+          >
+            {initials}
           </div>
 
-          <div className="profile-info-section">
-            <div className="info-group">
-              <label>Full Name</label>
-              <input type="text" value={userInfo.name} disabled />
+          {/* Hover overlay */}
+          {!uploadingPic && (
+            <div className="ap-avatar-hover-overlay">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+                <circle cx="12" cy="13" r="3"/>
+              </svg>
+              <span>Upload Photo</span>
             </div>
-            <div className="info-group">
-              <label>Email Address</label>
-              <input type="email" value={userInfo.email} disabled />
-            </div>
-            <div className="info-group">
-              <label>Account Role</label>
-              <input type="text" value={userInfo.role || 'Administrator'} disabled />
-            </div>
-            <p className="info-note">Contact the system administrator to change your account details.</p>
-          </div>
+          )}
+
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+            onChange={handleProfilePicUpload}
+            style={{ display: 'none' }}
+          />
         </div>
+
+        <div className="ap-hero-info">
+          <h2 className="ap-hero-name">{userInfo?.name || 'Admin'}</h2>
+          <p className="ap-hero-role">{userInfo?.role || 'Administrator'}</p>
+          <p className="ap-hero-email">{userInfo?.email || ''}</p>
+        </div>
+
+        {/* Remove photo button — only visible when photo exists */}
+        {userInfo?.profilePicture && (
+          <button
+            className="ap-remove-btn"
+            onClick={handleProfilePicDelete}
+            title="Remove profile picture"
+          >
+            <TrashIcon />
+            Remove Photo
+          </button>
+        )}
       </div>
+
+      {/* ── Feedback Banners ── */}
+      {picSuccess && <div className="ap-banner ap-banner--success">{picSuccess}</div>}
+      {picError   && <div className="ap-banner ap-banner--error">{picError}</div>}
+
+      {/* ── Account Information Card ── */}
+      <div className="ap-info-card">
+        <div className="ap-card-header">
+          <h3 className="ap-card-title">Account Information</h3>
+        </div>
+
+        <div className="ap-info-grid">
+          {[
+            { label: 'Full Name',     value: userInfo?.name },
+            { label: 'Email Address', value: userInfo?.email },
+            { label: 'Account Role',  value: userInfo?.role || 'Administrator' },
+          ].map(({ label, value }) => (
+            <div className="ap-info-item" key={label}>
+              <span className="ap-info-label">{label}</span>
+              <span className="ap-info-value">{value || <em style={{ color: '#b0b8c1' }}>Not set</em>}</span>
+            </div>
+          ))}
+        </div>
+
+        <p className="ap-info-note">
+          Account details are managed by the system. Contact your system provider to make changes.
+        </p>
+      </div>
+
     </div>
   );
 };
