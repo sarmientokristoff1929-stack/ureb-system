@@ -2970,11 +2970,12 @@
   color: #6b7280;
 }
 
-.up-status--pending        { background: #fef3c7; color: #d97706; }
-.up-status--approved       { background: #d1fae5; color: #059669; }
-.up-status--rejected       { background: #fee2e2; color: #dc2626; }
-.up-status--reviewed       { background: #dbeafe; color: #2563eb; }
-.up-status--needs\ revision { background: #ffedd5; color: #ea580c; }
+.up-status--pending          { background: #fffbeb; color: #b45309; }
+.up-status--review-submitted { background: #fffbeb; color: #b45309; }
+.up-status--reviewed         { background: #dcfce7; color: #166534; }
+.up-status--approved         { background: #dcfce7; color: #166534; }
+.up-status--rejected         { background: #fee2e2; color: #991b1b; }
+.up-status--needs-revision   { background: #ffedd5; color: #ea580c; }
 
 /* Meta row */
 .up-card-meta {

@@ -2177,6 +2177,18 @@
   color: #1976D2;
 }
 
+.status-badge.review-submitted {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid rgba(180, 83, 9, 0.2);
+}
+
+.status-badge.reviewed {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid rgba(22, 101, 52, 0.2);
+}
+
 .proposal-content h4 {
   color: var(--text-dark);
   font-size: 1rem;

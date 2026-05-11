@@ -2108,6 +2108,17 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
       console.log('Could not update proposal status:', e.message);
     }
 
+    // Update assignment status
+    try {
+      const assignments = db.collection(collections.assignments);
+      await assignments.updateOne(
+        { proposalId: new ObjectId(proposalId), reviewerEmail: reviewerEmail },
+        { $set: { status: 'Review Submitted', updatedAt: new Date() } }
+      );
+    } catch (e) {
+      console.log('Could not update assignment status:', e.message);
+    }
+
     // Fetch proposal details for notification
     let proposalTitle = 'Unknown Proposal';
     let protocolCode = submittedProtocolCode || '';

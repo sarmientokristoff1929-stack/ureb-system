@@ -1366,10 +1366,11 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
             <div className="up-list">
               {proposals.map((proposal) => {
                 const status = (proposal.status || 'Pending').toLowerCase();
+                const statusClass = status.replace(/\s+/g, '-');
                 const fileCount = proposal.files ? Object.keys(proposal.files).length : 0;
                 const submittedDate = new Date(proposal.createdAt || proposal.uploadDate || Date.now());
                 return (
-                  <div key={proposal._id} className={`up-card up-card--${status}`}>
+                  <div key={proposal._id} className={`up-card up-card--${statusClass}`}>
                     <div className="up-card-accent" />
                     <div className="up-card-body">
                       <div className="up-card-top">
@@ -1378,7 +1379,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
                           <span className="up-card-id">#{proposal._id?.slice(-8) || 'N/A'}</span>
                         </div>
                         <div className="up-card-top-right">
-                          <span className={`up-status up-status--${status}`}>
+                          <span className={`up-status up-status--${statusClass}`}>
                             {proposal.status || 'Pending'}
                           </span>
                           <button
