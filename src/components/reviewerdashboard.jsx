@@ -882,7 +882,7 @@ const ReviewerNotificationsContent = ({ userInfo }) => {
 // ── Reviewer Profile Settings Content ──
 const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [profileData, setProfileData] = useState({ name: userInfo?.name || '', email: userInfo?.email || '' });
+  const [profileData, setProfileData] = useState({ name: userInfo?.name || '', email: userInfo?.email || '', department: userInfo?.department || '' });
   const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
   const [loading, setLoading] = useState(false);
@@ -902,7 +902,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
   // Only sync profileData from userInfo when NOT editing (prevents resetting while user types)
   useEffect(() => {
     if (!isEditing && userInfo?.name) {
-      setProfileData({ name: userInfo.name, email: userInfo.email || '' });
+      setProfileData({ name: userInfo.name, email: userInfo.email || '', department: userInfo.department || '' });
     }
   }, [userInfo, isEditing]);
 
@@ -923,6 +923,9 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
             reviewer.profilePicture = `${reviewer.profilePicture}?t=${Date.now()}`;
           }
           setReviewerData(reviewer);
+          if (!isEditing) {
+            setProfileData(prev => ({ ...prev, department: reviewer.department || '' }));
+          }
         }
       } catch (err) {
         console.error('Error fetching reviewer data:', err);
@@ -1024,7 +1027,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
   const handleCancel = () => {
     setIsEditing(false);
     setError('');
-    setProfileData({ name: userInfo?.name || '', email: userInfo?.email || '' });
+    setProfileData({ name: userInfo?.name || '', email: userInfo?.email || '', department: reviewerData?.department || userInfo?.department || '' });
   };
 
   const handleSave = async () => {
@@ -1079,7 +1082,8 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
       const reviewerId = String(reviewer._id);
       const updateData = {
         name: profileData.name.trim(),
-        email: newEmail
+        email: newEmail,
+        department: profileData.department
       };
 
       const updateRes = await fetch(`${API_BASE}/reviewers/${reviewerId}`, {
@@ -1090,7 +1094,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
       const result = await updateRes.json();
 
       if (result.success) {
-        const updatedUser = { ...userInfo, name: profileData.name.trim(), email: newEmail };
+        const updatedUser = { ...userInfo, name: profileData.name.trim(), email: newEmail, department: profileData.department };
         setUserInfo(updatedUser);
         localStorage.setItem('ureb_user', JSON.stringify(updatedUser));
         setIsEditing(false);
@@ -1285,6 +1289,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
             {[
               { label: 'Full Name', value: fullName },
               { label: 'Email', value: userInfo?.email },
+              { label: 'Department', value: profileData.department },
               {
                 label: 'Reviewer Type', value: reviewerType ?
                   (reviewerType === 'preliminary' ? 'Preliminary Reviewer' :
@@ -1323,6 +1328,35 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
                   placeholder="Enter your email"
                 />
                 <small style={{ color: '#94a3b8', fontSize: '0.72rem' }}>Email must be unique</small>
+              </div>
+            </div>
+            <div className="sp-field-row">
+              <div className="sp-field">
+                <label htmlFor="rp-dept">Department</label>
+                <select
+                  id="rp-dept"
+                  value={profileData.department}
+                  onChange={(e) => setProfileData(prev => ({ ...prev, department: e.target.value }))}
+                >
+                  <option value="">Select Department</option>
+                  <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
+                  <option value="FTED">FTED- Faculty of Teacher Education</option>
+                  <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
+                  <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
+                  <option value="FBM">FBM-Faculty of Business Management</option>
+                  <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
+                  <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
+                  <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
+                  <option value="SEIC">SEIC- San Isidro Extension Campus</option>
+                  <option value="BEC">BEC-BanayBanay Extension Campus</option>
+                  <option value="CEC">CEC-Cateel Extension Campus</option>
+                  <option value="BGEC">BGEC-Baganga Extension Campus</option>
+                  <option value="TEC">TEC-Tarragona Extension Campus</option>
+                  <option value="NSTP">NSTP-National Service Training Program</option>
+                  <option value="ICS">ICS- Indigenous Community Studies</option>
+                  <option value="Community Representatives">Community Representatives</option>
+                  <option value="UREB Board">UREB Board - University Research Ethics Board</option>
+                </select>
               </div>
             </div>
             <div className="sp-form-actions">

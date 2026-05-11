@@ -163,7 +163,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       'Master of Science in Environmental Science',
       'Master of Business Administration'
     ],
-    'FNAHS': [
+    'FNAS': [
       'Bachelor of Science in Nursing'
     ],
     'FTED': [
@@ -202,7 +202,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       'Bachelor of Science in Psychology',
       'Bachelor of Science in Political Science'
     ],
-    'SIEC': [
+    'SEIC': [
       'Bachelor of Science in Agriculture',
       'Bachelor of Science in Business Administration',
       'Bachelor of Science in Criminology',
@@ -230,7 +230,11 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     'TEC': [
       'Bachelor of Science Agriculture',
       'Bachelor of Science in Agribusiness Management '
-    ]
+    ],
+    'NSTP': ['National Service Training Program'],
+    'ICS': ['Indigenous Community Studies'],
+    'Community Representatives': ['Community Representative'],
+    'UREB Board': ['University Research Ethics Board Member']
   };
 
   // Handle department change to reset program
@@ -497,15 +501,23 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                       <option value="FNAHS">FNAHS - Faculty of Nursing and Allied Health Sciences</option>
                       <option value="FTED">FTED - Faculty of Teacher Education</option>
                       <option value="FBM">FBM - Faculty of Business and Management</option>
-                      <option value="FALS">FALS - Faculty of Agriculture and Life Sciences</option>
-                      <option value="FCJE">FCJE - Faculty of Criminal Justice Education</option>
-                      <option value="FACET">FACET - Faculty of Computing Engineering and Technology</option>
-                      <option value="FHUSOCOM">FHUSOCOM - Faculty of Humanities and Social Communication</option>
-                      <option value="SIEC">SIEC - San Isidro Extension Campus</option>
-                      <option value="BEC">BEC - Banay-Banay Extension Campus</option>
-                      <option value="CEC">CEC - Cateel Extension Campus</option>
-                      <option value="BGEC">BGEC - Bagangga Extension Campus</option>
-                      <option value="TEC">TEC - Tarragona Extension Campus</option>
+                      <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
+                      <option value="FTED">FTED- Faculty of Teacher Education</option>
+                      <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
+                      <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
+                      <option value="FBM">FBM-Faculty of Business Management</option>
+                      <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
+                      <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
+                      <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
+                      <option value="SEIC">SEIC- San Isidro Extension Campus</option>
+                      <option value="BEC">BEC-BanayBanay Extension Campus</option>
+                      <option value="CEC">CEC-Cateel Extension Campus</option>
+                      <option value="BGEC">BGEC-Baganga Extension Campus</option>
+                      <option value="TEC">TEC-Tarragona Extension Campus</option>
+                      <option value="NSTP">NSTP-National Service Training Program</option>
+                      <option value="ICS">ICS- Indigenous Community Studies</option>
+                      <option value="Community Representatives">Community Representatives</option>
+                      <option value="UREB Board">UREB Board - University Research Ethics Board</option>
                     </select>
                   </div>
 
