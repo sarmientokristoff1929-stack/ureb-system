@@ -3159,7 +3159,6 @@ const AssignFileContent = () => {
       secondaryReviewer1: '',
 
       secondaryReviewer2: '',
-      department: '',
 
       startDate: '',
 
@@ -3250,7 +3249,7 @@ const AssignFileContent = () => {
   // This allows Preliminary Reviewers to be selected as Secondary Reviewers when needed
 
   const filteredReviewers = formData.department
-    ? reviewers.filter(r => r.department === formData.department)
+    ? reviewers.filter(r => String(r.department || '').trim().toUpperCase() === String(formData.department || '').trim().toUpperCase())
     : reviewers;
 
 
@@ -3564,7 +3563,6 @@ const AssignFileContent = () => {
       secondaryReviewer1: '',
 
       secondaryReviewer2: '',
-      department: '',
 
       startDate: '',
 
@@ -3634,43 +3632,6 @@ const AssignFileContent = () => {
 
             {validationErrors.protocolCode && <span className="error-text">{validationErrors.protocolCode}</span>}
 
-          </div>
-
-          <div className="form-group">
-            <label>Department Filter</label>
-            <select
-              name="department"
-              value={formData.department}
-              onChange={(e) => {
-                handleInputChange(e);
-                // Clear selected reviewers when department changes to avoid mismatch
-                setFormData(prev => ({
-                  ...prev,
-                  department: e.target.value,
-                  secondaryReviewer1: '',
-                  secondaryReviewer2: ''
-                }));
-              }}
-            >
-              <option value="">All Departments</option>
-              <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
-              <option value="FTED">FTED- Faculty of Teacher Education</option>
-              <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
-              <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
-              <option value="FBM">FBM-Faculty of Business Management</option>
-              <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
-              <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
-              <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
-              <option value="SEIC">SEIC- San Isidro Extension Campus</option>
-              <option value="BEC">BEC-BanayBanay Extension Campus</option>
-              <option value="CEC">CEC-Cateel Extension Campus</option>
-              <option value="BGEC">BGEC-Baganga Extension Campus</option>
-              <option value="TEC">TEC-Tarragona Extension Campus</option>
-              <option value="NSTP">NSTP-National Service Training Program</option>
-              <option value="ICS">ICS- Indigenous Community Studies</option>
-              <option value="Community Representatives">Community Representatives</option>
-              <option value="UREB Board">UREB Board - University Research Ethics Board</option>
-            </select>
           </div>
 
           <div className="form-group">

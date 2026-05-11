@@ -79,20 +79,45 @@ export const getDatabase = () => {
 connectToDatabase().then(async (db) => {
   try {
     const reviewers = db.collection('reviewers');
+    const students = db.collection('students');
+    const users = db.collection('users');
 
     // Migration: Add 'title' field to existing reviewers that don't have it
-    const titleResult = await reviewers.updateMany(
-      { title: { $exists: false } },
-      { $set: { title: '' } }
-    );
-    console.log('Title migration result:', titleResult.modifiedCount, 'reviewers updated');
+    await reviewers.updateMany({ title: { $exists: false } }, { $set: { title: '' } });
 
     // Migration: Add 'reviewerType' field to existing reviewers that don't have it
-    const reviewerTypeResult = await reviewers.updateMany(
-      { reviewerType: { $exists: false } },
-      { $set: { reviewerType: '' } }
-    );
-    console.log('ReviewerType migration result:', reviewerTypeResult.modifiedCount, 'reviewers updated');
+    await reviewers.updateMany({ reviewerType: { $exists: false } }, { $set: { reviewerType: '' } });
+
+    // Migration: Normalize department codes (Old codes to New codes)
+    const deptMap = {
+      'FNAHS': 'FNAS',
+      'SIEC': 'SEIC',
+      'Faculty of Agriculture and Life Science': 'FALS',
+      'Faculty of Agriculture and Life Sciences': 'FALS',
+      'Faculty of Teacher Education': 'FTED',
+      'Faculty of Advance and International Studies': 'FAIS',
+      'Faculty of Nursing and Allied Health Science': 'FNAS',
+      'Faculty of Nursing and Allied Health Sciences': 'FNAS',
+      'Faculty of Business Management': 'FBM',
+      'Faculty of Criminology Justice Education': 'FCJE',
+      'Faculty of Computing, Engineering, Technology': 'FACET',
+      'Faculty of Humanities, Social Science & Communication': 'FHUSOCOM',
+      'San Isidro Extension Campus': 'SEIC',
+      'BanayBanay Extension Campus': 'BEC',
+      'Cateel Extension Campus': 'CEC',
+      'Baganga Extension Campus': 'BGEC',
+      'Tarragona Extension Campus': 'TEC',
+      'National Service Training Program': 'NSTP',
+      'Indigenous Community Studies': 'ICS'
+    };
+
+    for (const [oldDept, newDept] of Object.entries(deptMap)) {
+      await reviewers.updateMany({ department: oldDept }, { $set: { department: newDept } });
+      await students.updateMany({ department: oldDept }, { $set: { department: newDept } });
+      await users.updateMany({ department: oldDept }, { $set: { department: newDept } });
+    }
+
+    console.log('✅ Department normalization migration completed');
   } catch (error) {
     console.error('Migration error:', error);
   }

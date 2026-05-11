@@ -899,30 +899,9 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
               </div>
               <div className="sp-field">
                 <label htmlFor="sp-dept">Department</label>
-                <select 
-                  id="sp-dept" 
-                  value={editedInfo.department}
+                <input id="sp-dept" type="text" value={editedInfo.department}
                   onChange={e => setEditedInfo(p => ({ ...p, department: e.target.value }))}
-                >
-                  <option value="">Select Department</option>
-                  <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
-                  <option value="FTED">FTED- Faculty of Teacher Education</option>
-                  <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
-                  <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
-                  <option value="FBM">FBM-Faculty of Business Management</option>
-                  <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
-                  <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
-                  <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
-                  <option value="SEIC">SEIC- San Isidro Extension Campus</option>
-                  <option value="BEC">BEC-BanayBanay Extension Campus</option>
-                  <option value="CEC">CEC-Cateel Extension Campus</option>
-                  <option value="BGEC">BGEC-Baganga Extension Campus</option>
-                  <option value="TEC">TEC-Tarragona Extension Campus</option>
-                  <option value="NSTP">NSTP-National Service Training Program</option>
-                  <option value="ICS">ICS- Indigenous Community Studies</option>
-                  <option value="Community Representatives">Community Representatives</option>
-                  <option value="UREB Board">UREB Board - University Research Ethics Board</option>
-                </select>
+                  placeholder="e.g. Faculty of Teacher Education" />
               </div>
             </div>
 
@@ -1612,7 +1591,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
 
   // Filter reviewers based on selected department, excluding specific names
   const filteredReviewers = reviewers.filter(reviewer =>
-    reviewer.department === formData.department && reviewer.role === 'reviewer'
+    String(reviewer.department || '').trim().toUpperCase() === String(formData.department || '').trim().toUpperCase()
   ).map(reviewer => ({
     name: reviewer.name || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim(),
     email: reviewer.email || ''
@@ -1766,23 +1745,19 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
             required
           >
             <option value="">Select Department</option>
-            <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
             <option value="FTED">FTED- Faculty of Teacher Education</option>
+            <option value="FALS">FALS-Faculty of Agriculture and Life Science</option>
             <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
             <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
             <option value="FBM">FBM-Faculty of Business Management</option>
             <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
             <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
             <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
-            <option value="SEIC">SEIC- San Isidro Extension Campus</option>
+            <option value="SIEC">SIEC-San Isidro Campus</option>
             <option value="BEC">BEC-BanayBanay Extension Campus</option>
             <option value="CEC">CEC-Cateel Extension Campus</option>
             <option value="BGEC">BGEC-Baganga Extension Campus</option>
             <option value="TEC">TEC-Tarragona Extension Campus</option>
-            <option value="NSTP">NSTP-National Service Training Program</option>
-            <option value="ICS">ICS- Indigenous Community Studies</option>
-            <option value="Community Representatives">Community Representatives</option>
-            <option value="UREB Board">UREB Board - University Research Ethics Board</option>
           </select>
         </div>
 
