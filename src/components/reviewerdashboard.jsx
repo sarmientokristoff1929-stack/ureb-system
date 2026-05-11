@@ -2289,7 +2289,6 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <span
                     className={`status-badge ${(assignment.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}
-                    style={(assignment.status || 'pending').toLowerCase() === 'pending' ? { fontSize: '1.05rem', fontWeight: '800', letterSpacing: '0.5px', padding: '0.4rem 0.8rem', textTransform: 'uppercase' } : {}}
                   >
                     {assignment.status || 'Pending'}
                   </span>

@@ -8102,19 +8102,28 @@ const ReviewsFileContent = () => {
 
 
   const fetchReviewById = async (reviewId) => {
-
     setLoading(true);
-
     try {
-
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reviews/${reviewId}`);
-
       const data = await response.json();
-
       setSelectedReview(data);
 
-    } catch (error) {
+      // Automatically change proposal status to 'Reviewed' if it was 'Review Submitted'
+      if (data && data.proposalId) {
+        try {
+          const { updateProposalStatus, getAllProposals } = await import('../services/api.js');
+          const allProposals = await getAllProposals();
+          const proposal = allProposals.find(p => (p._id || p.id) === data.proposalId);
 
+          if (proposal && (proposal.status === 'Review Submitted' || !proposal.status || proposal.status === 'pending')) {
+            await updateProposalStatus(data.proposalId, 'Reviewed');
+            console.log(`Status for proposal ${data.proposalId} updated to Reviewed via direct fetch`);
+          }
+        } catch (err) {
+          console.error('Error auto-updating proposal status to Reviewed in fetchReviewById:', err);
+        }
+      }
+    } catch (error) {
       console.error('Error fetching review:', error);
 
     } finally {
@@ -8127,10 +8136,26 @@ const ReviewsFileContent = () => {
 
 
 
-  const handleReviewClick = (review) => {
-
+  const handleReviewClick = async (review) => {
     setSelectedReview(review);
 
+    // Automatically change proposal status to 'Reviewed' if it was 'Review Submitted'
+    if (review.proposalId) {
+      try {
+        const { updateProposalStatus, getAllProposals } = await import('../services/api.js');
+
+        // Check current status first to avoid redundant updates
+        const allProposals = await getAllProposals();
+        const proposal = allProposals.find(p => (p._id || p.id) === review.proposalId);
+
+        if (proposal && (proposal.status === 'Review Submitted' || !proposal.status || proposal.status === 'pending')) {
+          await updateProposalStatus(review.proposalId, 'Reviewed');
+          console.log(`Status for proposal ${review.proposalId} updated to Reviewed`);
+        }
+      } catch (err) {
+        console.error('Error auto-updating proposal status to Reviewed:', err);
+      }
+    }
   };
 
 
@@ -11036,6 +11061,8 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
     const colors = {
       'pending': '#f59e0b',
       'under review': '#3b82f6',
+      'review submitted': '#f59e0b',
+      'reviewed': '#10b981',
       'approved': '#10b981',
       'rejected': '#ef4444',
       'revision required': '#8b5cf6'
@@ -11577,6 +11604,8 @@ const StudentSubmissionsModal = ({ isOpen, onClose }) => {
 
   const statusColors = {
     pending: { bg: '#fef3c7', color: '#92400e' },
+    'review submitted': { bg: '#fffbeb', color: '#b45309' },
+    reviewed: { bg: '#dcfce7', color: '#166534' },
     approved: { bg: '#dcfce7', color: '#166534' },
     rejected: { bg: '#fee2e2', color: '#991b1b' },
     resubmitted: { bg: '#ede9fe', color: '#6d28d9' },

@@ -82,6 +82,22 @@ export const createProposal = async (formData) => {
   }
 };
 
+export const updateProposalStatus = async (proposalId, status) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/proposals/${proposalId}/status`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status }),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating proposal status:', error);
+    return { success: false, error: 'Failed to update proposal status' };
+  }
+};
+
 // Reviews
 export const getReviewsByReviewer = async (reviewerId) => {
   try {

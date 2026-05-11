@@ -1604,6 +1604,31 @@ app.get('/api/proposals', async (req, res) => {
   }
 });
 
+// Update proposal status
+app.put('/api/proposals/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const db = getDatabase();
+    const proposals = db.collection(collections.proposals);
+
+    const result = await proposals.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { status, updatedAt: new Date() } }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ success: false, error: 'Proposal not found' });
+    }
+
+    res.json({ success: true, status });
+  } catch (error) {
+    console.error('Error updating proposal status:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+
 app.get('/api/proposals/reviewer/:reviewerEmail', async (req, res) => {
   try {
     const { reviewerEmail } = req.params;
@@ -2069,15 +2094,9 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
     const result = await reviews.insertOne(newReview);
 
     // Update proposal status based on decision
-    let proposalStatus = 'Reviewed';
-    const dec = (decision || overallRating || '').toLowerCase();
-    if (dec === 'approved' || dec === 'excellent' || dec === 'good' || dec === 'acceptable') {
-      proposalStatus = 'Approved';
-    } else if (dec === 'revision' || dec === 'needs revision') {
-      proposalStatus = 'Needs Revision';
-    } else if (dec === 'rejected' || dec === 'reject') {
-      proposalStatus = 'Rejected';
-    }
+    // Set proposal status to 'Review Submitted' indicating admin needs to check it
+    let proposalStatus = 'Review Submitted';
+    // (Previous logic would jump straight to decision, but user wants admin to check first)
 
     // Try to update proposal status
     try {
