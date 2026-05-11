@@ -163,7 +163,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       'Master of Science in Environmental Science',
       'Master of Business Administration'
     ],
-    'FNAHS': [
+    'FNAS': [
       'Bachelor of Science in Nursing'
     ],
     'FTED': [
@@ -202,7 +202,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       'Bachelor of Science in Psychology',
       'Bachelor of Science in Political Science'
     ],
-    'SIEC': [
+    'SEIC': [
       'Bachelor of Science in Agriculture',
       'Bachelor of Science in Business Administration',
       'Bachelor of Science in Criminology',
@@ -230,7 +230,11 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     'TEC': [
       'Bachelor of Science Agriculture',
       'Bachelor of Science in Agribusiness Management '
-    ]
+    ],
+    'NSTP': ['National Service Training Program'],
+    'ICS': ['Indigenous Community Studies'],
+    'Community Representatives': ['Community Representative'],
+    'UREB Board': ['University Research Ethics Board Member']
   };
 
   // Handle department change to reset program
@@ -406,213 +410,217 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
           <div className="login-modal-right">
             {isRegistering ? (
               showRegistrationForm ? (
-              <form className="login-modal-form" onSubmit={handleRegisterSubmit}>
-                {error && <div className="login-error-message">{error}</div>}
+                <form className="login-modal-form" onSubmit={handleRegisterSubmit}>
+                  {error && <div className="login-error-message">{error}</div>}
 
-                <div className="login-form-group">
-                  <label htmlFor="firstName">First Name </label>
-                  <input
-                    type="text"
-                    id="firstName"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="Enter your first name"
-                    required
-                  />
-                </div>
+                  <div className="login-form-group">
+                    <label htmlFor="firstName">First Name </label>
+                    <input
+                      type="text"
+                      id="firstName"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      placeholder="Enter your first name"
+                      required
+                    />
+                  </div>
 
-                <div className="login-form-group">
-                  <label htmlFor="middleName">Middle Name (Optional)</label>
-                  <input
-                    type="text"
-                    id="middleName"
-                    value={middleName}
-                    onChange={(e) => setMiddleName(e.target.value)}
-                    placeholder="Enter your middle name"
-                  />
-                </div>
+                  <div className="login-form-group">
+                    <label htmlFor="middleName">Middle Name (Optional)</label>
+                    <input
+                      type="text"
+                      id="middleName"
+                      value={middleName}
+                      onChange={(e) => setMiddleName(e.target.value)}
+                      placeholder="Enter your middle name"
+                    />
+                  </div>
 
-                <div className="login-form-group">
-                  <label htmlFor="lastName">Last Name </label>
-                  <input
-                    type="text"
-                    id="lastName"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Enter your last name"
-                    required
-                  />
-                </div>
+                  <div className="login-form-group">
+                    <label htmlFor="lastName">Last Name </label>
+                    <input
+                      type="text"
+                      id="lastName"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="Enter your last name"
+                      required
+                    />
+                  </div>
 
-                <div className="login-form-group">
-                  <label htmlFor="studentId">Student ID Number </label>
-                  <input
-                    type="text"
-                    id="studentId"
-                    value={studentId}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      // Remove all characters except numbers and hyphens
-                      const validValue = value.replace(/[^0-9-]/g, '');
-                      setStudentId(validValue);
-                    }}
-                    onKeyPress={(e) => {
-                      // Allow only numbers, hyphens, and control keys
-                      if (!/[0-9-]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'Tab' && e.key !== 'Enter') {
-                        e.preventDefault();
-                      }
-                    }}
-                    placeholder="Enter your student ID (e.g., 2022-2025 or 20231234)"
-                    required
-                    inputMode="text"
-                    pattern="[0-9\-]+"
-                  />
-                </div>
+                  <div className="login-form-group">
+                    <label htmlFor="studentId">Student ID Number </label>
+                    <input
+                      type="text"
+                      id="studentId"
+                      value={studentId}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Remove all characters except numbers and hyphens
+                        const validValue = value.replace(/[^0-9-]/g, '');
+                        setStudentId(validValue);
+                      }}
+                      onKeyPress={(e) => {
+                        // Allow only numbers, hyphens, and control keys
+                        if (!/[0-9-]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'Tab' && e.key !== 'Enter') {
+                          e.preventDefault();
+                        }
+                      }}
+                      placeholder="Enter your student ID (e.g., 2022-2025 or 20231234)"
+                      required
+                      inputMode="text"
+                      pattern="[0-9\-]+"
+                    />
+                  </div>
 
-                <div className="login-form-group">
-                  <label htmlFor="gender">Gender </label>
-                  <select
-                    id="gender"
-                    value={gender}
-                    onChange={(e) => setGender(e.target.value)}
-                    required
-                  >
-                    <option value="">Select your gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="LGBTQ">LGBTQ</option>
-                  </select>
-                </div>
+                  <div className="login-form-group">
+                    <label htmlFor="gender">Gender </label>
+                    <select
+                      id="gender"
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value)}
+                      required
+                    >
+                      <option value="">Select your gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="LGBTQ">LGBTQ</option>
+                    </select>
+                  </div>
 
-                <div className="login-form-group">
-                  <label htmlFor="department">Department </label>
-                  <select
-                    id="department"
-                    value={department}
-                    onChange={handleDepartmentChange}
-                    required
-                  >
-                    <option value="">Select your department</option>
-                    <option value="FAIS">FAIS - Faculty of Advanced and International Studies</option>
-                    <option value="FNAHS">FNAHS - Faculty of Nursing and Allied Health Sciences</option>
-                    <option value="FTED">FTED - Faculty of Teacher Education</option>
-                    <option value="FBM">FBM - Faculty of Business and Management</option>
-                    <option value="FALS">FALS - Faculty of Agriculture and Life Sciences</option>
-                    <option value="FCJE">FCJE - Faculty of Criminal Justice Education</option>
-                    <option value="FACET">FACET - Faculty of Computing Engineering and Technology</option>
-                    <option value="FHUSOCOM">FHUSOCOM - Faculty of Humanities and Social Communication</option>
-                    <option value="SIEC">SIEC - San Isidro Extension Campus</option>
-                    <option value="BEC">BEC - Banay-Banay Extension Campus</option>
-                    <option value="CEC">CEC - Cateel Extension Campus</option>
-                    <option value="BGEC">BGEC - Bagangga Extension Campus</option>
-                    <option value="TEC">TEC - Tarragona Extension Campus</option>
-                  </select>
-                </div>
+                  <div className="login-form-group">
+                    <label htmlFor="department">Department </label>
+                    <select
+                      id="department"
+                      value={department}
+                      onChange={handleDepartmentChange}
+                      required
+                    >
+                      <option value="">Select your department</option>
+                      <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
+                      <option value="FTED">FTED- Faculty of Teacher Education</option>
+                      <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
+                      <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
+                      <option value="FBM">FBM-Faculty of Business Management</option>
+                      <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
+                      <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
+                      <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
+                      <option value="SEIC">SEIC- San Isidro Extension Campus</option>
+                      <option value="BEC">BEC-BanayBanay Extension Campus</option>
+                      <option value="CEC">CEC-Cateel Extension Campus</option>
+                      <option value="BGEC">BGEC-Baganga Extension Campus</option>
+                      <option value="TEC">TEC-Tarragona Extension Campus</option>
+                      <option value="NSTP">NSTP-National Service Training Program</option>
+                      <option value="ICS">ICS- Indigenous Community Studies</option>
+                      <option value="Community Representatives">Community Representatives</option>
+                      <option value="UREB Board">UREB Board - University Research Ethics Board</option>
+                    </select>
+                  </div>
 
-                <div className="login-form-group">
-                  <label htmlFor="program">Program </label>
-                  <select
-                    id="program"
-                    value={program}
-                    onChange={(e) => setProgram(e.target.value)}
-                    required
-                    disabled={!department}
-                  >
-                    <option value="">
-                      {department ? 'Select your program' : 'Select department first'}
-                    </option>
-                    {department && departmentPrograms[department]?.map((prog, index) => (
-                      <option key={index} value={prog}>
-                        {prog}
+                  <div className="login-form-group">
+                    <label htmlFor="program">Program </label>
+                    <select
+                      id="program"
+                      value={program}
+                      onChange={(e) => setProgram(e.target.value)}
+                      required
+                      disabled={!department}
+                    >
+                      <option value="">
+                        {department ? 'Select your program' : 'Select department first'}
                       </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="login-form-group">
-                  <label htmlFor="regGmail">Gmail </label>
-                  <input
-                    type="email"
-                    id="regGmail"
-                    value={regGmail}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setRegGmail(value);
-                      setGmailExists(false);
-                      if (value) {
-                        debouncedCheckGmail(value);
-                      }
-                    }}
-                    placeholder="Enter your Gmail address"
-                    required
-                  />
-                  {regGmail && !validateGmail(regGmail) && (
-                    <div className="gmail-error-message">Please enter a valid Gmail address (@gmail.com)</div>
-                  )}
-                  {checkingGmail && (
-                    <div className="gmail-checking-message">Checking...</div>
-                  )}
-                  {gmailExists && validateGmail(regGmail) && (
-                    <div className="gmail-exists-message">This Gmail address is already registered in the system</div>
-                  )}
-                  {regGmail && validateGmail(regGmail) && !checkingGmail && !gmailExists && (
-                    <div className="gmail-checking-message" style={{ color: '#388E3C' }}>✓ Gmail address is available</div>
-                  )}
-                </div>
-
-                <div className="login-form-group">
-                  <label htmlFor="regPassword">Password </label>
-                  <div className="password-input-wrapper">
-                    <input
-                      type={showRegPassword ? 'text' : 'password'}
-                      id="regPassword"
-                      value={regPassword}
-                      onChange={(e) => handlePasswordChange(e.target.value)}
-                      onBlur={handlePasswordBlur}
-                      placeholder="Create a password"
-                      required
-                      className={passwordError && passwordTouched ? 'error' : ''}
-                    />
-                    <button
-                      type="button"
-                      className="password-toggle"
-                      onClick={() => setShowRegPassword(!showRegPassword)}
-                      aria-label={showRegPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showRegPassword ? <EyeOffIcon /> : <EyeIcon />}
-                    </button>
+                      {department && departmentPrograms[department]?.map((prog, index) => (
+                        <option key={index} value={prog}>
+                          {prog}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  {passwordError && passwordTouched && (
-                    <div className="password-error-message">{passwordError}</div>
-                  )}
-                </div>
 
-                <div className="login-form-group">
-                  <label htmlFor="confirmPassword">Confirm Password </label>
-                  <div className="password-input-wrapper">
+                  <div className="login-form-group">
+                    <label htmlFor="regGmail">Gmail </label>
                     <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      id="confirmPassword"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Confirm your password"
+                      type="email"
+                      id="regGmail"
+                      value={regGmail}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setRegGmail(value);
+                        setGmailExists(false);
+                        if (value) {
+                          debouncedCheckGmail(value);
+                        }
+                      }}
+                      placeholder="Enter your Gmail address"
                       required
                     />
-                    <button
-                      type="button"
-                      className="password-toggle"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
-                    </button>
+                    {regGmail && !validateGmail(regGmail) && (
+                      <div className="gmail-error-message">Please enter a valid Gmail address (@gmail.com)</div>
+                    )}
+                    {checkingGmail && (
+                      <div className="gmail-checking-message">Checking...</div>
+                    )}
+                    {gmailExists && validateGmail(regGmail) && (
+                      <div className="gmail-exists-message">This Gmail address is already registered in the system</div>
+                    )}
+                    {regGmail && validateGmail(regGmail) && !checkingGmail && !gmailExists && (
+                      <div className="gmail-checking-message" style={{ color: '#388E3C' }}>✓ Gmail address is available</div>
+                    )}
                   </div>
-                </div>
 
-                <button type="submit" className="login-btn-primary login-modal-submit" disabled={registerLoading}>
-                  {registerLoading ? 'Creating account…' : 'Create Account'}
-                </button>
-              </form>
+                  <div className="login-form-group">
+                    <label htmlFor="regPassword">Password </label>
+                    <div className="password-input-wrapper">
+                      <input
+                        type={showRegPassword ? 'text' : 'password'}
+                        id="regPassword"
+                        value={regPassword}
+                        onChange={(e) => handlePasswordChange(e.target.value)}
+                        onBlur={handlePasswordBlur}
+                        placeholder="Create a password"
+                        required
+                        className={passwordError && passwordTouched ? 'error' : ''}
+                      />
+                      <button
+                        type="button"
+                        className="password-toggle"
+                        onClick={() => setShowRegPassword(!showRegPassword)}
+                        aria-label={showRegPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showRegPassword ? <EyeOffIcon /> : <EyeIcon />}
+                      </button>
+                    </div>
+                    {passwordError && passwordTouched && (
+                      <div className="password-error-message">{passwordError}</div>
+                    )}
+                  </div>
+
+                  <div className="login-form-group">
+                    <label htmlFor="confirmPassword">Confirm Password </label>
+                    <div className="password-input-wrapper">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        id="confirmPassword"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm your password"
+                        required
+                      />
+                      <button
+                        type="button"
+                        className="password-toggle"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button type="submit" className="login-btn-primary login-modal-submit" disabled={registerLoading}>
+                    {registerLoading ? 'Creating account…' : 'Create Account'}
+                  </button>
+                </form>
               ) : (
                 // Pre-register reminder shown before form
                 <div className="pre-register-reminder-inline">

@@ -836,7 +836,7 @@ const AdminDashboard = ({ onLogout }) => {
               localStorage.setItem('ureb_user', JSON.stringify(updated));
             }
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     }
 
@@ -937,7 +937,7 @@ const AdminDashboard = ({ onLogout }) => {
 
 
     { id: 'notification', label: 'Notification (File)', icon: <NotificationIcon />, badge: notifCount > 0 ? notifCount : null },
-    { id: 'profile', label: 'Profile Settings', icon: <SettingsIcon /> },
+    { id: 'profile', label: 'Admin Settings', icon: <SettingsIcon /> },
   ];
 
 
@@ -1184,7 +1184,7 @@ const AdminDashboard = ({ onLogout }) => {
 
       case 'profile':
         return (
-          <AdminProfileContent 
+          <AdminProfileContent
             userInfo={userInfo}
             uploadingPic={uploadingPic}
             picError={picError}
@@ -1469,11 +1469,11 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
-            <div 
-              className="user-avatar-wrapper" 
+            <div
+              className="user-avatar-wrapper"
               onClick={() => setActiveTab('profile')}
               style={{ cursor: 'pointer' }}
-              title="Profile Settings"
+              title="Admin Settings"
             >
               {userInfo?.profilePicture ? (
                 <img
@@ -1491,7 +1491,7 @@ const AdminDashboard = ({ onLogout }) => {
                   }}
                 />
               ) : null}
-              <div 
+              <div
                 className="user-avatar"
                 style={{ display: userInfo?.profilePicture ? 'none' : 'flex' }}
               >
@@ -2136,8 +2136,8 @@ const DashboardContent = () => {
 
                       </div>
 
-                      <button 
-                        className="delete-activity-btn" 
+                      <button
+                        className="delete-activity-btn"
                         onClick={(e) => handleDeleteActivity(e, activity.id)}
                         title="Remove activity"
                       >
@@ -2163,7 +2163,7 @@ const DashboardContent = () => {
 
 
 
-                  <button 
+                  <button
 
 
 
@@ -2309,10 +2309,10 @@ const DashboardContent = () => {
 
       <GenerateReportModal isOpen={isGenerateReportModalOpen} onClose={closeGenerateReportModal} />
 
-      <DeleteActivityModal 
-        isOpen={deleteModalOpen} 
-        onClose={() => setDeleteModalOpen(false)} 
-        onConfirm={confirmDeleteActivity} 
+      <DeleteActivityModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={confirmDeleteActivity}
       />
 
     </div>
@@ -3159,6 +3159,7 @@ const AssignFileContent = () => {
       secondaryReviewer1: '',
 
       secondaryReviewer2: '',
+      department: '',
 
       startDate: '',
 
@@ -3248,7 +3249,9 @@ const AssignFileContent = () => {
 
   // This allows Preliminary Reviewers to be selected as Secondary Reviewers when needed
 
-  const allReviewers = reviewers;
+  const filteredReviewers = formData.department
+    ? reviewers.filter(r => r.department === formData.department)
+    : reviewers;
 
 
 
@@ -3561,6 +3564,7 @@ const AssignFileContent = () => {
       secondaryReviewer1: '',
 
       secondaryReviewer2: '',
+      department: '',
 
       startDate: '',
 
@@ -3633,6 +3637,43 @@ const AssignFileContent = () => {
           </div>
 
           <div className="form-group">
+            <label>Department Filter</label>
+            <select
+              name="department"
+              value={formData.department}
+              onChange={(e) => {
+                handleInputChange(e);
+                // Clear selected reviewers when department changes to avoid mismatch
+                setFormData(prev => ({
+                  ...prev,
+                  department: e.target.value,
+                  secondaryReviewer1: '',
+                  secondaryReviewer2: ''
+                }));
+              }}
+            >
+              <option value="">All Departments</option>
+              <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
+              <option value="FTED">FTED- Faculty of Teacher Education</option>
+              <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
+              <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
+              <option value="FBM">FBM-Faculty of Business Management</option>
+              <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
+              <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
+              <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
+              <option value="SEIC">SEIC- San Isidro Extension Campus</option>
+              <option value="BEC">BEC-BanayBanay Extension Campus</option>
+              <option value="CEC">CEC-Cateel Extension Campus</option>
+              <option value="BGEC">BGEC-Baganga Extension Campus</option>
+              <option value="TEC">TEC-Tarragona Extension Campus</option>
+              <option value="NSTP">NSTP-National Service Training Program</option>
+              <option value="ICS">ICS- Indigenous Community Studies</option>
+              <option value="Community Representatives">Community Representatives</option>
+              <option value="UREB Board">UREB Board - University Research Ethics Board</option>
+            </select>
+          </div>
+
+          <div className="form-group">
 
             <label>Secondary Reviewer 1</label>
 
@@ -3652,9 +3693,9 @@ const AssignFileContent = () => {
 
                 <option value="" disabled>Loading reviewers...</option>
 
-              ) : allReviewers.length > 0 ? (
+              ) : filteredReviewers.length > 0 ? (
 
-                allReviewers.filter(r => r.email).map((reviewer, index) => {
+                filteredReviewers.filter(r => r.email).map((reviewer, index) => {
 
                   const reviewerName = reviewer.name ||
 
@@ -3708,9 +3749,9 @@ const AssignFileContent = () => {
 
                 <option value="" disabled>Loading reviewers...</option>
 
-              ) : allReviewers.length > 0 ? (
+              ) : filteredReviewers.length > 0 ? (
 
-                allReviewers.filter(r => r.email).map((reviewer, index) => {
+                filteredReviewers.filter(r => r.email).map((reviewer, index) => {
 
                   const reviewerName = reviewer.name ||
 
@@ -4857,14 +4898,14 @@ const MessageReviewerContent = () => {
 
 
 
-const AdminProfileContent = ({ 
-  userInfo, 
-  uploadingPic, 
-  picError, 
-  picSuccess, 
-  fileInputRef, 
-  handleProfilePicClick, 
-  handleProfilePicUpload, 
+const AdminProfileContent = ({
+  userInfo,
+  uploadingPic,
+  picError,
+  picSuccess,
+  fileInputRef,
+  handleProfilePicClick,
+  handleProfilePicUpload,
   handleProfilePicDelete,
   showPasswordForm,
   setShowPasswordForm,
@@ -4929,8 +4970,8 @@ const AdminProfileContent = ({
           {!uploadingPic && (
             <div className="ap-avatar-hover-overlay">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
-                <circle cx="12" cy="13" r="3"/>
+                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                <circle cx="12" cy="13" r="3" />
               </svg>
               <span>Upload Photo</span>
             </div>
@@ -4967,7 +5008,7 @@ const AdminProfileContent = ({
 
       {/* ── Feedback Banners ── */}
       {picSuccess && <div className="ap-banner ap-banner--success">{picSuccess}</div>}
-      {picError   && <div className="ap-banner ap-banner--error">{picError}</div>}
+      {picError && <div className="ap-banner ap-banner--error">{picError}</div>}
 
       {/* ── Account Information Card ── */}
       <div className="ap-info-card">
@@ -4977,9 +5018,9 @@ const AdminProfileContent = ({
 
         <div className="ap-info-grid">
           {[
-            { label: 'Full Name',     value: userInfo?.name },
+            { label: 'Full Name', value: userInfo?.name },
             { label: 'Email Address', value: userInfo?.email },
-            { label: 'Account Role',  value: userInfo?.role || 'Administrator' },
+            { label: 'Account Role', value: userInfo?.role || 'Administrator' },
           ].map(({ label, value }) => (
             <div className="ap-info-item" key={label}>
               <span className="ap-info-label">{label}</span>
@@ -5001,7 +5042,7 @@ const AdminProfileContent = ({
             <p className="ap-card-subtitle">Manage your account password and security settings</p>
           </div>
           {!showPasswordForm && (
-            <button 
+            <button
               className="ap-toggle-btn"
               onClick={() => { setShowPasswordForm(true); setPwdError(''); setPwdSuccess(''); }}
             >
@@ -5019,16 +5060,16 @@ const AdminProfileContent = ({
               <div className="ap-field ap-field--wide">
                 <label className="ap-field-label">Current Password</label>
                 <div className="ap-password-input-wrapper">
-                  <input 
-                    type={showPasswords.current ? "text" : "password"} 
-                    className="ap-field-input" 
+                  <input
+                    type={showPasswords.current ? "text" : "password"}
+                    className="ap-field-input"
                     value={pwdData.current}
                     onChange={e => setPwdData(p => ({ ...p, current: e.target.value }))}
                     placeholder="Enter current password"
                     required
                   />
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="ap-password-toggle"
                     onClick={() => setShowPasswords(p => ({ ...p, current: !p.current }))}
                   >
@@ -5039,16 +5080,16 @@ const AdminProfileContent = ({
               <div className="ap-field">
                 <label className="ap-field-label">New Password</label>
                 <div className="ap-password-input-wrapper">
-                  <input 
-                    type={showPasswords.new ? "text" : "password"} 
-                    className="ap-field-input" 
+                  <input
+                    type={showPasswords.new ? "text" : "password"}
+                    className="ap-field-input"
                     value={pwdData.new}
                     onChange={e => setPwdData(p => ({ ...p, new: e.target.value }))}
                     placeholder="At least 6 characters"
                     required
                   />
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="ap-password-toggle"
                     onClick={() => setShowPasswords(p => ({ ...p, new: !p.new }))}
                   >
@@ -5059,16 +5100,16 @@ const AdminProfileContent = ({
               <div className="ap-field">
                 <label className="ap-field-label">Confirm New Password</label>
                 <div className="ap-password-input-wrapper">
-                  <input 
-                    type={showPasswords.confirm ? "text" : "password"} 
-                    className="ap-field-input" 
+                  <input
+                    type={showPasswords.confirm ? "text" : "password"}
+                    className="ap-field-input"
                     value={pwdData.confirm}
                     onChange={e => setPwdData(p => ({ ...p, confirm: e.target.value }))}
                     placeholder="Repeat new password"
                     required
                   />
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="ap-password-toggle"
                     onClick={() => setShowPasswords(p => ({ ...p, confirm: !p.confirm }))}
                   >
@@ -5078,16 +5119,16 @@ const AdminProfileContent = ({
               </div>
             </div>
             <div className="ap-edit-actions">
-              <button 
-                type="submit" 
-                className="ap-btn ap-btn--save" 
+              <button
+                type="submit"
+                className="ap-btn ap-btn--save"
                 disabled={pwdLoading}
               >
                 {pwdLoading ? 'Updating...' : 'Update Password'}
               </button>
-              <button 
-                type="button" 
-                className="ap-btn ap-btn--cancel" 
+              <button
+                type="button"
+                className="ap-btn ap-btn--cancel"
                 onClick={() => setShowPasswordForm(false)}
                 disabled={pwdLoading}
               >
@@ -6631,108 +6672,108 @@ const ManageUsersContent = () => {
 
               {editingUser?.userType === 'reviewer' && (
                 <>
-                <div className="form-group">
+                  <div className="form-group">
 
-                  <label>Title (optional)</label>
+                    <label>Title (optional)</label>
 
-                  <select
+                    <select
 
-                    name="title"
+                      name="title"
 
-                    value={editFormData.title || ''}
+                      value={editFormData.title || ''}
 
-                    onChange={handleEditInputChange}
+                      onChange={handleEditInputChange}
 
-                  >
+                    >
 
-                    <option value="">None</option>
+                      <option value="">None</option>
 
-                    <option value="Doctor">Doctor (Dr.)</option>
+                      <option value="Doctor">Doctor (Dr.)</option>
 
-                    <option value="Engineer">Engineer (Engr.)</option>
+                      <option value="Engineer">Engineer (Engr.)</option>
 
-                    <option value="Professor">Professor (Prof.)</option>
+                      <option value="Professor">Professor (Prof.)</option>
 
-                    <option value="RN">RN</option>
+                      <option value="RN">RN</option>
 
-                    <option value="LPT">LPT</option>
+                      <option value="LPT">LPT</option>
 
-                    <option value="MSN">MSN</option>
+                      <option value="MSN">MSN</option>
 
-                    <option value="RN/LPT">RN/LPT</option>
+                      <option value="RN/LPT">RN/LPT</option>
 
-                    <option value="RN/MSN">RN/MSN</option>
+                      <option value="RN/MSN">RN/MSN</option>
 
-                <option value="MIT">MIT</option>
+                      <option value="MIT">MIT</option>
 
-                <option value="DBM">DBM</option>
+                      <option value="DBM">DBM</option>
 
-                  </select>
+                    </select>
 
-                </div>
+                  </div>
 
-                <div className="form-group">
+                  <div className="form-group">
 
-                  <label>Gender</label>
+                    <label>Gender</label>
 
-                  <select
+                    <select
 
-                    name="gender"
+                      name="gender"
 
-                    value={editFormData.gender || ''}
+                      value={editFormData.gender || ''}
 
-                    onChange={handleEditInputChange}
+                      onChange={handleEditInputChange}
 
-                  >
+                    >
 
-                    <option value="">Select Gender</option>
+                      <option value="">Select Gender</option>
 
-                    <option value="Male">Male</option>
+                      <option value="Male">Male</option>
 
-                    <option value="Female">Female</option>
+                      <option value="Female">Female</option>
 
-                    <option value="LGBTQ">LGBTQ</option>
-                  </select>
-                </div>
+                      <option value="LGBTQ">LGBTQ</option>
+                    </select>
+                  </div>
 
-                <div className="form-group">
-                  <label>Reviewer Type</label>
-                  <select
-                    name="reviewerType"
-                    value={editFormData.reviewerType || ''}
-                    onChange={handleEditInputChange}
-                  >
-                    <option value="">Select Reviewer Type</option>
-                    <option value="preliminary">Preliminary Reviewer</option>
-                    <option value="secondary">Secondary Reviewer</option>
-                    <option value="both">Both (Preliminary & Secondary)</option>
-                  </select>
-                </div>
+                  <div className="form-group">
+                    <label>Reviewer Type</label>
+                    <select
+                      name="reviewerType"
+                      value={editFormData.reviewerType || ''}
+                      onChange={handleEditInputChange}
+                    >
+                      <option value="">Select Reviewer Type</option>
+                      <option value="preliminary">Preliminary Reviewer</option>
+                      <option value="secondary">Secondary Reviewer</option>
+                      <option value="both">Both (Preliminary & Secondary)</option>
+                    </select>
+                  </div>
                 </>
               )}
               {editingUser?.userType === 'student' && (
                 <>
-                <div style={{ padding: '0.5rem 0', marginBottom: '1rem', borderBottom: '1.5px solid #eee' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#2d3436', margin: 0 }}>Student Information</h3>
-                </div>
+                  <div style={{ padding: '0.5rem 0', marginBottom: '1rem', borderBottom: '1.5px solid #eee' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#2d3436', margin: 0 }}>Student Information</h3>
+                  </div>
 
-                <div className="form-group">
+                  <div className="form-group">
 
-                  <label>Student ID</label>
+                    <label>Student ID</label>
 
-                  <input
+                    <input
 
-                    type="text"
+                      type="text"
 
-                    name="studentId"
+                      name="studentId"
 
-                    value={editFormData.studentId || ''}
+                      value={editFormData.studentId || ''}
 
-                    onChange={handleEditInputChange}
+                      onChange={handleEditInputChange}
 
-                  />
+                    />
 
-                </div>
+                  </div>
                 </>
 
               )}
@@ -6847,37 +6888,37 @@ const ManageUsersContent = () => {
 
               {editingUser?.userType === 'student' && (
                 <>
-                <div className="form-group">
-                  <label>Program</label>
-                  <input
-                    type="text"
-                    name="program"
-                    value={editFormData.program || ''}
-                    onChange={handleEditInputChange}
-                  />
-                </div>
-                <div className="form-group">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label>Facebook URL</label>
-                    {editFormData.facebookLink && (
-                      <a 
-                        href={editFormData.facebookLink.startsWith('http') ? editFormData.facebookLink : `https://${editFormData.facebookLink}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        style={{ fontSize: '0.75rem', color: '#0866FF', fontWeight: 600, textDecoration: 'none' }}
-                      >
-                        Visit Profile ↗
-                      </a>
-                    )}
+                  <div className="form-group">
+                    <label>Program</label>
+                    <input
+                      type="text"
+                      name="program"
+                      value={editFormData.program || ''}
+                      onChange={handleEditInputChange}
+                    />
                   </div>
-                  <input
-                    type="url"
-                    name="facebookLink"
-                    value={editFormData.facebookLink || ''}
-                    onChange={handleEditInputChange}
-                    placeholder="https://facebook.com/profilename"
-                  />
-                </div>
+                  <div className="form-group">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label>Facebook URL</label>
+                      {editFormData.facebookLink && (
+                        <a
+                          href={editFormData.facebookLink.startsWith('http') ? editFormData.facebookLink : `https://${editFormData.facebookLink}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ fontSize: '0.75rem', color: '#0866FF', fontWeight: 600, textDecoration: 'none' }}
+                        >
+                          Visit Profile ↗
+                        </a>
+                      )}
+                    </div>
+                    <input
+                      type="url"
+                      name="facebookLink"
+                      value={editFormData.facebookLink || ''}
+                      onChange={handleEditInputChange}
+                      placeholder="https://facebook.com/profilename"
+                    />
+                  </div>
                 </>
               )}
 
@@ -6890,9 +6931,9 @@ const ManageUsersContent = () => {
                       Research Co-Members
                     </label>
                     {!showCoMemberForm && (
-                      <button 
-                        type="button" 
-                        className="btn-secondary" 
+                      <button
+                        type="button"
+                        className="btn-secondary"
                         style={{ padding: '4px 10px', fontSize: '0.75rem' }}
                         onClick={() => setShowCoMemberForm(true)}
                       >
@@ -6941,7 +6982,7 @@ const ManageUsersContent = () => {
                       </div>
                     </div>
                   )}
-                  
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                     {Array.isArray(editFormData?.coMembers) && editFormData.coMembers.length > 0 ? (
                       editFormData.coMembers.map((m, idx) => (
@@ -6954,8 +6995,8 @@ const ManageUsersContent = () => {
                               {m.role && <span>{m.role}</span>}
                             </div>
                           </div>
-                          <button 
-                            type="button" 
+                          <button
+                            type="button"
                             style={{ background: 'none', border: 'none', color: '#ff4d4f', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 500, padding: '4px' }}
                             onClick={() => removeCoMemberFromEdit(m.id || idx)}
                           >
@@ -9413,11 +9454,11 @@ const MessagesInboxContent = ({ onMessageRead }) => {
               // Filter messages based on search query
               const filteredMessages = searchQuery.trim()
                 ? messages.filter(m => {
-                    const senderName = (m.senderName || m.senderEmail || '').toLowerCase();
-                    const subject = (m.subject || '').toLowerCase();
-                    const query = searchQuery.toLowerCase();
-                    return senderName.includes(query) || subject.includes(query);
-                  })
+                  const senderName = (m.senderName || m.senderEmail || '').toLowerCase();
+                  const subject = (m.subject || '').toLowerCase();
+                  const query = searchQuery.toLowerCase();
+                  return senderName.includes(query) || subject.includes(query);
+                })
                 : messages;
 
               // Show empty state if no matches
@@ -9439,7 +9480,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
               // Separate messages by type
               const reviewerMessages = filteredMessages.filter(m => m.type === 'reviewer_to_admin');
               const studentMessages = filteredMessages.filter(m => m.type === 'student_to_admin');
-              
+
               const renderMessageGroup = (messages, categoryTitle, categoryIcon, categoryColor, categoryKey) => {
                 if (messages.length === 0) return null;
                 const grouped = groupBySender(messages);
@@ -9447,11 +9488,11 @@ const MessagesInboxContent = ({ onMessageRead }) => {
                 const senderCount = senders.length;
                 const totalUnread = messages.filter(m => !m.read).length;
                 const isCategoryExpanded = expandedCategories[categoryKey] !== false;
-                
+
                 return (
                   <div key={categoryTitle} style={{ marginBottom: '24px' }}>
                     {/* Category Header - Click to toggle */}
-                    <div 
+                    <div
                       onClick={() => toggleCategory(categoryKey)}
                       style={{
                         display: 'flex',
@@ -9470,11 +9511,11 @@ const MessagesInboxContent = ({ onMessageRead }) => {
                       <span style={{ fontWeight: 700, fontSize: '1rem', color: '#1f2937' }}>{categoryTitle}</span>
                       <span style={{ fontSize: '0.85rem', color: '#6b7280', marginLeft: '4px' }}>({senderCount} {categoryKey === 'reviewer' ? 'Reviewers' : 'Students'})</span>
                       {totalUnread > 0 && (
-                        <span style={{ 
-                          fontSize: '0.75rem', 
-                          backgroundColor: '#ef4444', 
-                          color: '#fff', 
-                          padding: '3px 10px', 
+                        <span style={{
+                          fontSize: '0.75rem',
+                          backgroundColor: '#ef4444',
+                          color: '#fff',
+                          padding: '3px 10px',
                           borderRadius: '9999px',
                           marginLeft: '8px',
                           fontWeight: 600
@@ -9483,116 +9524,116 @@ const MessagesInboxContent = ({ onMessageRead }) => {
                     </div>
                     {/* Senders in this category */}
                     {isCategoryExpanded && (
-                    <div style={{ border: '1px solid #e5e7eb', borderTop: 'none', borderRadius: '0 0 8px 8px' }}>
-                      {senders.map((sender) => {
-                        const senderMessages = grouped[sender];
-                        const unreadInGroup = senderMessages.filter(m => !m.read).length;
-                        const isExpanded = expandedGroups[sender] !== false;
-                        return (
-                          <div key={sender} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                            {/* Sender Header - Click to toggle */}
-                            <div
-                              onClick={() => toggleGroup(sender)}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                padding: '10px 16px',
-                                backgroundColor: isExpanded ? '#f9fafb' : '#fff',
-                                cursor: 'pointer',
-                                borderLeft: '4px solid ' + categoryColor,
-                                transition: 'background-color 0.2s'
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isExpanded ? '#f9fafb' : '#fff'}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <span style={{ fontWeight: 600, color: '#374151', fontSize: '0.95rem' }}>{sender}</span>
-                                <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>({senderMessages.length})</span>
-                                {unreadInGroup > 0 && (
-                                  <span style={{ fontSize: '0.7rem', backgroundColor: '#ef4444', color: '#fff', padding: '2px 8px', borderRadius: '9999px' }}>{unreadInGroup} new</span>
-                                )}
+                      <div style={{ border: '1px solid #e5e7eb', borderTop: 'none', borderRadius: '0 0 8px 8px' }}>
+                        {senders.map((sender) => {
+                          const senderMessages = grouped[sender];
+                          const unreadInGroup = senderMessages.filter(m => !m.read).length;
+                          const isExpanded = expandedGroups[sender] !== false;
+                          return (
+                            <div key={sender} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                              {/* Sender Header - Click to toggle */}
+                              <div
+                                onClick={() => toggleGroup(sender)}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '10px 16px',
+                                  backgroundColor: isExpanded ? '#f9fafb' : '#fff',
+                                  cursor: 'pointer',
+                                  borderLeft: '4px solid ' + categoryColor,
+                                  transition: 'background-color 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isExpanded ? '#f9fafb' : '#fff'}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <span style={{ fontWeight: 600, color: '#374151', fontSize: '0.95rem' }}>{sender}</span>
+                                  <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>({senderMessages.length})</span>
+                                  {unreadInGroup > 0 && (
+                                    <span style={{ fontSize: '0.7rem', backgroundColor: '#ef4444', color: '#fff', padding: '2px 8px', borderRadius: '9999px' }}>{unreadInGroup} new</span>
+                                  )}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                                    {isExpanded ? '▼' : '▶'}
+                                  </span>
+                                </div>
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-                                  {isExpanded ? '▼' : '▶'}
-                                </span>
-                              </div>
-                            </div>
-                            {/* Messages List for this sender */}
-                            {isExpanded && (
-                              <div style={{ backgroundColor: '#fff' }}>
-                                {senderMessages.map((message) => (
-                                  <div
-                                    key={message._id}
-                                    className={`inbox-row ${!message.read ? 'unread' : ''}`}
-                                    onClick={() => openMessageModal(message)}
-                                    style={{
-                                      borderBottom: '1px solid #f3f4f6',
-                                      margin: 0,
-                                      borderRadius: 0
-                                    }}
-                                  >
-                                    {/* Unread indicator column */}
-                                    <div className="inbox-unread-indicator">
-                                      {!message.read && <span className="inbox-unread-dot" />}
-                                    </div>
-                                    {/* Avatar */}
-                                    <div className="inbox-avatar">
-                                      {(message.senderName || message.senderEmail).charAt(0).toUpperCase()}
-                                    </div>
-                                    {/* Content */}
-                                    <div className="inbox-row-content">
-                                      <div className="inbox-row-top">
-                                        <span className="inbox-sender-name">
-                                          {message.senderName || message.senderEmail}
-                                        </span>
-                                        <div className="inbox-row-actions">
-                                          {!message.read && (
-                                            <button
-                                              className="inbox-mark-read-btn"
-                                              onClick={(e) => markSingleAsRead(e, message)}
-                                              title="Mark as read"
-                                            >
-                                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                                <polyline points="20 6 9 17 4 12" />
-                                              </svg>
-                                              Mark as read
-                                            </button>
-                                          )}
-                                          <span className="inbox-row-date">
-                                            {formatInboxDate(message.createdAt || message.sentAt)}
+                              {/* Messages List for this sender */}
+                              {isExpanded && (
+                                <div style={{ backgroundColor: '#fff' }}>
+                                  {senderMessages.map((message) => (
+                                    <div
+                                      key={message._id}
+                                      className={`inbox-row ${!message.read ? 'unread' : ''}`}
+                                      onClick={() => openMessageModal(message)}
+                                      style={{
+                                        borderBottom: '1px solid #f3f4f6',
+                                        margin: 0,
+                                        borderRadius: 0
+                                      }}
+                                    >
+                                      {/* Unread indicator column */}
+                                      <div className="inbox-unread-indicator">
+                                        {!message.read && <span className="inbox-unread-dot" />}
+                                      </div>
+                                      {/* Avatar */}
+                                      <div className="inbox-avatar">
+                                        {(message.senderName || message.senderEmail).charAt(0).toUpperCase()}
+                                      </div>
+                                      {/* Content */}
+                                      <div className="inbox-row-content">
+                                        <div className="inbox-row-top">
+                                          <span className="inbox-sender-name">
+                                            {message.senderName || message.senderEmail}
                                           </span>
-                                          <button
-                                            className="inbox-trash-btn"
-                                            onClick={(e) => openInboxDeleteModal(e, message._id)}
-                                            title="Delete message"
-                                          >
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                              <polyline points="3 6 5 6 21 6" />
-                                              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                                              <path d="M10 11v6M14 11v6" />
-                                              <path d="M9 6V4h6v2" />
-                                            </svg>
-                                          </button>
+                                          <div className="inbox-row-actions">
+                                            {!message.read && (
+                                              <button
+                                                className="inbox-mark-read-btn"
+                                                onClick={(e) => markSingleAsRead(e, message)}
+                                                title="Mark as read"
+                                              >
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                  <polyline points="20 6 9 17 4 12" />
+                                                </svg>
+                                                Mark as read
+                                              </button>
+                                            )}
+                                            <span className="inbox-row-date">
+                                              {formatInboxDate(message.createdAt || message.sentAt)}
+                                            </span>
+                                            <button
+                                              className="inbox-trash-btn"
+                                              onClick={(e) => openInboxDeleteModal(e, message._id)}
+                                              title="Delete message"
+                                            >
+                                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <polyline points="3 6 5 6 21 6" />
+                                                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                                                <path d="M10 11v6M14 11v6" />
+                                                <path d="M9 6V4h6v2" />
+                                              </svg>
+                                            </button>
+                                          </div>
+                                        </div>
+                                        <div className="inbox-row-bottom">
+                                          <span className="inbox-subject">{message.subject}</span>
+                                          {message.submissionType === 'resubmission' && (
+                                            <span className="inbox-badge resubmission">Resubmission</span>
+                                          )}
+                                          <span className="inbox-preview"> — {message.message}</span>
                                         </div>
                                       </div>
-                                      <div className="inbox-row-bottom">
-                                        <span className="inbox-subject">{message.subject}</span>
-                                        {message.submissionType === 'resubmission' && (
-                                          <span className="inbox-badge resubmission">Resubmission</span>
-                                        )}
-                                        <span className="inbox-preview"> — {message.message}</span>
-                                      </div>
                                     </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 );

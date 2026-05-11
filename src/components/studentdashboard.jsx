@@ -187,9 +187,9 @@ const StudentDashboard = ({ onLogout }) => {
       try {
         const response = await fetch(`${API_BASE_URL}/messages/${encodeURIComponent(userInfo.email)}`);
         const data = await response.json();
-        const unreadAdminMessages = data.filter((m) => 
-          m.recipientEmail === userInfo.email && 
-          m.type === 'admin_to_student' && 
+        const unreadAdminMessages = data.filter((m) =>
+          m.recipientEmail === userInfo.email &&
+          m.type === 'admin_to_student' &&
           !m.read
         );
         setMessageCount(unreadAdminMessages.length);
@@ -269,9 +269,9 @@ const StudentDashboard = ({ onLogout }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/messages/${encodeURIComponent(userInfo.email)}`);
       const data = await response.json();
-      const unreadAdminMessages = data.filter((m) => 
-        m.recipientEmail === userInfo.email && 
-        m.type === 'admin_to_student' && 
+      const unreadAdminMessages = data.filter((m) =>
+        m.recipientEmail === userInfo.email &&
+        m.type === 'admin_to_student' &&
         !m.read
       );
       setMessageCount(unreadAdminMessages.length);
@@ -646,7 +646,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
         }),
       });
       const result = await response.json();
-      
+
       if (result.success) {
         setPwdSuccess('Password updated successfully');
         setPwdData({ current: '', newPwd: '', confirm: '' });
@@ -721,7 +721,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
   const fullName = getFullName();
   const initials = fullName.charAt(0).toUpperCase();
   const profilePicUrl = studentData?.profilePicture || userInfo?.profilePicture;
-  
+
   // Debug logging
   console.log('[DEBUG] Profile Picture URL:', profilePicUrl);
   console.log('[DEBUG] studentData:', studentData);
@@ -733,7 +733,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
       {/* ── Hero Card ── */}
       <div className="sp-hero-card">
         {/* Avatar with upload functionality */}
-        <div 
+        <div
           className="sp-avatar-wrapper"
           onClick={!uploadingPic ? handleProfilePicClick : undefined}
           style={{ cursor: uploadingPic ? 'default' : 'pointer' }}
@@ -744,7 +744,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
               <div className="sp-avatar-spinner" />
             </div>
           )}
-          
+
           {/* Profile image - shown when URL exists and not loading */}
           {!uploadingPic && profilePicUrl && (
             <img
@@ -764,10 +764,10 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
               }}
             />
           )}
-          
+
           {/* Fallback initials - shown when no URL */}
-          <div 
-            className="sp-hero-avatar" 
+          <div
+            className="sp-hero-avatar"
             style={{ display: (!uploadingPic && !profilePicUrl) ? 'flex' : 'none' }}
           >
             {initials}
@@ -777,8 +777,8 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
           {!uploadingPic && (
             <div className="sp-avatar-hover-overlay">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
-                <circle cx="12" cy="13" r="3"/>
+                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                <circle cx="12" cy="13" r="3" />
               </svg>
               <span>Upload Picture</span>
             </div>
@@ -899,9 +899,30 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
               </div>
               <div className="sp-field">
                 <label htmlFor="sp-dept">Department</label>
-                <input id="sp-dept" type="text" value={editedInfo.department}
+                <select 
+                  id="sp-dept" 
+                  value={editedInfo.department}
                   onChange={e => setEditedInfo(p => ({ ...p, department: e.target.value }))}
-                  placeholder="e.g. Faculty of Teacher Education" />
+                >
+                  <option value="">Select Department</option>
+                  <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
+                  <option value="FTED">FTED- Faculty of Teacher Education</option>
+                  <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
+                  <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
+                  <option value="FBM">FBM-Faculty of Business Management</option>
+                  <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
+                  <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
+                  <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
+                  <option value="SEIC">SEIC- San Isidro Extension Campus</option>
+                  <option value="BEC">BEC-BanayBanay Extension Campus</option>
+                  <option value="CEC">CEC-Cateel Extension Campus</option>
+                  <option value="BGEC">BGEC-Baganga Extension Campus</option>
+                  <option value="TEC">TEC-Tarragona Extension Campus</option>
+                  <option value="NSTP">NSTP-National Service Training Program</option>
+                  <option value="ICS">ICS- Indigenous Community Studies</option>
+                  <option value="Community Representatives">Community Representatives</option>
+                  <option value="UREB Board">UREB Board - University Research Ethics Board</option>
+                </select>
               </div>
             </div>
 
@@ -1188,14 +1209,14 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
         if (response.ok) {
           const proposals = await response.json();
           const reminders = [];
-          
+
           proposals.forEach(proposal => {
             const status = (proposal.status || 'Pending').toLowerCase();
             if (status !== 'approved') {
               const submittedDate = new Date(proposal.createdAt || proposal.uploadDate || Date.now());
               const deadlineDate = new Date(submittedDate);
               deadlineDate.setFullYear(deadlineDate.getFullYear() + 1);
-              
+
               const today = new Date();
               const diffTime = deadlineDate - today;
               const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -1371,7 +1392,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
                       </div>
 
                       <div className="up-card-meta">
-                        <div className="up-meta-item"> 
+                        <div className="up-meta-item">
                           <span className="up-meta-label">Department</span>
                           <span className="up-meta-value up-dept">{proposal.department || 'N/A'}</span>
                         </div>
@@ -1665,7 +1686,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
 
         setFormData({
           proposal: null,
-          approvalSheet: null,  
+          approvalSheet: null,
           urebForm2: null,
           applicationForm6: null,
           accomplishedForm8: null,
@@ -1745,19 +1766,23 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
             required
           >
             <option value="">Select Department</option>
+            <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
             <option value="FTED">FTED- Faculty of Teacher Education</option>
-            <option value="FALS">FALS-Faculty of Agriculture and Life Science</option>
             <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
             <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
             <option value="FBM">FBM-Faculty of Business Management</option>
             <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
             <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
             <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
-            <option value="SIEC">SIEC-San Isidro Campus</option>
+            <option value="SEIC">SEIC- San Isidro Extension Campus</option>
             <option value="BEC">BEC-BanayBanay Extension Campus</option>
             <option value="CEC">CEC-Cateel Extension Campus</option>
             <option value="BGEC">BGEC-Baganga Extension Campus</option>
             <option value="TEC">TEC-Tarragona Extension Campus</option>
+            <option value="NSTP">NSTP-National Service Training Program</option>
+            <option value="ICS">ICS- Indigenous Community Studies</option>
+            <option value="Community Representatives">Community Representatives</option>
+            <option value="UREB Board">UREB Board - University Research Ethics Board</option>
           </select>
         </div>
 
@@ -1981,7 +2006,7 @@ const FileViewerModal = ({ file, onClose }) => {
       <button onClick={handleZoomOut} style={zoomBtnStyle}>-</button>
       <span style={{ fontSize: '0.875rem', fontWeight: '500', minWidth: '3rem', textAlign: 'center' }}>{zoom}%</span>
       <button onClick={handleZoomIn} style={zoomBtnStyle}>+</button>
-      <button onClick={handleZoomReset} style={{...zoomBtnStyle, marginLeft: '0.5rem'}}>Reset</button>
+      <button onClick={handleZoomReset} style={{ ...zoomBtnStyle, marginLeft: '0.5rem' }}>Reset</button>
     </div>
   );
 
@@ -2016,7 +2041,7 @@ const FileViewerModal = ({ file, onClose }) => {
     if (['doc', 'docx'].includes(fileExt)) {
       // Check if running locally (Office Viewer can't access localhost files)
       const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      
+
       if (isLocalhost) {
         // Show immediate fallback for local files since Office Viewer can't access them
         return (
@@ -2287,12 +2312,12 @@ const MessagesContent = ({ userInfo, onMessageRead }) => {
 
   const markAsRead = async (messageId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/messages/${messageId}/read`, { 
+      const response = await fetch(`${API_BASE_URL}/messages/${messageId}/read`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' }
       });
       if (response.ok) {
-        setMessages(prev => prev.map(msg => 
+        setMessages(prev => prev.map(msg =>
           msg._id === messageId ? { ...msg, read: true } : msg
         ));
         // Call the callback to refresh message count in sidebar
