@@ -2310,21 +2310,35 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                   <span
                     style={{
                       marginLeft: '8px',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '0.7rem',
-                      fontWeight: '600',
+                      padding: '2px 10px',
+                      borderRadius: '12px',
+                      fontSize: '0.65rem',
+                      fontWeight: '700',
                       textTransform: 'uppercase',
-                      backgroundColor: assignment.protocolCode ? '#3b82f6' : '#10b981',
-                      color: 'white'
+                      letterSpacing: '0.02em',
+                      backgroundColor: assignment.protocolCode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                      color: assignment.protocolCode ? '#1e40af' : '#065f46',
+                      border: `1px solid ${assignment.protocolCode ? 'rgba(59, 130, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`
                     }}
                   >
-                    {assignment.protocolCode ? 'Admin' : 'Student'}
+                    {assignment.protocolCode ? 'Admin Assigned' : 'Student Submitted'}
                   </span>
                 </p>
                 {assignment.protocolCode && (
-                  <p style={{ fontStyle: 'italic', color: '#4b5563', marginBottom: '0.5rem' }}>
-                    <strong>Protocol Code:</strong> {assignment.protocolCode}
+                  <p style={{ margin: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#374151' }}>Protocol Code:</span>
+                    <span style={{
+                      backgroundColor: '#eff6ff',
+                      color: '#1e40af',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                      fontWeight: '700',
+                      border: '1px solid #dbeafe',
+                      fontFamily: 'monospace'
+                    }}>
+                      {assignment.protocolCode}
+                    </span>
                   </p>
                 )}
                 <div className="proposal-meta">

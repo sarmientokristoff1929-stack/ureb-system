@@ -3018,7 +3018,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       researchTitle: `Assigned Files - ${protocolCode}`,
       proponent: secondaryReviewer1, // Use first secondary reviewer as primary
       dateOfApplication: new Date(),
-      status: 'under_review',
+      status: 'Under Review',
       reviewers: {
         reviewer1: secondaryReviewer1,
         reviewer2: secondaryReviewer2,
@@ -3073,7 +3073,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
           startDate: new Date(startDate),
           endDate: new Date(endDate)
         },
-        status: 'pending',
+        status: 'Pending',
         assignedBy: 'admin',
         createdAt: new Date(),
         updatedAt: new Date()

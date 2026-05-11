@@ -10461,10 +10461,11 @@ const PendingProposalsModal = ({ isOpen, onClose }) => {
 
                     <h3>{proposal.protocolCode || proposal._id}</h3>
 
-                    <span className={`status-badge ${proposal.status?.toLowerCase().replace(' ', '-') || 'pending'}`}>
-
+                    <span
+                      className="status-badge"
+                      style={getStatusStyle(proposal.status || 'Pending Review')}
+                    >
                       {proposal.status || 'Pending Review'}
-
                     </span>
 
                   </div>
