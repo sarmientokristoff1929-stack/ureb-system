@@ -1901,7 +1901,7 @@ app.post('/api/student/submit-files', upload.fields([
       preliminaryReviewer: preliminaryReviewer || '',
       preliminaryReviewerName: preliminaryReviewerName || '',
       files,
-      status: 'Pending',
+      status: 'Under Review',
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -1925,7 +1925,7 @@ app.post('/api/student/submit-files', upload.fields([
           startDate: new Date(),
           endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 2 weeks from now
         },
-        status: 'Pending',
+        status: 'Under Review',
         assignedBy: studentName || studentEmail || 'Student',
         studentEmail: studentEmail || '',
         createdAt: new Date(),

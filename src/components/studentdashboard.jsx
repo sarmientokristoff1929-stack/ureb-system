@@ -1170,7 +1170,10 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
 
         // Calculate actual stats
         const pendingReviewsCount = reviewsData.filter(review => review.status === 'pending').length;
-        const pendingProposalsCount = activeProposals.filter(proposal => !proposal.status || proposal.status.toLowerCase() === 'pending').length;
+        const pendingProposalsCount = activeProposals.filter(proposal => {
+          const s = (proposal.status || 'Pending').toLowerCase();
+          return s === 'pending' || s === 'under review';
+        }).length;
         const approvedProposals = activeProposals.filter(proposal => proposal.status === 'approved').length;
         const notificationsCount = notificationsData.filter(msg => msg.type === 'admin_to_student').length;
 

@@ -10374,15 +10374,10 @@ const PendingProposalsModal = ({ isOpen, onClose }) => {
 
       // Filter proposals that are pending review
 
-      const pendingProposals = allProposals.filter(proposal =>
-
-        proposal.status === 'pending' ||
-
-        proposal.status === 'Pending Review' ||
-
-        proposal.status === 'In Progress'
-
-      );
+      const pendingProposals = allProposals.filter(proposal => {
+        const s = (proposal.status || '').toLowerCase();
+        return s === 'pending' || s === 'pending review' || s === 'in progress' || s === 'under review';
+      });
 
       setProposals(pendingProposals);
 
