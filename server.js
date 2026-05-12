@@ -1181,7 +1181,7 @@ function studentProfilePayload(student) {
   // Build profile picture URL from GridFS filename
   let profilePicture = safe.profilePicture || null;
   if (safe.profilePictureGridFS) {
-    profilePicture = `/api/student/profile/picture/${safe.profilePictureGridFS}`;
+    profilePicture = `/api/student/profile/picture/${safe.profilePictureGridFS}?t=${Date.now()}`;
   }
   return { ...safe, gmail, gender, profilePicture };
 }
@@ -1192,7 +1192,7 @@ function reviewerProfilePayload(reviewer) {
   const { password, ...safe } = plain;
   let profilePicture = safe.profilePicture || null;
   if (safe.profilePictureGridFS) {
-    profilePicture = `/api/reviewer/profile/picture/${safe.profilePictureGridFS}`;
+    profilePicture = `/api/reviewer/profile/picture/${safe.profilePictureGridFS}?t=${Date.now()}`;
   }
   return { ...safe, profilePicture };
 }
@@ -1203,7 +1203,7 @@ function adminProfilePayload(user) {
   const { password, ...safe } = plain;
   let profilePicture = safe.profilePicture || null;
   if (safe.profilePictureGridFS) {
-    profilePicture = `/api/admin/profile/picture/${safe.profilePictureGridFS}`;
+    profilePicture = `/api/admin/profile/picture/${safe.profilePictureGridFS}?t=${Date.now()}`;
   }
   return { ...safe, profilePicture };
 }
@@ -1371,8 +1371,13 @@ app.delete('/api/student/profile/picture', async (req, res) => {
 app.get('/api/student/profile/picture/:filename', async (req, res) => {
   try {
     const filename = req.params.filename;
+    const db = getDatabase();
+    
+    // Attempt to find in GridFS first (Persistent)
     const files = await gfsBucket.find({ filename }).toArray();
+    
     if (!files || files.length === 0) {
+      console.log(`[GRIDFS] Student image NOT found: ${filename}, checking local fallback...`);
       // Fallback: check local uploads directory for legacy file-system images
       const localPath = path.resolve('uploads', 'profile-pictures', filename);
       if (fs.existsSync(localPath)) {
@@ -1381,8 +1386,10 @@ app.get('/api/student/profile/picture/:filename', async (req, res) => {
       return res.status(404).json({ error: 'Image not found' });
     }
 
+    console.log(`[GRIDFS] Serving student image: ${filename}`);
     res.setHeader('Content-Type', files[0].contentType || 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+    // Ensure browser re-validates to avoid "disappearing" on cache expiration
+    res.setHeader('Cache-Control', 'public, no-cache, must-revalidate'); 
     gfsBucket.openDownloadStreamByName(filename).pipe(res);
   } catch (error) {
     console.error('Error serving profile picture:', error);
@@ -1456,8 +1463,13 @@ app.delete('/api/reviewer/profile/picture', async (req, res) => {
 app.get('/api/reviewer/profile/picture/:filename', async (req, res) => {
   try {
     const filename = req.params.filename;
+    const db = getDatabase();
+
+    // Attempt to find in GridFS first (Persistent)
     const files = await gfsBucket.find({ filename }).toArray();
+    
     if (!files || files.length === 0) {
+      console.log(`[GRIDFS] Reviewer image NOT found: ${filename}, checking local fallback...`);
       // Fallback: check local uploads directory for legacy file-system images
       const localPath = path.resolve('uploads', 'profile-pictures', filename);
       if (fs.existsSync(localPath)) {
@@ -1466,8 +1478,10 @@ app.get('/api/reviewer/profile/picture/:filename', async (req, res) => {
       return res.status(404).json({ error: 'Image not found' });
     }
 
+    console.log(`[GRIDFS] Serving reviewer image: ${filename}`);
     res.setHeader('Content-Type', files[0].contentType || 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+    // Ensure browser re-validates to avoid "disappearing" on cache expiration
+    res.setHeader('Cache-Control', 'public, no-cache, must-revalidate');
     gfsBucket.openDownloadStreamByName(filename).pipe(res);
   } catch (error) {
     console.error('Error serving reviewer profile picture:', error);
@@ -1570,8 +1584,13 @@ app.put('/api/admin/password', async (req, res) => {
 app.get('/api/admin/profile/picture/:filename', async (req, res) => {
   try {
     const filename = req.params.filename;
+    const db = getDatabase();
+
+    // Attempt to find in GridFS first (Persistent)
     const files = await gfsBucket.find({ filename }).toArray();
+    
     if (!files || files.length === 0) {
+      console.log(`[GRIDFS] Admin image NOT found: ${filename}, checking local fallback...`);
       // Fallback: check local uploads directory for legacy file-system images
       const localPath = path.resolve('uploads', 'profile-pictures', filename);
       if (fs.existsSync(localPath)) {
@@ -1580,8 +1599,10 @@ app.get('/api/admin/profile/picture/:filename', async (req, res) => {
       return res.status(404).json({ error: 'Image not found' });
     }
 
+    console.log(`[GRIDFS] Serving admin image: ${filename}`);
     res.setHeader('Content-Type', files[0].contentType || 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+    // Ensure browser re-validates to avoid "disappearing" on cache expiration
+    res.setHeader('Cache-Control', 'public, no-cache, must-revalidate');
     gfsBucket.openDownloadStreamByName(filename).pipe(res);
   } catch (error) {
     console.error('Error serving admin profile picture:', error);

@@ -2380,7 +2380,7 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                               }).then(res => {
                                 if (res.ok) {
                                   // Update local state to show 'Under Review' immediately
-                                  setAssignments(prev => prev.map(a => 
+                                  setAssignments(prev => prev.map(a =>
                                     String(a._id) === idStr ? { ...a, status: 'Under Review' } : a
                                   ));
                                 }
