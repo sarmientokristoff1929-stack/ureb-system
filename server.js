@@ -2111,8 +2111,12 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
     // Update assignment status
     try {
       const assignments = db.collection(collections.assignments);
+      const query = protocolCode 
+        ? { $or: [{ proposalId: new ObjectId(proposalId) }, { protocolCode: protocolCode }], reviewerEmail: reviewerEmail }
+        : { proposalId: new ObjectId(proposalId), reviewerEmail: reviewerEmail };
+
       await assignments.updateOne(
-        { proposalId: new ObjectId(proposalId), reviewerEmail: reviewerEmail },
+        query,
         { $set: { status: 'Review Submitted', updatedAt: new Date() } }
       );
     } catch (e) {
@@ -2417,6 +2421,40 @@ app.post('/api/assignments/:id/delete', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting assignment:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Update assignment status
+app.put('/api/assignments/status', async (req, res) => {
+  try {
+    const { proposalId, reviewerEmail, status } = req.body;
+    if (!proposalId || !reviewerEmail || !status) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const db = getDatabase();
+    const assignments = db.collection(collections.assignments);
+
+    const result = await assignments.updateOne(
+      {
+        $or: [
+          { proposalId: new ObjectId(proposalId) },
+          { protocolCode: proposalId } // Handle if protocolCode was passed as ID
+        ],
+        reviewerEmail: reviewerEmail
+      },
+      {
+        $set: {
+          status: status,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    res.json({ success: true, matchedCount: result.matchedCount });
+  } catch (error) {
+    console.error('Error updating assignment status:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

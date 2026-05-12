@@ -2365,6 +2365,30 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                           localStorage.setItem(READ_ASSIGNMENTS_KEY, JSON.stringify(newReadIds));
                           setReadIds(newReadIds);
                           if (setAssignedCount) setAssignedCount(prev => Math.max(0, prev - 1));
+
+                          // Trigger: Auto-update status to 'Under Review' when files are first viewed
+                          if (assignment.status === 'Pending' || (assignment.status || '').toLowerCase() === 'pending') {
+                            try {
+                              fetch(`${import.meta.env.VITE_API_URL}/api/assignments/status`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  proposalId: assignment.proposalId || assignment._id,
+                                  reviewerEmail: userInfo.email,
+                                  status: 'Under Review'
+                                })
+                              }).then(res => {
+                                if (res.ok) {
+                                  // Update local state to show 'Under Review' immediately
+                                  setAssignments(prev => prev.map(a => 
+                                    String(a._id) === idStr ? { ...a, status: 'Under Review' } : a
+                                  ));
+                                }
+                              });
+                            } catch (err) {
+                              console.error('Failed to trigger Under Review status:', err);
+                            }
+                          }
                         }
                       }
                     }}
