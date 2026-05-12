@@ -2183,6 +2183,12 @@
   color: #1976D2;
 }
 
+.status-badge.submitted-to-admin {
+  background: #e0e7ff;
+  color: #4338ca;
+  border: 1px solid rgba(67, 56, 202, 0.2);
+}
+
 .status-badge.review-submitted {
   background: #fffbeb;
   color: #b45309;

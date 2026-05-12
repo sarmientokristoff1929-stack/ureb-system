@@ -2366,30 +2366,8 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                           setReadIds(newReadIds);
                           if (setAssignedCount) setAssignedCount(prev => Math.max(0, prev - 1));
 
-                          // Trigger: Auto-update status to 'Under Review' ONLY for student proposals when files are first viewed
-                          // Admin assignments (Protocol Code) should only trigger on submission
-                          if (!assignment.protocolCode && (assignment.status === 'Pending' || (assignment.status || '').toLowerCase() === 'pending')) {
-                            try {
-                              fetch(`${import.meta.env.VITE_API_URL}/api/assignments/status`, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  proposalId: assignment.proposalId || assignment._id,
-                                  reviewerEmail: userInfo.email,
-                                  status: 'Under Review'
-                                })
-                              }).then(res => {
-                                if (res.ok) {
-                                  // Update local state to show 'Under Review' immediately
-                                  setAssignments(prev => prev.map(a =>
-                                    String(a._id) === idStr ? { ...a, status: 'Under Review' } : a
-                                  ));
-                                }
-                              });
-                            } catch (err) {
-                              console.error('Failed to trigger Under Review status:', err);
-                            }
-                          }
+                          // Status stays 'Pending' for reviewer until submission.
+                          // Student already sees 'Under Review' from the initial submission.
                         }
                       }
                     }}

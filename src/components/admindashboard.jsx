@@ -11585,6 +11585,7 @@ const StudentSubmissionsModal = ({ isOpen, onClose }) => {
 
   const statusColors = {
     pending: { bg: '#fef3c7', color: '#92400e' },
+    'submitted to admin': { bg: '#e0e7ff', color: '#4338ca' },
     'review submitted': { bg: '#fffbeb', color: '#b45309' },
     reviewed: { bg: '#dcfce7', color: '#166534' },
     approved: { bg: '#dcfce7', color: '#166534' },

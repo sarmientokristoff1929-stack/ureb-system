@@ -1925,7 +1925,7 @@ app.post('/api/student/submit-files', upload.fields([
           startDate: new Date(),
           endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 2 weeks from now
         },
-        status: 'Under Review',
+        status: 'Pending',
         assignedBy: studentName || studentEmail || 'Student',
         studentEmail: studentEmail || '',
         createdAt: new Date(),
@@ -2115,8 +2115,8 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
     const result = await reviews.insertOne(newReview);
 
     // Update proposal status based on decision
-    // Set proposal status to 'Review Submitted' indicating admin needs to check it
-    let proposalStatus = 'Review Submitted';
+    // Set proposal status to 'Submitted to Admin' indicating admin needs to check it
+    let proposalStatus = 'Submitted to Admin';
     // (Previous logic would jump straight to decision, but user wants admin to check first)
 
     // Try to update proposal status
@@ -2148,7 +2148,7 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
 
       await assignments.updateOne(
         query,
-        { $set: { status: 'Review Submitted', updatedAt: new Date() } }
+        { $set: { status: 'Submitted to Admin', updatedAt: new Date() } }
       );
     } catch (e) {
       console.log('Could not update assignment status:', e.message);

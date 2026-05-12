@@ -2971,6 +2971,8 @@
 }
 
 .up-status--pending          { background: #fffbeb; color: #b45309; }
+.up-status--under-review     { background: #e0f2fe; color: #0369a1; }
+.up-status--submitted-to-admin { background: #e0e7ff; color: #4338ca; }
 .up-status--review-submitted { background: #fffbeb; color: #b45309; }
 .up-status--reviewed         { background: #dcfce7; color: #166534; }
 .up-status--approved         { background: #dcfce7; color: #166534; }

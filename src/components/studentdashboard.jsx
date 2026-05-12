@@ -899,8 +899,8 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
               </div>
               <div className="sp-field">
                 <label htmlFor="sp-dept">Department</label>
-                <select 
-                  id="sp-dept" 
+                <select
+                  id="sp-dept"
                   value={editedInfo.department}
                   onChange={e => setEditedInfo(p => ({ ...p, department: e.target.value }))}
                 >
@@ -2752,7 +2752,7 @@ const HistoryContent = () => {
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
-      case 'approved': 
+      case 'approved':
       case 'reviewed':
       case 'completed': return '#10b981';
       case 'pending': return '#f59e0b';
