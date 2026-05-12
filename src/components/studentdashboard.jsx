@@ -2749,11 +2749,15 @@ const HistoryContent = () => {
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
-      case 'approved': return '#10b981';
+      case 'approved': 
+      case 'reviewed':
+      case 'completed': return '#10b981';
       case 'pending': return '#f59e0b';
       case 'rejected': return '#ef4444';
-      case 'completed': return '#10b981';
-      case 'in_review': return '#3b82f6';
+      case 'in_review':
+      case 'under review': return '#3b82f6';
+      case 'review submitted': return '#6366f1';
+      case 'resubmitted': return '#8b5cf6';
       default: return '#6b7280';
     }
   };

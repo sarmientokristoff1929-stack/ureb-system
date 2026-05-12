@@ -2122,7 +2122,12 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
     // Try to update proposal status
     try {
       await proposals.updateOne(
-        { _id: new ObjectId(proposalId) },
+        { 
+          $or: [
+            { _id: ObjectId.isValid(proposalId) ? new ObjectId(proposalId) : null },
+            { protocolCode: protocolCode || proposalId }
+          ].filter(q => q._id !== null || q.protocolCode !== undefined)
+        },
         { $set: { status: proposalStatus, updatedAt: new Date() } }
       );
     } catch (e) {
@@ -3201,7 +3206,9 @@ app.get('/api/stats', async (req, res) => {
     const users = db.collection(collections.users);
 
     const proposalCount = await proposals.countDocuments();
-    const pendingReviewCount = await reviews.countDocuments({ status: 'pending' });
+    // Count both Pending and Under Review as "Pending Reviews" for the dashboard
+    const assignments = db.collection(collections.assignments);
+    const pendingReviewCount = await assignments.countDocuments({ status: { $in: ['Pending', 'Under Review'] } });
     const approvedCount = await proposals.countDocuments({ status: 'approved' });
     const activeReviewersCount = await users.countDocuments({ role: 'reviewer' });
 

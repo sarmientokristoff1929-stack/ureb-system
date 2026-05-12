@@ -2095,45 +2095,30 @@ const DashboardContent = () => {
 
 
                     <div key={activity.id} className="activity-item">
-
-
-
                       <div className="activity-icon">
-
-
-
                         {activity.icon === 'FilePlus' ? <FilePlusIcon /> : <DashboardIcon />}
-
-
-
                       </div>
-
-
-
                       <div className="activity-content">
-
-
-
-                        <h4>{activity.title}</h4>
-
-
-
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
+                          <h4 style={{ margin: 0 }}>{activity.title}</h4>
+                          {activity.status && (
+                            <span className="activity-status-badge" style={{
+                              fontSize: '10px',
+                              padding: '2px 8px',
+                              borderRadius: '10px',
+                              background: (statusColors[activity.status.toLowerCase()]?.bg || '#f1f5f9'),
+                              color: (statusColors[activity.status.toLowerCase()]?.color || '#475569'),
+                              fontWeight: '600',
+                              textTransform: 'uppercase'
+                            }}>
+                              {activity.status}
+                            </span>
+                          )}
+                        </div>
                         <p>{activity.description}</p>
-
-
-
                         <span className="activity-time">
-
-
-
                           {new Date(activity.timestamp).toLocaleDateString()} • {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-
-
-
                         </span>
-
-
-
                       </div>
 
                       <button
