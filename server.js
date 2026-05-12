@@ -2132,9 +2132,14 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
     // Update assignment status
     try {
       const assignments = db.collection(collections.assignments);
-      const query = protocolCode 
-        ? { $or: [{ proposalId: new ObjectId(proposalId) }, { protocolCode: protocolCode }], reviewerEmail: reviewerEmail }
-        : { proposalId: new ObjectId(proposalId), reviewerEmail: reviewerEmail };
+      const query = {
+        $or: [
+          { proposalId: proposalId },
+          { proposalId: new ObjectId(proposalId) },
+          { protocolCode: protocolCode || proposalId }
+        ],
+        reviewerEmail: reviewerEmail
+      };
 
       await assignments.updateOne(
         query,
@@ -2460,8 +2465,9 @@ app.put('/api/assignments/status', async (req, res) => {
     const result = await assignments.updateOne(
       {
         $or: [
-          { proposalId: new ObjectId(proposalId) },
-          { protocolCode: proposalId } // Handle if protocolCode was passed as ID
+          { proposalId: proposalId }, // Try direct match
+          { proposalId: new ObjectId(proposalId) }, // Try ObjectId match
+          { protocolCode: proposalId } // Try protocolCode match
         ],
         reviewerEmail: reviewerEmail
       },

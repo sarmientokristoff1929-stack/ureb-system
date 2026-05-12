@@ -2366,8 +2366,9 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                           setReadIds(newReadIds);
                           if (setAssignedCount) setAssignedCount(prev => Math.max(0, prev - 1));
 
-                          // Trigger: Auto-update status to 'Under Review' when files are first viewed
-                          if (assignment.status === 'Pending' || (assignment.status || '').toLowerCase() === 'pending') {
+                          // Trigger: Auto-update status to 'Under Review' ONLY for student proposals when files are first viewed
+                          // Admin assignments (Protocol Code) should only trigger on submission
+                          if (!assignment.protocolCode && (assignment.status === 'Pending' || (assignment.status || '').toLowerCase() === 'pending')) {
                             try {
                               fetch(`${import.meta.env.VITE_API_URL}/api/assignments/status`, {
                                 method: 'PUT',
