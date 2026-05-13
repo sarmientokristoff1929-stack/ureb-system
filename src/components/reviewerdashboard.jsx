@@ -697,6 +697,8 @@ const ReviewerDashboard = ({ onLogout }) => {
       {/* Success Modal */}
       <SuccessModal isOpen={showSuccessModal} onClose={() => { setShowSuccessModal(false); setActiveTab('submitted-reviews'); }} />
 
+
+
     </div>
 
   );
@@ -2132,6 +2134,7 @@ const ReviewModal = ({ isOpen, onClose, proposal }) => {
 const AssignedProposalsContent = ({ setAssignedCount }) => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [restrictedModalOpen, setRestrictedModalOpen] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -2294,8 +2297,23 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                   </span>
                   <button
                     title="Delete assignment"
-                    onClick={() => setConfirmDeleteId(String(assignment._id))}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '0.25rem', display: 'flex', alignItems: 'center' }}
+                    onClick={() => {
+                      const s = (assignment.status || '').toLowerCase();
+                      if (s === 'under review' || s === 'submitted to admin' || s === 'review submitted') {
+                        setRestrictedModalOpen(true);
+                      } else {
+                        setConfirmDeleteId(String(assignment._id));
+                      }
+                    }}
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      cursor: 'pointer', 
+                      color: '#ef4444', 
+                      padding: '0.25rem', 
+                      display: 'flex', 
+                      alignItems: 'center'
+                    }}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4h6v2" />
@@ -2421,6 +2439,31 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
           onClose={() => setViewingFile(null)}
           onDownload={() => handleDownload(viewingFile)}
         />
+      )}
+
+      {/* Restricted Action Modal */}
+      {restrictedModalOpen && (
+        <div className="mini-modal-overlay" onClick={() => setRestrictedModalOpen(false)}>
+          <div className="mini-modal" onClick={e => e.stopPropagation()}>
+            <div className="mini-modal-icon" style={{ backgroundColor: '#fff7ed', color: '#ea580c' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <h4 className="mini-modal-title">Action Restricted</h4>
+            <p className="mini-modal-text">You can't delete this Proposal because it's under review.</p>
+            <div className="mini-modal-actions">
+              <button 
+                className="mini-modal-btn" 
+                style={{ backgroundColor: '#ea580c', color: '#fff', width: '100%' }} 
+                onClick={() => setRestrictedModalOpen(false)}
+              >
+                I Understand
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -3727,7 +3770,33 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
             className="form-input"
             style={{ width: '100%', maxWidth: '100%', padding: '0.75rem', fontSize: '0.95rem', boxSizing: 'border-box', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: '#fff', display: 'block' }}
             value={secondaryFileData.protocolCode}
-            onChange={(e) => setSecondaryFileData(prev => ({ ...prev, protocolCode: e.target.value }))}
+            onChange={(e) => {
+              const code = e.target.value;
+              setSecondaryFileData(prev => ({ ...prev, protocolCode: code }));
+              
+              // Cleanly trigger 'Under Review' status when a protocol code is selected for secondary submission
+              if (code) {
+                const selected = proposals.find(p => p.protocolCode === code);
+                const savedUser = localStorage.getItem('ureb_user');
+                const user = savedUser ? JSON.parse(savedUser) : null;
+                
+                if (user?.email && selected) {
+                  try {
+                    fetch(`${import.meta.env.VITE_API_URL}/api/assignments/status`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        proposalId: selected._id,
+                        reviewerEmail: user.email,
+                        status: 'Under Review'
+                      })
+                    });
+                  } catch (err) {
+                    console.error('Failed to update status to Under Review:', err);
+                  }
+                }
+              }
+            }}
 
             required
             disabled={loading}

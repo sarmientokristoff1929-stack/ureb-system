@@ -1372,10 +1372,10 @@ app.get('/api/student/profile/picture/:filename', async (req, res) => {
   try {
     const filename = req.params.filename;
     const db = getDatabase();
-    
+
     // Attempt to find in GridFS first (Persistent)
     const files = await gfsBucket.find({ filename }).toArray();
-    
+
     if (!files || files.length === 0) {
       console.log(`[GRIDFS] Student image NOT found: ${filename}, checking local fallback...`);
       // Fallback: check local uploads directory for legacy file-system images
@@ -1389,7 +1389,7 @@ app.get('/api/student/profile/picture/:filename', async (req, res) => {
     console.log(`[GRIDFS] Serving student image: ${filename}`);
     res.setHeader('Content-Type', files[0].contentType || 'image/jpeg');
     // Ensure browser re-validates to avoid "disappearing" on cache expiration
-    res.setHeader('Cache-Control', 'public, no-cache, must-revalidate'); 
+    res.setHeader('Cache-Control', 'public, no-cache, must-revalidate');
     gfsBucket.openDownloadStreamByName(filename).pipe(res);
   } catch (error) {
     console.error('Error serving profile picture:', error);
@@ -1467,7 +1467,7 @@ app.get('/api/reviewer/profile/picture/:filename', async (req, res) => {
 
     // Attempt to find in GridFS first (Persistent)
     const files = await gfsBucket.find({ filename }).toArray();
-    
+
     if (!files || files.length === 0) {
       console.log(`[GRIDFS] Reviewer image NOT found: ${filename}, checking local fallback...`);
       // Fallback: check local uploads directory for legacy file-system images
@@ -1588,7 +1588,7 @@ app.get('/api/admin/profile/picture/:filename', async (req, res) => {
 
     // Attempt to find in GridFS first (Persistent)
     const files = await gfsBucket.find({ filename }).toArray();
-    
+
     if (!files || files.length === 0) {
       console.log(`[GRIDFS] Admin image NOT found: ${filename}, checking local fallback...`);
       // Fallback: check local uploads directory for legacy file-system images
@@ -2122,7 +2122,7 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
     // Try to update proposal status
     try {
       await proposals.updateOne(
-        { 
+        {
           $or: [
             { _id: ObjectId.isValid(proposalId) ? new ObjectId(proposalId) : null },
             { protocolCode: protocolCode || proposalId }

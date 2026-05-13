@@ -1142,6 +1142,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
   const [loading, setLoading] = useState(true);
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [restrictedModalOpen, setRestrictedModalOpen] = useState(false);
   const [dueReminders, setDueReminders] = useState([]);
 
   useEffect(() => {
@@ -1387,7 +1388,15 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
                           </span>
                           <button
                             className="up-delete-btn"
-                            onClick={() => { setDeleteTargetId(proposal._id); setDeleteModalOpen(true); }}
+                            onClick={() => { 
+                              const s = (proposal.status || 'Pending').toLowerCase();
+                              if (s === 'under review' || s === 'submitted to admin' || s === 'review submitted') {
+                                setRestrictedModalOpen(true);
+                              } else {
+                                setDeleteTargetId(proposal._id); 
+                                setDeleteModalOpen(true); 
+                              }
+                            }}
                             title="Delete proposal"
                           >
                             <TrashIcon />
@@ -1442,6 +1451,31 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
             <div className="mini-modal-actions">
               <button className="mini-modal-btn mini-modal-btn--ghost" onClick={() => { setDeleteModalOpen(false); setDeleteTargetId(null); }}>Cancel</button>
               <button className="mini-modal-btn mini-modal-btn--danger" onClick={confirmDeleteProposal}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restricted Action Modal */}
+      {restrictedModalOpen && (
+        <div className="mini-modal-overlay" onClick={() => setRestrictedModalOpen(false)}>
+          <div className="mini-modal" onClick={e => e.stopPropagation()}>
+            <div className="mini-modal-icon" style={{ backgroundColor: '#fff7ed', color: '#ea580c' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <h4 className="mini-modal-title">Action Restricted</h4>
+            <p className="mini-modal-text">You can't delete this Proposal because it's under review.</p>
+            <div className="mini-modal-actions">
+              <button 
+                className="mini-modal-btn" 
+                style={{ backgroundColor: '#ea580c', color: '#fff', width: '100%' }} 
+                onClick={() => setRestrictedModalOpen(false)}
+              >
+                I Understand
+              </button>
             </div>
           </div>
         </div>
