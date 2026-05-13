@@ -3169,6 +3169,28 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
             onChange={(e) => {
               const selected = proposals.find(p => p._id === e.target.value);
               setSelectedProposal(selected || null);
+              
+              // Cleanly trigger 'Under Review' status when a proposal is selected for review
+              if (selected && selected._id) {
+                const savedUser = localStorage.getItem('ureb_user');
+                const user = savedUser ? JSON.parse(savedUser) : null;
+                
+                if (user?.email) {
+                  try {
+                    fetch(`${import.meta.env.VITE_API_URL}/api/assignments/status`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        proposalId: selected._id,
+                        reviewerEmail: user.email,
+                        status: 'Under Review'
+                      })
+                    });
+                  } catch (err) {
+                    console.error('Failed to update status to Under Review:', err);
+                  }
+                }
+              }
             }}
             required
           >
