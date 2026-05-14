@@ -1731,7 +1731,7 @@ const DashboardContent = () => {
 
 
 
-            description: `${proposal.protocolCode ? 'Protocol ' + proposal.protocolCode : 'Proposal'}: "${proposal.researchTitle || proposal.title || 'Untitled'}"`,
+            description: `${proposal.protocolCode ? 'Protocol ' + proposal.protocolCode : 'Proposal'}: "${proposal.researchTitle || proposal.title || 'Untitled'}"${(proposal.proponent || proposal.studentName) ? ' — by ' + (proposal.proponent || proposal.studentName) : ''}`,
 
 
 
@@ -1998,7 +1998,7 @@ const DashboardContent = () => {
 
 
 
-            <p>Active Reviewers</p>
+            <p>Reviewers Created by Admin</p>
 
 
 

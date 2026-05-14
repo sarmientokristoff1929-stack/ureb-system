@@ -1911,7 +1911,7 @@ app.post('/api/student/submit-files', upload.fields([
 
     // Create notification for admin about student submission
     const notifications = db.collection(collections.notifications);
-    const adminNotification = {
+    await notifications.insertOne({
       type: 'student_submission',
       title: 'New Student Submission',
       message: `A new research proposal "${proposalTitle || 'Untitled'}" has been submitted by ${studentName || studentEmail} for review by ${preliminaryReviewerName || preliminaryReviewer}.`,
@@ -1921,8 +1921,20 @@ app.post('/api/student/submit-files', upload.fields([
       recipientEmail: 'admin',
       read: false,
       createdAt: new Date()
-    };
-    await notifications.insertOne(adminNotification);
+    });
+
+    // Create notification for the preliminary reviewer
+    if (preliminaryReviewer) {
+      await notifications.insertOne({
+        type: 'assignment',
+        title: 'New Research Assigned',
+        message: `You have been assigned a new research proposal "${proposalTitle || 'Untitled'}" for preliminary review by ${studentName || studentEmail}.`,
+        proposalId: result.insertedId.toString(),
+        recipientEmail: preliminaryReviewer,
+        read: false,
+        createdAt: new Date()
+      });
+    }
 
     // Create an assignment record for the preliminary reviewer so it appears
     // in their "Assigned Proposals" tab — same structure as admin assignments
@@ -2209,6 +2221,7 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
       reviewId: result.insertedId.toString(),
       proposalId,
       reviewerEmail,
+      recipientEmail: 'admin',
       decision: decision || overallRating,
       read: false,
       createdAt: new Date()
@@ -3209,6 +3222,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       type: 'admin_assignment',
       protocolCode: protocolCode,
       proposalId: result.insertedId,
+      recipientEmail: 'admin',
       assignedReviewers: assignedReviewerNames,
       read: false,
       createdAt: new Date()
@@ -3239,7 +3253,8 @@ app.get('/api/stats', async (req, res) => {
     const proposalCount = await proposals.countDocuments();
     const pendingReviewCount = await assignments.countDocuments({ status: { $in: ['Pending', 'Under Review'] } });
     const approvedCount = await proposals.countDocuments({ status: 'approved' });
-    const activeReviewersCount = await users.countDocuments({ role: 'reviewer' });
+    const reviewers = db.collection(collections.reviewers);
+    const activeReviewersCount = await reviewers.countDocuments();
 
     // Student-submitted proposals: submitted via /api/student/submit-files (have a non-empty studentEmail)
     const studentProposalCount = await proposals.countDocuments({
