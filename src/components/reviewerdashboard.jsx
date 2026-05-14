@@ -2305,13 +2305,13 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                         setConfirmDeleteId(String(assignment._id));
                       }
                     }}
-                    style={{ 
-                      background: 'none', 
-                      border: 'none', 
-                      cursor: 'pointer', 
-                      color: '#ef4444', 
-                      padding: '0.25rem', 
-                      display: 'flex', 
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#ef4444',
+                      padding: '0.25rem',
+                      display: 'flex',
                       alignItems: 'center'
                     }}
                   >
@@ -2454,9 +2454,9 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
             <h4 className="mini-modal-title">Action Restricted</h4>
             <p className="mini-modal-text">You can't delete this Proposal because it's under review.</p>
             <div className="mini-modal-actions">
-              <button 
-                className="mini-modal-btn" 
-                style={{ backgroundColor: '#ea580c', color: '#fff', width: '100%' }} 
+              <button
+                className="mini-modal-btn"
+                style={{ backgroundColor: '#ea580c', color: '#fff', width: '100%' }}
                 onClick={() => setRestrictedModalOpen(false)}
               >
                 I Understand
@@ -3212,12 +3212,12 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
             onChange={(e) => {
               const selected = proposals.find(p => p._id === e.target.value);
               setSelectedProposal(selected || null);
-              
+
               // Cleanly trigger 'Under Review' status when a proposal is selected for review
               if (selected && selected._id) {
                 const savedUser = localStorage.getItem('ureb_user');
                 const user = savedUser ? JSON.parse(savedUser) : null;
-                
+
                 if (user?.email) {
                   try {
                     fetch(`${import.meta.env.VITE_API_URL}/api/assignments/status`, {
@@ -3773,13 +3773,13 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
             onChange={(e) => {
               const code = e.target.value;
               setSecondaryFileData(prev => ({ ...prev, protocolCode: code }));
-              
+
               // Cleanly trigger 'Under Review' status when a protocol code is selected for secondary submission
               if (code) {
                 const selected = proposals.find(p => p.protocolCode === code);
                 const savedUser = localStorage.getItem('ureb_user');
                 const user = savedUser ? JSON.parse(savedUser) : null;
-                
+
                 if (user?.email && selected) {
                   try {
                     fetch(`${import.meta.env.VITE_API_URL}/api/assignments/status`, {

@@ -1948,6 +1948,7 @@ app.post('/api/student/submit-files', upload.fields([
         reviewerName: preliminaryReviewerName || reviewer?.name || preliminaryReviewer,
         protocolCode: null,
         researchTitle: proposalTitle || 'Untitled Proposal',
+        studentName: studentName || studentEmail || 'Student', // Added studentName to assignment
         assignedFiles: files,
         reviewPeriod: {
           startDate: new Date(),
@@ -3077,6 +3078,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
   try {
     let {
       protocolCode,
+      proponent, // Added proponent
       secondaryReviewer1,
       secondaryReviewer2,
       startDate,
@@ -3108,7 +3110,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
     }
 
     // Validation
-    if (!protocolCode || !secondaryReviewer1 || !secondaryReviewer2 || !startDate || !endDate) {
+    if (!protocolCode || !proponent || !secondaryReviewer1 || !secondaryReviewer2 || !startDate || !endDate) {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
@@ -3129,7 +3131,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
     const newProposal = {
       protocolCode,
       researchTitle: `Assigned Files - ${protocolCode}`,
-      proponent: secondaryReviewer1, // Use first secondary reviewer as primary
+      proponent: proponent || 'Unknown', // Store the student's name provided by admin
       dateOfApplication: new Date(),
       status: 'Under Review',
       reviewers: {
@@ -3181,6 +3183,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         reviewerName: resolvedName,
         protocolCode: protocolCode,
         researchTitle: `Assigned Files - ${protocolCode}`,
+        proponent: proponent || 'Unknown', // Store student's name in assignment record
         assignedFiles: uploadedFiles,
         reviewPeriod: {
           startDate: new Date(startDate),
