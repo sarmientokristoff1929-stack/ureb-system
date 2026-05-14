@@ -1902,11 +1902,27 @@ app.post('/api/student/submit-files', upload.fields([
       preliminaryReviewerName: preliminaryReviewerName || '',
       files,
       status: 'Under Review',
+      submissionDate: new Date(),
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
     const result = await proposals.insertOne(newProposal);
+
+    // Create notification for admin about student submission
+    const notifications = db.collection(collections.notifications);
+    const adminNotification = {
+      type: 'student_submission',
+      title: 'New Student Submission',
+      message: `A new research proposal "${proposalTitle || 'Untitled'}" has been submitted by ${studentName || studentEmail} for review by ${preliminaryReviewerName || preliminaryReviewer}.`,
+      proposalId: result.insertedId.toString(),
+      studentEmail,
+      reviewerEmail: preliminaryReviewer,
+      recipientEmail: 'admin',
+      read: false,
+      createdAt: new Date()
+    };
+    await notifications.insertOne(adminNotification);
 
     // Create an assignment record for the preliminary reviewer so it appears
     // in their "Assigned Proposals" tab — same structure as admin assignments
@@ -2039,6 +2055,19 @@ app.get('/api/reviews', async (req, res) => {
 });
 
 // Get a specific review by ID
+// Count all submitted reviews (MUST be before /:id to avoid route conflict)
+app.get('/api/reviews/count', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const reviews = db.collection(collections.reviews);
+    const count = await reviews.countDocuments();
+    res.json({ count });
+  } catch (error) {
+    console.error('Error counting reviews:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 app.get('/api/reviews/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -3205,19 +3234,30 @@ app.get('/api/stats', async (req, res) => {
     const proposals = db.collection(collections.proposals);
     const reviews = db.collection(collections.reviews);
     const users = db.collection(collections.users);
+    const assignments = db.collection(collections.assignments);
 
     const proposalCount = await proposals.countDocuments();
-    // Count both Pending and Under Review as "Pending Reviews" for the dashboard
-    const assignments = db.collection(collections.assignments);
     const pendingReviewCount = await assignments.countDocuments({ status: { $in: ['Pending', 'Under Review'] } });
     const approvedCount = await proposals.countDocuments({ status: 'approved' });
     const activeReviewersCount = await users.countDocuments({ role: 'reviewer' });
+
+    // Student-submitted proposals: submitted via /api/student/submit-files (have a non-empty studentEmail)
+    const studentProposalCount = await proposals.countDocuments({
+      studentEmail: { $exists: true, $nin: [null, ''] }
+    });
+
+    // Reviewer-submitted reviews: all completed reviews submitted via /api/reviews
+    const reviewerSubmissionCount = await reviews.countDocuments();
+
+    console.log(`[stats] proposals=${proposalCount}, student=${studentProposalCount}, reviewerSubs=${reviewerSubmissionCount}`);
 
     res.json({
       totalProposals: proposalCount,
       pendingReviews: pendingReviewCount,
       approved: approvedCount,
-      activeReviewers: activeReviewersCount
+      activeReviewers: activeReviewersCount,
+      studentProposals: studentProposalCount,
+      reviewerProposals: reviewerSubmissionCount
     });
   } catch (error) {
     console.error('Error fetching stats:', error);

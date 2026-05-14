@@ -1577,18 +1577,11 @@ const DashboardContent = () => {
 
 
     totalProposals: 0,
-
-
-
     pendingReviews: 0,
-
-
-
     approved: 0,
-
-
-
-    activeReviewers: 0
+    activeReviewers: 0,
+    studentProposals: 0,
+    reviewerProposals: 0
 
 
 
@@ -1625,50 +1618,48 @@ const DashboardContent = () => {
 
 
     const fetchStats = async () => {
-
-
-
       try {
+        const { getDashboardStats, getAllProposals, API_BASE_URL } = await import('../services/api.js');
 
+        // Fetch base stats and all proposals in parallel
+        const [statsData, allProposals] = await Promise.all([
+          getDashboardStats(),
+          getAllProposals()
+        ]);
 
+        // Count student-submitted proposals client-side (most reliable)
+        const studentProposalCount = allProposals.filter(
+          p => p.studentEmail && p.studentEmail.trim() !== ''
+        ).length;
 
-        const { getDashboardStats } = await import('../services/api.js');
+        // Count reviewer submissions from /api/reviews count
+        let reviewerSubmissionCount = 0;
+        try {
+          const reviewsRes = await fetch(`${API_BASE_URL}/reviews/count`);
+          if (reviewsRes.ok) {
+            const reviewsData = await reviewsRes.json();
+            reviewerSubmissionCount = reviewsData.count || 0;
+          }
+        } catch (_) {
+          // fallback: use value from stats endpoint
+          reviewerSubmissionCount = statsData.reviewerProposals || 0;
+        }
 
-
-
-        const statsData = await getDashboardStats();
-
-
-
-        setStats(statsData);
-
-
+        setStats({
+          ...statsData,
+          studentProposals: studentProposalCount,
+          reviewerProposals: reviewerSubmissionCount
+        });
 
       } catch (error) {
-
-
-
         console.error('Error fetching stats:', error);
-
-
-
       }
-
-
-
     };
-
-
-
-
-
-
 
     fetchStats();
 
-
-
   }, []);
+
 
 
 
@@ -1716,7 +1707,11 @@ const DashboardContent = () => {
 
 
 
-          .sort((a, b) => new Date(b.submissionDate) - new Date(a.submissionDate))
+          .sort((a, b) => {
+            const dateA = new Date(a.submissionDate || a.createdAt || 0);
+            const dateB = new Date(b.submissionDate || b.createdAt || 0);
+            return dateB - dateA;
+          })
 
 
 
@@ -1736,11 +1731,11 @@ const DashboardContent = () => {
 
 
 
-            description: `${proposal.protocolCode ? 'Protocol ' + proposal.protocolCode : 'Proposal'}: "${proposal.title || 'Untitled'}"`,
+            description: `${proposal.protocolCode ? 'Protocol ' + proposal.protocolCode : 'Proposal'}: "${proposal.researchTitle || proposal.title || 'Untitled'}"`,
 
 
 
-            timestamp: proposal.submissionDate,
+            timestamp: proposal.submissionDate || proposal.createdAt || new Date(),
 
 
 
@@ -2013,7 +2008,38 @@ const DashboardContent = () => {
 
         </div>
 
+        {/* Student Proposals Submitted */}
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <div className="stat-info">
+            <h3>{stats.studentProposals}</h3>
+            <p>Student Proposals</p>
+          </div>
+        </div>
 
+        {/* Reviewer Proposals Submitted */}
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #f59e0b, #ef4444)' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+          </div>
+          <div className="stat-info">
+            <h3>{stats.reviewerProposals}</h3>
+            <p>Reviewer Submissions</p>
+          </div>
+        </div>
 
       </div>
 
@@ -2117,7 +2143,13 @@ const DashboardContent = () => {
                         </div>
                         <p>{activity.description}</p>
                         <span className="activity-time">
-                          {new Date(activity.timestamp).toLocaleDateString()} • {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {(() => {
+                            const d = activity.timestamp ? new Date(activity.timestamp) : null;
+                            const isValid = d && !isNaN(d.getTime());
+                            return isValid
+                              ? `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                              : 'Just now';
+                          })()}
                         </span>
                       </div>
 

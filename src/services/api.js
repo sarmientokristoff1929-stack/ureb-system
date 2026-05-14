@@ -38,7 +38,9 @@ export const getDashboardStats = async () => {
       totalProposals: 0,
       pendingReviews: 0,
       approved: 0,
-      activeReviewers: 0
+      activeReviewers: 0,
+      studentProposals: 0,
+      reviewerProposals: 0
     };
   }
 };
