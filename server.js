@@ -2232,11 +2232,23 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
 
     // Create message for admin about submitted review files
     const messages = db.collection(collections.messages);
+    // Professional phrases for review submission status
+    const statusPhrases = [
+      "The associated documents have been successfully uploaded for your administrative evaluation.",
+      "All necessary files have been formally submitted and are now available for your final assessment.",
+      "The comprehensive review package, including all required documentation, is now ready for administrative processing.",
+      "Supporting documents have been securely uploaded to the system for official records and administrative review.",
+      "The full set of review files has been submitted and is awaiting your final administrative verification."
+    ];
+    const statusMsg = statusPhrases[Math.floor(Math.random() * statusPhrases.length)];
+
     const messageRecord = {
       senderEmail: reviewerEmail,
       recipientEmail: process.env.GMAIL_EMAIL || 'admin',
-      subject: `${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle}`,
-      message: `${reviewerName || reviewerEmail} submitted a review for "${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle}" with decision: ${decision || overallRating}.${(comment || comments) ? '\n\nReviewer\'s Comments: ' + (comment || comments) : ''} Files have been uploaded for admin review.`,
+      subject: `Review Submitted: ${protocolCode ? 'Protocol ' + protocolCode : proposalTitle}`,
+      message: `${reviewerName || reviewerEmail} submitted a review for "${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle}" with decision: ${decision || overallRating}.\n\n` +
+               (comment || comments ? `Reviewer's Comments: ${comment || comments}\n\n` : '') +
+               `${statusMsg}`,
       senderName: reviewerName || reviewerEmail,
       type: 'reviewer_to_admin',
       reviewId: result.insertedId.toString(),
@@ -3111,6 +3123,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
 
     // Validation
     if (!protocolCode || !proponent || !secondaryReviewer1 || !secondaryReviewer2 || !startDate || !endDate) {
+      console.log('[DEBUG] Missing fields:', { protocolCode, proponent, secondaryReviewer1, secondaryReviewer2, startDate, endDate });
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
@@ -3127,7 +3140,6 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       return res.status(400).json({ success: false, error: `Protocol Code "${protocolCode}" already exists. Please use a unique Protocol Code.` });
     }
 
-    // Create a new proposal document for the assigned files
     const newProposal = {
       protocolCode,
       researchTitle: `Assigned Files - ${protocolCode}`,
