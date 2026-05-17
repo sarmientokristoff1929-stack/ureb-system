@@ -829,9 +829,15 @@ const AdminDashboard = ({ onLogout }) => {
             const adminUser = Array.isArray(users)
               ? users.find(u => (u.email || '').toLowerCase() === parsed.email.toLowerCase())
               : null;
-            if (adminUser?.profilePictureGridFS) {
-              const picUrl = `/api/admin/profile/picture/${adminUser.profilePictureGridFS}?t=${Date.now()}`;
-              const updated = { ...parsed, profilePicture: picUrl };
+            if (adminUser) {
+              const picUrl = adminUser.profilePictureGridFS
+                ? `/api/admin/profile/picture/${adminUser.profilePictureGridFS}?t=${Date.now()}`
+                : parsed.profilePicture;
+              const updated = { 
+                ...parsed, 
+                profilePicture: picUrl,
+                originalRole: adminUser.role || parsed.originalRole || 'admin'
+              };
               setUserInfo(updated);
               localStorage.setItem('ureb_user', JSON.stringify(updated));
             }
@@ -4897,6 +4903,9 @@ const AdminProfileContent = ({
   setShowPasswords
 }) => {
   const initials = (userInfo?.name || 'A').charAt(0).toUpperCase();
+  const rawRole = (userInfo?.originalRole || userInfo?.role || 'admin').toLowerCase();
+  const isSuperAdmin = rawRole === 'superadmin' || rawRole === 'super-admin' || rawRole === 'root' || rawRole === 'administrator';
+  const roleText = isSuperAdmin ? 'Super Admin' : 'Admin Only';
 
   return (
     <div className="ap-wrapper">
@@ -4966,7 +4975,12 @@ const AdminProfileContent = ({
         </div>
 
         <div className="ap-hero-info">
-          <h2 className="ap-hero-name">{userInfo?.name || 'Admin'}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
+            <h2 className="ap-hero-name" style={{ margin: 0 }}>{userInfo?.name || 'Admin'}</h2>
+            <span className={`ap-badge-role ${isSuperAdmin ? 'ap-badge-super' : 'ap-badge-normal'}`}>
+              {roleText}
+            </span>
+          </div>
           <p className="ap-hero-role">{userInfo?.role || 'Administrator'}</p>
           <p className="ap-hero-email">{userInfo?.email || ''}</p>
         </div>
@@ -4999,6 +5013,7 @@ const AdminProfileContent = ({
             { label: 'Full Name', value: userInfo?.name },
             { label: 'Email Address', value: userInfo?.email },
             { label: 'Account Role', value: userInfo?.role || 'Administrator' },
+            { label: 'Access Level', value: roleText }
           ].map(({ label, value }) => (
             <div className="ap-info-item" key={label}>
               <span className="ap-info-label">{label}</span>

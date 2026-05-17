@@ -439,6 +439,7 @@ app.post('/api/auth/login', async (req, res) => {
       email: user.email,
       name: user.name || `${user.firstName} ${user.lastName}`,
       role: role,
+      originalRole: user.role || role,
       userType: userType,
       lastLogin: new Date()
     };
@@ -2246,8 +2247,8 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
       recipientEmail: process.env.GMAIL_EMAIL || 'admin',
       subject: `Review Submitted: ${protocolCode ? 'Protocol ' + protocolCode : proposalTitle}`,
       message: `${reviewerName || reviewerEmail} submitted a review for "${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle}" with decision: ${decision || overallRating}.\n\n` +
-               (comment || comments ? `Reviewer's Comments: ${comment || comments}\n\n` : '') +
-               `${statusMsg}`,
+        (comment || comments ? `Reviewer's Comments: ${comment || comments}\n\n` : '') +
+        `${statusMsg}`,
       senderName: reviewerName || reviewerEmail,
       type: 'reviewer_to_admin',
       reviewId: result.insertedId.toString(),
