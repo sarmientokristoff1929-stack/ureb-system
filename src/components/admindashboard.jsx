@@ -2953,41 +2953,29 @@ const MarkCompletedReviewContent = () => {
         ]);
 
         const allReviews = reviewsRes.ok ? await reviewsRes.json() : [];
-        const allProposals = proposalsRes.ok ? await proposalsRes.json() : [];
         const allAccounts = reviewersRes.ok ? await reviewersRes.json() : [];
 
-        // Build reviewer-type map from proposals (reviewer1 → preliminary, reviewer2/3 → secondary)
-        const reviewerTypeMap = {};
-        if (Array.isArray(allProposals)) {
-          allProposals.forEach(proposal => {
-            const slots = proposal.reviewers || {};
-            if (slots.reviewer1) {
-              const key = slots.reviewer1.trim().toLowerCase();
-              if (!reviewerTypeMap[key]) reviewerTypeMap[key] = 'preliminary';
-            }
-            ['reviewer2', 'reviewer3'].forEach(slot => {
-              if (slots[slot]) {
-                const key = slots[slot].trim().toLowerCase();
-                if (!reviewerTypeMap[key]) reviewerTypeMap[key] = 'secondary';
-              }
-            });
-          });
-        }
-
-        // Group reviews by reviewer email → unique reviewers with review count
-        const byEmail = {};
+        // Group reviews by reviewer email AND type (preliminary vs secondary based on submission type)
+        const byKey = {};
         if (Array.isArray(allReviews)) {
           allReviews.forEach(review => {
             const email = (review.reviewerEmail || '').trim().toLowerCase();
             if (!email) return;
-            if (!byEmail[email]) {
-              byEmail[email] = {
+
+            // If the decision is 'secondary_file', it is classified as a secondary reviewer submission
+            const isSecondary = review.decision === 'secondary_file';
+            const reviewerType = isSecondary ? 'secondary' : 'preliminary';
+
+            const key = `${email}_${reviewerType}`;
+            if (!byKey[key]) {
+              byKey[key] = {
                 email,
                 name: review.reviewerName || review.reviewer || email,
+                reviewerType,
                 reviewCount: 0,
               };
             }
-            byEmail[email].reviewCount++;
+            byKey[key].reviewCount++;
           });
         }
 
@@ -3000,24 +2988,18 @@ const MarkCompletedReviewContent = () => {
           });
         }
 
-        // Build final rows: only reviewers who have actual reviews
+        // Build final rows: only reviewers who have actual reviews/files submitted
         const EXCLUDED_FROM_MCR = ['kristoff h. sarmiento'];
-        const rows = Object.values(byEmail).filter(r =>
+        const rows = Object.values(byKey).filter(r =>
           !EXCLUDED_FROM_MCR.includes(r.name.trim().toLowerCase())
         ).map(r => {
           const acc = accountMap[r.email] || {};
-          const nameKey = r.name.trim().toLowerCase();
-          const reviewerType =
-            reviewerTypeMap[r.email] ||
-            reviewerTypeMap[nameKey] ||
-            (acc.reviewerType || '').toLowerCase() ||
-            'unknown';
           return {
             _id: acc._id,
             name: r.name,
             email: r.email,
             department: acc.department || '—',
-            reviewerType,
+            reviewerType: r.reviewerType,
             reviewCount: r.reviewCount,
             status: acc.status || 'pending',
           };
