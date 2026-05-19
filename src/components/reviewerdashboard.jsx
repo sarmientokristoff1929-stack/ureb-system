@@ -2218,6 +2218,14 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
       approvedProposal: 'Approved Proposal',
       questionnaire: 'Questionnaire',
       cvOfProponent: 'CV of Proponent',
+      // Student-submitted files
+      proposal: 'Research Proposal',
+      approvalSheet: 'Approval Sheet',
+      applicationForm6: 'Application Form 6 (UREB Form 6)',
+      accomplishedForm8: 'Accomplished Form 8 (UREB Form 8)',
+      accomplishedForm10A: 'Accomplished Form 10-A (UREB Form 10-A)',
+      instrumentTool: 'Research Instrument / Tool',
+      ethicsReviewFee: 'Ethics Review Fee Receipt'
     };
     return labels[key] || key;
   };

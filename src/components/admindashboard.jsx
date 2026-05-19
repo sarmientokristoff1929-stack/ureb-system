@@ -3207,43 +3207,78 @@ const AssignFileContent = () => {
 
   const [loadingReviewers, setLoadingReviewers] = useState(true);
 
+  const [proposals, setProposals] = useState([]);
+
+  const [loadingProposals, setLoadingProposals] = useState(true);
+
+  const [selectedProposalId, setSelectedProposalId] = useState('');
 
 
-  // Fetch reviewers from database on component mount
+
+  // Fetch reviewers and proposals from database on component mount and keep student proposals updated in real-time
 
   useEffect(() => {
 
-    const fetchReviewers = async () => {
+    let isMounted = true;
+    let intervalId;
+
+    const fetchData = async () => {
 
       try {
 
-        const { getAllReviewers } = await import('../services/api.js');
+        const { getAllReviewers, getAllProposals } = await import('../services/api.js');
 
-        const reviewersData = await getAllReviewers();
+        const [reviewersData, proposalsData] = await Promise.all([
+          getAllReviewers(),
+          getAllProposals()
+        ]);
 
-        console.log('All reviewers from database:', reviewersData);
-
-        console.log('Reviewers with reviewerType:', reviewersData.map(r => ({ name: r.name || `${r.firstName} ${r.lastName}`, reviewerType: r.reviewerType })));
-
-        setReviewers(reviewersData);
+        if (isMounted) {
+          console.log('All reviewers from database:', reviewersData);
+          setReviewers(reviewersData);
+          console.log('All student proposals from database:', proposalsData);
+          setProposals(proposalsData);
+        }
 
       } catch (error) {
 
-        console.error('Error fetching reviewers:', error);
+        console.error('Error fetching data:', error);
 
-        setReviewers([]);
+        if (isMounted) {
+          setReviewers([]);
+          setProposals([]);
+        }
 
       } finally {
 
-        setLoadingReviewers(false);
+        if (isMounted) {
+          setLoadingReviewers(false);
+          setLoadingProposals(false);
+        }
 
       }
 
     };
 
+    fetchData();
 
+    // Set up a 5-second interval to fetch the latest student proposals in real-time
+    intervalId = setInterval(async () => {
+      try {
+        const { getAllProposals } = await import('../services/api.js');
+        const proposalsData = await getAllProposals();
+        if (isMounted) {
+          setProposals(proposalsData);
+        }
+      } catch (err) {
+        console.error('Error in real-time proposals fetch:', err);
+      }
+    }, 5000);
 
-    fetchReviewers();
+    return () => {
+      isMounted = false;
+      if (intervalId) clearInterval(intervalId);
+    };
 
   }, []);
 
@@ -3421,7 +3456,11 @@ const AssignFileContent = () => {
 
     const hasFiles = documentTypes.some(docType => formData[docType.key] instanceof File);
 
-    if (!hasFiles) errors.files = 'At least one document must be uploaded';
+    if (!selectedProposalId && !hasFiles) {
+
+      errors.files = 'At least one document must be uploaded';
+
+    }
 
 
 
@@ -3488,6 +3527,8 @@ const AssignFileContent = () => {
       if (result.success) {
 
         setIsSuccessModalOpen(true);
+
+        setSelectedProposalId('');
 
         // Reset form
 
@@ -3599,6 +3640,8 @@ const AssignFileContent = () => {
 
     setFiles([]);
 
+    setSelectedProposalId('');
+
     localStorage.removeItem('assignFileForm');
 
   };
@@ -3617,7 +3660,85 @@ const AssignFileContent = () => {
 
           <div className="form-group">
 
-            <label>Protocol Code </label>
+            <label>Select Student Proposal</label>
+
+            <select
+
+              value={selectedProposalId}
+
+              onChange={(e) => {
+
+                const val = e.target.value;
+
+                setSelectedProposalId(val);
+
+                if (val) {
+
+                  const found = proposals.find(p => p._id === val || String(p._id) === val);
+
+                  if (found) {
+
+                    setFormData(prev => ({
+
+                      ...prev,
+
+                      protocolCode: found.protocolCode || ''
+
+                    }));
+
+                  }
+
+                }
+
+              }}
+
+            >
+
+              <option value="">-- Select a student proposal to autofill --</option>
+
+              {loadingProposals ? (
+
+                <option value="" disabled>Loading proposals...</option>
+
+              ) : proposals.filter(p => p.studentEmail && String(p.studentEmail).trim() !== '').length > 0 ? (
+
+                proposals
+
+                  .filter(p => p.studentEmail && String(p.studentEmail).trim() !== '')
+
+                  .map((proposal, index) => {
+
+                    const displayTitle = proposal.researchTitle || 'Untitled Proposal';
+
+                    const displayCode = proposal.protocolCode || `PROPOSAL-${index + 1}`;
+
+                    const displayAuthor = proposal.proponent || proposal.studentEmail || '';
+
+                    return (
+
+                      <option key={proposal._id || index} value={proposal._id}>
+
+                        {displayCode} - {displayTitle.length > 60 ? displayTitle.substring(0, 60) + '...' : displayTitle} ({displayAuthor})
+
+                      </option>
+
+                    );
+
+                  })
+
+              ) : (
+
+                <option value="" disabled>No student proposals available</option>
+
+              )}
+
+            </select>
+
+          </div>
+
+          <div className="form-group">
+
+            <label>Protocol Code</label>
 
             <input
 
@@ -5748,7 +5869,8 @@ const ManageUsersContent = () => {
 
     if (searchQuery) {
 
-      const query = searchQuery.toLowerCase();
+      const query = searchQuery.toLowerCase().trim();
+      const isGenderSearch = ['male', 'female', 'lgbtq'].includes(query);
 
       filteredData = filteredData.filter(item => {
 
@@ -5762,7 +5884,9 @@ const ManageUsersContent = () => {
 
             (item.department && item.department.toLowerCase().includes(query)) ||
 
-            (item.name && item.name.toLowerCase().includes(query))
+            (item.name && item.name.toLowerCase().includes(query)) ||
+
+            (isGenderSearch && item.gender && item.gender.toLowerCase() === query)
 
           );
 
@@ -5776,7 +5900,9 @@ const ManageUsersContent = () => {
 
             (item.department && item.department.toLowerCase().includes(query)) ||
 
-            (item.name && item.name.toLowerCase().includes(query))
+            (item.name && item.name.toLowerCase().includes(query)) ||
+
+            (isGenderSearch && item.gender && item.gender.toLowerCase() === query)
 
           );
 
@@ -5786,7 +5912,9 @@ const ManageUsersContent = () => {
 
             (item.name && item.name.toLowerCase().includes(query)) ||
 
-            (item.email && item.email.toLowerCase().includes(query))
+            (item.email && item.email.toLowerCase().includes(query)) ||
+
+            (isGenderSearch && item.gender && item.gender.toLowerCase() === query)
 
           );
 

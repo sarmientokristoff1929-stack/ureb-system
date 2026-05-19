@@ -3120,46 +3120,80 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       }
     }
 
-    // Validation
-    if (!protocolCode || !secondaryReviewer1 || !secondaryReviewer2 || !startDate || !endDate) {
-      return res.status(400).json({ success: false, error: 'Missing required fields' });
-    }
-
-    if (Object.keys(uploadedFiles).length === 0) {
-      return res.status(400).json({ success: false, error: 'At least one document must be uploaded' });
-    }
-
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
 
     // Check if protocolCode already exists
     const existingProposal = await proposals.findOne({ protocolCode });
-    if (existingProposal) {
-      return res.status(400).json({ success: false, error: `Protocol Code "${protocolCode}" already exists. Please use a unique Protocol Code.` });
+
+    // Validation
+    if (!protocolCode || !secondaryReviewer1 || !secondaryReviewer2 || !startDate || !endDate) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
-    const newProposal = {
-      protocolCode,
-      researchTitle: `Assigned Files - ${protocolCode}`,
-      proponent: secondaryReviewer1, // Use first secondary reviewer as primary
-      dateOfApplication: new Date(),
-      status: 'Under Review',
-      reviewers: {
-        reviewer1: secondaryReviewer1,
-        reviewer2: secondaryReviewer2,
-        reviewer3: null
-      },
-      reviewPeriod: {
-        startDate: new Date(startDate),
-        endDate: new Date(endDate)
-      },
-      files: uploadedFiles,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+    if (!existingProposal && Object.keys(uploadedFiles).length === 0) {
+      return res.status(400).json({ success: false, error: 'At least one document must be uploaded' });
+    }
 
-    const result = await proposals.insertOne(newProposal);
-    console.log('Files assigned to reviewers:', result.insertedId);
+    let proposalId;
+    let researchTitle = `Assigned Files - ${protocolCode}`;
+    let allAssignedFiles = uploadedFiles;
+
+    if (existingProposal) {
+      proposalId = existingProposal._id;
+      researchTitle = existingProposal.researchTitle || researchTitle;
+      
+      const mergedFiles = {
+        ...(existingProposal.files || {}),
+        ...uploadedFiles
+      };
+      allAssignedFiles = mergedFiles;
+
+      await proposals.updateOne(
+        { _id: proposalId },
+        {
+          $set: {
+            status: 'Under Review',
+            reviewers: {
+              reviewer1: secondaryReviewer1,
+              reviewer2: secondaryReviewer2,
+              reviewer3: null
+            },
+            reviewPeriod: {
+              startDate: new Date(startDate),
+              endDate: new Date(endDate)
+            },
+            files: mergedFiles,
+            updatedAt: new Date()
+          }
+        }
+      );
+      console.log('Existing proposal updated and assigned to reviewers:', proposalId);
+    } else {
+      const newProposal = {
+        protocolCode,
+        researchTitle,
+        proponent: secondaryReviewer1, // Use first secondary reviewer as primary
+        dateOfApplication: new Date(),
+        status: 'Under Review',
+        reviewers: {
+          reviewer1: secondaryReviewer1,
+          reviewer2: secondaryReviewer2,
+          reviewer3: null
+        },
+        reviewPeriod: {
+          startDate: new Date(startDate),
+          endDate: new Date(endDate)
+        },
+        files: uploadedFiles,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const result = await proposals.insertOne(newProposal);
+      proposalId = result.insertedId;
+      console.log('New proposal created and files assigned to reviewers:', proposalId);
+    }
 
     // Create assignments for each reviewer to access these files
     const assignments = db.collection(collections.assignments);
@@ -3187,13 +3221,13 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       assignedReviewerNames.push(resolvedName);
 
       const assignment = {
-        proposalId: result.insertedId,
+        proposalId: proposalId,
         reviewerId: reviewer._id,
         reviewerEmail: reviewer.email,
         reviewerName: resolvedName,
         protocolCode: protocolCode,
-        researchTitle: `Assigned Files - ${protocolCode}`,
-        assignedFiles: uploadedFiles,
+        researchTitle: researchTitle,
+        assignedFiles: allAssignedFiles,
         reviewPeriod: {
           startDate: new Date(startDate),
           endDate: new Date(endDate)
@@ -3212,15 +3246,15 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         recipientEmail: reviewer.email,
         recipientName: reviewer.email,
         title: 'New Files Assigned for Review',
-        message: `You have been assigned ${Object.keys(uploadedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
+        message: `You have been assigned ${Object.keys(allAssignedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
         type: 'assignment',
         protocolCode: protocolCode,
-        proposalId: result.insertedId,
+        proposalId: proposalId,
         reviewPeriod: {
           startDate: new Date(startDate),
           endDate: new Date(endDate)
         },
-        assignedFiles: Object.keys(uploadedFiles),
+        assignedFiles: Object.keys(allAssignedFiles),
         read: false,
         createdAt: new Date()
       });
@@ -3233,7 +3267,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       message: `You have assigned ${Object.keys(uploadedFiles).length} document(s) for protocol ${protocolCode} to ${assignedReviewerNames.join(' and ')}.`,
       type: 'admin_assignment',
       protocolCode: protocolCode,
-      proposalId: result.insertedId,
+      proposalId: proposalId,
       recipientEmail: 'admin',
       assignedReviewers: assignedReviewerNames,
       read: false,
@@ -3244,7 +3278,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
     res.json({
       success: true,
       message: 'Files successfully assigned to reviewers',
-      proposalId: result.insertedId.toString(),
+      proposalId: proposalId.toString(),
       assignedReviewers: reviewerValues.length
     });
   } catch (error) {
