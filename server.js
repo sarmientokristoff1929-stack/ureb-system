@@ -2117,8 +2117,6 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
     const proposals = db.collection(collections.proposals);
     const notifications = db.collection(collections.notifications);
 
-    let protocolCode = (submittedProtocolCode || '').toUpperCase().replace(/\s+/g, '');
-
     // Process uploaded files → GridFS
     const files = {};
     if (req.files && Array.isArray(req.files)) {
@@ -2149,7 +2147,7 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
       overallRating: overallRating || decision || '',
       comments: comments || comment || '',
       recommendations: recommendations || '',
-      protocolCode: protocolCode,
+      protocolCode: (submittedProtocolCode || '').toUpperCase().replace(/\s+/g, ''),
       files,
       status: 'completed',
       createdAt: new Date(),
@@ -2170,7 +2168,7 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
           $or: [
             { _id: ObjectId.isValid(proposalId) ? new ObjectId(proposalId) : null },
             { protocolCode: protocolCode || proposalId }
-          ].filter(q => q && (q._id !== null || q.protocolCode !== undefined))
+          ].filter(q => q._id !== null || q.protocolCode !== undefined)
         },
         { $set: { status: proposalStatus, updatedAt: new Date() } }
       );
@@ -2200,13 +2198,12 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
 
     // Fetch proposal details for notification
     let proposalTitle = 'Unknown Proposal';
+    let protocolCode = submittedProtocolCode || '';
     try {
       const proposal = await proposals.findOne({ _id: new ObjectId(proposalId) });
       if (proposal) {
         proposalTitle = proposal.researchTitle || 'Untitled Proposal';
-        if (!protocolCode && proposal.protocolCode) {
-          protocolCode = proposal.protocolCode;
-        }
+        protocolCode = submittedProtocolCode || proposal.protocolCode || '';
       }
     } catch (e) {
       console.log('Could not fetch proposal for notification:', e.message);
@@ -3127,13 +3124,25 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
 
-    // Look up the existing proposal using proposalId if provided, fallback to protocolCode
+    // Look up the existing proposal using proposalId if provided
     let existingProposal = null;
     if (proposalId && ObjectId.isValid(proposalId)) {
       existingProposal = await proposals.findOne({ _id: new ObjectId(proposalId) });
     }
-    if (!existingProposal && protocolCode) {
-      existingProposal = await proposals.findOne({ protocolCode });
+
+    // Check Protocol Code Uniqueness
+    if (protocolCode) {
+      const proposalWithSameCode = await proposals.findOne({ protocolCode });
+      if (proposalWithSameCode) {
+        // If it's found, and it's NOT the same as the selected existing proposal, then the code is taken!
+        if (!existingProposal || proposalWithSameCode._id.toString() !== existingProposal._id.toString()) {
+          return res.status(400).json({ success: false, error: 'Protocol Code is already in use by another proposal' });
+        }
+        // If we didn't have existingProposal but found one by code, let's link it (fallback)
+        if (!existingProposal) {
+          existingProposal = proposalWithSameCode;
+        }
+      }
     }
 
     // Validation
@@ -3282,7 +3291,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         message: `You have been assigned ${Object.keys(allAssignedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
         type: 'assignment',
         protocolCode: protocolCode,
-        proposalId: resolvedProposalId,
+        proposalId: proposalId,
         reviewPeriod: {
           startDate: new Date(startDate),
           endDate: new Date(endDate)

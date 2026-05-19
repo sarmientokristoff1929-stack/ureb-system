@@ -833,8 +833,8 @@ const AdminDashboard = ({ onLogout }) => {
               const picUrl = adminUser.profilePictureGridFS
                 ? `/api/admin/profile/picture/${adminUser.profilePictureGridFS}?t=${Date.now()}`
                 : parsed.profilePicture;
-              const updated = { 
-                ...parsed, 
+              const updated = {
+                ...parsed,
                 profilePicture: picUrl,
                 originalRole: adminUser.role || parsed.originalRole || 'admin'
               };
@@ -3738,15 +3738,15 @@ const AssignFileContent = () => {
 
                     const displayTitle = proposal.researchTitle || 'Untitled Proposal';
 
-                    const displayCode = proposal.protocolCode || `PROPOSAL-${index + 1}`;
-
                     const displayAuthor = proposal.proponent || proposal.studentEmail || '';
+
+                    const isSubmitted = proposal.reviewers && (proposal.reviewers.reviewer1 || proposal.reviewers.reviewer2);
 
                     return (
 
                       <option key={proposal._id || index} value={proposal._id}>
 
-                        {displayCode} - {displayTitle.length > 60 ? displayTitle.substring(0, 60) + '...' : displayTitle} ({displayAuthor})
+                        {displayTitle.length > 60 ? displayTitle.substring(0, 60) + '...' : displayTitle} ({displayAuthor}){isSubmitted ? '   —  ✅ SUBMITTED' : ''}
 
                       </option>
 
