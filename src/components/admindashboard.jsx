@@ -3500,6 +3500,10 @@ const AssignFileContent = () => {
 
       formDataToSend.append('endDate', formData.endDate);
 
+      if (selectedProposalId) {
+        formDataToSend.append('proposalId', selectedProposalId);
+      }
+
 
 
       // Add document files
@@ -3660,6 +3664,30 @@ const AssignFileContent = () => {
 
           <div className="form-group">
 
+            <label>Protocol Code</label>
+
+            <input
+
+              type="text"
+
+              name="protocolCode"
+
+              placeholder="e.g., UREB-2026-001"
+
+              value={formData.protocolCode}
+
+              onChange={handleInputChange}
+
+              required
+
+            />
+
+            {validationErrors.protocolCode && <span className="error-text">{validationErrors.protocolCode}</span>}
+
+          </div>
+
+          <div className="form-group">
+
             <label>Select Student Proposal</label>
 
             <select
@@ -3733,30 +3761,6 @@ const AssignFileContent = () => {
               )}
 
             </select>
-
-          </div>
-
-          <div className="form-group">
-
-            <label>Protocol Code</label>
-
-            <input
-
-              type="text"
-
-              name="protocolCode"
-
-              placeholder="e.g., UREB-2026-001"
-
-              value={formData.protocolCode}
-
-              onChange={handleInputChange}
-
-              required
-
-            />
-
-            {validationErrors.protocolCode && <span className="error-text">{validationErrors.protocolCode}</span>}
 
           </div>
 

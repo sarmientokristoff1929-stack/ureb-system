@@ -2117,6 +2117,8 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
     const proposals = db.collection(collections.proposals);
     const notifications = db.collection(collections.notifications);
 
+    let protocolCode = (submittedProtocolCode || '').toUpperCase().replace(/\s+/g, '');
+
     // Process uploaded files → GridFS
     const files = {};
     if (req.files && Array.isArray(req.files)) {
@@ -2147,7 +2149,7 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
       overallRating: overallRating || decision || '',
       comments: comments || comment || '',
       recommendations: recommendations || '',
-      protocolCode: (submittedProtocolCode || '').toUpperCase().replace(/\s+/g, ''),
+      protocolCode: protocolCode,
       files,
       status: 'completed',
       createdAt: new Date(),
@@ -2168,7 +2170,7 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
           $or: [
             { _id: ObjectId.isValid(proposalId) ? new ObjectId(proposalId) : null },
             { protocolCode: protocolCode || proposalId }
-          ].filter(q => q._id !== null || q.protocolCode !== undefined)
+          ].filter(q => q && (q._id !== null || q.protocolCode !== undefined))
         },
         { $set: { status: proposalStatus, updatedAt: new Date() } }
       );
@@ -2198,12 +2200,13 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
 
     // Fetch proposal details for notification
     let proposalTitle = 'Unknown Proposal';
-    let protocolCode = submittedProtocolCode || '';
     try {
       const proposal = await proposals.findOne({ _id: new ObjectId(proposalId) });
       if (proposal) {
         proposalTitle = proposal.researchTitle || 'Untitled Proposal';
-        protocolCode = submittedProtocolCode || proposal.protocolCode || '';
+        if (!protocolCode && proposal.protocolCode) {
+          protocolCode = proposal.protocolCode;
+        }
       }
     } catch (e) {
       console.log('Could not fetch proposal for notification:', e.message);
@@ -3093,7 +3096,8 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       secondaryReviewer1,
       secondaryReviewer2,
       startDate,
-      endDate
+      endDate,
+      proposalId
     } = req.body;
 
     // Trim protocolCode to avoid uniqueness issues with white space
@@ -3123,8 +3127,14 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
 
-    // Check if protocolCode already exists
-    const existingProposal = await proposals.findOne({ protocolCode });
+    // Look up the existing proposal using proposalId if provided, fallback to protocolCode
+    let existingProposal = null;
+    if (proposalId && ObjectId.isValid(proposalId)) {
+      existingProposal = await proposals.findOne({ _id: new ObjectId(proposalId) });
+    }
+    if (!existingProposal && protocolCode) {
+      existingProposal = await proposals.findOne({ protocolCode });
+    }
 
     // Validation
     if (!protocolCode || !secondaryReviewer1 || !secondaryReviewer2 || !startDate || !endDate) {
@@ -3135,13 +3145,17 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       return res.status(400).json({ success: false, error: 'At least one document must be uploaded' });
     }
 
-    let proposalId;
+    let resolvedProposalId;
     let researchTitle = `Assigned Files - ${protocolCode}`;
+    let proponent = secondaryReviewer1;
+    let studentEmail = '';
     let allAssignedFiles = uploadedFiles;
 
     if (existingProposal) {
-      proposalId = existingProposal._id;
+      resolvedProposalId = existingProposal._id;
       researchTitle = existingProposal.researchTitle || researchTitle;
+      proponent = existingProposal.proponent || existingProposal.studentName || proponent;
+      studentEmail = existingProposal.studentEmail || studentEmail;
       
       const mergedFiles = {
         ...(existingProposal.files || {}),
@@ -3150,9 +3164,10 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       allAssignedFiles = mergedFiles;
 
       await proposals.updateOne(
-        { _id: proposalId },
+        { _id: resolvedProposalId },
         {
           $set: {
+            protocolCode: protocolCode, // Set or update the protocol code
             status: 'Under Review',
             reviewers: {
               reviewer1: secondaryReviewer1,
@@ -3168,12 +3183,12 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
           }
         }
       );
-      console.log('Existing proposal updated and assigned to reviewers:', proposalId);
+      console.log('Existing proposal updated and assigned to reviewers:', resolvedProposalId);
     } else {
       const newProposal = {
         protocolCode,
         researchTitle,
-        proponent: secondaryReviewer1, // Use first secondary reviewer as primary
+        proponent,
         dateOfApplication: new Date(),
         status: 'Under Review',
         reviewers: {
@@ -3191,11 +3206,11 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       };
 
       const result = await proposals.insertOne(newProposal);
-      proposalId = result.insertedId;
-      console.log('New proposal created and files assigned to reviewers:', proposalId);
+      resolvedProposalId = result.insertedId;
+      console.log('New proposal created and files assigned to reviewers:', resolvedProposalId);
     }
 
-    // Create assignments for each reviewer to access these files
+    // Create or update assignments for each reviewer to access these files
     const assignments = db.collection(collections.assignments);
     const reviewerCollection = db.collection(collections.reviewers);
     const reviewerValues = [...new Set([secondaryReviewer1, secondaryReviewer2].filter(Boolean))];
@@ -3220,13 +3235,15 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       // Store name for admin notification
       assignedReviewerNames.push(resolvedName);
 
-      const assignment = {
-        proposalId: proposalId,
+      const assignmentData = {
+        proposalId: resolvedProposalId,
         reviewerId: reviewer._id,
         reviewerEmail: reviewer.email,
         reviewerName: resolvedName,
         protocolCode: protocolCode,
         researchTitle: researchTitle,
+        proponent: proponent,
+        studentEmail: studentEmail,
         assignedFiles: allAssignedFiles,
         reviewPeriod: {
           startDate: new Date(startDate),
@@ -3234,12 +3251,28 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         },
         status: 'Pending',
         assignedBy: 'admin',
-        createdAt: new Date(),
         updatedAt: new Date()
       };
 
-      await assignments.insertOne(assignment);
-      console.log(`Assignment created for reviewer: ${resolvedName} (${reviewer.email})`);
+      // Check if assignment already exists for this reviewer and proposal to prevent duplicates
+      const existingAssignment = await assignments.findOne({
+        reviewerEmail: reviewer.email,
+        proposalId: resolvedProposalId
+      });
+
+      if (existingAssignment) {
+        await assignments.updateOne(
+          { _id: existingAssignment._id },
+          { $set: assignmentData }
+        );
+        console.log(`Assignment updated for reviewer: ${resolvedName} (${reviewer.email})`);
+      } else {
+        await assignments.insertOne({
+          ...assignmentData,
+          createdAt: new Date()
+        });
+        console.log(`Assignment created for reviewer: ${resolvedName} (${reviewer.email})`);
+      }
 
       // Notify the reviewer
       await notifications.insertOne({
@@ -3249,7 +3282,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         message: `You have been assigned ${Object.keys(allAssignedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
         type: 'assignment',
         protocolCode: protocolCode,
-        proposalId: proposalId,
+        proposalId: resolvedProposalId,
         reviewPeriod: {
           startDate: new Date(startDate),
           endDate: new Date(endDate)
