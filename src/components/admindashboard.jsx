@@ -3474,6 +3474,33 @@ const AssignFileContent = () => {
 
 
 
+    // Check Protocol Code Uniqueness
+
+    const inputCode = formData.protocolCode.toUpperCase().replace(/\s+/g, '');
+
+    const duplicateProposal = proposals.find(p => 
+
+      p.protocolCode && 
+
+      p.protocolCode.toUpperCase().replace(/\s+/g, '') === inputCode && 
+
+      (!selectedProposalId || String(p._id) !== String(selectedProposalId))
+    );
+
+    if (duplicateProposal) {
+
+      setValidationErrors({});
+
+      setErrorMessage('Protocol Code is already in use by another proposal');
+
+      setIsErrorModalOpen(true);
+
+      return;
+
+    }
+
+
+
     setValidationErrors({});
 
     setLoading(true);

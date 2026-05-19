@@ -3291,7 +3291,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         message: `You have been assigned ${Object.keys(allAssignedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
         type: 'assignment',
         protocolCode: protocolCode,
-        proposalId: proposalId,
+        proposalId: resolvedProposalId,
         reviewPeriod: {
           startDate: new Date(startDate),
           endDate: new Date(endDate)
@@ -3309,7 +3309,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       message: `You have assigned ${Object.keys(uploadedFiles).length} document(s) for protocol ${protocolCode} to ${assignedReviewerNames.join(' and ')}.`,
       type: 'admin_assignment',
       protocolCode: protocolCode,
-      proposalId: proposalId,
+      proposalId: resolvedProposalId,
       recipientEmail: 'admin',
       assignedReviewers: assignedReviewerNames,
       read: false,
@@ -3320,7 +3320,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
     res.json({
       success: true,
       message: 'Files successfully assigned to reviewers',
-      proposalId: proposalId.toString(),
+      proposalId: resolvedProposalId.toString(),
       assignedReviewers: reviewerValues.length
     });
   } catch (error) {
