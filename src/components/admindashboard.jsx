@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 
 
 
@@ -912,35 +912,19 @@ const AdminDashboard = ({ onLogout }) => {
 
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
 
-
-
     { id: 'assign-file', label: 'Submit File', icon: <AssignIcon /> },
 
-
-
-    { id: 'message-researcher', label: 'Message Student', icon: <MessageIcon /> },
-
-
-
-    { id: 'message-reviewer', label: 'Message Reviewer', icon: <MessageIcon /> },
-
-
-
-    { id: 'add-reviewer', label: 'Add Reviewer', icon: <UserPlusIcon /> },
-
-
+    { id: 'messages-inbox', label: 'Files And Messages Submitted', icon: <MessageIcon />, badge: messageCount > 0 ? messageCount : null },
 
     { id: 'mark-completed-review', label: 'Mark Completed Review', icon: <CheckCircleIcon /> },
 
-
+    { id: 'add-reviewer', label: 'Add Reviewer', icon: <UserPlusIcon /> },
 
     { id: 'manage-users', label: 'Manage Users', icon: <UsersIcon /> },
 
+    { id: 'message-reviewer', label: 'Message Reviewer', icon: <MessageIcon /> },
 
-
-    { id: 'messages-inbox', label: 'Messages Inbox', icon: <MessageIcon />, badge: messageCount > 0 ? messageCount : null },
-
-
+    { id: 'message-researcher', label: 'Message Student', icon: <MessageIcon /> },
 
     { id: 'notification', label: 'Notification (File)', icon: <NotificationIcon />, badge: notifCount > 0 ? notifCount : null },
     { id: 'profile', label: 'Admin Settings', icon: <SettingsIcon /> },
@@ -3478,11 +3462,11 @@ const AssignFileContent = () => {
 
     const inputCode = formData.protocolCode.toUpperCase().replace(/\s+/g, '');
 
-    const duplicateProposal = proposals.find(p => 
+    const duplicateProposal = proposals.find(p =>
 
-      p.protocolCode && 
+      p.protocolCode &&
 
-      p.protocolCode.toUpperCase().replace(/\s+/g, '') === inputCode && 
+      p.protocolCode.toUpperCase().replace(/\s+/g, '') === inputCode &&
 
       (!selectedProposalId || String(p._id) !== String(selectedProposalId))
     );
@@ -9051,105 +9035,77 @@ const ReviewsFileContent = () => {
 
 const MessagesInboxContent = ({ onMessageRead }) => {
 
-
-
   const [messages, setMessages] = useState([]);
-
-
-
   const [loading, setLoading] = useState(true);
-
-
-
   const [userInfo, setUserInfo] = useState({ email: 'admin@ureb.edu' });
-
-
-
   const [selectedMessage, setSelectedMessage] = useState(null);
-
-
-
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
-
-
-
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-
-
-
   const [successMessage, setSuccessMessage] = useState('');
-
   const [inboxDeleteModalOpen, setInboxDeleteModalOpen] = useState(false);
-
   const [inboxDeleteTargetId, setInboxDeleteTargetId] = useState(null);
-
   const [deleteAllModalOpen, setDeleteAllModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(''); // Search filter
+  const [openFilesDropdownId, setOpenFilesDropdownId] = useState(null); // Files dropdown tracker
 
-  const [expandedGroups, setExpandedGroups] = useState({}); // Track which sender groups are expanded
+  // Click outside to close files dropdown
+  useEffect(() => {
+    const handleOutsideClick = () => {
+      setOpenFilesDropdownId(null);
+    };
+    if (openFilesDropdownId !== null) {
+      window.addEventListener('click', handleOutsideClick);
+    }
+    return () => {
+      window.removeEventListener('click', handleOutsideClick);
+    };
+  }, [openFilesDropdownId]);
 
-  const [expandedCategories, setExpandedCategories] = useState({
-    'reviewer': true,
-    'student': true
-  }); // Track which message categories are expanded
+  // Mapped user states
+  const [allStudents, setAllStudents] = useState([]);
+  const [allReviewers, setAllReviewers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(true);
 
-  const [searchQuery, setSearchQuery] = useState(''); // Search filter for sender names
+  // Mapped filter states
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [selectedSenderType, setSelectedSenderType] = useState('');
+  const [selectedReviewer, setSelectedReviewer] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState('');
 
-
-
-
-
-
+  const DEPARTMENT_NAMES = {
+    'FALS': 'FALS-Faculty of Agriculture and Life Sciences',
+    'FTED': 'FTED- Faculty of Teacher Education',
+    'FAIS': 'FAIS-Faculty of Advance and International Studies',
+    'FNAS': 'FNAS-Faculty of Nursing and Allied Health Science',
+    'FBM': 'FBM-Faculty of Business Management',
+    'FCJE': 'FCJE-Faculty of Criminology Justice Education',
+    'FACET': 'FACET-Faculty of Computing, Engineering, Technology',
+    'FHUSOCOM': 'FHUSOCOM-Faculty of Humanities, Social Science & Communication',
+    'SEIC': 'SEIC- San Isidro Extension Campus',
+    'BEC': 'BEC-BanayBanay Extension Campus',
+    'CEC': 'CEC-Cateel Extension Campus',
+    'BGEC': 'BGEC-Baganga Extension Campus',
+    'TEC': 'TEC-Tarragona Extension Campus',
+    'NSTP': 'NSTP-National Service Training Program',
+    'ICS': 'ICS- Indigenous Community Studies',
+    'Community Representatives': 'Community Representatives'
+  };
+  const validDepartments = Object.keys(DEPARTMENT_NAMES);
 
   useEffect(() => {
-
-
-
     // Load user info from localStorage
-
-
-
     const savedUser = localStorage.getItem('ureb_user');
-
-
-
     if (savedUser) {
-
-
-
       setUserInfo(JSON.parse(savedUser));
-
-
-
     }
-
-
-
   }, []);
 
-
-
-
-
-
-
+  // Fetch messages
   useEffect(() => {
-
-
-
     const fetchMessages = async () => {
-
-
-
       try {
-
-
-
         const { getMessagesByUser } = await import('../services/api.js');
-
-
-
         const messageList = await getMessagesByUser(userInfo.email);
-
         const sorted = messageList.sort((a, b) =>
           new Date(b.createdAt || b.sentAt) - new Date(a.createdAt || a.sentAt)
         );
@@ -9158,129 +9114,225 @@ const MessagesInboxContent = ({ onMessageRead }) => {
         const readIds = (() => { try { return JSON.parse(localStorage.getItem('read_messages') || '[]'); } catch { return []; } })();
         const processed = sorted.map(m => readIds.includes(String(m._id)) ? { ...m, read: true } : m);
         setMessages(processed);
-
-        // Auto-expand all groups by default
-        const groups = groupBySender(processed);
-        const allExpanded = {};
-        Object.keys(groups).forEach(sender => {
-          allExpanded[sender] = true;
-        });
-        setExpandedGroups(allExpanded);
-
-
-
       } catch (error) {
-
-
-
         console.error('Error fetching messages:', error);
-
-
-
       } finally {
-
-
-
         setLoading(false);
-
-
-
       }
-
-
-
     };
 
-
-
-
-
-
-
     if (userInfo.email) {
-
-
-
       fetchMessages();
-
-
-
     }
-
-
-
   }, [userInfo.email]);
 
+  // Fetch all students and reviewers for mapping and dropdowns
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const { getAllStudents, getAllReviewers } = await import('../services/api.js');
+        const [studs, revs] = await Promise.all([
+          getAllStudents(),
+          getAllReviewers()
+        ]);
+        setAllStudents(studs || []);
+        setAllReviewers(revs || []);
+      } catch (err) {
+        console.error('Error fetching students or reviewers for inbox mapping:', err);
+      } finally {
+        setUsersLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
 
-
-  // Helper to get sender name from message
-  const getSenderFromMessage = (message) => {
-    return message.senderName || message.senderEmail || 'Unknown';
-  };
-
-  // Group messages by sender
-  const groupBySender = (msgs) => {
-    return msgs.reduce((acc, msg) => {
-      const sender = getSenderFromMessage(msg);
-      if (!acc[sender]) acc[sender] = [];
-      acc[sender].push(msg);
-      return acc;
-    }, {});
-  };
-
-  const toggleGroup = (sender) => {
-    setExpandedGroups(prev => ({
-      ...prev,
-      [sender]: !prev[sender]
-    }));
-  };
-
-  const toggleCategory = (category) => {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [category]: !prev[category]
-    }));
-  };
-
-  const expandAll = () => {
-    const groups = groupBySender(messages);
-    const allExpanded = {};
-    Object.keys(groups).forEach(sender => {
-      allExpanded[sender] = true;
+  // Lookup map for student info by email
+  const studentInfoMap = useMemo(() => {
+    const map = {};
+    allStudents.forEach(s => {
+      if (s.email) {
+        const emailKey = s.email.toLowerCase();
+        map[emailKey] = {
+          name: s.name || `${s.firstName} ${s.lastName}`.trim(),
+          department: s.department || ''
+        };
+      }
     });
-    setExpandedGroups(allExpanded);
+    return map;
+  }, [allStudents]);
+
+  // Lookup map for reviewer info by email
+  const reviewerInfoMap = useMemo(() => {
+    const map = {};
+    allReviewers.forEach(r => {
+      if (r.email) {
+        const emailKey = r.email.toLowerCase();
+        const firstName = r.firstName || '';
+        const middleName = r.middleName || '';
+        const lastName = r.lastName || '';
+        const title = r.title || '';
+        const baseName = [firstName, middleName, lastName].filter(Boolean).join(' ');
+        const fallbackName = r.name || baseName;
+        let formattedName = fallbackName;
+        if (title) {
+          const prefixMap = { Doctor: 'Dr.', Engineer: 'Engr.', Professor: 'Prof.' };
+          if (prefixMap[title]) {
+            formattedName = `${prefixMap[title]} ${fallbackName}`;
+          } else if (['RN', 'LPT', 'MSN', 'RN/LPT', 'RN/MSN', 'MIT'].includes(title)) {
+            formattedName = `${fallbackName}, ${title}`;
+          }
+        }
+        map[emailKey] = {
+          name: formattedName,
+          department: r.department || ''
+        };
+      }
+    });
+    return map;
+  }, [allReviewers]);
+
+  // Resolve message sender type and department
+  const getMessageMetadata = useCallback((msg) => {
+    const email = (msg.senderEmail || '').toLowerCase();
+    
+    // Determine type
+    let type = msg.type === 'reviewer_to_admin' ? 'reviewer' : (msg.type === 'student_to_admin' ? 'student' : null);
+    if (!type) {
+      if (reviewerInfoMap[email]) {
+        type = 'reviewer';
+      } else if (studentInfoMap[email]) {
+        type = 'student';
+      } else {
+        type = 'student'; // fallback
+      }
+    }
+
+    // Resolve name
+    let name = msg.senderName || msg.senderEmail || 'Unknown';
+    if (type === 'reviewer' && reviewerInfoMap[email]) {
+      name = reviewerInfoMap[email].name;
+    } else if (type === 'student' && studentInfoMap[email]) {
+      name = studentInfoMap[email].name;
+    }
+
+    // Resolve department
+    let department = '';
+    if (type === 'reviewer' && reviewerInfoMap[email]) {
+      department = reviewerInfoMap[email].department;
+    } else if (type === 'student' && studentInfoMap[email]) {
+      department = studentInfoMap[email].department;
+    }
+
+    return { type, name, department };
+  }, [studentInfoMap, reviewerInfoMap]);
+
+  // Filter reviewers in the dropdown based on selected department
+  const reviewersDropdownOptions = useMemo(() => {
+    let list = allReviewers;
+    if (selectedDepartment && selectedDepartment !== 'All') {
+      list = list.filter(r => r.department === selectedDepartment);
+    }
+    return [...list].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [allReviewers, selectedDepartment]);
+
+  // Filter students in the dropdown based on selected department
+  const studentsDropdownOptions = useMemo(() => {
+    let list = allStudents;
+    if (selectedDepartment && selectedDepartment !== 'All') {
+      list = list.filter(s => s.department === selectedDepartment);
+    }
+    return [...list].sort((a, b) => {
+      const nameA = a.name || `${a.firstName} ${a.lastName}`.trim();
+      const nameB = b.name || `${b.firstName} ${b.lastName}`.trim();
+      return nameA.localeCompare(nameB);
+    });
+  }, [allStudents, selectedDepartment]);
+
+  // Dropdown filter change handlers
+  const handleDepartmentChange = (dept) => {
+    setSelectedDepartment(dept);
+    setSelectedSenderType('');
+    setSelectedReviewer('');
+    setSelectedStudent('');
   };
 
-  const collapseAll = () => {
-    const groups = groupBySender(messages);
-    const allCollapsed = {};
-    Object.keys(groups).forEach(sender => {
-      allCollapsed[sender] = false;
-    });
-    setExpandedGroups(allCollapsed);
+  const handleSenderTypeChange = (type) => {
+    setSelectedSenderType(type);
+    setSelectedReviewer('');
+    setSelectedStudent('');
   };
+
+  const handleReviewerChange = (email) => {
+    setSelectedReviewer(email);
+    setSelectedStudent('');
+    if (email && email !== 'All') {
+      setSelectedSenderType('Reviewer');
+    }
+  };
+
+  const handleStudentChange = (email) => {
+    setSelectedStudent(email);
+    setSelectedReviewer('');
+    if (email && email !== 'All') {
+      setSelectedSenderType('Student');
+    }
+  };
+
+  // Filter messages for table view
+  const filteredMessages = useMemo(() => {
+    if (!selectedDepartment) {
+      return [];
+    }
+
+    return messages.filter(message => {
+      const { type, name, department } = getMessageMetadata(message);
+      const email = (message.senderEmail || '').toLowerCase();
+      const subject = (message.subject || '').toLowerCase();
+      const text = (message.message || '').toLowerCase();
+      const query = searchQuery.toLowerCase().trim();
+
+      // 1. Search Query Filter
+      if (query && !name.toLowerCase().includes(query) && !email.includes(query) && !subject.includes(query) && !text.includes(query)) {
+        return false;
+      }
+
+      // 2. Department Filter
+      if (selectedDepartment && selectedDepartment !== 'All') {
+        if (department !== selectedDepartment) {
+          return false;
+        }
+      }
+
+      // 3. Sender Type Filter
+      if (selectedSenderType && selectedSenderType !== 'All') {
+        if (type !== selectedSenderType.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 4. Reviewer Filter
+      if (selectedReviewer && selectedReviewer !== 'All') {
+        if (email !== selectedReviewer.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 5. Student Filter
+      if (selectedStudent && selectedStudent !== 'All') {
+        if (email !== selectedStudent.toLowerCase()) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [messages, searchQuery, selectedDepartment, selectedSenderType, selectedReviewer, selectedStudent, getMessageMetadata]);
 
   const formatInboxDate = (dateStr) => {
-
     const date = new Date(dateStr);
-
-    const now = new Date();
-
-    const yesterday = new Date(now);
-
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (date.toDateString() === now.toDateString())
-
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
-
-
 
   const openMessageModal = (message) => {
     setSelectedMessage(message);
@@ -9290,7 +9342,6 @@ const MessagesInboxContent = ({ onMessageRead }) => {
     if (!message.read) {
       saveReadId(message._id);
       setMessages(prev => prev.map(m => m._id === message._id ? { ...m, read: true } : m));
-      // Fire-and-forget API + badge refresh
       import('../services/api.js').then(({ markMessageAsRead }) => {
         markMessageAsRead(message._id).catch(err => console.error('Error marking as read:', err));
       });
@@ -9298,21 +9349,13 @@ const MessagesInboxContent = ({ onMessageRead }) => {
     }
   };
 
-
-
   const closeMessageModal = () => {
-
     setSelectedMessage(null);
-
     setIsMessageModalOpen(false);
-
   };
-
-
 
   const markAsRead = async () => {
     if (selectedMessage && !selectedMessage.read) {
-      // Persist locally immediately
       saveReadId(selectedMessage._id);
       setMessages(prev => prev.map(m => m._id === selectedMessage._id ? { ...m, read: true } : m));
       setSelectedMessage(prev => ({ ...prev, read: true }));
@@ -9321,7 +9364,6 @@ const MessagesInboxContent = ({ onMessageRead }) => {
         const { markMessageAsRead } = await import('../services/api.js');
         await markMessageAsRead(selectedMessage._id);
 
-        // Call the callback to refresh message count in sidebar
         if (onMessageRead) {
           onMessageRead();
         }
@@ -9331,11 +9373,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
     }
   };
 
-
-
   const markAllAsRead = async () => {
-
-    // Persist all current message IDs to localStorage immediately
     try {
       const existing = JSON.parse(localStorage.getItem('read_messages') || '[]');
       const allIds = [...new Set([...existing, ...messages.map(m => String(m._id))])];
@@ -9344,25 +9382,16 @@ const MessagesInboxContent = ({ onMessageRead }) => {
     setMessages(prev => prev.map(m => ({ ...m, read: true })));
 
     try {
-
       const { markAllMessagesAsRead } = await import('../services/api.js');
-
       await markAllMessagesAsRead(userInfo.email);
 
-      // Call the callback to refresh message count in sidebar
       if (onMessageRead) {
         onMessageRead();
       }
-
     } catch (error) {
-
       console.error('Error marking all messages as read:', error);
-
     }
-
   };
-
-
 
   const openInboxDeleteModal = (e, messageId) => {
     e.stopPropagation();
@@ -9405,60 +9434,129 @@ const MessagesInboxContent = ({ onMessageRead }) => {
   };
 
   const markSingleAsRead = async (e, msg) => {
-
     e.stopPropagation();
-
-    // Update UI and persist locally immediately
     saveReadId(msg._id);
     setMessages(prev => prev.map(m => m._id === msg._id ? { ...m, read: true } : m));
 
     try {
-
       const { markMessageAsRead } = await import('../services/api.js');
-
       await markMessageAsRead(msg._id);
 
-      // Call the callback to refresh message count in sidebar
       if (onMessageRead) {
         onMessageRead();
       }
-
     } catch (error) {
-
       console.error('Error marking message as read:', error);
-
     }
-
   };
 
+  const renderMessageFilesTableCell = (message) => {
+    if (message.submissionType === 'resubmission') {
+      return (
+        <span className="inbox-table-badge resubmission">
+          Resubmission
+        </span>
+      );
+    }
 
+    let fileList = [];
+    if (message.files) {
+      if (Array.isArray(message.files)) {
+        fileList = message.files;
+      } else {
+        fileList = Object.values(message.files);
+      }
+    }
+
+    if (fileList.length === 0) {
+      return <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>No files</span>;
+    }
+
+    const isOpen = openFilesDropdownId === message._id;
+
+    return (
+      <div className="inbox-files-dropdown-container">
+        <button
+          className="inbox-files-dropdown-trigger"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpenFilesDropdownId(isOpen ? null : message._id);
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ marginRight: '2px' }}>
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+          </svg>
+          {fileList.length} {fileList.length === 1 ? 'file' : 'files'}
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" style={{ marginLeft: '4px', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+
+        {isOpen && (
+          <div className="inbox-files-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+            {fileList.map((file, idx) => {
+              const storedName = file.filename;
+              const displayName = file.originalname || file.filename;
+              return (
+                <div key={idx} className="inbox-table-file-chip" style={{ width: '100%' }}>
+                  <span className="inbox-table-file-chip-name" title={displayName}>
+                    {displayName}
+                  </span>
+                  <div className="inbox-table-file-chip-actions">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        import('../services/api.js').then(({ viewFile }) => {
+                          viewFile(storedName);
+                        });
+                      }}
+                      title="View file"
+                      className="inbox-table-file-btn view"
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          const { downloadReviewerFile } = await import('../services/api.js');
+                          await downloadReviewerFile(storedName, displayName);
+                        } catch (err) {
+                          console.error('Error downloading:', err);
+                        }
+                      }}
+                      title="Download file"
+                      className="inbox-table-file-btn download"
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const unreadCount = messages.filter(m => !m.read).length;
 
-
-
   return (
-
     <>
-
       <div className="inbox-wrapper">
-
-
-
         {/* Header */}
-
         <div className="inbox-header">
-
           <div className="inbox-title-group">
-
-            <h2>Messages Inbox</h2>
-
+            <h2>Files And Messages Submitted</h2>
             {unreadCount > 0 && (
-
               <span className="inbox-unread-count">{unreadCount} unread</span>
-
             )}
-
           </div>
 
           {/* Search Input */}
@@ -9478,7 +9576,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
               </svg>
               <input
                 type="text"
-                placeholder="Search reviewer name..."
+                placeholder="Search messages..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
@@ -9520,301 +9618,240 @@ const MessagesInboxContent = ({ onMessageRead }) => {
           </div>
 
           <div className="inbox-header-actions">
-
-            {messages.length > 0 && (
-              <>
-                <button
-                  className="inbox-mark-all-btn"
-                  onClick={expandAll}
-                  style={{ fontSize: '0.85rem', padding: '6px 12px' }}
-                >
-                  Expand All
-                </button>
-                <button
-                  className="inbox-mark-all-btn"
-                  onClick={collapseAll}
-                  style={{ fontSize: '0.85rem', padding: '6px 12px' }}
-                >
-                  Collapse All
-                </button>
-              </>
-            )}
-
             {unreadCount > 0 && (
-
               <button className="inbox-mark-all-btn" onClick={markAllAsRead}>
-
                 Mark all as read
-
               </button>
-
             )}
 
             {messages.length > 0 && (
-
               <button className="inbox-delete-all-btn" onClick={() => setDeleteAllModalOpen(true)}>
-
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="3 6 5 6 21 6" />
                   <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
                   <path d="M10 11v6M14 11v6" />
                   <path d="M9 6V4h6v2" />
                 </svg>
-
                 Delete All
-
               </button>
-
             )}
+          </div>
+        </div>
 
+        {/* Dropdown Filters Bar */}
+        <div className="inbox-filters-bar">
+          {/* Department Dropdown */}
+          <div className="inbox-filter-group">
+            <label className="inbox-filter-label">Select Department</label>
+            <select
+              value={selectedDepartment}
+              onChange={(e) => handleDepartmentChange(e.target.value)}
+              className="inbox-filter-select"
+            >
+              <option value="">Select...</option>
+              <option value="All">All Departments</option>
+              {validDepartments.map(dept => (
+                <option key={dept} value={dept}>{DEPARTMENT_NAMES[dept]}</option>
+              ))}
+            </select>
           </div>
 
+          {/* Sender Type Dropdown */}
+          <div className="inbox-filter-group">
+            <label className="inbox-filter-label">Select Sender Type</label>
+            <select
+              value={selectedSenderType}
+              onChange={(e) => handleSenderTypeChange(e.target.value)}
+              className="inbox-filter-select"
+              disabled={!selectedDepartment}
+            >
+              <option value="">Select...</option>
+              <option value="All">All Senders</option>
+              <option value="Reviewer">Reviewers</option>
+              <option value="Student">Students</option>
+            </select>
+          </div>
+
+          {/* Reviewers Dropdown */}
+          <div className="inbox-filter-group">
+            <label className="inbox-filter-label">Select Reviewer</label>
+            <select
+              value={selectedReviewer}
+              onChange={(e) => handleReviewerChange(e.target.value)}
+              className="inbox-filter-select"
+              disabled={!selectedDepartment || selectedSenderType === 'Student'}
+            >
+              <option value="">Select...</option>
+              <option value="All">All Reviewers</option>
+              {reviewersDropdownOptions.map(rev => (
+                <option key={rev.email} value={rev.email}>
+                  {rev.name || rev.email}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Students Dropdown */}
+          <div className="inbox-filter-group">
+            <label className="inbox-filter-label">Select Student</label>
+            <select
+              value={selectedStudent}
+              onChange={(e) => handleStudentChange(e.target.value)}
+              className="inbox-filter-select"
+              disabled={!selectedDepartment || selectedSenderType === 'Reviewer'}
+            >
+              <option value="">Select...</option>
+              <option value="All">All Students</option>
+              {studentsDropdownOptions.map(stud => {
+                const studentName = stud.name || `${stud.firstName} ${stud.lastName}`.trim();
+                return (
+                  <option key={stud.email} value={stud.email}>
+                    {studentName || stud.email}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
         </div>
 
-
-
-        {/* Message List */}
-
+        {/* Message Table list */}
         <div className="inbox-list">
-
-          {loading ? (
-
+          {loading || usersLoading ? (
             <div className="inbox-empty">
-
               <div className="inbox-empty-icon">
-
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
               </div>
-
-              <p>Loading messages...</p>
-
+              <p>Loading messages and filters...</p>
             </div>
-
-          ) : messages.length === 0 ? (
-
+          ) : !selectedDepartment ? (
             <div className="inbox-empty">
-
-              <div className="inbox-empty-icon">
-
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-
+              <div className="inbox-empty-icon" style={{ opacity: 0.5 }}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
               </div>
-
-              <p>Your inbox is empty</p>
-
-              <span>Student messages and file submissions will appear here.</span>
-
+              <p style={{ fontWeight: 500 }}>Please select a Department first</p>
+              <span style={{ color: '#6b7280' }}>Choose a department from the filters above to load the messages.</span>
             </div>
-
+          ) : filteredMessages.length === 0 ? (
+            <div className="inbox-empty">
+              <div className="inbox-empty-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <p>No messages found</p>
+              <span>Verify your filters or search query above.</span>
+            </div>
           ) : (
-
-            (() => {
-              // Filter messages based on search query
-              const filteredMessages = searchQuery.trim()
-                ? messages.filter(m => {
-                  const senderName = (m.senderName || m.senderEmail || '').toLowerCase();
-                  const subject = (m.subject || '').toLowerCase();
-                  const query = searchQuery.toLowerCase();
-                  return senderName.includes(query) || subject.includes(query);
-                })
-                : messages;
-
-              // Show empty state if no matches
-              if (filteredMessages.length === 0) {
-                return (
-                  <div className="inbox-empty">
-                    <div className="inbox-empty-icon">
-                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <circle cx="11" cy="11" r="8" />
-                        <path d="m21 21-4.3-4.3" />
-                      </svg>
-                    </div>
-                    <p>No messages found</p>
-                    <span>No results for "{searchQuery}"</span>
-                  </div>
-                );
-              }
-
-              // Separate messages by type
-              const reviewerMessages = filteredMessages.filter(m => m.type === 'reviewer_to_admin');
-              const studentMessages = filteredMessages.filter(m => m.type === 'student_to_admin');
-
-              const renderMessageGroup = (messages, categoryTitle, categoryIcon, categoryColor, categoryKey) => {
-                if (messages.length === 0) return null;
-                const grouped = groupBySender(messages);
-                const senders = Object.keys(grouped).sort();
-                const senderCount = senders.length;
-                const totalUnread = messages.filter(m => !m.read).length;
-                const isCategoryExpanded = expandedCategories[categoryKey] !== false;
-
-                return (
-                  <div key={categoryTitle} style={{ marginBottom: '24px' }}>
-                    {/* Category Header - Click to toggle */}
-                    <div
-                      onClick={() => toggleCategory(categoryKey)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        padding: '12px 16px',
-                        backgroundColor: categoryColor,
-                        borderRadius: isCategoryExpanded ? '8px 8px 0 0' : '8px',
-                        border: '1px solid #e5e7eb',
-                        borderBottom: isCategoryExpanded ? 'none' : '1px solid #e5e7eb',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <span style={{ fontSize: '0.9rem' }}>{isCategoryExpanded ? '▼' : '▶'}</span>
-                      <span style={{ fontSize: '1.2rem' }}>{categoryIcon}</span>
-                      <span style={{ fontWeight: 700, fontSize: '1rem', color: '#1f2937' }}>{categoryTitle}</span>
-                      <span style={{ fontSize: '0.85rem', color: '#6b7280', marginLeft: '4px' }}>({senderCount} {categoryKey === 'reviewer' ? 'Reviewers' : 'Students'})</span>
-                      {totalUnread > 0 && (
-                        <span style={{
-                          fontSize: '0.75rem',
-                          backgroundColor: '#ef4444',
-                          color: '#fff',
-                          padding: '3px 10px',
-                          borderRadius: '9999px',
-                          marginLeft: '8px',
-                          fontWeight: 600
-                        }}>{totalUnread} unread</span>
-                      )}
-                    </div>
-                    {/* Senders in this category */}
-                    {isCategoryExpanded && (
-                      <div style={{ border: '1px solid #e5e7eb', borderTop: 'none', borderRadius: '0 0 8px 8px' }}>
-                        {senders.map((sender) => {
-                          const senderMessages = grouped[sender];
-                          const unreadInGroup = senderMessages.filter(m => !m.read).length;
-                          const isExpanded = expandedGroups[sender] !== false;
-                          return (
-                            <div key={sender} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                              {/* Sender Header - Click to toggle */}
-                              <div
-                                onClick={() => toggleGroup(sender)}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  padding: '10px 16px',
-                                  backgroundColor: isExpanded ? '#f9fafb' : '#fff',
-                                  cursor: 'pointer',
-                                  borderLeft: '4px solid ' + categoryColor,
-                                  transition: 'background-color 0.2s'
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isExpanded ? '#f9fafb' : '#fff'}
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                  <span style={{ fontWeight: 600, color: '#374151', fontSize: '0.95rem' }}>{sender}</span>
-                                  <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>({senderMessages.length})</span>
-                                  {unreadInGroup > 0 && (
-                                    <span style={{ fontSize: '0.7rem', backgroundColor: '#ef4444', color: '#fff', padding: '2px 8px', borderRadius: '9999px' }}>{unreadInGroup} new</span>
-                                  )}
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-                                    {isExpanded ? '▼' : '▶'}
-                                  </span>
-                                </div>
-                              </div>
-                              {/* Messages List for this sender */}
-                              {isExpanded && (
-                                <div style={{ backgroundColor: '#fff' }}>
-                                  {senderMessages.map((message) => (
-                                    <div
-                                      key={message._id}
-                                      className={`inbox-row ${!message.read ? 'unread' : ''}`}
-                                      onClick={() => openMessageModal(message)}
-                                      style={{
-                                        borderBottom: '1px solid #f3f4f6',
-                                        margin: 0,
-                                        borderRadius: 0
-                                      }}
-                                    >
-                                      {/* Unread indicator column */}
-                                      <div className="inbox-unread-indicator">
-                                        {!message.read && <span className="inbox-unread-dot" />}
-                                      </div>
-                                      {/* Avatar */}
-                                      <div className="inbox-avatar">
-                                        {(message.senderName || message.senderEmail).charAt(0).toUpperCase()}
-                                      </div>
-                                      {/* Content */}
-                                      <div className="inbox-row-content">
-                                        <div className="inbox-row-top">
-                                          <span className="inbox-sender-name">
-                                            {message.senderName || message.senderEmail}
-                                          </span>
-                                          <div className="inbox-row-actions">
-                                            {!message.read && (
-                                              <button
-                                                className="inbox-mark-read-btn"
-                                                onClick={(e) => markSingleAsRead(e, message)}
-                                                title="Mark as read"
-                                              >
-                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                                  <polyline points="20 6 9 17 4 12" />
-                                                </svg>
-                                                Mark as read
-                                              </button>
-                                            )}
-                                            <span className="inbox-row-date">
-                                              {formatInboxDate(message.createdAt || message.sentAt)}
-                                            </span>
-                                            <button
-                                              className="inbox-trash-btn"
-                                              onClick={(e) => openInboxDeleteModal(e, message._id)}
-                                              title="Delete message"
-                                            >
-                                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                <polyline points="3 6 5 6 21 6" />
-                                                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                                                <path d="M10 11v6M14 11v6" />
-                                                <path d="M9 6V4h6v2" />
-                                              </svg>
-                                            </button>
-                                          </div>
-                                        </div>
-                                        <div className="inbox-row-bottom">
-                                          <span className="inbox-subject">{message.subject}</span>
-                                          {message.submissionType === 'resubmission' && (
-                                            <span className="inbox-badge resubmission">Resubmission</span>
-                                          )}
-                                          <span className="inbox-preview"> — {message.message}</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
+            <div className="inbox-table-container">
+              <table className="inbox-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '40px', textAlign: 'center' }}></th>
+                    <th style={{ width: '110px' }}>Date</th>
+                    <th style={{ width: '180px' }}>Sender</th>
+                    <th style={{ width: '100px' }}>Role</th>
+                    <th style={{ width: '100px' }}>Dept</th>
+                    <th style={{ width: '180px' }}>Subject</th>
+                    <th>Message</th>
+                    <th style={{ width: '120px' }}>Files</th>
+                    <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredMessages.map((message) => {
+                    const { type, name, department } = getMessageMetadata(message);
+                    return (
+                      <tr
+                        key={message._id}
+                        className={!message.read ? 'unread' : ''}
+                        onClick={() => openMessageModal(message)}
+                      >
+                        <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                          {!message.read && <span className="inbox-unread-dot" />}
+                        </td>
+                        <td style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                          {formatInboxDate(message.createdAt || message.sentAt)}
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div className="inbox-avatar" style={{ flexShrink: 0, width: '28px', height: '28px', fontSize: '0.8rem' }}>
+                              {name.charAt(0).toUpperCase()}
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              };
-
-              return (
-                <>
-                  {renderMessageGroup(reviewerMessages, 'Reviewer Messages', '👤', '#dbeafe', 'reviewer')}
-                  {renderMessageGroup(studentMessages, 'Student Messages', '🎓', '#dcfce7', 'student')}
-                </>
-              );
-            })()
-
+                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#374151' }}>{name}</div>
+                              <div style={{ fontSize: '0.75rem', color: '#9ca3af' }} title={message.senderEmail}>{message.senderEmail}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`inbox-table-badge ${type}`}>
+                            {type === 'reviewer' ? 'Reviewer' : 'Student'}
+                          </span>
+                        </td>
+                        <td>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 500, color: '#4b5563' }} title={DEPARTMENT_NAMES[department] || department}>
+                            {department || 'N/A'}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: !message.read ? 600 : 400, color: '#1f2937', fontSize: '0.85rem' }}>
+                          {message.subject}
+                        </td>
+                        <td className="inbox-table-message-cell">
+                          {message.message}
+                        </td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          {renderMessageFilesTableCell(message)}
+                        </td>
+                        <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                          <div className="inbox-table-actions-container">
+                            {!message.read && (
+                              <button
+                                className="inbox-table-action-icon-btn mark-read"
+                                onClick={(e) => markSingleAsRead(e, message)}
+                                title="Mark as read"
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              </button>
+                            )}
+                            <button
+                              className="inbox-table-action-icon-btn view"
+                              onClick={() => openMessageModal(message)}
+                              title="View details"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                            </button>
+                            <button
+                              className="inbox-table-action-icon-btn delete"
+                              onClick={(e) => openInboxDeleteModal(e, message._id)}
+                              title="Delete message"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                                <path d="M10 11v6M14 11v6" />
+                                <path d="M9 6V4h6v2" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
-
         </div>
-
-
-
       </div>
-
-
 
       <MessageViewModal
 

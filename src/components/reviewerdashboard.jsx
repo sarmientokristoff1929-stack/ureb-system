@@ -334,12 +334,12 @@ const ReviewerDashboard = ({ onLogout }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     { id: 'assigned-proposals', label: 'Assigned Proposals', icon: <FileCheckIcon />, badge: assignedCount > 0 ? assignedCount : null },
-    { id: 'file-templates', label: 'File Templates', icon: <FileTemplatesIcon /> },
     // Show Submit Review only for Preliminary Reviewers or Both
     ...(isPreliminaryReviewer ? [{ id: 'pending-reviews', label: 'Submit Review', icon: <ClockIcon />, subtext: '(Preliminary Reviewer)' }] : []),
     // Show Submit Secondary File only for Secondary Reviewers or Both
     ...(isSecondaryReviewer ? [{ id: 'submit-secondary-file', label: 'Submit Secondary File', icon: <SubmitSecondaryFileIcon />, subtext: '(Secondary Reviewer)' }] : []),
     { id: 'submitted-reviews', label: 'Submitted Reviews', icon: <CheckIcon /> },
+    { id: 'file-templates', label: 'File Templates', icon: <FileTemplatesIcon /> },
     { id: 'messages', label: 'Messages', icon: <MessageIcon />, badge: messageCount > 0 ? messageCount : null },
     { id: 'notifications', label: 'Notifications', icon: <BellIcon />, badge: notifCount > 0 ? notifCount : null },
     { id: 'profile-settings', label: 'Profile Settings', icon: <ProfileIcon /> }
