@@ -273,7 +273,7 @@
 
 
 
-  background: var(--white);
+  background: #059669;
 
 
 
@@ -285,7 +285,7 @@
 
 
 
-  box-shadow: 2px 0 20px rgba(122, 158, 126, 0.1);
+  box-shadow: 4px 0 24px rgba(5, 150, 105, 0.35);
 
 
 
@@ -340,7 +340,7 @@
 .sidebar-header {
   height: 80px;
   padding: 0 1.5rem;
-  border-bottom: 1px solid var(--soft-green);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -365,7 +365,7 @@
 
 
 
-  color: var(--primary-green);
+  color: white;
 
 
 
@@ -381,7 +381,7 @@
 
 
 
-  color: var(--primary-green);
+  color: white;
 
 
 
@@ -405,7 +405,7 @@
 
 
 
-  color: var(--dark-green);
+  color: white;
 
 
 
@@ -429,7 +429,7 @@
 
 
 
-  color: var(--text-medium);
+  color: rgba(255, 255, 255, 0.8);
 
 
 
@@ -517,7 +517,7 @@
 
 
 
-  color: var(--text-medium);
+  color: rgba(255, 255, 255, 0.85);
 
 
 
@@ -557,11 +557,11 @@
 
 
 
-  background: var(--pale-green);
+  background: rgba(255, 255, 255, 0.15);
 
 
 
-  color: var(--dark-green);
+  color: white;
 
 
 
@@ -577,11 +577,15 @@
 
 
 
-  background: var(--primary-green);
+  background: rgba(255, 255, 255, 0.22);
 
 
 
   color: white;
+
+
+
+  font-weight: 600;
 
 
 
@@ -597,7 +601,7 @@
 
 
 
-  color: white;
+  color: #10b981;
 
 
 
@@ -613,7 +617,7 @@
 
 
 
-  color: var(--primary-green);
+  color: #10b981;
 
 
 
@@ -633,7 +637,7 @@
 
 
 
-  color: #DC3545;
+  color: #fca5a5;
 
 
 
@@ -649,11 +653,11 @@
 
 
 
-  background: #F8D7DA;
+  background: rgba(220, 38, 38, 0.25);
 
 
 
-  color: #721C24;
+  color: #fecaca;
 
 
 
@@ -669,7 +673,7 @@
 
 
 
-  color: #DC3545;
+  color: #fca5a5;
 
 
 
@@ -689,7 +693,7 @@
 
 
 
-  border-top: 1px solid var(--soft-green);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
 
 
 
@@ -855,7 +859,7 @@
 
 
 
-  color: var(--text-medium);
+  color: rgba(255, 255, 255, 0.85);
 
 
 
@@ -4866,11 +4870,11 @@
 }
 
 .inbox-table tbody tr.unread {
-  background-color: rgba(122, 158, 126, 0.04);
+  background-color: #fff9c4; /* Highlight yellow for new/unread */
 }
 
 .inbox-table tbody tr.unread:hover {
-  background-color: rgba(122, 158, 126, 0.08);
+  background-color: #fff59d; /* Slightly darker highlight on hover */
 }
 
 .inbox-table-badge {

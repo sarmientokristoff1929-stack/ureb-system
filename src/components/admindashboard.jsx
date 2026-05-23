@@ -5514,24 +5514,6 @@ const ManageUsersContent = () => {
 
 
 
-  const closeDeleteSuccessModal = () => {
-
-    setIsDeleteSuccessModalOpen(false);
-
-  };
-
-
-
-  const closeDeleteErrorModal = () => {
-
-    setIsDeleteErrorModalOpen(false);
-
-    setDeleteErrorMessage('');
-
-  };
-
-
-
   const handleEditInputChange = (e) => {
 
     const { name, value } = e.target;
@@ -6851,7 +6833,9 @@ const ManageUsersContent = () => {
                       <option value="Female">Female</option>
 
                       <option value="LGBTQ">LGBTQ</option>
+
                     </select>
+
                   </div>
 
                   <div className="form-group">
@@ -6921,7 +6905,9 @@ const ManageUsersContent = () => {
                     <option value="Female">Female</option>
 
                     <option value="LGBTQ">LGBTQ</option>
+
                   </select>
+
                 </div>
               )}
               <div className="form-group">
@@ -7459,20 +7445,18 @@ const ManageUsersContent = () => {
 const AddAdminModal = ({ isOpen, onClose, onAdminAdded }) => {
 
   const [formData, setFormData] = useState({
-
     name: '',
-
     email: '',
-
-    password: ''
-
+    password: '',
+    department: ''
   });
 
   const [loading, setLoading] = useState(false);
 
   const [showPassword, setShowPassword] = useState(false);
-
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
 
 
@@ -7513,19 +7497,13 @@ const AddAdminModal = ({ isOpen, onClose, onAdminAdded }) => {
 
 
       if (response.ok) {
-
-        setFormData({ name: '', email: '', password: '' });
-
+        setFormData({ name: '', email: '', password: '', department: '' });
         setShowSuccessModal(true);
-
       } else {
-
         const errorData = await response.json();
-
         console.error('Error adding admin:', errorData);
-
-        alert(`Error: ${errorData.error || 'Failed to add admin'}`);
-
+        setErrorMessage(errorData.error || 'Failed to add admin');
+        setShowErrorModal(true);
       }
 
     } catch (error) {
@@ -7557,8 +7535,8 @@ const AddAdminModal = ({ isOpen, onClose, onAdminAdded }) => {
 
 
   return (
-
-    <div className="add-admin-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <>
+      <div className="add-admin-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
 
       <div className="add-admin-modal-container">
 
@@ -7624,6 +7602,36 @@ const AddAdminModal = ({ isOpen, onClose, onAdminAdded }) => {
 
               />
 
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="department">Department</label>
+              <select
+                id="department"
+                name="department"
+                value={formData.department}
+                onChange={handleChange}
+                required
+              >
+                <option value="">Select Department</option>
+                <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
+                <option value="FTED">FTED- Faculty of Teacher Education</option>
+                <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
+                <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
+                <option value="FBM">FBM-Faculty of Business Management</option>
+                <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
+                <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
+                <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
+                <option value="SEIC">SEIC- San Isidro Extension Campus</option>
+                <option value="BEC">BEC-BanayBanay Extension Campus</option>
+                <option value="CEC">CEC-Cateel Extension Campus</option>
+                <option value="BGEC">BGEC-Baganga Extension Campus</option>
+                <option value="TEC">TEC-Tarragona Extension Campus</option>
+                <option value="NSTP">NSTP-National Service Training Program</option>
+                <option value="ICS">ICS- Indigenous Community Studies</option>
+                <option value="Community Representatives">Community Representatives</option>
+                <option value="UREB Board">UREB Board - University Research Ethics Board</option>
+              </select>
             </div>
 
             <div className="form-group">
@@ -7738,8 +7746,26 @@ const AddAdminModal = ({ isOpen, onClose, onAdminAdded }) => {
 
     </div>
 
+      {/* Error Modal - renders as a sibling above the form modal */}
+      {showErrorModal && (
+        <div className="admin-error-modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowErrorModal(false)}>
+          <div className="admin-error-modal-container">
+            <div className="admin-error-content">
+              <div className="admin-error-icon">✕</div>
+              <h3>{errorMessage?.toLowerCase().includes('email') || errorMessage?.toLowerCase().includes('exist') ? 'Email Already Exists' : 'Action Failed'}</h3>
+              <p>{errorMessage}</p>
+              <button
+                className="admin-error-close-btn"
+                onClick={() => setShowErrorModal(false)}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
-
 };
 
 
@@ -9194,7 +9220,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
   // Resolve message sender type and department
   const getMessageMetadata = useCallback((msg) => {
     const email = (msg.senderEmail || '').toLowerCase();
-    
+
     // Determine type
     let type = msg.type === 'reviewer_to_admin' ? 'reviewer' : (msg.type === 'student_to_admin' ? 'student' : null);
     if (!type) {
