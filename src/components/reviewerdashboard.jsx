@@ -3004,8 +3004,8 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
     setLoading(true);
     try {
       const assignments = await getReviewerAssignments(userEmail);
-      // Filter out admin-created assignments, only show student proposals
-      const studentAssignments = assignments.filter(a => a.assignedBy !== 'admin');
+      // Filter to only show student proposals (which have a student email)
+      const studentAssignments = assignments.filter(a => a.studentEmail && a.studentEmail.trim() !== '');
       const mappedProposals = studentAssignments.map(a => ({
         _id: a.proposalId || a._id,
         researchTitle: a.researchTitle || 'Untitled Proposal',

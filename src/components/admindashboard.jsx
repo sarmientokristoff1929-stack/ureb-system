@@ -2925,6 +2925,9 @@ const MarkCompletedReviewContent = () => {
   const [reviewerRows, setReviewerRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState({});
+  const [proposalStatus, setProposalStatus] = useState({});
+  const [selectedReviewerKey, setSelectedReviewerKey] = useState('');
+  const [reviewerTypeFilter, setReviewerTypeFilter] = useState('preliminary');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -2937,62 +2940,91 @@ const MarkCompletedReviewContent = () => {
         ]);
 
         const allReviews = reviewsRes.ok ? await reviewsRes.json() : [];
+        const allProposals = proposalsRes.ok ? await proposalsRes.json() : [];
         const allAccounts = reviewersRes.ok ? await reviewersRes.json() : [];
 
-        // Group reviews by reviewer email AND type (preliminary vs secondary based on submission type)
+        // Build proposals lookup
+        const proposalsMap = {};
+        if (Array.isArray(allProposals)) {
+          allProposals.forEach(p => {
+            proposalsMap[String(p._id)] = p;
+            if (p.proposalId) proposalsMap[String(p.proposalId)] = p;
+          });
+        }
+
         const byKey = {};
+        const accountMap = {};
+
+        if (Array.isArray(allAccounts)) {
+          allAccounts.forEach(acc => {
+            const email = (acc.email || '').trim().toLowerCase();
+            if (email) accountMap[email] = acc;
+          });
+        }
+
+        // Only group reviewers based strictly on submitted reviews
         if (Array.isArray(allReviews)) {
           allReviews.forEach(review => {
             const email = (review.reviewerEmail || '').trim().toLowerCase();
             if (!email) return;
 
-            // If the decision is 'secondary_file', it is classified as a secondary reviewer submission
-            const isSecondary = review.decision === 'secondary_file';
-            const reviewerType = isSecondary ? 'secondary' : 'preliminary';
+            const pId = String(review.proposalId || (review.proposal && review.proposal._id) || '');
+            const proposal = proposalsMap[pId] || review.proposal || {};
 
-            const key = `${email}_${reviewerType}`;
+            // The basis for being a Secondary reviewer is if the proposal (or review) has a protocol code
+            const protocolCode = review.protocolCode || proposal.protocolCode || '';
+            const isSecondary = protocolCode && String(protocolCode).trim().length > 0;
+            const rType = isSecondary ? 'secondary' : 'preliminary';
+            const key = `${email}_${rType}`;
+
             if (!byKey[key]) {
+              const acc = accountMap[email] || {};
               byKey[key] = {
+                key,
                 email,
-                name: review.reviewerName || review.reviewer || email,
-                reviewerType,
-                reviewCount: 0,
+                name: review.reviewerName || review.reviewer || acc.name || `${acc.firstName || ''} ${acc.lastName || ''}`.trim() || email,
+                reviewerType: rType,
+                department: acc.department || '—',
+                proposals: [],
               };
             }
-            byKey[key].reviewCount++;
+
+            const proposalId = pId || String(proposal._id || '');
+            const title = proposal.researchTitle || proposal.title || review.proposalTitle || review.title || 'Untitled Proposal';
+            const leader = proposal.proponent || proposal.studentName || review.proponent || review.studentName || 'Unknown';
+            const proposalCompleted = (proposal.status || '').toLowerCase() === 'completed';
+
+            if (proposalId && !byKey[key].proposals.find(p => p.proposalId === proposalId)) {
+              byKey[key].proposals.push({ proposalId, title, leader, completed: proposalCompleted });
+            }
           });
         }
 
-        // Build account lookup by email
-        const accountMap = {};
-        if (Array.isArray(allAccounts)) {
-          allAccounts.forEach(acc => {
-            const key = (acc.email || '').trim().toLowerCase();
-            accountMap[key] = acc;
-          });
-        }
+        const EXCLUDED = ['kristoff h. sarmiento'];
+        const rows = Object.values(byKey)
+          .filter(r => !EXCLUDED.includes(r.name.trim().toLowerCase()))
+          .sort((a, b) => a.name.localeCompare(b.name));
 
-        // Build final rows: only reviewers who have actual reviews/files submitted
-        const EXCLUDED_FROM_MCR = ['kristoff h. sarmiento'];
-        const rows = Object.values(byKey).filter(r =>
-          !EXCLUDED_FROM_MCR.includes(r.name.trim().toLowerCase())
-        ).map(r => {
-          const acc = accountMap[r.email] || {};
-          return {
-            _id: acc._id,
-            name: r.name,
-            email: r.email,
-            department: acc.department || '—',
-            reviewerType: r.reviewerType,
-            reviewCount: r.reviewCount,
-            status: acc.status || 'pending',
-          };
+        // Build initial proposal status map
+        const initStatus = {};
+        rows.forEach(row => {
+          (row.proposals || []).forEach(p => {
+            if (p.proposalId) initStatus[p.proposalId] = p.completed ? 'completed' : 'pending';
+          });
         });
-
+        setProposalStatus(initStatus);
         setReviewerRows(rows);
+
+        // Auto-select first reviewer based on filter
+        const initialFiltered = rows.filter(r => r.reviewerType === 'preliminary');
+        if (initialFiltered.length > 0) {
+          setSelectedReviewerKey(initialFiltered[0].key);
+        } else if (rows.length > 0) {
+          setSelectedReviewerKey(rows[0].key);
+          setReviewerTypeFilter(rows[0].reviewerType);
+        }
       } catch (err) {
-        console.error('Error fetching review data:', err);
-        setReviewerRows([]);
+        console.error('Error fetching MCR data:', err);
       } finally {
         setLoading(false);
       }
@@ -3000,117 +3032,240 @@ const MarkCompletedReviewContent = () => {
     fetchData();
   }, []);
 
-  const handleToggle = async (row) => {
-    if (!row._id) return;
-    const newStatus = row.status === 'completed' ? 'pending' : 'completed';
-    setUpdating(prev => ({ ...prev, [row.email]: true }));
+  const handleProposalToggle = async (proposalId, currentStatus) => {
+    if (!proposalId) return;
+    const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
+    setUpdating(prev => ({ ...prev, [proposalId]: true }));
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/reviewers/${row._id}`, {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/proposals/${proposalId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-      setReviewerRows(prev =>
-        prev.map(r => r.email === row.email ? { ...r, status: newStatus } : r)
-      );
+      setProposalStatus(prev => ({ ...prev, [proposalId]: newStatus }));
     } catch (err) {
-      console.error('Error updating reviewer status:', err);
+      console.error('Error updating proposal status:', err);
     } finally {
-      setUpdating(prev => ({ ...prev, [row.email]: false }));
+      setUpdating(prev => ({ ...prev, [proposalId]: false }));
     }
   };
 
-  const preliminary = reviewerRows.filter(r => r.reviewerType === 'preliminary');
-  const secondary = reviewerRows.filter(r => r.reviewerType === 'secondary');
+  const selectedReviewer = reviewerRows.find(r => r.key === selectedReviewerKey) || null;
+  const filteredReviewers = reviewerRows.filter(r => r.reviewerType === reviewerTypeFilter);
 
-  const renderSection = (title, list, accent) => {
-    const completedReviewsCount = list
-      .filter(r => r.status === 'completed')
-      .reduce((sum, r) => sum + r.reviewCount, 0);
-    return (
-      <div className="mcr-section">
-        <div className="mcr-section-header" style={{ borderLeftColor: accent }}>
-          <span className="mcr-dot" style={{ background: accent }} />
-          <h3 className="mcr-section-title">{title}</h3>
-          <span className="mcr-section-badge" style={{ background: accent + '1a', color: accent }}>
-            {list.length} reviewer{list.length !== 1 ? 's' : ''}
-          </span>
-          <span className="mcr-completed-badge">
-            <span className="mcr-completed-badge__count">{completedReviewsCount}</span>
-            Completed Reviews
-          </span>
-        </div>
-
-        {list.length === 0 ? (
-          <p className="mcr-no-data">No {title.toLowerCase()} with assignments found.</p>
-        ) : (
-          <div className="mcr-table-wrap">
-            <table className="mcr-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Department</th>
-                  <th>Reviews</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {list.map((row, idx) => {
-                  const isCompleted = row.status === 'completed';
-                  const isBusy = updating[row.email];
-                  return (
-                    <tr key={row.email} className={`mcr-row${isCompleted ? ' mcr-row--done' : ''}${idx % 2 === 1 ? ' mcr-row--alt' : ''}`}>
-                      <td className="mcr-td-name">{row.name}</td>
-                      <td className="mcr-td-email">{row.email}</td>
-                      <td>{row.department}</td>
-                      <td>{row.reviewCount}</td>
-                      <td>
-                        <span className={`mcr-status ${isCompleted ? 'mcr-status--completed' : 'mcr-status--pending'}`}>
-                          {isCompleted ? 'Completed' : 'Pending'}
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          className={`mcr-btn ${isCompleted ? 'mcr-btn--reset' : 'mcr-btn--complete'}`}
-                          onClick={() => handleToggle(row)}
-                          disabled={isBusy || !row._id}
-                        >
-                          {isBusy ? 'Saving…' : isCompleted ? 'Reset' : 'Mark Completed'}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    );
-  };
+  const completedCount = selectedReviewer
+    ? selectedReviewer.proposals.filter(p =>
+        (proposalStatus[p.proposalId] || (p.completed ? 'completed' : 'pending')) === 'completed'
+      ).length
+    : 0;
+  const totalCount = selectedReviewer ? selectedReviewer.proposals.length : 0;
 
   return (
     <div className="mcr-wrapper">
+      {/* Header */}
       <div className="mcr-header">
         <h2 className="mcr-title">Mark Completed Review</h2>
-        <p className="mcr-subtitle">Reviewers with active assignments. Mark them completed when their review work is done.</p>
+        <p className="mcr-subtitle">
+          Select a reviewer from the dropdown to view and manage their assigned Principal Investigator proposals.
+        </p>
       </div>
 
       {loading ? (
         <div className="mcr-loading">
           <div className="mcr-spinner" />
-          <span>Loading reviewers…</span>
+          <span>Loading reviewer data…</span>
         </div>
       ) : reviewerRows.length === 0 ? (
         <div className="mcr-empty-state">
-          <p>No reviewers with review assignments found.</p>
+          <p>No reviewers with submitted review assignments found.</p>
         </div>
       ) : (
-        <div className="mcr-sections">
-          {renderSection('Preliminary Reviewers', preliminary, '#4A6B4E')}
-          {renderSection('Secondary Reviewers', secondary, '#7A9E7E')}
+        <div className="mcr-dd-layout">
+
+          {/* Dropdown Selectors */}
+          <div className="mcr-dd-selector-row" style={{ flexDirection: 'row', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            
+            <div className="mcr-dd-select-group" style={{ flex: 1, minWidth: '250px' }}>
+              <label className="mcr-dd-label" htmlFor="mcr-type-select">
+                Reviewer Role
+              </label>
+              <div className="mcr-dd-select-wrapper">
+                <select
+                  id="mcr-type-select"
+                  className="mcr-dd-select"
+                  value={reviewerTypeFilter}
+                  onChange={e => {
+                    const newType = e.target.value;
+                    setReviewerTypeFilter(newType);
+                    const newFiltered = reviewerRows.filter(r => r.reviewerType === newType);
+                    if (newFiltered.length > 0) {
+                      setSelectedReviewerKey(newFiltered[0].key);
+                    } else {
+                      setSelectedReviewerKey('');
+                    }
+                  }}
+                >
+                  <option value="preliminary">Preliminary Reviewers</option>
+                  <option value="secondary">Secondary Reviewers</option>
+                </select>
+                <svg className="mcr-dd-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
+            </div>
+
+            <div className="mcr-dd-select-group" style={{ flex: 1, minWidth: '250px' }}>
+              <label className="mcr-dd-label" htmlFor="mcr-reviewer-select">
+                Select Reviewer
+              </label>
+              <div className="mcr-dd-select-wrapper">
+                <select
+                  id="mcr-reviewer-select"
+                  className="mcr-dd-select"
+                  value={selectedReviewerKey}
+                  onChange={e => setSelectedReviewerKey(e.target.value)}
+                  disabled={filteredReviewers.length === 0}
+                >
+                  {filteredReviewers.length === 0 ? (
+                    <option value="">No reviewers found</option>
+                  ) : (
+                    filteredReviewers.map(r => (
+                      <option key={r.key} value={r.key}>
+                        {r.name} ({r.proposals.length} proposal{r.proposals.length !== 1 ? 's' : ''})
+                      </option>
+                    ))
+                  )}
+                </select>
+                <svg className="mcr-dd-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Reviewer Info Banner */}
+          {selectedReviewer && (
+            <div className="mcr-dd-info-banner">
+              <div className="mcr-dd-info-left">
+                <div className="mcr-dd-avatar">
+                  {selectedReviewer.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="mcr-dd-info-text">
+                  <span className="mcr-dd-reviewer-name">{selectedReviewer.name}</span>
+                  <span className="mcr-dd-reviewer-meta">
+                    {selectedReviewer.email}
+                    <span className="mcr-dd-sep">•</span>
+                    {selectedReviewer.department}
+                  </span>
+                </div>
+              </div>
+              <div className="mcr-dd-info-right">
+                <span className={`mcr-dd-type-badge ${selectedReviewer.reviewerType}`}>
+                  {selectedReviewer.reviewerType === 'preliminary' ? 'Preliminary Reviewer' : 'Secondary Reviewer'}
+                </span>
+                <div className="mcr-dd-progress">
+                  <div className="mcr-dd-progress-bar">
+                    <div
+                      className="mcr-dd-progress-fill"
+                      style={{ width: totalCount > 0 ? `${(completedCount / totalCount) * 100}%` : '0%' }}
+                    />
+                  </div>
+                  <span className="mcr-dd-progress-label">
+                    {completedCount} / {totalCount} Proposals Completed
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Proposals Table */}
+          {selectedReviewer && (
+            <div className="mcr-dd-table-card">
+              <div className="mcr-dd-table-header">
+                <h4 className="mcr-dd-table-title">
+                  Assigned Principal Investigators
+                </h4>
+                <p className="mcr-dd-table-subtitle">
+                  Mark each proposal review as completed or reset as needed.
+                </p>
+              </div>
+
+              {selectedReviewer.proposals.length === 0 ? (
+                <div className="mcr-table-empty">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '0.75rem' }}>
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                  <p>No proposals assigned to this reviewer yet.</p>
+                </div>
+              ) : (
+                <div className="mcr-table-wrapper">
+                  <table className="mcr-pi-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '42px', textAlign: 'center' }}>#</th>
+                        <th style={{ width: '200px' }}>Principal Investigator</th>
+                        <th>Research Proposal Title</th>
+                        <th style={{ width: '115px', textAlign: 'center' }}>Status</th>
+                        <th style={{ width: '130px', textAlign: 'center' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedReviewer.proposals.map((p, idx) => {
+                        const pStatus = proposalStatus[p.proposalId] || (p.completed ? 'completed' : 'pending');
+                        const isDone = pStatus === 'completed';
+                        const isBusy = !!updating[p.proposalId];
+
+                        return (
+                          <tr key={p.proposalId || idx} className={isDone ? 'mcr-pi-row--done' : ''}>
+                            <td style={{ textAlign: 'center', fontWeight: 600, color: '#94a3b8', fontSize: '0.8rem' }}>
+                              {idx + 1}
+                            </td>
+                            <td>
+                              <div className="mcr-pi-name-cell">
+                                <div className="mcr-pi-avatar">
+                                  {(p.leader || '?').charAt(0).toUpperCase()}
+                                </div>
+                                <span className="mcr-pi-name" title={p.leader}>{p.leader}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <span className="mcr-pi-title" title={p.title}>{p.title}</span>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <span className={`mcr-pi-status-badge ${isDone ? 'done' : 'pending'}`}>
+                                {isDone ? '✓ Done' : 'Pending'}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button
+                                onClick={() => handleProposalToggle(p.proposalId, pStatus)}
+                                disabled={isBusy || !p.proposalId}
+                                className={`mcr-pi-action-btn ${isDone ? 'reset' : 'complete'}`}
+                                style={{
+                                  opacity: isBusy ? 0.65 : 1,
+                                  cursor: isBusy || !p.proposalId ? 'not-allowed' : 'pointer',
+                                }}
+                              >
+                                {isBusy ? (
+                                  <span className="mcr-btn-spinner" />
+                                ) : isDone ? (
+                                  'Reset'
+                                ) : (
+                                  'Mark Done'
+                                )}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

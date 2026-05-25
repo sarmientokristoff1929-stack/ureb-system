@@ -1679,8 +1679,16 @@ app.get('/api/proposals/student/:studentEmail', async (req, res) => {
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
 
+    // Case-insensitive match across all email-related fields
+    const emailRegex = new RegExp(`^${studentEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+
     const proposalList = await proposals.find({
-      studentEmail: studentEmail
+      $or: [
+        { studentEmail: emailRegex },
+        { studentEmail: studentEmail },
+        { gmail: emailRegex },
+        { email: emailRegex },
+      ]
     }).toArray();
 
     res.json(proposalList);
@@ -3259,7 +3267,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
           endDate: new Date(endDate)
         },
         status: 'Pending',
-        assignedBy: 'admin',
+        assignedBy: existingProposal ? proponent : 'admin',
         updatedAt: new Date()
       };
 
