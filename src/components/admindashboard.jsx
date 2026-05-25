@@ -2936,17 +2936,26 @@ const toRecordId = (value) => {
   return str === '[object Object]' ? '' : str.trim();
 };
 
+const normalizeMcrStatus = (status) => {
+  const s = String(status || '').toLowerCase().trim();
+  if (s === 'completed') return 'completed';
+  if (s === 'under review') return 'under review';
+  return 'pending';
+};
+
+const getMcrRowKey = (row) => row.assignmentId || row.proposalId || row.protocolCode;
+
 // ── Mark Completed Review ──────────────────────────────────────────────────
 const MarkCompletedReviewContent = () => {
   const [reviewerRows, setReviewerRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState({});
   const [proposalStatus, setProposalStatus] = useState({});
+  const [reviewerTypeFilter, setReviewerTypeFilter] = useState('');
   const [selectedReviewerKey, setSelectedReviewerKey] = useState('');
-  const [reviewerTypeFilter, setReviewerTypeFilter] = useState('preliminary');
 
-  useEffect(() => {
-    const fetchData = async () => {
+  const fetchMcrData = async (silent = false) => {
+    if (!silent) setLoading(true);
       try {
         const API = import.meta.env.VITE_API_URL;
         const [reviewsRes, proposalsRes, reviewersRes, assignmentsRes] = await Promise.all([
@@ -3023,20 +3032,36 @@ const MarkCompletedReviewContent = () => {
             const assignmentId = toRecordId(assignment._id);
             const title = proposal.researchTitle || proposal.title || assignment.researchTitle || 'Untitled Proposal';
             const leader = proposal.proponent || proposal.studentName || assignment.proponent || 'Unknown';
+            const assignmentStatus = rType === 'secondary'
+              ? (assignment.status || 'Pending')
+              : (proposal.status || assignment.status || 'Pending');
             const proposalCompleted = (proposal.status || '').toLowerCase() === 'completed';
-            const assignmentCompleted = (assignment.status || '').toLowerCase() === 'completed';
-            const completed = rType === 'secondary' ? assignmentCompleted : proposalCompleted;
+            const completed = rType === 'secondary'
+              ? normalizeMcrStatus(assignmentStatus) === 'completed'
+              : proposalCompleted;
             const rowKey = proposalId || assignmentProtocolCode;
 
-            if (rowKey && !byKey[key].proposals.find(p => (p.proposalId || p.protocolCode) === rowKey)) {
-              byKey[key].proposals.push({
-                proposalId: rowKey,
-                assignmentId,
-                protocolCode: assignmentProtocolCode,
-                title,
-                leader,
-                completed,
-              });
+            const rowData = {
+              proposalId: rowKey,
+              assignmentId,
+              protocolCode: assignmentProtocolCode,
+              assignmentStatus,
+              title,
+              leader,
+              completed,
+            };
+
+            if (!rowKey && !assignmentId) return;
+
+            const proposals = byKey[key].proposals;
+            const existingIdx = assignmentId
+              ? proposals.findIndex(p => p.assignmentId === assignmentId)
+              : proposals.findIndex(p => (p.proposalId || p.protocolCode) === rowKey);
+
+            if (existingIdx >= 0) {
+              proposals[existingIdx] = { ...proposals[existingIdx], ...rowData };
+            } else {
+              proposals.push(rowData);
             }
           });
         }
@@ -3056,6 +3081,18 @@ const MarkCompletedReviewContent = () => {
             let rType = isSecondarySubmission ? 'secondary' : 'preliminary';
             const key = `${email}_${rType}`;
 
+            const protocolCode = (review.protocolCode || proposal.protocolCode || '').trim();
+            const proposalId = pId || toRecordId(proposal._id) || protocolCode;
+
+            // Secondary reviewers: assignments are the source of truth — skip review duplicates
+            if (rType === 'secondary') {
+              const hasAssignment = byKey[key]?.proposals.some(p =>
+                (protocolCode && p.protocolCode === protocolCode) ||
+                (proposalId && p.proposalId === proposalId)
+              );
+              if (hasAssignment) return;
+            }
+
             const reviewerEmail = (review.reviewerEmail || '').trim() || email;
 
             if (!byKey[key]) {
@@ -3070,13 +3107,10 @@ const MarkCompletedReviewContent = () => {
               };
             }
 
-            const protocolCode = (review.protocolCode || proposal.protocolCode || '').trim();
-            const proposalId = pId || toRecordId(proposal._id) || protocolCode;
             const title = proposal.researchTitle || proposal.title || review.proposalTitle || review.title || 'Untitled Proposal';
             const leader = proposal.proponent || proposal.studentName || review.proponent || review.studentName || 'Unknown';
             const proposalCompleted = (proposal.status || '').toLowerCase() === 'completed';
-            const reviewCompleted = (review.status || '').toLowerCase() === 'completed';
-            const completed = rType === 'secondary' ? reviewCompleted : proposalCompleted;
+            const completed = proposalCompleted;
 
             const effectiveTitle = title !== 'Untitled Proposal' ? title
               : (protocolCode ? `Protocol: ${protocolCode}` : 'Untitled Proposal');
@@ -3085,6 +3119,7 @@ const MarkCompletedReviewContent = () => {
               byKey[key].proposals.push({
                 proposalId,
                 protocolCode,
+                assignmentStatus: proposal.status || 'Pending',
                 title: effectiveTitle,
                 leader,
                 completed,
@@ -3098,62 +3133,60 @@ const MarkCompletedReviewContent = () => {
           .filter(r => !EXCLUDED.includes(r.name.trim().toLowerCase()))
           .sort((a, b) => a.name.localeCompare(b.name));
 
-        // Build initial proposal status map
+        // Build status map from persisted assignment/proposal status in DB
         const initStatus = {};
         rows.forEach(row => {
           (row.proposals || []).forEach(p => {
-            const key = p.proposalId || p.protocolCode;
-            if (key) initStatus[key] = p.completed ? 'completed' : 'pending';
+            const key = getMcrRowKey(p);
+            if (!key) return;
+            initStatus[key] = p.assignmentStatus
+              ? normalizeMcrStatus(p.assignmentStatus)
+              : (p.completed ? 'completed' : 'pending');
           });
         });
         setProposalStatus(initStatus);
         setReviewerRows(rows);
-
-        // Auto-select first reviewer based on filter
-        const initialFiltered = rows.filter(r => r.reviewerType === 'preliminary');
-        if (initialFiltered.length > 0) {
-          setSelectedReviewerKey(initialFiltered[0].key);
-        } else if (rows.length > 0) {
-          setSelectedReviewerKey(rows[0].key);
-          setReviewerTypeFilter(rows[0].reviewerType);
-        }
       } catch (err) {
         console.error('Error fetching MCR data:', err);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
-    };
-    fetchData();
+  };
+
+  useEffect(() => {
+    fetchMcrData();
   }, []);
 
   const isMcrCompleted = (status) => String(status || '').toLowerCase() === 'completed';
 
   const handleProposalToggle = async (row, currentStatus, reviewer) => {
-    const rowKey = row.proposalId || row.protocolCode;
+    const rowKey = getMcrRowKey(row);
+    const proposalRef = row.proposalId || row.protocolCode;
     if (!rowKey || !reviewer) return;
     const markingComplete = !isMcrCompleted(currentStatus);
-    const newStatus = markingComplete ? 'completed' : 'pending';
+    const dbAssignmentStatus = markingComplete ? 'Completed' : 'Under Review';
+    const dbProposalStatus = markingComplete ? 'completed' : 'Under Review';
     const isSecondary = reviewer.reviewerType === 'secondary';
     setUpdating(prev => ({ ...prev, [rowKey]: true }));
     try {
       let res;
       if (isSecondary) {
-        // Secondary reviewers: update this reviewer's assignment, not the whole proposal
         res = await fetch(`${import.meta.env.VITE_API_URL}/api/assignments/status`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             assignmentId: row.assignmentId || undefined,
-            proposalId: rowKey,
+            proposalId: proposalRef,
+            protocolCode: row.protocolCode || undefined,
             reviewerEmail: reviewer.reviewerEmail || reviewer.email,
-            status: markingComplete ? 'Completed' : 'Pending',
+            status: dbAssignmentStatus,
           }),
         });
       } else {
-        res = await fetch(`${import.meta.env.VITE_API_URL}/api/proposals/${encodeURIComponent(rowKey)}/status`, {
+        res = await fetch(`${import.meta.env.VITE_API_URL}/api/proposals/${encodeURIComponent(proposalRef)}/status`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: markingComplete ? 'completed' : 'Under Review' }),
+          body: JSON.stringify({ status: dbProposalStatus }),
         });
       }
       const data = await res.json().catch(() => ({}));
@@ -3162,17 +3195,7 @@ const MarkCompletedReviewContent = () => {
       } else if (isSecondary && data.matchedCount === 0) {
         console.error('No assignment found for this reviewer and proposal');
       } else {
-        setProposalStatus(prev => ({ ...prev, [rowKey]: newStatus }));
-        setReviewerRows(prev => prev.map(r => {
-          if (r.key !== reviewer.key) return r;
-          return {
-            ...r,
-            proposals: r.proposals.map(prop => {
-              const propKey = prop.proposalId || prop.protocolCode;
-              return propKey === rowKey ? { ...prop, completed: markingComplete } : prop;
-            }),
-          };
-        }));
+        await fetchMcrData(true);
       }
     } catch (err) {
       console.error('Error updating status:', err);
@@ -3181,26 +3204,87 @@ const MarkCompletedReviewContent = () => {
     }
   };
 
-  const selectedReviewer = reviewerRows.find(r => r.key === selectedReviewerKey) || null;
-  const filteredReviewers = reviewerRows.filter(r => r.reviewerType === reviewerTypeFilter);
-
   const getRowStatus = (p) => {
-    const rowKey = p.proposalId || p.protocolCode;
-    return proposalStatus[rowKey] ?? (p.completed ? 'completed' : 'pending');
+    const rowKey = getMcrRowKey(p);
+    if (proposalStatus[rowKey] !== undefined) return proposalStatus[rowKey];
+    if (p.assignmentStatus) return normalizeMcrStatus(p.assignmentStatus);
+    return p.completed ? 'completed' : 'pending';
   };
 
-  const completedCount = selectedReviewer
-    ? selectedReviewer.proposals.filter(p => isMcrCompleted(getRowStatus(p))).length
-    : 0;
-  const totalCount = selectedReviewer ? selectedReviewer.proposals.length : 0;
+  const getMcrStatusLabel = (status) => {
+    const s = String(status || '').toLowerCase();
+    if (s === 'completed') return '✓ Done';
+    if (s === 'under review') return 'Under Review';
+    return 'Pending';
+  };
+
+  const hasRoleSelected = reviewerTypeFilter === 'preliminary' || reviewerTypeFilter === 'secondary';
+  const isPreliminary = reviewerTypeFilter === 'preliminary';
+
+  const proposalMatchesFilter = (p) => {
+    if (!hasRoleSelected) return false;
+    const protocolCode = (p.protocolCode || '').trim();
+    const student = (p.leader || '').trim();
+    const hasStudent = student && student !== 'Unknown';
+    if (isPreliminary) return hasStudent;
+    return protocolCode && hasStudent;
+  };
+
+  const reviewerOptions = hasRoleSelected
+    ? reviewerRows
+    .filter(r => r.reviewerType === reviewerTypeFilter)
+    .map(r => ({
+      ...r,
+      assignmentCount: (r.proposals || []).filter(proposalMatchesFilter).length,
+    }))
+    .filter(r => r.assignmentCount > 0)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    : [];
+
+  const allTableRows = hasRoleSelected ? reviewerOptions
+    .flatMap(reviewer => (reviewer.proposals || []).filter(proposalMatchesFilter).map(p => ({ ...p, reviewer })))
+    .sort((a, b) => {
+      const nameCmp = a.reviewer.name.localeCompare(b.reviewer.name);
+      if (nameCmp !== 0) return nameCmp;
+      if (isPreliminary) return (a.title || '').localeCompare(b.title || '');
+      return (a.protocolCode || '').localeCompare(b.protocolCode || '');
+    })
+    : [];
+
+  const hasReviewerSelected = selectedReviewerKey === 'all' || reviewerOptions.some(r => r.key === selectedReviewerKey);
+
+  const tableRows = !hasRoleSelected || !hasReviewerSelected
+    ? []
+    : selectedReviewerKey === 'all'
+      ? allTableRows
+      : allTableRows.filter(row => row.reviewer.key === selectedReviewerKey);
+
+  const selectedReviewer = selectedReviewerKey && selectedReviewerKey !== 'all'
+    ? reviewerOptions.find(r => r.key === selectedReviewerKey) || null
+    : null;
+
+  useEffect(() => {
+    if (!selectedReviewerKey || selectedReviewerKey === 'all') return;
+    const exists = reviewerRows.some(
+      r => r.key === selectedReviewerKey && r.reviewerType === reviewerTypeFilter
+    );
+    if (!exists) setSelectedReviewerKey('');
+  }, [selectedReviewerKey, reviewerTypeFilter, reviewerRows]);
+
+  const completedCount = tableRows.filter(row => isMcrCompleted(getRowStatus(row))).length;
+  const totalCount = tableRows.length;
+  const roleLabel = isPreliminary ? 'Preliminary' : 'Secondary';
 
   return (
     <div className="mcr-wrapper">
-      {/* Header */}
       <div className="mcr-header">
         <h2 className="mcr-title">Mark Completed Review</h2>
         <p className="mcr-subtitle">
-          Select a reviewer from the dropdown to view and manage their assigned Principal Investigator proposals.
+          {!hasRoleSelected
+            ? 'Select a reviewer role and reviewer to view and manage completed reviews.'
+            : isPreliminary
+              ? 'View preliminary reviewer assignments with a student proposal. Mark reviews completed or reset as needed.'
+              : 'View secondary reviewer assignments with a student proposal and protocol code. Mark reviews completed or reset as needed.'}
         </p>
       </div>
 
@@ -3209,199 +3293,174 @@ const MarkCompletedReviewContent = () => {
           <div className="mcr-spinner" />
           <span>Loading reviewer data…</span>
         </div>
-      ) : reviewerRows.length === 0 ? (
-        <div className="mcr-empty-state">
-          <p>No reviewers found.</p>
-        </div>
       ) : (
-        <div className="mcr-dd-layout">
-
-          {/* Dropdown Selectors */}
-          <div className="mcr-dd-selector-row" style={{ flexDirection: 'row', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            
-            <div className="mcr-dd-select-group" style={{ flex: 1, minWidth: '250px' }}>
-              <label className="mcr-dd-label" htmlFor="mcr-type-select">
-                Reviewer Role
-              </label>
-              <div className="mcr-dd-select-wrapper">
-                <select
-                  id="mcr-type-select"
-                  className="mcr-dd-select"
-                  value={reviewerTypeFilter}
-                  onChange={e => {
-                    const newType = e.target.value;
-                    setReviewerTypeFilter(newType);
-                    const newFiltered = reviewerRows.filter(r => r.reviewerType === newType);
-                    if (newFiltered.length > 0) {
-                      setSelectedReviewerKey(newFiltered[0].key);
-                    } else {
+        <>
+          <div className="mcr-toolbar">
+            <div className="mcr-toolbar-filters">
+              <div className="mcr-dd-select-group mcr-toolbar-filter">
+                <label className="mcr-dd-label" htmlFor="mcr-type-select">
+                  Reviewer Role
+                </label>
+                <div className="mcr-dd-select-wrapper">
+                  <select
+                    id="mcr-type-select"
+                    className="mcr-dd-select"
+                    value={reviewerTypeFilter}
+                    onChange={e => {
+                      setReviewerTypeFilter(e.target.value);
                       setSelectedReviewerKey('');
-                    }
-                  }}
-                >
-                  <option value="preliminary">Preliminary Reviewers</option>
-                  <option value="secondary">Secondary Reviewers</option>
-                </select>
-                <svg className="mcr-dd-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
+                    }}
+                  >
+                    <option value="">Select Reviewer Role</option>
+                    <option value="preliminary">Preliminary</option>
+                    <option value="secondary">Secondary</option>
+                  </select>
+                  <svg className="mcr-dd-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
               </div>
-            </div>
-
-            <div className="mcr-dd-select-group" style={{ flex: 1, minWidth: '250px' }}>
-              <label className="mcr-dd-label" htmlFor="mcr-reviewer-select">
-                Select Reviewer
-              </label>
-              <div className="mcr-dd-select-wrapper">
-                <select
-                  id="mcr-reviewer-select"
-                  className="mcr-dd-select"
-                  value={selectedReviewerKey}
-                  onChange={e => setSelectedReviewerKey(e.target.value)}
-                  disabled={filteredReviewers.length === 0}
-                >
-                  {filteredReviewers.length === 0 ? (
-                    <option value="">No reviewers found</option>
-                  ) : (
-                    filteredReviewers.map(r => (
+              <div className="mcr-dd-select-group mcr-toolbar-filter">
+                <label className="mcr-dd-label" htmlFor="mcr-reviewer-select">
+                  Select Reviewer
+                </label>
+                <div className="mcr-dd-select-wrapper">
+                  <select
+                    id="mcr-reviewer-select"
+                    className="mcr-dd-select"
+                    value={selectedReviewerKey}
+                    onChange={e => setSelectedReviewerKey(e.target.value)}
+                    disabled={!hasRoleSelected}
+                  >
+                    <option value="">Select Reviewer</option>
+                    <option value="all">All Reviewers</option>
+                    {reviewerOptions.map(r => (
                       <option key={r.key} value={r.key}>
-                        {r.name} ({r.proposals.length} proposal{r.proposals.length !== 1 ? 's' : ''})
+                        {r.name} ({r.assignmentCount} assignment{r.assignmentCount !== 1 ? 's' : ''})
                       </option>
-                    ))
-                  )}
-                </select>
-                <svg className="mcr-dd-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
+                    ))}
+                  </select>
+                  <svg className="mcr-dd-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
               </div>
             </div>
-
+            <div className="mcr-toolbar-stats">
+              <span className="mcr-toolbar-stat">
+                <strong>{totalCount}</strong> assignment{totalCount !== 1 ? 's' : ''}
+              </span>
+              <span className="mcr-toolbar-stat mcr-toolbar-stat--done">
+                <strong>{completedCount}</strong> completed
+              </span>
+            </div>
           </div>
 
-          {/* Reviewer Info Banner */}
-          {selectedReviewer && (
-            <div className="mcr-dd-info-banner">
-              <div className="mcr-dd-info-left">
-                <div className="mcr-dd-avatar">
-                  {selectedReviewer.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="mcr-dd-info-text">
-                  <span className="mcr-dd-reviewer-name">{selectedReviewer.name}</span>
-                  <span className="mcr-dd-reviewer-meta">
-                    {selectedReviewer.email}
-                    <span className="mcr-dd-sep">•</span>
-                    {selectedReviewer.department}
-                  </span>
-                </div>
-              </div>
-              <div className="mcr-dd-info-right">
-                <span className={`mcr-dd-type-badge ${selectedReviewer.reviewerType}`}>
-                  {selectedReviewer.reviewerType === 'preliminary' ? 'Preliminary Reviewer' : 'Secondary Reviewer'}
-                </span>
-                <div className="mcr-dd-progress">
-                  <div className="mcr-dd-progress-bar">
-                    <div
-                      className="mcr-dd-progress-fill"
-                      style={{ width: totalCount > 0 ? `${(completedCount / totalCount) * 100}%` : '0%' }}
-                    />
-                  </div>
-                  <span className="mcr-dd-progress-label">
-                    {completedCount} / {totalCount} Proposals Completed
-                  </span>
-                </div>
-              </div>
+          <div className="mcr-section">
+            <div className="mcr-section-header">
+              <span
+                className="mcr-dot"
+                style={{ background: reviewerTypeFilter === 'preliminary' ? '#2563eb' : '#7c3aed' }}
+              />
+              <h3 className="mcr-section-title">
+                {!hasRoleSelected
+                  ? 'Reviewer Assignments'
+                  : selectedReviewer
+                    ? selectedReviewer.name
+                    : selectedReviewerKey === 'all'
+                      ? `All ${roleLabel} Reviewers`
+                      : 'Reviewer Assignments'}
+              </h3>
+              <span className="mcr-section-badge" style={{
+                background: reviewerTypeFilter === 'preliminary' ? '#dbeafe' : '#ede9fe',
+                color: reviewerTypeFilter === 'preliminary' ? '#1d4ed8' : '#6d28d9',
+              }}>
+                {totalCount} record{totalCount !== 1 ? 's' : ''}
+              </span>
             </div>
-          )}
 
-          {/* Proposals Table */}
-          {selectedReviewer && (
-            <div className="mcr-dd-table-card">
-              <div className="mcr-dd-table-header">
-                <h4 className="mcr-dd-table-title">
-                  Assigned Principal Investigators
-                </h4>
-                <p className="mcr-dd-table-subtitle">
-                  Mark each proposal review as completed or reset as needed.
-                </p>
+            {totalCount === 0 ? (
+              <p className="mcr-no-data">
+                {!hasRoleSelected
+                  ? 'Please select a reviewer role to continue.'
+                  : !hasReviewerSelected
+                    ? 'Please select a reviewer to view assignments.'
+                    : selectedReviewer
+                      ? `No assignments found for ${selectedReviewer.name}.`
+                      : isPreliminary
+                        ? 'No preliminary reviewers with a student proposal found.'
+                        : 'No secondary reviewers with both a student proposal and protocol code found.'}
+              </p>
+            ) : (
+              <div className="mcr-table-wrap">
+                <table className="mcr-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '40px', textAlign: 'center' }}>#</th>
+                      <th>Reviewer</th>
+                      <th>Email</th>
+                      <th>Student (Proponent)</th>
+                      {!isPreliminary && <th>Protocol Code</th>}
+                      <th>Research Proposal Title</th>
+                      <th style={{ textAlign: 'center' }}>Status</th>
+                      <th style={{ textAlign: 'center', width: '120px' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableRows.map((row, idx) => {
+                      const rowKey = getMcrRowKey(row);
+                      const pStatus = getRowStatus(row);
+                      const isDone = isMcrCompleted(pStatus);
+                      const isBusy = !!updating[rowKey];
+                      const { reviewer } = row;
+
+                      return (
+                        <tr
+                          key={`${reviewer.key}-${rowKey}-${idx}`}
+                          className={`mcr-row ${idx % 2 === 1 ? 'mcr-row--alt' : ''} ${isDone ? 'mcr-row--done' : ''}`}
+                        >
+                          <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</td>
+                          <td className="mcr-td-name">{reviewer.name}</td>
+                          <td className="mcr-td-email">{reviewer.reviewerEmail || reviewer.email}</td>
+                          <td>{row.leader}</td>
+                          {!isPreliminary && (
+                            <td>
+                              <span className="mcr-protocol-code">{row.protocolCode}</span>
+                            </td>
+                          )}
+                          <td style={{ maxWidth: '220px' }}>
+                            <span className="mcr-td-title" title={row.title}>{row.title}</span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span className={`mcr-status ${isDone ? 'mcr-status--completed' : (pStatus === 'under review' ? 'mcr-status--review' : 'mcr-status--pending')}`}>
+                              {getMcrStatusLabel(pStatus)}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleProposalToggle(row, pStatus, reviewer)}
+                              disabled={isBusy || !(row.proposalId || (!isPreliminary && row.protocolCode))}
+                              className={`mcr-btn ${isDone ? 'mcr-btn--reset' : 'mcr-btn--complete'}`}
+                            >
+                              {isBusy ? (
+                                <span className="mcr-btn-spinner" />
+                              ) : isDone ? (
+                                'Reset'
+                              ) : (
+                                'Mark Done'
+                              )}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-
-              {selectedReviewer.proposals.length === 0 ? (
-                <div className="mcr-table-empty">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '0.75rem' }}>
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
-                  <p>No proposals assigned to this reviewer yet.</p>
-                </div>
-              ) : (
-                <div className="mcr-table-wrapper">
-                  <table className="mcr-pi-table">
-                    <thead>
-                      <tr>
-                        <th style={{ width: '42px', textAlign: 'center' }}>#</th>
-                        <th style={{ width: '200px' }}>Principal Investigator</th>
-                        <th>Research Proposal Title</th>
-                        <th style={{ width: '115px', textAlign: 'center' }}>Status</th>
-                        <th style={{ width: '130px', textAlign: 'center' }}>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedReviewer.proposals.map((p, idx) => {
-                        const rowKey = p.proposalId || p.protocolCode;
-                        const pStatus = getRowStatus(p);
-                        const isDone = isMcrCompleted(pStatus);
-                        const isBusy = !!updating[rowKey];
-
-                        return (
-                          <tr key={p.proposalId || idx} className={isDone ? 'mcr-pi-row--done' : ''}>
-                            <td style={{ textAlign: 'center', fontWeight: 600, color: '#94a3b8', fontSize: '0.8rem' }}>
-                              {idx + 1}
-                            </td>
-                            <td>
-                              <div className="mcr-pi-name-cell">
-                                <div className="mcr-pi-avatar">
-                                  {(p.leader || '?').charAt(0).toUpperCase()}
-                                </div>
-                                <span className="mcr-pi-name" title={p.leader}>{p.leader}</span>
-                              </div>
-                            </td>
-                            <td>
-                              <span className="mcr-pi-title" title={p.title}>{p.title}</span>
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              <span className={`mcr-pi-status-badge ${isDone ? 'done' : 'pending'}`}>
-                                {isDone ? '✓ Done' : 'Pending'}
-                              </span>
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              <button
-                                onClick={() => handleProposalToggle(p, pStatus, selectedReviewer)}
-                                disabled={isBusy || !(p.proposalId || p.protocolCode)}
-                                className={`mcr-pi-action-btn ${isDone ? 'reset' : 'complete'}`}
-                                style={{
-                                  opacity: isBusy ? 0.65 : 1,
-                                  cursor: isBusy || !(p.proposalId || p.protocolCode) ? 'not-allowed' : 'pointer',
-                                }}
-                              >
-                                {isBusy ? (
-                                  <span className="mcr-btn-spinner" />
-                                ) : isDone ? (
-                                  'Reset'
-                                ) : (
-                                  'Mark Done'
-                                )}
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
@@ -3622,13 +3681,17 @@ const AssignFileContent = () => {
 
     const { name, value } = e.target;
 
-    setFormData(prev => ({
+    setFormData(prev => {
 
-      ...prev,
+      const next = { ...prev, [name]: value };
 
-      [name]: value
+      if (name === 'secondaryReviewer1' && next.secondaryReviewer2 === value) {
+        next.secondaryReviewer2 = '';
+      }
 
-    }));
+      return next;
+
+    });
 
   };
 
@@ -3718,7 +3781,12 @@ const AssignFileContent = () => {
 
     if (!formData.secondaryReviewer1.trim()) errors.secondaryReviewer1 = 'Secondary Reviewer 1 is required';
 
-    if (!formData.secondaryReviewer2.trim()) errors.secondaryReviewer2 = 'Secondary Reviewer 2 is required';
+    if (
+      formData.secondaryReviewer2.trim() &&
+      formData.secondaryReviewer1.trim() === formData.secondaryReviewer2.trim()
+    ) {
+      errors.secondaryReviewer2 = 'Secondary Reviewer 2 must be different from Secondary Reviewer 1';
+    }
 
     if (!formData.startDate) errors.startDate = 'Start Date is required';
 
@@ -3795,7 +3863,9 @@ const AssignFileContent = () => {
 
       formDataToSend.append('secondaryReviewer1', formData.secondaryReviewer1);
 
-      formDataToSend.append('secondaryReviewer2', formData.secondaryReviewer2);
+      if (formData.secondaryReviewer2.trim()) {
+        formDataToSend.append('secondaryReviewer2', formData.secondaryReviewer2);
+      }
 
       formDataToSend.append('startDate', formData.startDate);
 
@@ -4123,7 +4193,7 @@ const AssignFileContent = () => {
 
           <div className="form-group">
 
-            <label>Secondary Reviewer 2</label>
+            <label>Secondary Reviewer 2 <span className="optional-label">(Optional)</span></label>
 
             <select
 
@@ -4135,7 +4205,7 @@ const AssignFileContent = () => {
 
             >
 
-              <option value="">Select Reviewer</option>
+              <option value="">Select Reviewer (Optional)</option>
 
               {loadingReviewers ? (
 
@@ -4143,7 +4213,7 @@ const AssignFileContent = () => {
 
               ) : filteredReviewers.length > 0 ? (
 
-                filteredReviewers.filter(r => r.email).map((reviewer, index) => {
+                filteredReviewers.filter(r => r.email && r.email !== formData.secondaryReviewer1).map((reviewer, index) => {
 
                   const reviewerName = reviewer.name ||
 

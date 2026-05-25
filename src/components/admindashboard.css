@@ -2053,6 +2053,12 @@
 
 }
 
+.form-group label .optional-label {
+  font-weight: 500;
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
 
 
 
@@ -15930,6 +15936,78 @@
   color: #15803d;
 }
 
+.mcr-status--review {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+
+.mcr-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  background: #fff;
+  padding: 1.25rem 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.mcr-toolbar-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  flex: 1;
+}
+
+.mcr-toolbar-filter {
+  flex: 1;
+  min-width: 220px;
+  max-width: 320px;
+}
+
+.mcr-toolbar-stats {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.mcr-toolbar-stat {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.mcr-toolbar-stat strong {
+  color: #1e293b;
+  font-size: 1.1rem;
+}
+
+.mcr-toolbar-stat--done strong {
+  color: #15803d;
+}
+
+.mcr-protocol-code {
+  display: inline-block;
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1e40af;
+  background: #eff6ff;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+}
+
+.mcr-td-title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
 /* Action buttons */
 .mcr-btn {
   display: inline-flex;
@@ -15976,7 +16054,7 @@
 
 @media (max-width: 768px) {
   .mcr-table {
-    min-width: 540px;
+    min-width: 900px;
     font-size: 0.78rem;
   }
 
@@ -17035,6 +17113,11 @@
   color: #166534;
 }
 
+.mcr-pi-status-badge.under-review {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
 .mcr-pi-action-btn {
   padding: 0.35rem 0.75rem;
   font-size: 0.75rem;
@@ -17308,4 +17391,4 @@
     align-items: flex-start;
     width: 100%;
   }
-}
+}

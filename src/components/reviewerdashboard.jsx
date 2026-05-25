@@ -1517,7 +1517,10 @@ const DashboardContent = () => {
       const activeAssignments = assignments.filter(a => !deletedIds.includes(String(a._id)));
 
       const pendingReviewsCount = reviews.filter(r => r.status === 'pending').length;
-      const pendingAssignmentsCount = activeAssignments.filter(a => !a.status || a.status.toLowerCase() === 'pending').length;
+      const pendingAssignmentsCount = activeAssignments.filter(a => {
+        const s = (a.status || '').toLowerCase();
+        return !s || s === 'pending';
+      }).length;
 
       // If admin has marked this reviewer as completed, count all their assignments as done
       const isMarkedComplete = (reviewerProfile?.status || '').toLowerCase() === 'completed';
@@ -2286,6 +2289,7 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
           const files = assignment.assignedFiles || {};
           const fileEntries = Object.entries(files);
           const isExpanded = expandedId === String(assignment._id);
+          const isAdminAssignment = String(assignment.assignedBy || '').toLowerCase() === 'admin';
 
           const isRead = readIds.includes(String(assignment._id));
 
@@ -2351,12 +2355,12 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                       fontWeight: '700',
                       textTransform: 'uppercase',
                       letterSpacing: '0.02em',
-                      backgroundColor: assignment.protocolCode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                      color: assignment.protocolCode ? '#1e40af' : '#065f46',
-                      border: `1px solid ${assignment.protocolCode ? 'rgba(59, 130, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`
+                      backgroundColor: isAdminAssignment ? 'rgba(59, 130, 246, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                      color: isAdminAssignment ? '#1e40af' : '#065f46',
+                      border: `1px solid ${isAdminAssignment ? 'rgba(59, 130, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`
                     }}
                   >
-                    {assignment.protocolCode ? 'Admin Assigned' : 'Student Submitted'}
+                    {isAdminAssignment ? 'Admin Assigned' : 'Student Submitted'}
                   </span>
                 </p>
                 {assignment.protocolCode && (

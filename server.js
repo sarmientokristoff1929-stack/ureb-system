@@ -2552,7 +2552,7 @@ app.post('/api/assignments/:id/delete', async (req, res) => {
 // Update assignment status
 app.put('/api/assignments/status', async (req, res) => {
   try {
-    const { assignmentId, proposalId, reviewerEmail, status } = req.body;
+    const { assignmentId, proposalId, protocolCode, reviewerEmail, status } = req.body;
     if (!status) {
       return res.status(400).json({ success: false, error: 'Missing status' });
     }
@@ -2562,23 +2562,31 @@ app.put('/api/assignments/status', async (req, res) => {
 
     let result = { matchedCount: 0 };
 
+    const buildProposalMatchers = (id) => {
+      const matchers = [{ proposalId: id }, { protocolCode: id }];
+      const normalizedProtocol = String(id).toUpperCase().replace(/\s+/g, '');
+      if (normalizedProtocol !== id) {
+        matchers.push({ protocolCode: normalizedProtocol });
+      }
+      if (ObjectId.isValid(id) && String(new ObjectId(id)) === id) {
+        matchers.push({ proposalId: new ObjectId(id) });
+      }
+      return matchers;
+    };
+
     const updateByProposal = async () => {
       const proposalMatchers = [
-        { proposalId: proposalId },
-        { protocolCode: proposalId },
+        ...buildProposalMatchers(proposalId),
+        ...(protocolCode ? buildProposalMatchers(protocolCode) : []),
       ];
-      const normalizedProtocol = String(proposalId).toUpperCase().replace(/\s+/g, '');
-      if (normalizedProtocol !== proposalId) {
-        proposalMatchers.push({ protocolCode: normalizedProtocol });
-      }
-      if (ObjectId.isValid(proposalId) && String(new ObjectId(proposalId)) === proposalId) {
-        proposalMatchers.push({ proposalId: new ObjectId(proposalId) });
-      }
+      const uniqueMatchers = proposalMatchers.filter((m, i, arr) =>
+        arr.findIndex(x => JSON.stringify(x) === JSON.stringify(m)) === i
+      );
 
       const escapedEmail = String(reviewerEmail).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      return assignments.updateOne(
+      return assignments.updateMany(
         {
-          $or: proposalMatchers,
+          $or: uniqueMatchers,
           reviewerEmail: { $regex: new RegExp(`^${escapedEmail}$`, 'i') },
         },
         { $set: { status, updatedAt: new Date() } }
@@ -3204,10 +3212,22 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       }
     }
 
-    // Validation
-    if (!protocolCode || !secondaryReviewer1 || !secondaryReviewer2 || !startDate || !endDate) {
-      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    // Validation — Secondary Reviewer 2 is optional
+    if (!protocolCode || !secondaryReviewer1 || !startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        error: 'Protocol code, Secondary Reviewer 1, start date, and end date are required',
+      });
     }
+
+    if (secondaryReviewer2 && secondaryReviewer2 === secondaryReviewer1) {
+      return res.status(400).json({
+        success: false,
+        error: 'Secondary Reviewer 2 must be different from Secondary Reviewer 1',
+      });
+    }
+
+    const reviewer2Value = secondaryReviewer2?.trim() ? secondaryReviewer2 : null;
 
     if (!existingProposal && Object.keys(uploadedFiles).length === 0) {
       return res.status(400).json({ success: false, error: 'At least one document must be uploaded' });
@@ -3231,25 +3251,34 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       };
       allAssignedFiles = mergedFiles;
 
+      // Preserve student/preliminary reviewer on proposal — only add secondary reviewers
+      const preliminaryEmail = existingProposal.preliminaryReviewer
+        || existingProposal.reviewers?.reviewer1
+        || null;
+      const proposalUpdate = {
+        protocolCode,
+        files: mergedFiles,
+        reviewers: {
+          reviewer1: preliminaryEmail,
+          reviewer2: secondaryReviewer1,
+          reviewer3: reviewer2Value,
+        },
+        preliminaryReviewer: existingProposal.preliminaryReviewer,
+        preliminaryReviewerName: existingProposal.preliminaryReviewerName,
+        studentEmail: existingProposal.studentEmail,
+        researchTitle: existingProposal.researchTitle,
+        proponent: existingProposal.proponent || existingProposal.studentName,
+        updatedAt: new Date(),
+      };
+      const lockedStatuses = ['completed', 'approved', 'rejected'];
+      const currentStatus = (existingProposal.status || '').toLowerCase();
+      if (!lockedStatuses.includes(currentStatus)) {
+        proposalUpdate.status = existingProposal.status || 'Under Review';
+      }
+
       await proposals.updateOne(
         { _id: resolvedProposalId },
-        {
-          $set: {
-            protocolCode: protocolCode, // Set or update the protocol code
-            status: 'Under Review',
-            reviewers: {
-              reviewer1: secondaryReviewer1,
-              reviewer2: secondaryReviewer2,
-              reviewer3: null
-            },
-            reviewPeriod: {
-              startDate: new Date(startDate),
-              endDate: new Date(endDate)
-            },
-            files: mergedFiles,
-            updatedAt: new Date()
-          }
-        }
+        { $set: proposalUpdate }
       );
       console.log('Existing proposal updated and assigned to reviewers:', resolvedProposalId);
     } else {
@@ -3261,7 +3290,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         status: 'Under Review',
         reviewers: {
           reviewer1: secondaryReviewer1,
-          reviewer2: secondaryReviewer2,
+          reviewer2: reviewer2Value,
           reviewer3: null
         },
         reviewPeriod: {
@@ -3281,7 +3310,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
     // Create or update assignments for each reviewer to access these files
     const assignments = db.collection(collections.assignments);
     const reviewerCollection = db.collection(collections.reviewers);
-    const reviewerValues = [...new Set([secondaryReviewer1, secondaryReviewer2].filter(Boolean))];
+    const reviewerValues = [...new Set([secondaryReviewer1, reviewer2Value].filter(Boolean))];
 
     // Collect reviewer names for admin notification
     const assignedReviewerNames = [];
@@ -3303,6 +3332,25 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       // Store name for admin notification
       assignedReviewerNames.push(resolvedName);
 
+      const proposalIdMatchers = [
+        { proposalId: resolvedProposalId },
+        { proposalId: resolvedProposalId.toString() },
+      ];
+      if (ObjectId.isValid(String(resolvedProposalId)) && String(new ObjectId(resolvedProposalId)) === String(resolvedProposalId)) {
+        proposalIdMatchers.push({ proposalId: new ObjectId(resolvedProposalId) });
+      }
+
+      // Only match admin-created assignments — never overwrite student/preliminary assignments
+      const existingAdminAssignment = await assignments.findOne({
+        reviewerEmail: reviewer.email,
+        assignedBy: 'admin',
+        $or: proposalIdMatchers,
+      });
+
+      const adminAssignedFiles = existingAdminAssignment
+        ? { ...(existingAdminAssignment.assignedFiles || {}), ...uploadedFiles }
+        : allAssignedFiles;
+
       const assignmentData = {
         proposalId: resolvedProposalId,
         reviewerId: reviewer._id,
@@ -3312,7 +3360,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         researchTitle: researchTitle,
         proponent: proponent,
         studentEmail: studentEmail,
-        assignedFiles: allAssignedFiles,
+        assignedFiles: adminAssignedFiles,
         reviewPeriod: {
           startDate: new Date(startDate),
           endDate: new Date(endDate)
@@ -3322,24 +3370,23 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         updatedAt: new Date()
       };
 
-      // Check if assignment already exists for this reviewer and proposal to prevent duplicates
-      const existingAssignment = await assignments.findOne({
-        reviewerEmail: reviewer.email,
-        proposalId: resolvedProposalId
-      });
-
-      if (existingAssignment) {
+      if (existingAdminAssignment) {
         await assignments.updateOne(
-          { _id: existingAssignment._id },
-          { $set: assignmentData }
+          { _id: existingAdminAssignment._id },
+          {
+            $set: {
+              ...assignmentData,
+              status: existingAdminAssignment.status || assignmentData.status,
+            },
+          }
         );
-        console.log(`Assignment updated for reviewer: ${resolvedName} (${reviewer.email})`);
+        console.log(`Admin assignment updated for reviewer: ${resolvedName} (${reviewer.email})`);
       } else {
         await assignments.insertOne({
           ...assignmentData,
           createdAt: new Date()
         });
-        console.log(`Assignment created for reviewer: ${resolvedName} (${reviewer.email})`);
+        console.log(`Admin assignment created for reviewer: ${resolvedName} (${reviewer.email})`);
       }
 
       // Notify the reviewer
@@ -3362,29 +3409,32 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       console.log(`Notification sent to: ${resolvedName} (${reviewer.email})`);
     }
 
-    // Cascading update: Propagate the newly assigned protocolCode, merged files, and studentEmail to ALL existing assignments for this proposal.
-    // This ensures preliminary reviewers and other existing assignees stay completely in sync without interrupting execution.
+    // Link protocol code to student/preliminary assignments without replacing their files or assignedBy
     try {
+      const linkProposalMatchers = [
+        { proposalId: resolvedProposalId },
+        { proposalId: resolvedProposalId.toString() },
+      ];
+      if (ObjectId.isValid(String(resolvedProposalId)) && String(new ObjectId(resolvedProposalId)) === String(resolvedProposalId)) {
+        linkProposalMatchers.push({ proposalId: new ObjectId(resolvedProposalId) });
+      }
+
       await assignments.updateMany(
         {
-          $or: [
-            { proposalId: resolvedProposalId },
-            { proposalId: resolvedProposalId.toString() }
-          ]
+          $or: linkProposalMatchers,
+          assignedBy: { $ne: 'admin' },
         },
         {
           $set: {
             protocolCode: protocolCode,
-            assignedFiles: allAssignedFiles,
-            // Ensure studentEmail is always set so frontend filters work correctly
-            ...(studentEmail ? { studentEmail: studentEmail } : {}),
-            updatedAt: new Date()
-          }
+            ...(studentEmail ? { studentEmail } : {}),
+            updatedAt: new Date(),
+          },
         }
       );
-      console.log(`Successfully cascaded protocolCode, assignedFiles and studentEmail to all assignments for proposal ${resolvedProposalId}`);
+      console.log(`Linked protocolCode to student/preliminary assignments for proposal ${resolvedProposalId}`);
     } catch (cascadeError) {
-      console.error('Error cascading assignment updates:', cascadeError);
+      console.error('Error linking student assignments:', cascadeError);
     }
 
     // Create admin notification with assigned reviewer names
