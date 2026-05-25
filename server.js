@@ -1034,9 +1034,11 @@ app.put('/api/reviewers/:id', async (req, res) => {
       const assignments = db.collection(collections.assignments);
       const reviewerEmail = existingReviewer.email;
       if (reviewerEmail) {
+        const assignmentStatus = updateData.status === 'completed' ? 'Completed' : 'Pending';
+        const escapedEmail = String(reviewerEmail).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         await assignments.updateMany(
-          { reviewerEmail },
-          { $set: { status: updateData.status } }
+          { reviewerEmail: { $regex: new RegExp(`^${escapedEmail}$`, 'i') } },
+          { $set: { status: assignmentStatus } }
         );
       }
     }
@@ -1634,12 +1636,25 @@ app.put('/api/proposals/:id/status', async (req, res) => {
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
 
-    const result = await proposals.updateOne(
-      { _id: new ObjectId(id) },
-      { $set: { status, updatedAt: new Date() } }
-    );
+    let result;
 
-    if (result.matchedCount === 0) {
+    // Try ObjectId first
+    if (ObjectId.isValid(id) && String(new ObjectId(id)) === id) {
+      result = await proposals.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { status, updatedAt: new Date() } }
+      );
+    }
+
+    // If not found (or id is not a valid ObjectId), try matching by protocolCode
+    if (!result || result.matchedCount === 0) {
+      result = await proposals.updateOne(
+        { protocolCode: id },
+        { $set: { status, updatedAt: new Date() } }
+      );
+    }
+
+    if (!result || result.matchedCount === 0) {
       return res.status(404).json({ success: false, error: 'Proposal not found' });
     }
 
@@ -2432,6 +2447,19 @@ app.get('/api/notifications/:email', async (req, res) => {
   }
 });
 
+// Get all assignments
+app.get('/api/assignments', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const assignments = db.collection(collections.assignments);
+    const assignmentList = await assignments.find({}).toArray();
+    res.json(assignmentList);
+  } catch (error) {
+    console.error('Error fetching all assignments:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Get assignments for a specific reviewer
 app.get('/api/assignments/:reviewerEmail', async (req, res) => {
   try {
@@ -2440,8 +2468,9 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
     const assignments = db.collection(collections.assignments);
     const notifications = db.collection(collections.notifications);
 
+    const escapedEmail = String(reviewerEmail).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const assignmentList = await assignments.find({
-      reviewerEmail: reviewerEmail
+      reviewerEmail: { $regex: new RegExp(`^${escapedEmail}$`, 'i') },
     }).sort({ createdAt: -1 }).toArray();
 
     // Check for assignments with review deadlines within 3 days and create notifications
@@ -2523,30 +2552,52 @@ app.post('/api/assignments/:id/delete', async (req, res) => {
 // Update assignment status
 app.put('/api/assignments/status', async (req, res) => {
   try {
-    const { proposalId, reviewerEmail, status } = req.body;
-    if (!proposalId || !reviewerEmail || !status) {
-      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    const { assignmentId, proposalId, reviewerEmail, status } = req.body;
+    if (!status) {
+      return res.status(400).json({ success: false, error: 'Missing status' });
     }
 
     const db = getDatabase();
     const assignments = db.collection(collections.assignments);
 
-    const result = await assignments.updateOne(
-      {
-        $or: [
-          { proposalId: proposalId }, // Try direct match
-          { proposalId: new ObjectId(proposalId) }, // Try ObjectId match
-          { protocolCode: proposalId } // Try protocolCode match
-        ],
-        reviewerEmail: reviewerEmail
-      },
-      {
-        $set: {
-          status: status,
-          updatedAt: new Date()
-        }
+    let result = { matchedCount: 0 };
+
+    const updateByProposal = async () => {
+      const proposalMatchers = [
+        { proposalId: proposalId },
+        { protocolCode: proposalId },
+      ];
+      const normalizedProtocol = String(proposalId).toUpperCase().replace(/\s+/g, '');
+      if (normalizedProtocol !== proposalId) {
+        proposalMatchers.push({ protocolCode: normalizedProtocol });
       }
-    );
+      if (ObjectId.isValid(proposalId) && String(new ObjectId(proposalId)) === proposalId) {
+        proposalMatchers.push({ proposalId: new ObjectId(proposalId) });
+      }
+
+      const escapedEmail = String(reviewerEmail).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return assignments.updateOne(
+        {
+          $or: proposalMatchers,
+          reviewerEmail: { $regex: new RegExp(`^${escapedEmail}$`, 'i') },
+        },
+        { $set: { status, updatedAt: new Date() } }
+      );
+    };
+
+    // Prefer direct assignment id when provided; fall back to proposal/reviewer match
+    if (assignmentId && ObjectId.isValid(assignmentId) && String(new ObjectId(assignmentId)) === assignmentId) {
+      result = await assignments.updateOne(
+        { _id: new ObjectId(assignmentId) },
+        { $set: { status, updatedAt: new Date() } }
+      );
+    }
+
+    if (result.matchedCount === 0 && proposalId && reviewerEmail) {
+      result = await updateByProposal();
+    } else if (result.matchedCount === 0 && !proposalId && !reviewerEmail) {
+      return res.status(400).json({ success: false, error: 'Missing assignmentId or proposalId/reviewerEmail' });
+    }
 
     res.json({ success: true, matchedCount: result.matchedCount });
   } catch (error) {
@@ -3267,7 +3318,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
           endDate: new Date(endDate)
         },
         status: 'Pending',
-        assignedBy: existingProposal ? proponent : 'admin',
+        assignedBy: 'admin',
         updatedAt: new Date()
       };
 
@@ -3309,6 +3360,31 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         createdAt: new Date()
       });
       console.log(`Notification sent to: ${resolvedName} (${reviewer.email})`);
+    }
+
+    // Cascading update: Propagate the newly assigned protocolCode, merged files, and studentEmail to ALL existing assignments for this proposal.
+    // This ensures preliminary reviewers and other existing assignees stay completely in sync without interrupting execution.
+    try {
+      await assignments.updateMany(
+        {
+          $or: [
+            { proposalId: resolvedProposalId },
+            { proposalId: resolvedProposalId.toString() }
+          ]
+        },
+        {
+          $set: {
+            protocolCode: protocolCode,
+            assignedFiles: allAssignedFiles,
+            // Ensure studentEmail is always set so frontend filters work correctly
+            ...(studentEmail ? { studentEmail: studentEmail } : {}),
+            updatedAt: new Date()
+          }
+        }
+      );
+      console.log(`Successfully cascaded protocolCode, assignedFiles and studentEmail to all assignments for proposal ${resolvedProposalId}`);
+    } catch (cascadeError) {
+      console.error('Error cascading assignment updates:', cascadeError);
     }
 
     // Create admin notification with assigned reviewer names

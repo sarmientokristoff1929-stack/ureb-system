@@ -4,7 +4,16 @@ import './reviewerdashboard.css';
 
 import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, getReviewerAssignments, downloadReviewerFile, deleteMessage, markMessageAsRead, changeReviewerPassword, getReviewerProfile, getUserNotifications, markNotificationAsRead, deleteNotification } from '../services/api';
 
+const formatAssignmentStatus = (status) => {
+  if (!status) return 'Pending';
+  const normalized = String(status).toLowerCase().trim();
+  if (normalized === 'completed') return 'Completed';
+  if (normalized === 'pending') return 'Pending';
+  if (normalized === 'under review') return 'Under Review';
+  return status;
+};
 
+const isAssignmentCompleted = (status) => String(status || '').toLowerCase().trim() === 'completed';
 
 // Icons as simple SVG components
 
@@ -1511,10 +1520,10 @@ const DashboardContent = () => {
       const pendingAssignmentsCount = activeAssignments.filter(a => !a.status || a.status.toLowerCase() === 'pending').length;
 
       // If admin has marked this reviewer as completed, count all their assignments as done
-      const isMarkedComplete = reviewerProfile?.status === 'completed';
+      const isMarkedComplete = (reviewerProfile?.status || '').toLowerCase() === 'completed';
       const completedReviews = isMarkedComplete
         ? activeAssignments.length
-        : activeAssignments.filter(a => a.status === 'completed').length;
+        : activeAssignments.filter(a => isAssignmentCompleted(a.status)).length;
 
       const unreadMessages = messages.filter(m => !m.read).length;
 
@@ -2299,9 +2308,9 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <span
-                    className={`status-badge ${(assignment.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}
+                    className={`status-badge ${formatAssignmentStatus(assignment.status).toLowerCase().replace(/\s+/g, '-')}`}
                   >
-                    {assignment.status || 'Pending'}
+                    {formatAssignmentStatus(assignment.status)}
                   </span>
                   <button
                     title="Delete assignment"

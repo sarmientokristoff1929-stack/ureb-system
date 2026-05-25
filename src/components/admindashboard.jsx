@@ -2920,6 +2920,22 @@ const AddReviewerContent = () => {
 
 
 
+// Normalize MongoDB ObjectId / string ids from API responses
+const toRecordId = (value) => {
+  if (value == null || value === '') return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'object') {
+    if (value.$oid) return String(value.$oid).trim();
+    if (value._id) return toRecordId(value._id);
+    if (typeof value.toString === 'function') {
+      const s = value.toString();
+      if (s && s !== '[object Object]') return s.trim();
+    }
+  }
+  const str = String(value);
+  return str === '[object Object]' ? '' : str.trim();
+};
+
 // ── Mark Completed Review ──────────────────────────────────────────────────
 const MarkCompletedReviewContent = () => {
   const [reviewerRows, setReviewerRows] = useState([]);
@@ -2933,22 +2949,27 @@ const MarkCompletedReviewContent = () => {
     const fetchData = async () => {
       try {
         const API = import.meta.env.VITE_API_URL;
-        const [reviewsRes, proposalsRes, reviewersRes] = await Promise.all([
+        const [reviewsRes, proposalsRes, reviewersRes, assignmentsRes] = await Promise.all([
           fetch(`${API}/api/reviews`),
           fetch(`${API}/api/proposals`),
           fetch(`${API}/api/reviewers`),
+          fetch(`${API}/api/assignments`),
         ]);
 
         const allReviews = reviewsRes.ok ? await reviewsRes.json() : [];
         const allProposals = proposalsRes.ok ? await proposalsRes.json() : [];
         const allAccounts = reviewersRes.ok ? await reviewersRes.json() : [];
+        const allAssignments = assignmentsRes.ok ? await assignmentsRes.json() : [];
 
         // Build proposals lookup
         const proposalsMap = {};
         if (Array.isArray(allProposals)) {
           allProposals.forEach(p => {
-            proposalsMap[String(p._id)] = p;
-            if (p.proposalId) proposalsMap[String(p.proposalId)] = p;
+            const id = toRecordId(p._id);
+            if (id) proposalsMap[id] = p;
+            const altId = toRecordId(p.proposalId);
+            if (altId) proposalsMap[altId] = p;
+            if (p.protocolCode) proposalsMap[String(p.protocolCode).trim()] = p;
           });
         }
 
@@ -2962,26 +2983,86 @@ const MarkCompletedReviewContent = () => {
           });
         }
 
-        // Only group reviewers based strictly on submitted reviews
+        // Group reviewers based on assignments first (so they appear even if they haven't submitted a review)
+        if (Array.isArray(allAssignments)) {
+          allAssignments.forEach(assignment => {
+            const email = (assignment.reviewerEmail || assignment.email || '').trim().toLowerCase();
+            if (!email) return;
+
+            const pId = toRecordId(assignment.proposalId);
+            const proposal = proposalsMap[pId] || {};
+
+            const acc = accountMap[email] || {};
+            // Admin assignments (secondary) always have assignedBy: 'admin'
+            let rType = (assignment.assignedBy === 'admin') ? 'secondary' : 'preliminary';
+
+            // Based on user request, admin assignments (Secondary) should only be listed 
+            // if the proposal has a Protocol Code (check both the proposal and the assignment record)
+            const assignmentProtocolCode = (assignment.protocolCode || proposal.protocolCode || '').trim();
+            if (rType === 'secondary' && assignmentProtocolCode === '') {
+              return;
+            }
+
+            const key = `${email}_${rType}`;
+
+            const reviewerEmail = (assignment.reviewerEmail || assignment.email || '').trim() || email;
+
+            if (!byKey[key]) {
+              byKey[key] = {
+                key,
+                email,
+                reviewerEmail,
+                name: assignment.reviewerName || assignment.name || acc.name || `${acc.firstName || ''} ${acc.lastName || ''}`.trim() || email,
+                reviewerType: rType,
+                department: acc.department || '—',
+                proposals: [],
+              };
+            }
+
+            const proposalId = pId || toRecordId(proposal._id) || assignmentProtocolCode;
+            const assignmentId = toRecordId(assignment._id);
+            const title = proposal.researchTitle || proposal.title || assignment.researchTitle || 'Untitled Proposal';
+            const leader = proposal.proponent || proposal.studentName || assignment.proponent || 'Unknown';
+            const proposalCompleted = (proposal.status || '').toLowerCase() === 'completed';
+            const assignmentCompleted = (assignment.status || '').toLowerCase() === 'completed';
+            const completed = rType === 'secondary' ? assignmentCompleted : proposalCompleted;
+            const rowKey = proposalId || assignmentProtocolCode;
+
+            if (rowKey && !byKey[key].proposals.find(p => (p.proposalId || p.protocolCode) === rowKey)) {
+              byKey[key].proposals.push({
+                proposalId: rowKey,
+                assignmentId,
+                protocolCode: assignmentProtocolCode,
+                title,
+                leader,
+                completed,
+              });
+            }
+          });
+        }
+
+        // Also process submitted reviews to catch any discrepancies
         if (Array.isArray(allReviews)) {
           allReviews.forEach(review => {
             const email = (review.reviewerEmail || '').trim().toLowerCase();
             if (!email) return;
 
-            const pId = String(review.proposalId || (review.proposal && review.proposal._id) || '');
+            const pId = toRecordId(review.proposalId || (review.proposal && review.proposal._id));
             const proposal = proposalsMap[pId] || review.proposal || {};
 
-            // The basis for being a Secondary reviewer is if the proposal (or review) has a protocol code
-            const protocolCode = review.protocolCode || proposal.protocolCode || '';
-            const isSecondary = protocolCode && String(protocolCode).trim().length > 0;
-            const rType = isSecondary ? 'secondary' : 'preliminary';
+            const acc = accountMap[email] || {};
+            // Determine role purely based on the review submission type (user request)
+            const isSecondarySubmission = review.decision === 'secondary_file' || review.urebForm10B || review.urebForm11;
+            let rType = isSecondarySubmission ? 'secondary' : 'preliminary';
             const key = `${email}_${rType}`;
 
+            const reviewerEmail = (review.reviewerEmail || '').trim() || email;
+
             if (!byKey[key]) {
-              const acc = accountMap[email] || {};
               byKey[key] = {
                 key,
                 email,
+                reviewerEmail,
                 name: review.reviewerName || review.reviewer || acc.name || `${acc.firstName || ''} ${acc.lastName || ''}`.trim() || email,
                 reviewerType: rType,
                 department: acc.department || '—',
@@ -2989,13 +3070,25 @@ const MarkCompletedReviewContent = () => {
               };
             }
 
-            const proposalId = pId || String(proposal._id || '');
+            const protocolCode = (review.protocolCode || proposal.protocolCode || '').trim();
+            const proposalId = pId || toRecordId(proposal._id) || protocolCode;
             const title = proposal.researchTitle || proposal.title || review.proposalTitle || review.title || 'Untitled Proposal';
             const leader = proposal.proponent || proposal.studentName || review.proponent || review.studentName || 'Unknown';
             const proposalCompleted = (proposal.status || '').toLowerCase() === 'completed';
+            const reviewCompleted = (review.status || '').toLowerCase() === 'completed';
+            const completed = rType === 'secondary' ? reviewCompleted : proposalCompleted;
+
+            const effectiveTitle = title !== 'Untitled Proposal' ? title
+              : (protocolCode ? `Protocol: ${protocolCode}` : 'Untitled Proposal');
 
             if (proposalId && !byKey[key].proposals.find(p => p.proposalId === proposalId)) {
-              byKey[key].proposals.push({ proposalId, title, leader, completed: proposalCompleted });
+              byKey[key].proposals.push({
+                proposalId,
+                protocolCode,
+                title: effectiveTitle,
+                leader,
+                completed,
+              });
             }
           });
         }
@@ -3009,7 +3102,8 @@ const MarkCompletedReviewContent = () => {
         const initStatus = {};
         rows.forEach(row => {
           (row.proposals || []).forEach(p => {
-            if (p.proposalId) initStatus[p.proposalId] = p.completed ? 'completed' : 'pending';
+            const key = p.proposalId || p.protocolCode;
+            if (key) initStatus[key] = p.completed ? 'completed' : 'pending';
           });
         });
         setProposalStatus(initStatus);
@@ -3032,31 +3126,71 @@ const MarkCompletedReviewContent = () => {
     fetchData();
   }, []);
 
-  const handleProposalToggle = async (proposalId, currentStatus) => {
-    if (!proposalId) return;
-    const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
-    setUpdating(prev => ({ ...prev, [proposalId]: true }));
+  const isMcrCompleted = (status) => String(status || '').toLowerCase() === 'completed';
+
+  const handleProposalToggle = async (row, currentStatus, reviewer) => {
+    const rowKey = row.proposalId || row.protocolCode;
+    if (!rowKey || !reviewer) return;
+    const markingComplete = !isMcrCompleted(currentStatus);
+    const newStatus = markingComplete ? 'completed' : 'pending';
+    const isSecondary = reviewer.reviewerType === 'secondary';
+    setUpdating(prev => ({ ...prev, [rowKey]: true }));
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/proposals/${proposalId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      setProposalStatus(prev => ({ ...prev, [proposalId]: newStatus }));
+      let res;
+      if (isSecondary) {
+        // Secondary reviewers: update this reviewer's assignment, not the whole proposal
+        res = await fetch(`${import.meta.env.VITE_API_URL}/api/assignments/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assignmentId: row.assignmentId || undefined,
+            proposalId: rowKey,
+            reviewerEmail: reviewer.reviewerEmail || reviewer.email,
+            status: markingComplete ? 'Completed' : 'Pending',
+          }),
+        });
+      } else {
+        res = await fetch(`${import.meta.env.VITE_API_URL}/api/proposals/${encodeURIComponent(rowKey)}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: markingComplete ? 'completed' : 'Under Review' }),
+        });
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.success === false) {
+        console.error('Failed to update status:', data.error || res.statusText);
+      } else if (isSecondary && data.matchedCount === 0) {
+        console.error('No assignment found for this reviewer and proposal');
+      } else {
+        setProposalStatus(prev => ({ ...prev, [rowKey]: newStatus }));
+        setReviewerRows(prev => prev.map(r => {
+          if (r.key !== reviewer.key) return r;
+          return {
+            ...r,
+            proposals: r.proposals.map(prop => {
+              const propKey = prop.proposalId || prop.protocolCode;
+              return propKey === rowKey ? { ...prop, completed: markingComplete } : prop;
+            }),
+          };
+        }));
+      }
     } catch (err) {
-      console.error('Error updating proposal status:', err);
+      console.error('Error updating status:', err);
     } finally {
-      setUpdating(prev => ({ ...prev, [proposalId]: false }));
+      setUpdating(prev => ({ ...prev, [rowKey]: false }));
     }
   };
 
   const selectedReviewer = reviewerRows.find(r => r.key === selectedReviewerKey) || null;
   const filteredReviewers = reviewerRows.filter(r => r.reviewerType === reviewerTypeFilter);
 
+  const getRowStatus = (p) => {
+    const rowKey = p.proposalId || p.protocolCode;
+    return proposalStatus[rowKey] ?? (p.completed ? 'completed' : 'pending');
+  };
+
   const completedCount = selectedReviewer
-    ? selectedReviewer.proposals.filter(p =>
-        (proposalStatus[p.proposalId] || (p.completed ? 'completed' : 'pending')) === 'completed'
-      ).length
+    ? selectedReviewer.proposals.filter(p => isMcrCompleted(getRowStatus(p))).length
     : 0;
   const totalCount = selectedReviewer ? selectedReviewer.proposals.length : 0;
 
@@ -3077,7 +3211,7 @@ const MarkCompletedReviewContent = () => {
         </div>
       ) : reviewerRows.length === 0 ? (
         <div className="mcr-empty-state">
-          <p>No reviewers with submitted review assignments found.</p>
+          <p>No reviewers found.</p>
         </div>
       ) : (
         <div className="mcr-dd-layout">
@@ -3213,9 +3347,10 @@ const MarkCompletedReviewContent = () => {
                     </thead>
                     <tbody>
                       {selectedReviewer.proposals.map((p, idx) => {
-                        const pStatus = proposalStatus[p.proposalId] || (p.completed ? 'completed' : 'pending');
-                        const isDone = pStatus === 'completed';
-                        const isBusy = !!updating[p.proposalId];
+                        const rowKey = p.proposalId || p.protocolCode;
+                        const pStatus = getRowStatus(p);
+                        const isDone = isMcrCompleted(pStatus);
+                        const isBusy = !!updating[rowKey];
 
                         return (
                           <tr key={p.proposalId || idx} className={isDone ? 'mcr-pi-row--done' : ''}>
@@ -3240,12 +3375,12 @@ const MarkCompletedReviewContent = () => {
                             </td>
                             <td style={{ textAlign: 'center' }}>
                               <button
-                                onClick={() => handleProposalToggle(p.proposalId, pStatus)}
-                                disabled={isBusy || !p.proposalId}
+                                onClick={() => handleProposalToggle(p, pStatus, selectedReviewer)}
+                                disabled={isBusy || !(p.proposalId || p.protocolCode)}
                                 className={`mcr-pi-action-btn ${isDone ? 'reset' : 'complete'}`}
                                 style={{
                                   opacity: isBusy ? 0.65 : 1,
-                                  cursor: isBusy || !p.proposalId ? 'not-allowed' : 'pointer',
+                                  cursor: isBusy || !(p.proposalId || p.protocolCode) ? 'not-allowed' : 'pointer',
                                 }}
                               >
                                 {isBusy ? (
