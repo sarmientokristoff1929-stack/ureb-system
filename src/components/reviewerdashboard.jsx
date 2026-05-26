@@ -2171,7 +2171,15 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
     try {
       const data = await getReviewerAssignments(userEmail);
       const deletedIds = getDeletedAssignmentIds();
-      setAssignments(data.filter(a => !deletedIds.includes(String(a._id))));
+      const active = (Array.isArray(data) ? data : []).filter(a => !deletedIds.includes(String(a._id)));
+      // Student submissions first, then admin assignments; newest first within each group
+      active.sort((a, b) => {
+        const aStudent = a.assignmentSource === 'student' || String(a.assignedBy || '').toLowerCase() !== 'admin';
+        const bStudent = b.assignmentSource === 'student' || String(b.assignedBy || '').toLowerCase() !== 'admin';
+        if (aStudent !== bStudent) return aStudent ? -1 : 1;
+        return new Date(b.createdAt || b.updatedAt || 0) - new Date(a.createdAt || a.updatedAt || 0);
+      });
+      setAssignments(active);
     } catch (error) {
       console.error('Error fetching assignments:', error);
     } finally {
@@ -2289,7 +2297,15 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
           const files = assignment.assignedFiles || {};
           const fileEntries = Object.entries(files);
           const isExpanded = expandedId === String(assignment._id);
-          const isAdminAssignment = String(assignment.assignedBy || '').toLowerCase() === 'admin';
+          const isAdminAssignment = assignment.assignmentSource === 'admin'
+            || (assignment.assignmentSource !== 'student' && String(assignment.assignedBy || '').toLowerCase() === 'admin');
+          const isStudentSubmission = !isAdminAssignment;
+          const submitterName = assignment.proponent
+            || (isStudentSubmission && assignment.assignedBy && assignment.assignedBy !== 'Student'
+              ? assignment.assignedBy
+              : null)
+            || assignment.studentEmail
+            || 'Student';
 
           const isRead = readIds.includes(String(assignment._id));
 
@@ -2297,7 +2313,7 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
             <div className={`proposal-card ${!isRead ? 'unread' : ''}`} key={String(assignment._id)}>
               <div className="proposal-header">
                 <div className="proposal-header-left" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <h3><span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#000000', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{assignment.protocolCode ? 'Protocol Code:' : 'Proposal Title:'}</span> <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#6b7280' }}>{assignment.protocolCode || assignment.researchTitle || 'No Title'}</span></h3>
+                  <h3><span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#000000', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{isStudentSubmission ? 'Proposal Title:' : (assignment.protocolCode ? 'Protocol Code:' : 'Proposal Title:')}</span> <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#6b7280' }}>{isStudentSubmission ? (assignment.researchTitle || 'No Title') : (assignment.protocolCode || assignment.researchTitle || 'No Title')}</span></h3>
                   <span style={{
                     padding: '0.2rem 0.6rem',
                     borderRadius: '12px',
@@ -2345,7 +2361,8 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
 
               <div className="proposal-content">
                 <p>
-                  <strong>Assigned by:</strong> {assignment.assignedBy || 'Admin'}
+                  <strong>{isStudentSubmission ? 'Submitted by:' : 'Assigned by:'}</strong>{' '}
+                  {isStudentSubmission ? submitterName : (assignment.assignedBy || 'Admin')}
                   <span
                     style={{
                       marginLeft: '8px',
@@ -2363,7 +2380,7 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                     {isAdminAssignment ? 'Admin Assigned' : 'Student Submitted'}
                   </span>
                 </p>
-                {assignment.protocolCode && (
+                {isAdminAssignment && assignment.protocolCode && (
                   <p style={{ margin: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#374151' }}>Protocol Code:</span>
                     <span style={{
@@ -2383,7 +2400,7 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                 <div className="proposal-meta">
                   <span><strong>Review Start:</strong> {formatDate(assignment.reviewPeriod?.startDate)}</span>
                   <span><strong>Review End:</strong> {formatDate(getEffectiveEndDate(assignment))}</span>
-                  <span><strong>Assigned:</strong> {formatDate(assignment.createdAt)}</span>
+                  <span><strong>{isStudentSubmission ? 'Submitted:' : 'Assigned:'}</strong> {formatDate(assignment.createdAt)}</span>
                   <span><strong>Files:</strong> {fileEntries.length} document{fileEntries.length !== 1 ? 's' : ''}</span>
                 </div>
               </div>
@@ -3017,17 +3034,33 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
     setLoading(true);
     try {
       const assignments = await getReviewerAssignments(userEmail);
-      // Filter to only show student proposals (which have a student email)
-      const studentAssignments = assignments.filter(a => a.studentEmail && a.studentEmail.trim() !== '');
-      const mappedProposals = studentAssignments.map(a => ({
-        _id: a.proposalId || a._id,
-        researchTitle: a.researchTitle || 'Untitled Proposal',
-        protocolCode: a.protocolCode || '',
-        proponent: a.proponent || a.studentName || 'Unknown'
-      }));
-      setProposals(mappedProposals);
+      const safeAssignments = Array.isArray(assignments) ? assignments : [];
+
+      // Only consider student-submitted assignments (not admin secondary assignments)
+      const studentAssignments = safeAssignments.filter((a) => {
+        const source = a.assignmentSource
+          || (String(a.assignedBy || '').toLowerCase() === 'admin' ? 'admin' : 'student');
+        return source === 'student' && a.studentEmail && a.studentEmail.trim() !== '';
+      });
+
+      // Deduplicate by proposalId or protocolCode + title to avoid duplicates
+      const proposalMap = new Map();
+      studentAssignments.forEach((a) => {
+        const key =
+          String(a.proposalId || a._id || a.protocolCode || a.researchTitle || '').toLowerCase();
+        if (!proposalMap.has(key)) {
+          proposalMap.set(key, {
+            _id: a.proposalId || a._id,
+            researchTitle: a.researchTitle || 'Untitled Proposal',
+            protocolCode: a.protocolCode || '',
+            proponent: a.proponent || a.studentName || 'Unknown',
+          });
+        }
+      });
+
+      setProposals(Array.from(proposalMap.values()));
     } catch (error) {
-      console.error('Error fetching assignments:', error);
+      console.error('Error fetching assignments for review submission:', error);
     } finally {
       setLoading(false);
     }
@@ -3501,13 +3534,29 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
     setLoading(true);
     try {
       const assignments = await getReviewerAssignments(userEmail);
-      const mappedProposals = assignments.map(a => ({
-        _id: a.proposalId || a._id,
-        researchTitle: a.researchTitle || 'Untitled Proposal',
-        protocolCode: a.protocolCode || '',
-        proponent: a.proponent || a.studentName || 'Unknown'
-      }));
-      setProposals(mappedProposals);
+      const safeAssignments = Array.isArray(assignments) ? assignments : [];
+      const mappedProposals = safeAssignments
+        // Secondary submission should only show admin/secondary assignments that have protocol codes
+        .filter((a) => {
+          const source = a.assignmentSource
+            || (String(a.assignedBy || '').toLowerCase() === 'admin' ? 'admin' : 'student');
+          return source === 'admin' && a.protocolCode && String(a.protocolCode).trim() !== '';
+        })
+        .map((a) => ({
+          _id: a.proposalId || a._id,
+          researchTitle: a.researchTitle || 'Untitled Proposal',
+          protocolCode: String(a.protocolCode || '').trim(),
+          proponent: a.proponent || a.studentName || 'Unknown',
+        }));
+
+      // Deduplicate by protocol code (same protocol can appear from multiple admin assignments)
+      const byProtocol = new Map();
+      mappedProposals.forEach((p) => {
+        const key = p.protocolCode.toUpperCase();
+        if (!byProtocol.has(key)) byProtocol.set(key, p);
+      });
+
+      setProposals(Array.from(byProtocol.values()));
     } catch (error) {
       console.error('Error fetching assignments:', error);
     } finally {

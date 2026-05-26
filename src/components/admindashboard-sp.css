@@ -1,0 +1,237 @@
+/* Student Proposal admin section */
+.sp-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.sp-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.sp-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.sp-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #64748b;
+  max-width: 640px;
+}
+
+.sp-feedback {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.sp-feedback--success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.sp-feedback--error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.sp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.25rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.sp-search {
+  flex: 1;
+  min-width: 220px;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.sp-stat {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.sp-stat--pending {
+  color: #b45309;
+}
+
+.sp-loading,
+.sp-empty {
+  padding: 2.5rem;
+  text-align: center;
+  color: #64748b;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.sp-table-wrap {
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid var(--soft-green);
+  border-radius: 12px;
+}
+
+.sp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  text-align: left;
+  table-layout: fixed;
+}
+
+.sp-table thead tr {
+  background: #f8faf9;
+}
+
+.sp-table th {
+  padding: 0.9rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-dark);
+  border-bottom: 1px solid var(--soft-green);
+  white-space: nowrap;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sp-table td {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--soft-green);
+  vertical-align: middle;
+  word-break: break-word;
+}
+
+.sp-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.sp-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.sp-table tbody tr:hover {
+  background-color: var(--nude-green);
+}
+
+.sp-row--assigned {
+  background: #f8faf9;
+}
+
+.sp-td-title {
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.35;
+}
+
+.sp-student-name {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.sp-student-email {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.sp-select {
+  width: 100%;
+  min-width: 160px;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: #fff;
+}
+
+.sp-select:focus {
+  outline: none;
+  border-color: var(--primary-green);
+  box-shadow: 0 0 0 3px rgba(122, 158, 126, 0.15);
+}
+
+.sp-status {
+  display: inline-block;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.sp-status--pending {
+  background-color: #fff9c4;
+  color: #92400e;
+}
+
+.sp-status--assigned {
+  background-color: var(--nude-green);
+  color: var(--primary-green);
+}
+
+.sp-assign-btn {
+  white-space: nowrap;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+  min-width: 88px;
+}
+
+.sp-cell-date,
+.sp-cell-status,
+.sp-cell-action {
+  white-space: nowrap;
+}
+
+.sp-cell-action {
+  text-align: center;
+}
+
+.sp-col-title { width: 24%; }
+.sp-col-student { width: 19%; }
+.sp-col-date { width: 11%; }
+.sp-col-department { width: 18%; }
+.sp-col-reviewer { width: 18%; }
+.sp-col-status { width: 10%; }
+.sp-col-action { width: 10%; }
+
+@media (max-width: 1200px) {
+  .sp-table {
+    table-layout: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .sp-table th,
+  .sp-table td {
+    padding: 0.65rem 0.75rem;
+  }
+
+  .sp-select {
+    min-width: 140px;
+  }
+
+  .sp-col-action,
+  .sp-col-status,
+  .sp-col-date {
+    width: auto;
+  }
+}

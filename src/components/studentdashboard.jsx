@@ -1411,7 +1411,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
                         </div>
                         <div className="up-meta-item">
                           <span className="up-meta-label">Reviewer</span>
-                          <span className="up-meta-value">{proposal.preliminaryReviewer || 'Not assigned'}</span>
+                          <span className="up-meta-value">{proposal.preliminaryReviewerName || proposal.preliminaryReviewer || 'Not assigned'}</span>
                         </div>
                         <div className="up-meta-item">
                           <span className="up-meta-label">Submitted</span>
@@ -1585,66 +1585,26 @@ const NotificationsContent = ({ userInfo }) => {
   );
 };
 
-const DEPARTMENT_REVIEWERS = {
-  FAIS: ['Helina Jean P. Dupa'],
-  FALS: ['Henzel P. Bongas', 'Jefferson A. Centro', 'Harvy B. Desales'],
-  FTED: ['Emellie D. Careña'],
-  FBM: ['Gary L. Bastidan', 'Catharine G. Cabellero'],
-  FCJE: ['Ruther P. Manaopanao', 'Jessa Mae P. Macapanas'],
-  FACET: ['Rod Ryan B. Mendoza', 'Emmanuel B. Barbas'],
-  SIEC: ['Lester B. Argawanon', 'Elven Bugwak', 'Hepsiva T. Albizo', 'Aldan G. Namis', 'Jenet Grace B. Fuentes'],
-  FHUSOCOM: ['Renato Valdez'],
-  BEC: ['Niel A. Mutia', 'Cherime P. Bautista', 'Jenny Lou A. Milagrosa'],
-  CEC: ['Kevin P. Banudan', 'Judy Mae C. Apostol', 'Jhanny S. Bongo', 'Mary Ann Mabagod'],
-  BGEC: ['Purisima N. Tampus', 'Jerel M. Menendez'],
-  TEC: ['Aileen R. Artazo', 'Janennica Q. Manaytay'],
-  FNAS: ['FNAS Reviewer 1', 'FNAS Reviewer 2'] // Temporary placeholder for FNAS
+const ADD_FILES_FILE_FIELDS = [
+  'proposal', 'approvalSheet', 'urebForm2', 'applicationForm6',
+  'accomplishedForm8', 'accomplishedForm10A', 'instrumentTool', 'ethicsReviewFee',
+];
+
+const EMPTY_ADD_FILES_FORM = {
+  proposal: null,
+  approvalSheet: null,
+  urebForm2: null,
+  applicationForm6: null,
+  accomplishedForm8: null,
+  accomplishedForm10A: null,
+  instrumentTool: null,
+  ethicsReviewFee: null,
+  proposalTitle: '',
 };
 
 const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
-  const [formData, setFormData] = useState({
-    proposal: null,
-    approvalSheet: null,
-    urebForm2: null,
-    applicationForm6: null,
-    accomplishedForm8: null,
-    accomplishedForm10A: null,
-    instrumentTool: null,
-    ethicsReviewFee: null,
-    preliminaryReviewer: '',
-    department: '',
-    proposalTitle: ''
-  });
+  const [formData, setFormData] = useState(EMPTY_ADD_FILES_FORM);
   const [uploading, setUploading] = useState(false);
-  const [reviewers, setReviewers] = useState([]);
-  const [loadingReviewers, setLoadingReviewers] = useState(true);
-
-  // Fetch reviewers from database on component mount
-  useEffect(() => {
-    const fetchReviewers = async () => {
-      try {
-        const { getAllReviewers } = await import('../services/api.js');
-        const reviewersData = await getAllReviewers();
-        setReviewers(reviewersData);
-      } catch (error) {
-        console.error('Error fetching reviewers:', error);
-        setReviewers([]);
-      } finally {
-        setLoadingReviewers(false);
-      }
-    };
-
-    fetchReviewers();
-  }, []);
-
-  // Filter reviewers based on selected department
-  const filteredReviewers = reviewers.filter(reviewer =>
-    String(reviewer.department || '').trim().toUpperCase() === String(formData.department || '').trim().toUpperCase()
-  ).map(reviewer => ({
-    name: reviewer.name || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim(),
-    email: reviewer.email || ''
-  }))
-    .filter(r => r.email);
 
   const handleFileChange = (fieldName, file) => {
     setFormData(prev => ({
@@ -1663,8 +1623,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Check if at least one file is uploaded
-    const hasFiles = Object.values(formData).some(value => value instanceof File);
+    const hasFiles = ADD_FILES_FILE_FIELDS.some((field) => formData[field] instanceof File);
     if (!hasFiles) {
       alert('Please upload at least one file');
       return;
@@ -1676,19 +1635,12 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
       const user = savedUser ? JSON.parse(savedUser) : null;
 
       const submitData = new FormData();
-      // Append files
-      const fileFields = ['proposal', 'approvalSheet', 'urebForm2', 'applicationForm6', 'accomplishedForm8', 'accomplishedForm10A', 'instrumentTool', 'ethicsReviewFee'];
-      fileFields.forEach(field => {
+      ADD_FILES_FILE_FIELDS.forEach((field) => {
         if (formData[field] instanceof File) {
           submitData.append(field, formData[field]);
         }
       });
 
-      // Append text fields
-      submitData.append('department', formData.department);
-      submitData.append('preliminaryReviewer', formData.preliminaryReviewer); // email
-      const selectedReviewerName = filteredReviewers.find(r => r.email === formData.preliminaryReviewer)?.name || '';
-      submitData.append('preliminaryReviewerName', selectedReviewerName);
       submitData.append('proposalTitle', formData.proposalTitle);
       submitData.append('studentEmail', user?.email || '');
       submitData.append('studentName', user?.name || '');
@@ -1702,7 +1654,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
 
       if (result.success) {
         // Collect submitted files for modal display
-        const submittedFilesList = fileFields.filter(field => formData[field] instanceof File)
+        const submittedFilesList = ADD_FILES_FILE_FIELDS.filter((field) => formData[field] instanceof File)
           .map(field => ({
             name: formData[field].name,
             size: (formData[field].size / 1024).toFixed(1) + ' KB'
@@ -1711,19 +1663,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
         setSubmittedFiles(submittedFilesList);
         setShowSuccessModal(true);
 
-        setFormData({
-          proposal: null,
-          approvalSheet: null,
-          urebForm2: null,
-          applicationForm6: null,
-          accomplishedForm8: null,
-          accomplishedForm10A: null,
-          instrumentTool: null,
-          ethicsReviewFee: null,
-          preliminaryReviewer: '',
-          department: '',
-          proposalTitle: ''
-        });
+        setFormData({ ...EMPTY_ADD_FILES_FORM });
       } else {
         alert('Error uploading files: ' + (result.error || 'Unknown error'));
       }
@@ -1781,60 +1721,9 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
         {renderFileInput('instrumentTool', 'Copy of instrument/tool', 'e.g. questionnaire that will be administered to participants, if study entails human participants. Provide a link if instrument is administered online')}
         {renderFileInput('ethicsReviewFee', 'Ethics Review Fee (Receipt)')}
 
-        <div className="form-group">
-          <label htmlFor="department">Department</label>
-          <select
-            id="department"
-            value={formData.department}
-            onChange={(e) => {
-              handleInputChange('department', e.target.value);
-              handleInputChange('preliminaryReviewer', '');
-            }}
-            required
-          >
-            <option value="">Select Department</option>
-            <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
-            <option value="FTED">FTED- Faculty of Teacher Education</option>
-            <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
-            <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
-            <option value="FBM">FBM-Faculty of Business Management</option>
-            <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
-            <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
-            <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
-            <option value="SEIC">SEIC- San Isidro Extension Campus</option>
-            <option value="BEC">BEC-BanayBanay Extension Campus</option>
-            <option value="CEC">CEC-Cateel Extension Campus</option>
-            <option value="BGEC">BGEC-Baganga Extension Campus</option>
-            <option value="TEC">TEC-Tarragona Extension Campus</option>
-            <option value="NSTP">NSTP-National Service Training Program</option>
-            <option value="ICS">ICS- Indigenous Community Studies</option>
-            <option value="Community Representatives">Community Representatives</option>
-            <option value="UREB Board">UREB Board - University Research Ethics Board</option>
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="preliminaryReviewer">Preliminary Reviewer</label>
-          <select
-            id="preliminaryReviewer"
-            value={formData.preliminaryReviewer}
-            onChange={(e) => handleInputChange('preliminaryReviewer', e.target.value)}
-            required
-          >
-            <option value="">Select a reviewer</option>
-            {loadingReviewers ? (
-              <option value="" disabled>Loading reviewers...</option>
-            ) : filteredReviewers.length > 0 ? (
-              filteredReviewers.map((reviewer) => (
-                <option key={reviewer.email} value={reviewer.email}>
-                  {reviewer.name}
-                </option>
-              ))
-            ) : (
-              <option value="" disabled>No reviewers available for this department</option>
-            )}
-          </select>
-        </div>
+        <p className="field-description" style={{ marginTop: '0.5rem' }}>
+          A preliminary reviewer will be assigned by the administrator after you submit your files.
+        </p>
 
         <div className="form-actions">
           <button
@@ -1847,21 +1736,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
           <button
             type="button"
             className="btn-secondary"
-            onClick={() => {
-              setFormData({
-                proposal: null,
-                approvalSheet: null,
-                urebForm2: null,
-                applicationForm6: null,
-                accomplishedForm8: null,
-                accomplishedForm10A: null,
-                instrumentTool: null,
-                ethicsReviewFee: null,
-                preliminaryReviewer: '',
-                department: '',
-                proposalTitle: ''
-              });
-            }}
+            onClick={() => setFormData({ ...EMPTY_ADD_FILES_FORM })}
           >
             Clear
           </button>

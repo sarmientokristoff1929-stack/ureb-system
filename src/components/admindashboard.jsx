@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 
 
 import './admindashboard.css';
+import './admindashboard-sp.css';
 
 import './AddAdminModal.css';
 
@@ -451,7 +452,13 @@ const AssignIcon = () => (
 
 
 
-
+const FileCheckIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <path d="M9 15l2 2 4-4" />
+  </svg>
+);
 
 
 
@@ -914,6 +921,8 @@ const AdminDashboard = ({ onLogout }) => {
 
     { id: 'assign-file', label: 'Submit File', icon: <AssignIcon /> },
 
+    { id: 'student-proposals', label: 'Student Proposal', icon: <FileCheckIcon /> },
+
     { id: 'messages-inbox', label: 'Files And Messages Submitted', icon: <MessageIcon />, badge: messageCount > 0 ? messageCount : null },
 
     { id: 'mark-completed-review', label: 'Mark Completed Review', icon: <CheckCircleIcon /> },
@@ -1146,7 +1155,9 @@ const AdminDashboard = ({ onLogout }) => {
 
         return <AssignFileContent />;
 
+      case 'student-proposals':
 
+        return <StudentProposalContent />;
 
       case 'message-researcher':
 
@@ -2944,6 +2955,291 @@ const normalizeMcrStatus = (status) => {
 };
 
 const getMcrRowKey = (row) => row.assignmentId || row.proposalId || row.protocolCode;
+
+const STUDENT_PROPOSAL_DEPARTMENTS = [
+  { value: 'FALS', label: 'FALS — Faculty of Agriculture and Life Sciences' },
+  { value: 'FTED', label: 'FTED — Faculty of Teacher Education' },
+  { value: 'FAIS', label: 'FAIS — Faculty of Advance and International Studies' },
+  { value: 'FNAS', label: 'FNAS — Faculty of Nursing and Allied Health Science' },
+  { value: 'FBM', label: 'FBM — Faculty of Business Management' },
+  { value: 'FCJE', label: 'FCJE — Faculty of Criminology Justice Education' },
+  { value: 'FACET', label: 'FACET — Faculty of Computing, Engineering, Technology' },
+  { value: 'FHUSOCOM', label: 'FHUSOCOM — Faculty of Humanities, Social Science & Communication' },
+  { value: 'SEIC', label: 'SEIC — San Isidro Extension Campus' },
+  { value: 'BEC', label: 'BEC — BanayBanay Extension Campus' },
+  { value: 'CEC', label: 'CEC — Cateel Extension Campus' },
+  { value: 'BGEC', label: 'BGEC — Baganga Extension Campus' },
+  { value: 'TEC', label: 'TEC — Tarragona Extension Campus' },
+  { value: 'NSTP', label: 'NSTP — National Service Training Program' },
+  { value: 'ICS', label: 'ICS — Indigenous Community Studies' },
+  { value: 'Community Representatives', label: 'Community Representatives' },
+  { value: 'UREB Board', label: 'UREB Board — University Research Ethics Board' },
+];
+
+const isPreliminaryReviewerRole = (reviewer) => {
+  const type = String(reviewer.reviewerType || '').toLowerCase();
+  return !type || type === 'preliminary' || type === 'both';
+};
+
+const getReviewerDisplayName = (reviewer) => {
+  if (!reviewer) return '';
+  return reviewer.name
+    || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim()
+    || reviewer.email
+    || '';
+};
+
+// ── Student Proposal (admin assigns department + preliminary reviewer) ─────
+const StudentProposalContent = () => {
+  const [proposals, setProposals] = useState([]);
+  const [reviewers, setReviewers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [rowDraft, setRowDraft] = useState({});
+  const [savingId, setSavingId] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [feedback, setFeedback] = useState({ type: '', message: '' });
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { getAllProposals, getAllReviewers } = await import('../services/api.js');
+      const [proposalsData, reviewersData] = await Promise.all([
+        getAllProposals(),
+        getAllReviewers(),
+      ]);
+      const list = Array.isArray(proposalsData) ? proposalsData : [];
+      const studentOnly = list.filter((p) => {
+        const hasStudent = p.studentEmail && String(p.studentEmail).trim() !== '';
+        const isResubmission = p.submissionType === 'resubmission' || p.status === 'Resubmitted';
+        return hasStudent && !isResubmission;
+      });
+      setProposals(studentOnly);
+      setReviewers(Array.isArray(reviewersData) ? reviewersData : []);
+
+      const draft = {};
+      studentOnly.forEach((p) => {
+        const id = toRecordId(p._id);
+        if (!id) return;
+        draft[id] = {
+          department: p.department || '',
+          preliminaryReviewer: p.preliminaryReviewer || '',
+        };
+      });
+      setRowDraft(draft);
+    } catch (err) {
+      console.error('Error loading student proposals:', err);
+      setProposals([]);
+      setReviewers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const getReviewersForDepartment = useCallback((department) => {
+    const dept = String(department || '').trim().toUpperCase();
+    if (!dept) return [];
+    return reviewers
+      .filter((r) => isPreliminaryReviewerRole(r))
+      .filter((r) => String(r.department || '').trim().toUpperCase() === dept)
+      .filter((r) => r.email);
+  }, [reviewers]);
+
+  const filteredProposals = useMemo(() => {
+    if (!searchQuery.trim()) return proposals;
+    const q = searchQuery.toLowerCase();
+    return proposals.filter((p) => {
+      const title = (p.researchTitle || '').toLowerCase();
+      const student = (p.proponent || p.studentEmail || '').toLowerCase();
+      const dept = (p.department || '').toLowerCase();
+      const reviewer = (p.preliminaryReviewerName || p.preliminaryReviewer || '').toLowerCase();
+      return title.includes(q) || student.includes(q) || dept.includes(q) || reviewer.includes(q);
+    });
+  }, [proposals, searchQuery]);
+
+  const updateRowDraft = (proposalId, field, value) => {
+    setRowDraft((prev) => {
+      const current = prev[proposalId] || { department: '', preliminaryReviewer: '' };
+      if (field === 'department') {
+        return { ...prev, [proposalId]: { department: value, preliminaryReviewer: '' } };
+      }
+      return { ...prev, [proposalId]: { ...current, preliminaryReviewer: value } };
+    });
+  };
+
+  const handleAssign = async (proposalId) => {
+    const draft = rowDraft[proposalId];
+    if (!draft?.department || !draft?.preliminaryReviewer) {
+      setFeedback({ type: 'error', message: 'Select both department and preliminary reviewer before assigning.' });
+      return;
+    }
+
+    setSavingId(proposalId);
+    setFeedback({ type: '', message: '' });
+    try {
+      const { assignStudentProposalReviewer } = await import('../services/api.js');
+      const result = await assignStudentProposalReviewer(proposalId, draft);
+      if (!result.success) {
+        throw new Error(result.error || 'Assignment failed');
+      }
+      setFeedback({ type: 'success', message: 'Department and preliminary reviewer assigned successfully.' });
+      await loadData();
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.message || 'Failed to assign reviewer.' });
+    } finally {
+      setSavingId('');
+    }
+  };
+
+  const formatDate = (d) => (d
+    ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    : '—');
+
+  const pendingCount = proposals.filter((p) => !p.preliminaryReviewer).length;
+
+  return (
+    <div className="content-section sp-wrapper">
+      <div className="sp-header">
+        <div>
+          <h2 className="sp-title">Student Proposal</h2>
+          <p className="sp-subtitle">
+            Review student file submissions and assign a department and preliminary reviewer for each proposal.
+          </p>
+        </div>
+        <button type="button" className="btn-secondary" onClick={loadData} disabled={loading}>
+          Refresh
+        </button>
+      </div>
+
+      {feedback.message && (
+        <div className={`sp-feedback sp-feedback--${feedback.type}`}>
+          {feedback.message}
+        </div>
+      )}
+
+      <div className="sp-toolbar">
+        <input
+          type="search"
+          className="sp-search"
+          placeholder="Search by title, student, department, or reviewer…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        <span className="sp-stat">
+          <strong>{proposals.length}</strong> submission{proposals.length !== 1 ? 's' : ''}
+        </span>
+        <span className="sp-stat sp-stat--pending">
+          <strong>{pendingCount}</strong> awaiting assignment
+        </span>
+      </div>
+
+      {loading ? (
+        <div className="sp-loading">Loading student submissions…</div>
+      ) : filteredProposals.length === 0 ? (
+        <div className="sp-empty">No student submissions found.</div>
+      ) : (
+        <div className="sp-table-wrap">
+          <table className="sp-table">
+            <colgroup>
+              <col className="sp-col-title" />
+              <col className="sp-col-student" />
+              <col className="sp-col-date" />
+              <col className="sp-col-department" />
+              <col className="sp-col-reviewer" />
+              <col className="sp-col-status" />
+              <col className="sp-col-action" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Proposal Title</th>
+                <th>Submitted By</th>
+                <th>Submitted</th>
+                <th>Department</th>
+                <th>Preliminary Reviewer</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProposals.map((proposal) => {
+                const id = toRecordId(proposal._id);
+                const draft = rowDraft[id] || { department: '', preliminaryReviewer: '' };
+                const deptReviewers = getReviewersForDepartment(draft.department);
+                const isAssigned = Boolean(proposal.preliminaryReviewer);
+                const isSaving = savingId === id;
+
+                return (
+                  <tr key={id} className={isAssigned ? 'sp-row--assigned' : ''}>
+                    <td className="sp-td-title">{proposal.researchTitle || 'Untitled Proposal'}</td>
+                    <td>
+                      <div className="sp-student-name">{proposal.proponent || 'Unknown'}</div>
+                      <div className="sp-student-email">{proposal.studentEmail}</div>
+                    </td>
+                    <td className="sp-cell-date">{formatDate(proposal.submissionDate || proposal.createdAt)}</td>
+                    <td className="sp-cell-select">
+                      <select
+                        className="sp-select"
+                        value={draft.department}
+                        onChange={(e) => updateRowDraft(id, 'department', e.target.value)}
+                        disabled={isSaving}
+                      >
+                        <option value="">Select department</option>
+                        {STUDENT_PROPOSAL_DEPARTMENTS.map((d) => (
+                          <option key={d.value} value={d.value}>{d.label}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="sp-cell-select">
+                      <select
+                        className="sp-select"
+                        value={draft.preliminaryReviewer}
+                        onChange={(e) => updateRowDraft(id, 'preliminaryReviewer', e.target.value)}
+                        disabled={isSaving || !draft.department}
+                      >
+                        <option value="">
+                          {!draft.department
+                            ? 'Select department first'
+                            : deptReviewers.length === 0
+                              ? 'No reviewers for this department'
+                              : 'Select preliminary reviewer'}
+                        </option>
+                        {deptReviewers.map((r) => (
+                          <option key={r.email} value={r.email}>
+                            {getReviewerDisplayName(r)}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="sp-cell-status">
+                      <span className={`sp-status ${isAssigned ? 'sp-status--assigned' : 'sp-status--pending'}`}>
+                        {isAssigned
+                          ? (proposal.preliminaryReviewerName || 'Assigned')
+                          : (proposal.status || 'Pending assignment')}
+                      </span>
+                    </td>
+                    <td className="sp-cell-action">
+                      <button
+                        type="button"
+                        className="btn-primary sp-assign-btn"
+                        onClick={() => handleAssign(id)}
+                        disabled={isSaving || !draft.department || !draft.preliminaryReviewer}
+                      >
+                        {isSaving ? 'Assigning…' : isAssigned ? 'Reassign' : 'Assign'}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ── Mark Completed Review ──────────────────────────────────────────────────
 const MarkCompletedReviewContent = () => {

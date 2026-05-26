@@ -57,6 +57,21 @@ export const getAllProposals = async () => {
   }
 };
 
+export const assignStudentProposalReviewer = async (proposalId, { department, preliminaryReviewer }) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/proposals/${proposalId}/assign-preliminary`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ department, preliminaryReviewer }),
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error assigning student proposal reviewer:', error);
+    return { success: false, error: 'Failed to assign reviewer' };
+  }
+};
+
 export const getProposalsByReviewer = async (reviewerId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/proposals/reviewer/${reviewerId}`);
@@ -619,7 +634,7 @@ export const getReviewerProfile = async (email) => {
 // Get assignments for a specific reviewer
 export const getReviewerAssignments = async (reviewerEmail) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/assignments/${reviewerEmail}`);
+    const response = await fetch(`${API_BASE_URL}/assignments/${encodeURIComponent(reviewerEmail)}`);
     const data = await response.json();
     return data;
   } catch (error) {

@@ -325,6 +325,182 @@ const collections = {
   assignments: 'assignments'
 };
 
+const STUDENT_ASSIGNMENT_FILE_KEYS = [
+  'proposal', 'approvalSheet', 'urebForm2', 'applicationForm6',
+  'accomplishedForm8', 'accomplishedForm10A', 'instrumentTool', 'ethicsReviewFee',
+];
+
+const escapeRegexEmail = (email) => String(email).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const emailRegexFilter = (email) => ({
+  $regex: new RegExp(`^${escapeRegexEmail(email)}$`, 'i'),
+});
+
+const buildProposalIdMatchers = (proposalId) => {
+  const matchers = [{ proposalId }, { proposalId: proposalId.toString() }];
+  if (ObjectId.isValid(String(proposalId)) && String(new ObjectId(proposalId)) === String(proposalId)) {
+    matchers.push({ proposalId: new ObjectId(proposalId) });
+  }
+  return matchers;
+};
+
+const inferAssignmentSource = (assignment) => {
+  if (assignment.assignmentSource === 'student' || assignment.assignmentSource === 'admin') {
+    return assignment.assignmentSource;
+  }
+  const keys = Object.keys(assignment.assignedFiles || {});
+  if (keys.some((k) => STUDENT_ASSIGNMENT_FILE_KEYS.includes(k))) return 'student';
+  if (String(assignment.assignedBy || '').toLowerCase() === 'admin') return 'admin';
+  return 'student';
+};
+
+const studentAssignmentFilter = () => ({
+  $or: [
+    { assignmentSource: 'student' },
+    { assignmentSource: { $exists: false }, assignedBy: { $ne: 'admin' } },
+  ],
+});
+
+const adminAssignmentFilter = () => ({
+  $or: [
+    { assignmentSource: 'admin' },
+    { assignmentSource: { $exists: false }, assignedBy: 'admin' },
+  ],
+});
+
+const ensureStudentAssignmentForProposal = async (db, proposal) => {
+  const prelimEmail = proposal.preliminaryReviewer || proposal.reviewers?.reviewer1;
+  if (!prelimEmail || !proposal._id) return null;
+
+  const assignments = db.collection(collections.assignments);
+  const reviewers = db.collection(collections.reviewers);
+  const proposalMatchers = buildProposalIdMatchers(proposal._id);
+
+  const existingStudent = await assignments.findOne({
+    $and: [
+      { reviewerEmail: emailRegexFilter(prelimEmail) },
+      { $or: proposalMatchers },
+      studentAssignmentFilter(),
+    ],
+  });
+  if (existingStudent) return existingStudent;
+
+  const files = proposal.files || {};
+  const studentFiles = {};
+  for (const key of STUDENT_ASSIGNMENT_FILE_KEYS) {
+    if (files[key]) studentFiles[key] = files[key];
+  }
+  if (Object.keys(studentFiles).length === 0) return null;
+
+  const reviewer = await reviewers.findOne({ email: emailRegexFilter(prelimEmail) });
+  const resolvedEmail = reviewer?.email || String(prelimEmail).trim();
+  const resolvedName = proposal.preliminaryReviewerName
+    || reviewer?.name
+    || `${reviewer?.firstName || ''} ${reviewer?.lastName || ''}`.trim()
+    || resolvedEmail;
+  const baseDate = proposal.submissionDate || proposal.createdAt || new Date();
+
+  const doc = {
+    proposalId: proposal._id,
+    reviewerId: reviewer?._id || null,
+    reviewerEmail: resolvedEmail,
+    reviewerName: resolvedName,
+    protocolCode: null,
+    researchTitle: proposal.researchTitle || 'Untitled Proposal',
+    proponent: proposal.proponent || proposal.studentName || 'Unknown',
+    assignedFiles: studentFiles,
+    reviewPeriod: {
+      startDate: baseDate,
+      endDate: new Date(new Date(baseDate).getTime() + 14 * 24 * 60 * 60 * 1000),
+    },
+    status: 'Pending',
+    assignedBy: 'Student',
+    assignmentSource: 'student',
+    studentEmail: proposal.studentEmail || '',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+  await assignments.insertOne(doc);
+  console.log(`[repair] Recreated student assignment for proposal ${proposal._id} → ${resolvedEmail}`);
+  return doc;
+};
+
+const assignPreliminaryToStudentProposal = async (db, proposalId, department, preliminaryReviewerEmail) => {
+  if (!ObjectId.isValid(String(proposalId))) {
+    throw new Error('Invalid proposal ID');
+  }
+
+  const objectId = new ObjectId(proposalId);
+  const proposals = db.collection(collections.proposals);
+  const assignments = db.collection(collections.assignments);
+  const reviewers = db.collection(collections.reviewers);
+  const notifications = db.collection(collections.notifications);
+
+  const proposal = await proposals.findOne({ _id: objectId });
+  if (!proposal) throw new Error('Proposal not found');
+  if (!proposal.studentEmail || !String(proposal.studentEmail).trim()) {
+    throw new Error('This proposal is not a student submission');
+  }
+
+  const reviewer = await reviewers.findOne({ email: emailRegexFilter(preliminaryReviewerEmail) });
+  if (!reviewer) throw new Error('Reviewer not found');
+
+  const reviewerType = String(reviewer.reviewerType || '').toLowerCase();
+  if (reviewerType === 'secondary') {
+    throw new Error('Selected reviewer must be a preliminary reviewer');
+  }
+
+  const deptNorm = String(department || '').trim();
+  const reviewerDept = String(reviewer.department || '').trim();
+  if (deptNorm && reviewerDept
+    && deptNorm.toUpperCase() !== reviewerDept.toUpperCase()) {
+    throw new Error('Reviewer does not belong to the selected department');
+  }
+
+  const resolvedEmail = reviewer.email;
+  const resolvedName = reviewer.name
+    || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim()
+    || resolvedEmail;
+
+  await proposals.updateOne(
+    { _id: objectId },
+    {
+      $set: {
+        department: deptNorm,
+        preliminaryReviewer: resolvedEmail,
+        preliminaryReviewerName: resolvedName,
+        status: 'Under Review',
+        reviewers: {
+          reviewer1: resolvedEmail,
+          reviewer2: proposal.reviewers?.reviewer2 || null,
+          reviewer3: proposal.reviewers?.reviewer3 || null,
+        },
+        updatedAt: new Date(),
+      },
+    }
+  );
+
+  const proposalMatchers = buildProposalIdMatchers(objectId);
+  await assignments.deleteMany({
+    $and: [{ $or: proposalMatchers }, studentAssignmentFilter()],
+  });
+
+  const updatedProposal = await proposals.findOne({ _id: objectId });
+  const assignment = await ensureStudentAssignmentForProposal(db, updatedProposal);
+
+  await notifications.insertOne({
+    type: 'assignment',
+    title: 'New Research Assigned',
+    message: `You have been assigned "${updatedProposal.researchTitle || 'Untitled'}" for preliminary review (submitted by ${updatedProposal.proponent || updatedProposal.studentEmail}).`,
+    proposalId: objectId.toString(),
+    recipientEmail: resolvedEmail,
+    read: false,
+    createdAt: new Date(),
+  });
+
+  return { proposal: updatedProposal, assignment };
+};
+
 // API Routes
 
 // Health / warmup ping
@@ -1665,6 +1841,40 @@ app.put('/api/proposals/:id/status', async (req, res) => {
   }
 });
 
+// Admin: assign department + preliminary reviewer to a student submission
+app.put('/api/proposals/:id/assign-preliminary', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { department, preliminaryReviewer } = req.body;
+
+    if (!department || !preliminaryReviewer) {
+      return res.status(400).json({
+        success: false,
+        error: 'Department and preliminary reviewer are required',
+      });
+    }
+
+    const db = getDatabase();
+    const result = await assignPreliminaryToStudentProposal(
+      db,
+      id,
+      department,
+      preliminaryReviewer
+    );
+
+    res.json({
+      success: true,
+      proposal: result.proposal,
+      assignmentId: result.assignment?._id || null,
+    });
+  } catch (error) {
+    console.error('Error assigning preliminary reviewer:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message || 'Failed to assign preliminary reviewer',
+    });
+  }
+});
 
 app.get('/api/proposals/reviewer/:reviewerEmail', async (req, res) => {
   try {
@@ -1895,10 +2105,15 @@ app.post('/api/student/submit-files', upload.fields([
   try {
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
-    const assignments = db.collection(collections.assignments);
-    const reviewers = db.collection(collections.reviewers);
 
-    const { department, preliminaryReviewer, preliminaryReviewerName, studentEmail, studentName, proposalTitle } = req.body;
+    const { studentEmail, studentName, proposalTitle } = req.body;
+
+    let department = '';
+    if (studentEmail) {
+      const students = db.collection(collections.students);
+      const student = await students.findOne({ email: emailRegexFilter(studentEmail) });
+      department = student?.department || '';
+    }
 
     // Process uploaded files → GridFS
     const files = {};
@@ -1922,10 +2137,10 @@ app.post('/api/student/submit-files', upload.fields([
       proponent: studentName || 'Unknown',
       studentEmail: studentEmail || '',
       department: department || '',
-      preliminaryReviewer: preliminaryReviewer || '',
-      preliminaryReviewerName: preliminaryReviewerName || '',
+      preliminaryReviewer: '',
+      preliminaryReviewerName: '',
       files,
-      status: 'Under Review',
+      status: 'Pending Preliminary Reviewer',
       submissionDate: new Date(),
       createdAt: new Date(),
       updatedAt: new Date()
@@ -1938,54 +2153,13 @@ app.post('/api/student/submit-files', upload.fields([
     await notifications.insertOne({
       type: 'student_submission',
       title: 'New Student Submission',
-      message: `A new research proposal "${proposalTitle || 'Untitled'}" has been submitted by ${studentName || studentEmail} for review by ${preliminaryReviewerName || preliminaryReviewer}.`,
+      message: `A new research proposal "${proposalTitle || 'Untitled'}" has been submitted by ${studentName || studentEmail}. Please assign a preliminary reviewer.`,
       proposalId: result.insertedId.toString(),
       studentEmail,
-      reviewerEmail: preliminaryReviewer,
       recipientEmail: 'admin',
       read: false,
       createdAt: new Date()
     });
-
-    // Create notification for the preliminary reviewer
-    if (preliminaryReviewer) {
-      await notifications.insertOne({
-        type: 'assignment',
-        title: 'New Research Assigned',
-        message: `You have been assigned a new research proposal "${proposalTitle || 'Untitled'}" for preliminary review by ${studentName || studentEmail}.`,
-        proposalId: result.insertedId.toString(),
-        recipientEmail: preliminaryReviewer,
-        read: false,
-        createdAt: new Date()
-      });
-    }
-
-    // Create an assignment record for the preliminary reviewer so it appears
-    // in their "Assigned Proposals" tab — same structure as admin assignments
-    if (preliminaryReviewer) {
-      const reviewer = await reviewers.findOne({ email: preliminaryReviewer });
-
-      const assignment = {
-        proposalId: result.insertedId,
-        reviewerId: reviewer?._id || null,
-        reviewerEmail: preliminaryReviewer,
-        reviewerName: preliminaryReviewerName || reviewer?.name || preliminaryReviewer,
-        protocolCode: null,
-        researchTitle: proposalTitle || 'Untitled Proposal',
-        assignedFiles: files,
-        reviewPeriod: {
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 2 weeks from now
-        },
-        status: 'Pending',
-        assignedBy: studentName || studentEmail || 'Student',
-        studentEmail: studentEmail || '',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      await assignments.insertOne(assignment);
-    }
 
     res.json({
       success: true,
@@ -2199,22 +2373,31 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
       console.log('Could not update proposal status:', e.message);
     }
 
-    // Update assignment status
+    // Update assignment status (prefer student/preliminary assignment when both exist)
     try {
       const assignments = db.collection(collections.assignments);
-      const query = {
-        $or: [
-          { proposalId: proposalId },
-          { proposalId: new ObjectId(proposalId) },
-          { protocolCode: protocolCode || proposalId }
+      const proposalMatchers = buildProposalIdMatchers(proposalId);
+      if (protocolCode) {
+        proposalMatchers.push({ protocolCode });
+      }
+      const baseQuery = {
+        $and: [
+          { $or: proposalMatchers },
+          { reviewerEmail: emailRegexFilter(reviewerEmail) },
         ],
-        reviewerEmail: reviewerEmail
       };
-
-      await assignments.updateOne(
-        query,
-        { $set: { status: 'Submitted to Admin', updatedAt: new Date() } }
-      );
+      let target = await assignments.findOne({
+        $and: [baseQuery, studentAssignmentFilter()],
+      });
+      if (!target) {
+        target = await assignments.findOne(baseQuery);
+      }
+      if (target) {
+        await assignments.updateOne(
+          { _id: target._id },
+          { $set: { status: 'Submitted to Admin', updatedAt: new Date() } }
+        );
+      }
     } catch (e) {
       console.log('Could not update assignment status:', e.message);
     }
@@ -2468,10 +2651,33 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
     const assignments = db.collection(collections.assignments);
     const notifications = db.collection(collections.notifications);
 
-    const escapedEmail = String(reviewerEmail).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const assignmentList = await assignments.find({
-      reviewerEmail: { $regex: new RegExp(`^${escapedEmail}$`, 'i') },
+    const proposals = db.collection(collections.proposals);
+    const preliminaryProposals = await proposals.find({
+      preliminaryReviewer: emailRegexFilter(reviewerEmail),
+    }).toArray();
+    for (const proposal of preliminaryProposals) {
+      await ensureStudentAssignmentForProposal(db, proposal);
+    }
+
+    let assignmentList = await assignments.find({
+      reviewerEmail: emailRegexFilter(reviewerEmail),
     }).sort({ createdAt: -1 }).toArray();
+
+    assignmentList = assignmentList.map((a) => {
+      const assignmentSource = inferAssignmentSource(a);
+      const isStudent = assignmentSource === 'student';
+      if (isStudent && a.protocolCode) {
+        assignments.updateOne(
+          { _id: a._id },
+          { $unset: { protocolCode: '' }, $set: { updatedAt: new Date() } }
+        ).catch(() => {});
+      }
+      return {
+        ...a,
+        assignmentSource,
+        ...(isStudent ? { protocolCode: null } : {}),
+      };
+    });
 
     // Check for assignments with review deadlines within 3 days and create notifications
     const today = new Date();
@@ -3342,9 +3548,11 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
 
       // Only match admin-created assignments — never overwrite student/preliminary assignments
       const existingAdminAssignment = await assignments.findOne({
-        reviewerEmail: reviewer.email,
-        assignedBy: 'admin',
-        $or: proposalIdMatchers,
+        $and: [
+          { reviewerEmail: emailRegexFilter(reviewer.email) },
+          { $or: proposalIdMatchers },
+          adminAssignmentFilter(),
+        ],
       });
 
       const adminAssignedFiles = existingAdminAssignment
@@ -3367,6 +3575,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         },
         status: 'Pending',
         assignedBy: 'admin',
+        assignmentSource: 'admin',
         updatedAt: new Date()
       };
 
@@ -3409,7 +3618,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
       console.log(`Notification sent to: ${resolvedName} (${reviewer.email})`);
     }
 
-    // Link protocol code to student/preliminary assignments without replacing their files or assignedBy
+    // Link protocol code only to student/preliminary assignments (never replace their files)
     try {
       const linkProposalMatchers = [
         { proposalId: resolvedProposalId },
@@ -3419,22 +3628,37 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         linkProposalMatchers.push({ proposalId: new ObjectId(resolvedProposalId) });
       }
 
-      await assignments.updateMany(
-        {
-          $or: linkProposalMatchers,
-          assignedBy: { $ne: 'admin' },
-        },
-        {
-          $set: {
-            protocolCode: protocolCode,
-            ...(studentEmail ? { studentEmail } : {}),
-            updatedAt: new Date(),
+      const studentAssignments = await assignments.find({
+        $and: [
+          { $or: linkProposalMatchers },
+          {
+            $or: [
+              { assignmentSource: 'student' },
+              { assignmentSource: { $exists: false }, assignedBy: { $ne: 'admin' } },
+            ],
           },
-        }
-      );
-      console.log(`Linked protocolCode to student/preliminary assignments for proposal ${resolvedProposalId}`);
+        ],
+      }).toArray();
+
+      for (const studentAssignment of studentAssignments) {
+        await assignments.updateOne(
+          { _id: studentAssignment._id },
+          {
+            $set: {
+              ...(studentEmail ? { studentEmail } : {}),
+              updatedAt: new Date(),
+            },
+            $unset: { protocolCode: '' },
+          }
+        );
+      }
+      console.log(`Updated ${studentAssignments.length} student assignment(s) for proposal ${resolvedProposalId} (protocol stays on admin assignments only)`);
     } catch (cascadeError) {
       console.error('Error linking student assignments:', cascadeError);
+    }
+
+    if (existingProposal) {
+      await ensureStudentAssignmentForProposal(db, existingProposal);
     }
 
     // Create admin notification with assigned reviewer names
