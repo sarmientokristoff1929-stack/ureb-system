@@ -110,6 +110,20 @@ const TrashIcon = () => (
   </svg>
 );
 
+const EditIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+);
+
+const EyeIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
 const FileTemplatesIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -1144,6 +1158,9 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [restrictedModalOpen, setRestrictedModalOpen] = useState(false);
   const [dueReminders, setDueReminders] = useState([]);
+  const [viewFilesModalOpen, setViewFilesModalOpen] = useState(false);
+  const [editProposalModalOpen, setEditProposalModalOpen] = useState(false);
+  const [selectedProposal, setSelectedProposal] = useState(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -1387,6 +1404,31 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
                             {proposal.status || 'Pending'}
                           </span>
                           <button
+                            className="up-icon-btn"
+                            onClick={() => {
+                              setSelectedProposal(proposal);
+                              setViewFilesModalOpen(true);
+                            }}
+                            title="View files"
+                          >
+                            <EyeIcon />
+                          </button>
+                          <button
+                            className="up-icon-btn"
+                            onClick={() => {
+                              const s = (proposal.status || 'Pending').toLowerCase();
+                              if (s === 'under review' || s === 'submitted to admin' || s === 'review submitted') {
+                                setRestrictedModalOpen(true);
+                              } else {
+                                setSelectedProposal(proposal);
+                                setEditProposalModalOpen(true);
+                              }
+                            }}
+                            title="Edit proposal"
+                          >
+                            <EditIcon />
+                          </button>
+                          <button
                             className="up-delete-btn"
                             onClick={() => { 
                               const s = (proposal.status || 'Pending').toLowerCase();
@@ -1479,6 +1521,25 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {viewFilesModalOpen && (
+        <ViewFilesModal
+          proposal={selectedProposal}
+          onClose={() => { setViewFilesModalOpen(false); setSelectedProposal(null); }}
+        />
+      )}
+
+      {editProposalModalOpen && (
+        <EditProposalModal
+          proposal={selectedProposal}
+          onClose={() => { setEditProposalModalOpen(false); setSelectedProposal(null); }}
+          onSuccess={(updatedProposal) => {
+            setProposals(prev => prev.map(p => p._id === updatedProposal._id ? updatedProposal : p));
+            setEditProposalModalOpen(false);
+            setSelectedProposal(null);
+          }}
+        />
       )}
     </div>
   );
@@ -1600,6 +1661,179 @@ const EMPTY_ADD_FILES_FORM = {
   instrumentTool: null,
   ethicsReviewFee: null,
   proposalTitle: '',
+};
+
+const ViewFilesModal = ({ proposal, onClose }) => {
+  if (!proposal) return null;
+
+  const files = proposal.files || {};
+  const fileKeys = Object.keys(files);
+
+  const handleDownload = (key, file) => {
+    const downloadUrl = file.filename
+      ? `${API_BASE_URL}/download/${file.filename}?name=${encodeURIComponent(file.originalname || file.filename)}`
+      : '#';
+    window.location.href = downloadUrl;
+  };
+
+  return (
+    <div className="mini-modal-overlay" onClick={onClose} style={{ zIndex: 1000 }}>
+      <div className="mini-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '90%' }}>
+        <div className="mini-modal-icon" style={{ backgroundColor: '#f0f9ff', color: '#0ea5e9' }}>
+          <EyeIcon />
+        </div>
+        <h4 className="mini-modal-title">Attached Files</h4>
+        <p className="mini-modal-text">{proposal.researchTitle || 'Untitled Proposal'}</p>
+        
+        <div style={{ marginTop: '1rem', textAlign: 'left', maxHeight: '300px', overflowY: 'auto' }}>
+          {fileKeys.length === 0 ? (
+            <p>No files attached.</p>
+          ) : (
+            fileKeys.map(key => {
+              const file = files[key];
+              return (
+                <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
+                    <FileIcon />
+                    <span style={{ fontSize: '0.875rem', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '250px' }}>
+                      {file.originalname || file.filename}
+                    </span>
+                  </div>
+                  <button 
+                    onClick={() => handleDownload(key, file)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', fontSize: '0.875rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                  >
+                    <DownloadIcon /> Download
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="mini-modal-actions" style={{ marginTop: '1.5rem' }}>
+          <button className="mini-modal-btn mini-modal-btn--ghost" onClick={onClose} style={{ width: '100%' }}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const EditProposalModal = ({ proposal, onClose, onSuccess }) => {
+  const [formData, setFormData] = useState({ proposalTitle: proposal?.researchTitle || '' });
+  const [uploading, setUploading] = useState(false);
+
+  if (!proposal) return null;
+
+  const handleFileChange = (fieldName, file) => {
+    setFormData(prev => ({ ...prev, [fieldName]: file }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setUploading(true);
+
+    try {
+      const savedUser = localStorage.getItem('ureb_user');
+      const user = savedUser ? JSON.parse(savedUser) : null;
+
+      const submitData = new FormData();
+      submitData.append('proposalTitle', formData.proposalTitle);
+      submitData.append('studentEmail', user?.email || '');
+
+      ADD_FILES_FILE_FIELDS.forEach((field) => {
+        if (formData[field] instanceof File) {
+          submitData.append(field, formData[field]);
+        }
+      });
+
+      const response = await fetch(`${API_BASE_URL}/student/proposals/${proposal._id}`, {
+        method: 'PUT',
+        body: submitData
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        onSuccess(result.proposal);
+      } else {
+        alert('Error updating proposal: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error updating proposal:', error);
+      alert('Error updating proposal. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const renderFileInput = (fieldName, label) => {
+    const existingFile = proposal.files?.[fieldName];
+    const newFile = formData[fieldName];
+    
+    return (
+      <div className="form-group" style={{ marginBottom: '1rem', textAlign: 'left' }}>
+        <label htmlFor={`edit-${fieldName}`} style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#334155' }}>{label}</label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {existingFile && !newFile && (
+            <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
+              Current: {existingFile.originalname || existingFile.filename}
+            </div>
+          )}
+          <input
+            type="file"
+            id={`edit-${fieldName}`}
+            onChange={(e) => handleFileChange(fieldName, e.target.files[0])}
+            accept=".pdf,.doc,.docx,.txt"
+            style={{ fontSize: '0.875rem' }}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="mini-modal-overlay" onClick={onClose} style={{ zIndex: 1000, overflowY: 'auto', padding: '2rem 0' }}>
+      <div className="mini-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '90%', margin: 'auto' }}>
+        <div className="mini-modal-icon" style={{ backgroundColor: '#f0fdf4', color: '#16a34a' }}>
+          <EditIcon />
+        </div>
+        <h4 className="mini-modal-title">Edit Proposal</h4>
+        <p className="mini-modal-text">Update the title or attach new files to replace existing ones.</p>
+        
+        <form onSubmit={handleSubmit} style={{ marginTop: '1.5rem', width: '100%' }}>
+          <div className="form-group" style={{ marginBottom: '1rem', textAlign: 'left' }}>
+            <label htmlFor="edit-proposalTitle" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#334155' }}>Proposal Title</label>
+            <input
+              type="text"
+              id="edit-proposalTitle"
+              value={formData.proposalTitle}
+              onChange={(e) => setFormData(p => ({ ...p, proposalTitle: e.target.value }))}
+              required
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+            />
+          </div>
+
+          <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '4px', backgroundColor: '#f8fafc' }}>
+            {renderFileInput('proposal', 'Proposal')}
+            {renderFileInput('approvalSheet', 'Approval Sheet')}
+            {renderFileInput('urebForm2', 'UREB Form 2')}
+            {renderFileInput('applicationForm6', 'Application for Research Ethics Review Form 6')}
+            {renderFileInput('accomplishedForm8', 'Accomplished Form 8')}
+            {renderFileInput('accomplishedForm10A', 'Accomplish Form 10 A')}
+            {renderFileInput('instrumentTool', 'Copy of instrument/tool')}
+            {renderFileInput('ethicsReviewFee', 'Ethics Review Fee (Receipt)')}
+          </div>
+
+          <div className="mini-modal-actions" style={{ marginTop: '1.5rem', gap: '0.5rem' }}>
+            <button type="button" className="mini-modal-btn mini-modal-btn--ghost" onClick={onClose} disabled={uploading}>Cancel</button>
+            <button type="submit" className="mini-modal-btn" style={{ backgroundColor: '#2563eb', color: '#fff' }} disabled={uploading}>
+              {uploading ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 };
 
 const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {

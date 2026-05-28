@@ -2976,6 +2976,17 @@ const STUDENT_PROPOSAL_DEPARTMENTS = [
   { value: 'UREB Board', label: 'UREB Board — University Research Ethics Board' },
 ];
 
+const STUDENT_SUBMISSION_FILE_LABELS = {
+  proposal: 'Research Proposal',
+  approvalSheet: 'Approval Sheet',
+  urebForm2: 'UREB Form 2',
+  applicationForm6: 'Application Form 6',
+  accomplishedForm8: 'Accomplished Form 8',
+  accomplishedForm10A: 'Accomplished Form 10-A',
+  instrumentTool: 'Research Instrument / Tool',
+  ethicsReviewFee: 'Ethics Review Fee Receipt',
+};
+
 const isPreliminaryReviewerRole = (reviewer) => {
   const type = String(reviewer.reviewerType || '').toLowerCase();
   return !type || type === 'preliminary' || type === 'both';
@@ -2996,6 +3007,7 @@ const StudentProposalContent = () => {
   const [loading, setLoading] = useState(true);
   const [rowDraft, setRowDraft] = useState({});
   const [savingId, setSavingId] = useState('');
+  const [selectedProposalId, setSelectedProposalId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [feedback, setFeedback] = useState({ type: '', message: '' });
 
@@ -3060,6 +3072,15 @@ const StudentProposalContent = () => {
     });
   }, [proposals, searchQuery]);
 
+  useEffect(() => {
+    if (!filteredProposals.length) {
+      setSelectedProposalId('');
+      return;
+    }
+    const stillVisible = filteredProposals.some((p) => toRecordId(p._id) === selectedProposalId);
+    if (!stillVisible) setSelectedProposalId('');
+  }, [filteredProposals, selectedProposalId]);
+
   const updateRowDraft = (proposalId, field, value) => {
     setRowDraft((prev) => {
       const current = prev[proposalId] || { department: '', preliminaryReviewer: '' };
@@ -3099,6 +3120,35 @@ const StudentProposalContent = () => {
     : '—');
 
   const pendingCount = proposals.filter((p) => !p.preliminaryReviewer).length;
+  const selectedProposal = filteredProposals.find((p) => toRecordId(p._id) === selectedProposalId) || null;
+  const selectedDraft = selectedProposal ? (rowDraft[toRecordId(selectedProposal._id)] || { department: '', preliminaryReviewer: '' }) : null;
+  const selectedReviewerName = selectedDraft?.preliminaryReviewer
+    ? getReviewerDisplayName(reviewers.find((r) => r.email === selectedDraft.preliminaryReviewer))
+    : '';
+  const selectedFiles = selectedProposal
+    ? Object.entries(selectedProposal.files || {}).map(([key, file]) => ({
+      key,
+      label: STUDENT_SUBMISSION_FILE_LABELS[key] || key,
+      file,
+    }))
+    : [];
+
+  const handleViewStudentFile = (file) => {
+    if (!file?.filename) return;
+    const apiOrigin = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+    const viewUrl = apiOrigin ? `${apiOrigin}/api/view/${file.filename}` : `/api/view/${file.filename}`;
+    window.open(viewUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleDownloadStudentFile = async (file) => {
+    if (!file?.filename) return;
+    try {
+      const { downloadReviewerFile } = await import('../services/api.js');
+      await downloadReviewerFile(file.filename, file.originalname || file.filename);
+    } catch (err) {
+      console.error('Error downloading student file:', err);
+    }
+  };
 
   return (
     <div className="content-section sp-wrapper">
@@ -3143,15 +3193,6 @@ const StudentProposalContent = () => {
       ) : (
         <div className="sp-table-wrap">
           <table className="sp-table">
-            <colgroup>
-              <col className="sp-col-title" />
-              <col className="sp-col-student" />
-              <col className="sp-col-date" />
-              <col className="sp-col-department" />
-              <col className="sp-col-reviewer" />
-              <col className="sp-col-status" />
-              <col className="sp-col-action" />
-            </colgroup>
             <thead>
               <tr>
                 <th>Proposal Title</th>
@@ -3159,7 +3200,6 @@ const StudentProposalContent = () => {
                 <th>Submitted</th>
                 <th>Department</th>
                 <th>Preliminary Reviewer</th>
-                <th>Status</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -3172,14 +3212,24 @@ const StudentProposalContent = () => {
                 const isSaving = savingId === id;
 
                 return (
-                  <tr key={id} className={isAssigned ? 'sp-row--assigned' : ''}>
-                    <td className="sp-td-title">{proposal.researchTitle || 'Untitled Proposal'}</td>
+                  <tr
+                    key={id}
+                    className={`${isAssigned ? 'sp-row--assigned' : ''} ${selectedProposalId === id ? 'sp-row--selected' : ''}`}
+                    onClick={() => setSelectedProposalId(id)}
+                  >
+                    <td className="sp-td-title" title={proposal.researchTitle || 'Untitled Proposal'}>
+                      <span className="sp-cell-ellipsis">{proposal.researchTitle || 'Untitled Proposal'}</span>
+                    </td>
                     <td>
-                      <div className="sp-student-name">{proposal.proponent || 'Unknown'}</div>
-                      <div className="sp-student-email">{proposal.studentEmail}</div>
+                      <div className="sp-student-name" title={proposal.proponent || 'Unknown'}>
+                        <span className="sp-cell-ellipsis">{proposal.proponent || 'Unknown'}</span>
+                      </div>
+                      <div className="sp-student-email" title={proposal.studentEmail}>
+                        <span className="sp-cell-ellipsis">{proposal.studentEmail}</span>
+                      </div>
                     </td>
                     <td className="sp-cell-date">{formatDate(proposal.submissionDate || proposal.createdAt)}</td>
-                    <td className="sp-cell-select">
+                    <td className="sp-cell-select" onClick={(e) => e.stopPropagation()}>
                       <select
                         className="sp-select"
                         value={draft.department}
@@ -3192,7 +3242,7 @@ const StudentProposalContent = () => {
                         ))}
                       </select>
                     </td>
-                    <td className="sp-cell-select">
+                    <td className="sp-cell-select" onClick={(e) => e.stopPropagation()}>
                       <select
                         className="sp-select"
                         value={draft.preliminaryReviewer}
@@ -3213,14 +3263,7 @@ const StudentProposalContent = () => {
                         ))}
                       </select>
                     </td>
-                    <td className="sp-cell-status">
-                      <span className={`sp-status ${isAssigned ? 'sp-status--assigned' : 'sp-status--pending'}`}>
-                        {isAssigned
-                          ? (proposal.preliminaryReviewerName || 'Assigned')
-                          : (proposal.status || 'Pending assignment')}
-                      </span>
-                    </td>
-                    <td className="sp-cell-action">
+                    <td className="sp-cell-action" onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
                         className="btn-primary sp-assign-btn"
@@ -3235,6 +3278,84 @@ const StudentProposalContent = () => {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {selectedProposal && (
+        <div className="sp-modal-overlay" onClick={() => setSelectedProposalId('')}>
+          <div className="sp-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="sp-modal-header">
+              <h3>Student Proposal Details</h3>
+              <button
+                type="button"
+                className="sp-modal-close"
+                onClick={() => setSelectedProposalId('')}
+                aria-label="Close details"
+              >
+                ×
+              </button>
+            </div>
+            <div className="sp-modal-title-box">
+              <p className="sp-modal-title-label">Proposal Title</p>
+              <h4 className="sp-modal-title">{selectedProposal.researchTitle || 'Untitled Proposal'}</h4>
+            </div>
+            <div className="sp-detail-grid">
+              <div className="sp-detail-item">
+                <span className="sp-detail-label">Submitted By</span>
+                <span className="sp-detail-value">{selectedProposal.proponent || 'Unknown'}</span>
+              </div>
+              <div className="sp-detail-item">
+                <span className="sp-detail-label">Student Email</span>
+                <span className="sp-detail-value">{selectedProposal.studentEmail || 'N/A'}</span>
+              </div>
+              <div className="sp-detail-item">
+                <span className="sp-detail-label">Submitted Date</span>
+                <span className="sp-detail-value">{formatDate(selectedProposal.submissionDate || selectedProposal.createdAt)}</span>
+              </div>
+              <div className="sp-detail-item">
+                <span className="sp-detail-label">Department</span>
+                <span className="sp-detail-value">{selectedDraft?.department || 'Not selected'}</span>
+              </div>
+              <div className="sp-detail-item sp-detail-item--full">
+                <span className="sp-detail-label">Preliminary Reviewer</span>
+                <span className="sp-detail-value">{selectedReviewerName || selectedDraft?.preliminaryReviewer || 'Not selected'}</span>
+              </div>
+            </div>
+            <div className="sp-files-section">
+              <div className="sp-files-head">
+                <h4>Files Sent by Student</h4>
+                <span className="sp-files-count">{selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''}</span>
+              </div>
+              {selectedFiles.length === 0 ? (
+                <div className="sp-files-empty">No uploaded files found for this submission.</div>
+              ) : (
+                <div className="sp-files-list">
+                  {selectedFiles.map(({ key, label, file }) => (
+                    <div className="sp-file-item" key={key}>
+                      <div className="sp-file-meta">
+                        <div className="sp-file-label">{label}</div>
+                        <div className="sp-file-name" title={file?.originalname || file?.filename || key}>
+                          {file?.originalname || file?.filename || key}
+                        </div>
+                        <div className="sp-file-submeta">
+                          {file?.size ? `${(file.size / 1024).toFixed(1)} KB` : 'Unknown size'}
+                          {file?.mimetype ? ` • ${file.mimetype}` : ''}
+                        </div>
+                      </div>
+                      <div className="sp-file-actions">
+                        <button type="button" className="sp-file-btn sp-file-btn--view" onClick={() => handleViewStudentFile(file)}>
+                          View
+                        </button>
+                        <button type="button" className="sp-file-btn sp-file-btn--download" onClick={() => handleDownloadStudentFile(file)}>
+                          Download
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

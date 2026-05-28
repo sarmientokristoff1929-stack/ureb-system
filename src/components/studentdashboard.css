@@ -3033,6 +3033,25 @@
   flex-shrink: 0;
 }
 
+.up-icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border-radius: 6px;
+  transition: color 0.2s ease, background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.up-icon-btn:hover {
+  color: #3b82f6;
+  background: #eff6ff;
+}
+
 .up-delete-btn {
   background: none;
   border: none;

@@ -2171,6 +2171,75 @@ app.post('/api/student/submit-files', upload.fields([
   }
 });
 
+// Student edit proposal
+app.put('/api/student/proposals/:id', upload.fields([
+  { name: 'proposal', maxCount: 1 },
+  { name: 'approvalSheet', maxCount: 1 },
+  { name: 'urebForm2', maxCount: 1 },
+  { name: 'applicationForm6', maxCount: 1 },
+  { name: 'accomplishedForm8', maxCount: 1 },
+  { name: 'accomplishedForm10A', maxCount: 1 },
+  { name: 'instrumentTool', maxCount: 1 },
+  { name: 'ethicsReviewFee', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) return res.status(400).json({ success: false, error: 'Invalid proposal ID' });
+
+    const db = getDatabase();
+    const proposals = db.collection(collections.proposals);
+
+    const { studentEmail, proposalTitle } = req.body;
+
+    const existingProposal = await proposals.findOne({ _id: new ObjectId(id) });
+    if (!existingProposal) {
+      return res.status(404).json({ success: false, error: 'Proposal not found' });
+    }
+
+    if (existingProposal.studentEmail !== studentEmail) {
+      return res.status(403).json({ success: false, error: 'Unauthorized to edit this proposal' });
+    }
+
+    // Process uploaded files → GridFS
+    const newFiles = { ...existingProposal.files };
+    if (req.files) {
+      for (const fieldname of Object.keys(req.files)) {
+        const fileArray = req.files[fieldname];
+        if (fileArray && fileArray.length > 0) {
+          if (newFiles[fieldname] && newFiles[fieldname].filename) {
+             deleteFromGridFS(newFiles[fieldname].filename).catch(e => console.error('Error deleting old file:', e));
+          }
+          const gfsFilename = await uploadToGridFS(fileArray[0]);
+          newFiles[fieldname] = {
+            filename: gfsFilename,
+            originalname: fileArray[0].originalname,
+            size: fileArray[0].size,
+            mimetype: fileArray[0].mimetype
+          };
+        }
+      }
+    }
+
+    const updatedData = {
+      researchTitle: proposalTitle || existingProposal.researchTitle,
+      files: newFiles,
+      updatedAt: new Date()
+    };
+
+    await proposals.updateOne({ _id: new ObjectId(id) }, { $set: updatedData });
+
+    const finalProposal = await proposals.findOne({ _id: new ObjectId(id) });
+
+    res.json({
+      success: true,
+      proposal: finalProposal
+    });
+  } catch (error) {
+    console.error('Error editing student proposal:', error);
+    res.status(500).json({ success: false, error: 'Server error: ' + error.message });
+  }
+});
+
 // Student file resubmission
 app.post('/api/student/resubmit-files', upload.array('files'), async (req, res) => {
   try {
