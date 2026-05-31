@@ -3086,6 +3086,7 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
       // Submit review to the API with files (saves to database + creates admin notification)
       const result = await submitReview({
         proposalId: selectedProposal?._id || '',
+        protocolCode: selectedProposal?.protocolCode || '',
         reviewerEmail: user?.email,
         reviewerName: user?.name || user?.email,
         decision: reviewData.decision,

@@ -412,6 +412,55 @@ const buildProposalIdMatchers = (proposalId) => {
   return matchers;
 };
 
+const markReviewerAssignmentsUnderReview = async (db, { proposalId, protocolCode, reviewerEmail, decision }) => {
+  if (!reviewerEmail) return { matchedCount: 0, modifiedCount: 0 };
+
+  const assignments = db.collection(collections.assignments);
+  const isSecondary = String(decision || '').toLowerCase() === 'secondary_file';
+  const normalizedProtocol = String(protocolCode || '').toUpperCase().replace(/\s+/g, '');
+
+  const proposalMatchers = [];
+  if (proposalId) {
+    proposalMatchers.push(...buildProposalIdMatchers(proposalId));
+  }
+  if (normalizedProtocol) {
+    proposalMatchers.push({ protocolCode: normalizedProtocol });
+  }
+  if (!proposalMatchers.length) return { matchedCount: 0, modifiedCount: 0 };
+
+  const pendingStatusMatch = {
+    $or: [
+      { status: { $regex: /^pending$/i } },
+      { status: { $exists: false } },
+      { status: '' },
+    ],
+  };
+
+  const buildUpdateQuery = (sourceFilter) => {
+    const clauses = [
+      { $or: proposalMatchers },
+      { reviewerEmail: emailRegexFilter(reviewerEmail) },
+      pendingStatusMatch,
+    ];
+    if (sourceFilter) clauses.splice(2, 0, sourceFilter);
+    return { $and: clauses };
+  };
+
+  let result = await assignments.updateMany(
+    buildUpdateQuery(isSecondary ? adminAssignmentFilter() : studentAssignmentFilter()),
+    { $set: { status: 'Under Review', updatedAt: new Date() } }
+  );
+
+  if (result.matchedCount === 0 && !isSecondary) {
+    result = await assignments.updateMany(
+      buildUpdateQuery(null),
+      { $set: { status: 'Under Review', updatedAt: new Date() } }
+    );
+  }
+
+  return result;
+};
+
 const inferAssignmentSource = (assignment) => {
   if (assignment.assignmentSource === 'student' || assignment.assignmentSource === 'admin') {
     return assignment.assignmentSource;
@@ -2548,58 +2597,58 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
 
     const result = await reviews.insertOne(newReview);
 
-    // Update proposal status based on decision
-    // Set proposal status to 'Submitted to Admin' indicating admin needs to check it
-    let proposalStatus = 'Submitted to Admin';
-    // (Previous logic would jump straight to decision, but user wants admin to check first)
+    const normalizedProtocolCode = (submittedProtocolCode || '').toUpperCase().replace(/\s+/g, '');
+    const isSecondarySubmission = String(decision || '').toLowerCase() === 'secondary_file';
 
-    // Try to update proposal status
-    try {
-      await proposals.updateOne(
-        {
-          $or: [
-            { _id: ObjectId.isValid(proposalId) ? new ObjectId(proposalId) : null },
-            { protocolCode: protocolCode || proposalId }
-          ].filter(q => q._id !== null || q.protocolCode !== undefined)
-        },
-        { $set: { status: proposalStatus, updatedAt: new Date() } }
-      );
-    } catch (e) {
-      console.log('Could not update proposal status:', e.message);
+    // Update proposal status (admin workflow for completed preliminary review)
+    if (!isSecondarySubmission) {
+      const proposalStatus = 'Submitted to Admin';
+      const proposalQuery = [];
+      if (proposalId && ObjectId.isValid(String(proposalId))) {
+        proposalQuery.push({ _id: new ObjectId(proposalId) });
+      }
+      if (normalizedProtocolCode) {
+        proposalQuery.push({ protocolCode: normalizedProtocolCode });
+      }
+      if (proposalQuery.length) {
+        try {
+          await proposals.updateOne(
+            { $or: proposalQuery },
+            { $set: { status: proposalStatus, updatedAt: new Date() } }
+          );
+        } catch (e) {
+          console.log('Could not update proposal status:', e.message);
+        }
+      }
+    } else if (normalizedProtocolCode) {
+      try {
+        await proposals.updateOne(
+          { protocolCode: normalizedProtocolCode },
+          { $set: { status: 'Under Review', updatedAt: new Date() } }
+        );
+      } catch (e) {
+        console.log('Could not update proposal status for secondary submission:', e.message);
+      }
     }
 
-    // Update assignment status (prefer student/preliminary assignment when both exist)
+    // Assigned proposal: Pending → Under Review when reviewer submits
     try {
-      const assignments = db.collection(collections.assignments);
-      const proposalMatchers = buildProposalIdMatchers(proposalId);
-      if (protocolCode) {
-        proposalMatchers.push({ protocolCode });
-      }
-      const baseQuery = {
-        $and: [
-          { $or: proposalMatchers },
-          { reviewerEmail: emailRegexFilter(reviewerEmail) },
-        ],
-      };
-      let target = await assignments.findOne({
-        $and: [baseQuery, studentAssignmentFilter()],
+      const assignmentUpdate = await markReviewerAssignmentsUnderReview(db, {
+        proposalId,
+        protocolCode: normalizedProtocolCode,
+        reviewerEmail,
+        decision,
       });
-      if (!target) {
-        target = await assignments.findOne(baseQuery);
-      }
-      if (target) {
-        await assignments.updateOne(
-          { _id: target._id },
-          { $set: { status: 'Submitted to Admin', updatedAt: new Date() } }
-        );
-      }
+      console.log(
+        `Assignment status → Under Review (${assignmentUpdate.modifiedCount} updated) for reviewer ${reviewerEmail}`
+      );
     } catch (e) {
       console.log('Could not update assignment status:', e.message);
     }
 
     // Fetch proposal details for notification
     let proposalTitle = 'Unknown Proposal';
-    let protocolCode = submittedProtocolCode || '';
+    let protocolCode = normalizedProtocolCode;
     try {
       const proposal = await proposals.findOne({ _id: new ObjectId(proposalId) });
       if (proposal) {
