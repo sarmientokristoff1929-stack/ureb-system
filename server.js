@@ -330,6 +330,24 @@ const STUDENT_ASSIGNMENT_FILE_KEYS = [
   'accomplishedForm8', 'accomplishedForm10A', 'instrumentTool', 'ethicsReviewFee',
 ];
 
+const ADMIN_ASSIGNMENT_FILE_KEYS = [
+  'urebForm16', 'urebForm10B', 'urebForm11', 'urebForm2', 'urebForm6',
+  'urebForm7', 'urebForm8A', 'urebForm10A', 'approvedProposal',
+  'questionnaire', 'cvOfProponent',
+];
+
+const pickFilesByKeys = (filesObj, keys) => {
+  const out = {};
+  if (!filesObj || typeof filesObj !== 'object') return out;
+  for (const key of keys) {
+    if (filesObj[key]) out[key] = filesObj[key];
+  }
+  return out;
+};
+
+const pickStudentAssignmentFiles = (filesObj) => pickFilesByKeys(filesObj, STUDENT_ASSIGNMENT_FILE_KEYS);
+const pickAdminAssignmentFiles = (filesObj) => pickFilesByKeys(filesObj, ADMIN_ASSIGNMENT_FILE_KEYS);
+
 const escapeRegexEmail = (email) => String(email).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const emailRegexFilter = (email) => ({
@@ -385,11 +403,7 @@ const ensureStudentAssignmentForProposal = async (db, proposal) => {
   });
   if (existingStudent) return existingStudent;
 
-  const files = proposal.files || {};
-  const studentFiles = {};
-  for (const key of STUDENT_ASSIGNMENT_FILE_KEYS) {
-    if (files[key]) studentFiles[key] = files[key];
-  }
+  const studentFiles = pickStudentAssignmentFiles(proposal.files || {});
   if (Object.keys(studentFiles).length === 0) return null;
 
   const reviewer = await reviewers.findOne({ email: emailRegexFilter(prelimEmail) });
@@ -2758,7 +2772,17 @@ app.get('/api/assignments', async (req, res) => {
     const db = getDatabase();
     const assignments = db.collection(collections.assignments);
     const assignmentList = await assignments.find({}).toArray();
-    res.json(assignmentList);
+    res.json(assignmentList.map((a) => {
+      const assignmentSource = inferAssignmentSource(a);
+      const isStudent = assignmentSource === 'student';
+      return {
+        ...a,
+        assignmentSource,
+        assignedFiles: isStudent
+          ? pickStudentAssignmentFiles(a.assignedFiles || {})
+          : pickAdminAssignmentFiles(a.assignedFiles || {}),
+      };
+    }));
   } catch (error) {
     console.error('Error fetching all assignments:', error);
     res.status(500).json({ error: 'Server error' });
@@ -2788,6 +2812,18 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
     assignmentList = assignmentList.map((a) => {
       const assignmentSource = inferAssignmentSource(a);
       const isStudent = assignmentSource === 'student';
+      const rawFiles = a.assignedFiles || {};
+      const sanitizedFiles = isStudent
+        ? pickStudentAssignmentFiles(rawFiles)
+        : pickAdminAssignmentFiles(rawFiles);
+
+      if (Object.keys(sanitizedFiles).length !== Object.keys(rawFiles).length) {
+        assignments.updateOne(
+          { _id: a._id },
+          { $set: { assignedFiles: sanitizedFiles, updatedAt: new Date() } }
+        ).catch(() => {});
+      }
+
       if (isStudent && a.protocolCode) {
         assignments.updateOne(
           { _id: a._id },
@@ -2797,6 +2833,7 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
       return {
         ...a,
         assignmentSource,
+        assignedFiles: sanitizedFiles,
         ...(isStudent ? { protocolCode: null } : {}),
       };
     });
@@ -3495,15 +3532,10 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
     // Trim protocolCode to avoid uniqueness issues with white space
     if (protocolCode) protocolCode = protocolCode.toUpperCase().replace(/\s+/g, '');
 
-    // Collect all uploaded files
+    // Collect all uploaded files (admin documents only)
     const uploadedFiles = {};
-    const documentKeys = [
-      'urebForm16', 'urebForm10B', 'urebForm11', 'urebForm2', 'urebForm6',
-      'urebForm7', 'urebForm8A', 'urebForm10A', 'approvedProposal',
-      'questionnaire', 'cvOfProponent'
-    ];
 
-    for (const key of documentKeys) {
+    for (const key of ADMIN_ASSIGNMENT_FILE_KEYS) {
       const files = req.files && req.files[key];
       if (files && files.length > 0) {
         const gfsFilename = await uploadToGridFS(files[0]);
@@ -3565,19 +3597,17 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
     let researchTitle = `Assigned Files - ${protocolCode}`;
     let proponent = secondaryReviewer1;
     let studentEmail = '';
-    let allAssignedFiles = uploadedFiles;
-
     if (existingProposal) {
       resolvedProposalId = existingProposal._id;
       researchTitle = existingProposal.researchTitle || researchTitle;
       proponent = existingProposal.proponent || existingProposal.studentName || proponent;
       studentEmail = existingProposal.studentEmail || studentEmail;
 
+      // Proposal record keeps student + admin files; reviewer assignments stay separate
       const mergedFiles = {
-        ...(existingProposal.files || {}),
-        ...uploadedFiles
+        ...pickStudentAssignmentFiles(existingProposal.files || {}),
+        ...uploadedFiles,
       };
-      allAssignedFiles = mergedFiles;
 
       // Preserve student/preliminary reviewer on proposal — only add secondary reviewers
       const preliminaryEmail = existingProposal.preliminaryReviewer
@@ -3677,9 +3707,10 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         ],
       });
 
+      const existingAdminFiles = pickAdminAssignmentFiles(existingAdminAssignment?.assignedFiles || {});
       const adminAssignedFiles = existingAdminAssignment
-        ? { ...(existingAdminAssignment.assignedFiles || {}), ...uploadedFiles }
-        : allAssignedFiles;
+        ? { ...existingAdminFiles, ...uploadedFiles }
+        : uploadedFiles;
 
       const assignmentData = {
         proposalId: resolvedProposalId,
@@ -3725,7 +3756,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         recipientEmail: reviewer.email,
         recipientName: reviewer.email,
         title: 'New Files Assigned for Review',
-        message: `You have been assigned ${Object.keys(allAssignedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
+        message: `You have been assigned ${Object.keys(adminAssignedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
         type: 'assignment',
         protocolCode: protocolCode,
         proposalId: resolvedProposalId,
@@ -3733,7 +3764,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
           startDate: new Date(startDate),
           endDate: new Date(endDate)
         },
-        assignedFiles: Object.keys(allAssignedFiles),
+        assignedFiles: Object.keys(adminAssignedFiles),
         read: false,
         createdAt: new Date()
       });
