@@ -1389,7 +1389,8 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
               {proposals.map((proposal) => {
                 const status = (proposal.status || 'Pending').toLowerCase();
                 const statusClass = status.replace(/\s+/g, '-');
-                const fileCount = proposal.files ? Object.keys(proposal.files).length : 0;
+                const studentFiles = proposal.studentFiles || proposal.files || {};
+                const fileCount = Object.values(studentFiles).filter((f) => f?.filename).length;
                 const submittedDate = new Date(proposal.createdAt || proposal.uploadDate || Date.now());
                 return (
                   <div key={proposal._id} className={`up-card up-card--${statusClass}`}>
@@ -1482,7 +1483,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
                             </button>
                             {openFilesDropdownId === proposal._id && (
                               <div className="up-files-dropdown">
-                                {Object.entries(proposal.files).map(([key, fileData]) => {
+                                {Object.entries(studentFiles).map(([key, fileData]) => {
                                   if (!fileData) return null;
                                   // Server stores: { filename: 'fieldname-timestamp-rand.ext', originalname: 'user-name.pdf', ... }
                                   const originalName = fileData.originalname || fileData.name || fileData.fileName || key;
@@ -1765,8 +1766,8 @@ const EMPTY_ADD_FILES_FORM = {
 const ViewFilesModal = ({ proposal, onClose }) => {
   if (!proposal) return null;
 
-  const files = proposal.files || {};
-  const fileKeys = Object.keys(files);
+  const files = proposal.studentFiles || proposal.files || {};
+  const fileKeys = Object.keys(files).filter((key) => files[key]?.filename);
 
   const handleDownload = (key, file) => {
     const downloadUrl = file.filename

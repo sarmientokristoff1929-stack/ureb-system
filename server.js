@@ -348,11 +348,61 @@ const pickFilesByKeys = (filesObj, keys) => {
 const pickStudentAssignmentFiles = (filesObj) => pickFilesByKeys(filesObj, STUDENT_ASSIGNMENT_FILE_KEYS);
 const pickAdminAssignmentFiles = (filesObj) => pickFilesByKeys(filesObj, ADMIN_ASSIGNMENT_FILE_KEYS);
 
+const normalizeProposalFileFields = (proposal) => {
+  if (!proposal) return proposal;
+
+  const studentFiles = pickStudentAssignmentFiles(proposal.studentFiles || proposal.files || {});
+  const adminFiles = pickAdminAssignmentFiles(proposal.adminFiles || proposal.files || {});
+
+  return {
+    ...proposal,
+    studentFiles,
+    adminFiles,
+    files: { ...studentFiles, ...adminFiles },
+  };
+};
+
+const normalizeProposalResponse = (proposal) =>
+  normalizeStudentProposalAdminSeen(normalizeProposalFileFields(proposal));
+
 const escapeRegexEmail = (email) => String(email).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const emailRegexFilter = (email) => ({
   $regex: new RegExp(`^${escapeRegexEmail(email)}$`, 'i'),
 });
+
+const getAdminInboxRecipientEmails = (adminEmail) => {
+  const recipients = new Set(['admin', String(adminEmail || '').trim()]);
+  if (process.env.GMAIL_EMAIL) recipients.add(String(process.env.GMAIL_EMAIL).trim());
+  return Array.from(recipients).filter(Boolean);
+};
+
+const buildAdminInboxQuery = (adminEmail) => {
+  const recipients = getAdminInboxRecipientEmails(adminEmail);
+  return {
+    $and: [
+      {
+        $or: [
+          { type: 'student_to_admin' },
+          { type: 'reviewer_to_admin' },
+          ...recipients.map((r) => ({ recipientEmail: emailRegexFilter(r) })),
+        ],
+      },
+      {
+        $nor: recipients.map((r) => ({ senderEmail: emailRegexFilter(r) })),
+      },
+    ],
+  };
+};
+
+const isAdminAccount = async (db, email) => {
+  const students = db.collection(collections.students);
+  const reviewers = db.collection(collections.reviewers);
+  const isStudent = await students.findOne({ email: emailRegexFilter(email) }, { projection: { _id: 1 } });
+  if (isStudent) return false;
+  const isReviewer = await reviewers.findOne({ email: emailRegexFilter(email) }, { projection: { _id: 1 } });
+  return !isReviewer;
+};
 
 const buildProposalIdMatchers = (proposalId) => {
   const matchers = [{ proposalId }, { proposalId: proposalId.toString() }];
@@ -403,7 +453,7 @@ const ensureStudentAssignmentForProposal = async (db, proposal) => {
   });
   if (existingStudent) return existingStudent;
 
-  const studentFiles = pickStudentAssignmentFiles(proposal.files || {});
+  const studentFiles = pickStudentAssignmentFiles(proposal.studentFiles || proposal.files || {});
   if (Object.keys(studentFiles).length === 0) return null;
 
   const reviewer = await reviewers.findOne({ email: emailRegexFilter(prelimEmail) });
@@ -1834,7 +1884,7 @@ app.get('/api/proposals', async (req, res) => {
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
     const proposalList = await proposals.find({}).toArray();
-    res.json(proposalList.map(normalizeStudentProposalAdminSeen));
+    res.json(proposalList.map(normalizeProposalResponse));
   } catch (error) {
     console.error('Error fetching proposals:', error);
     res.status(500).json({ error: 'Server error' });
@@ -1981,7 +2031,7 @@ app.get('/api/proposals/student/:studentEmail', async (req, res) => {
       ]
     }).toArray();
 
-    res.json(proposalList);
+    res.json(proposalList.map(normalizeProposalFileFields));
   } catch (error) {
     console.error('Error fetching student proposals:', error);
     res.status(500).json({ error: 'Server error' });
@@ -2008,7 +2058,7 @@ app.get('/api/proposals/:proposalId', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Proposal not found' });
     }
 
-    res.json(proposal);
+    res.json(normalizeProposalFileFields(proposal));
   } catch (error) {
     console.error('Error fetching proposal:', error);
     res.status(500).json({ error: 'Server error' });
@@ -2197,6 +2247,8 @@ app.post('/api/student/submit-files', upload.fields([
       }
     }
 
+    const studentFiles = pickStudentAssignmentFiles(files);
+
     const newProposal = {
       researchTitle: proposalTitle || 'Untitled Proposal',
       proponent: studentName || 'Unknown',
@@ -2204,7 +2256,9 @@ app.post('/api/student/submit-files', upload.fields([
       department: department || '',
       preliminaryReviewer: '',
       preliminaryReviewerName: '',
-      files,
+      files: studentFiles,
+      studentFiles,
+      adminFiles: {},
       status: 'Pending Preliminary Reviewer',
       adminSeen: false,
       submissionDate: new Date(),
@@ -2286,9 +2340,14 @@ app.put('/api/student/proposals/:id', upload.fields([
       }
     }
 
+    const studentFiles = pickStudentAssignmentFiles(newFiles);
+    const adminFiles = pickAdminAssignmentFiles(existingProposal.adminFiles || existingProposal.files || {});
+
     const updatedData = {
       researchTitle: proposalTitle || existingProposal.researchTitle,
-      files: newFiles,
+      studentFiles,
+      adminFiles,
+      files: { ...studentFiles, ...adminFiles },
       adminSeen: false,
       updatedAt: new Date()
     };
@@ -2299,7 +2358,7 @@ app.put('/api/student/proposals/:id', upload.fields([
 
     res.json({
       success: true,
-      proposal: finalProposal
+      proposal: normalizeProposalFileFields(finalProposal)
     });
   } catch (error) {
     console.error('Error editing student proposal:', error);
@@ -3347,14 +3406,16 @@ app.get('/api/messages/:userId', async (req, res) => {
 
     // Determine if the requesting user is an admin:
     // Admins are NOT in the students or reviewers collections.
-    const reviewers = db.collection(collections.reviewers);
-    const isStudent = await students.findOne({ email: userId }, { projection: { _id: 1 } });
-    const isReviewer = !isStudent && await reviewers.findOne({ email: userId }, { projection: { _id: 1 } });
-    const isAdmin = !isStudent && !isReviewer;
+    const isAdmin = await isAdminAccount(db, userId);
 
     const query = isAdmin
-      ? { $or: [{ recipientEmail: userId }, { senderEmail: userId }, { type: 'student_to_admin' }, { type: 'reviewer_to_admin' }] }
-      : { $or: [{ recipientEmail: userId }, { senderEmail: userId }] };
+      ? buildAdminInboxQuery(userId)
+      : {
+        $or: [
+          { recipientEmail: emailRegexFilter(userId) },
+          { senderEmail: emailRegexFilter(userId) },
+        ],
+      };
 
     const messageList = await messages.find(query).sort({ createdAt: -1 }).toArray();
 
@@ -3459,28 +3520,20 @@ app.put('/api/messages/read-all', async (req, res) => {
     const messages = db.collection(collections.messages);
     const students = db.collection(collections.students);
     const users = db.collection(collections.users);
-    const reviewers = db.collection(collections.reviewers);
+    const isAdmin = await isAdminAccount(db, email);
 
-    // Determine if the requesting user is an admin:
-    // Admins are NOT in the students or reviewers collections.
-    const isStudent = await students.findOne({ email: email }, { projection: { _id: 1 } });
-    const isReviewer = !isStudent && await reviewers.findOne({ email: email }, { projection: { _id: 1 } });
-    const isAdmin = !isStudent && !isReviewer;
-
-    // Use the same query logic as the get messages endpoint
     const query = isAdmin
-      ? {
-        $or: [
-          { recipientEmail: email, read: { $ne: true } },
-          { senderEmail: email, read: { $ne: true } },
-          { type: 'student_to_admin', read: { $ne: true } }
-        ]
-      }
+      ? { $and: [buildAdminInboxQuery(email), { read: { $ne: true } }] }
       : {
-        $or: [
-          { recipientEmail: email, read: { $ne: true } },
-          { senderEmail: email, read: { $ne: true } }
-        ]
+        $and: [
+          {
+            $or: [
+              { recipientEmail: emailRegexFilter(email) },
+              { senderEmail: emailRegexFilter(email) },
+            ],
+          },
+          { read: { $ne: true } },
+        ],
       };
 
     const result = await messages.updateMany(
@@ -3597,17 +3650,22 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
     let researchTitle = `Assigned Files - ${protocolCode}`;
     let proponent = secondaryReviewer1;
     let studentEmail = '';
+    let preservedStudentFiles = null;
+
     if (existingProposal) {
       resolvedProposalId = existingProposal._id;
       researchTitle = existingProposal.researchTitle || researchTitle;
       proponent = existingProposal.proponent || existingProposal.studentName || proponent;
       studentEmail = existingProposal.studentEmail || studentEmail;
 
-      // Proposal record keeps student + admin files; reviewer assignments stay separate
-      const mergedFiles = {
-        ...pickStudentAssignmentFiles(existingProposal.files || {}),
+      preservedStudentFiles = pickStudentAssignmentFiles(
+        existingProposal.studentFiles || existingProposal.files || {}
+      );
+      const adminFiles = {
+        ...pickAdminAssignmentFiles(existingProposal.adminFiles || {}),
         ...uploadedFiles,
       };
+      const mergedFiles = { ...preservedStudentFiles, ...adminFiles };
 
       // Preserve student/preliminary reviewer on proposal — only add secondary reviewers
       const preliminaryEmail = existingProposal.preliminaryReviewer
@@ -3615,6 +3673,8 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         || null;
       const proposalUpdate = {
         protocolCode,
+        studentFiles: preservedStudentFiles,
+        adminFiles,
         files: mergedFiles,
         reviewers: {
           reviewer1: preliminaryEmail,
@@ -3799,6 +3859,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
           {
             $set: {
               ...(studentEmail ? { studentEmail } : {}),
+              ...(preservedStudentFiles ? { assignedFiles: preservedStudentFiles } : {}),
               updatedAt: new Date(),
             },
             $unset: { protocolCode: '' },
@@ -3811,7 +3872,8 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
     }
 
     if (existingProposal) {
-      await ensureStudentAssignmentForProposal(db, existingProposal);
+      const refreshedProposal = await proposals.findOne({ _id: resolvedProposalId });
+      await ensureStudentAssignmentForProposal(db, refreshedProposal || existingProposal);
     }
 
     // Create admin notification with assigned reviewer names

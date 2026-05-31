@@ -889,14 +889,22 @@ const AdminDashboard = ({ onLogout }) => {
 
   }, [activeTab]);
 
-  // Fetch message count for badge
+  // Fetch message count for badge (incoming student/reviewer submissions only)
   const refreshMessageCount = async () => {
     if (!userInfo?.email) return;
     try {
       const { getMessagesByUser } = await import('../services/api.js');
       const messageList = await getMessagesByUser(userInfo.email);
-      // Count unread messages
-      const unreadMessages = messageList.filter(m => !m.read);
+      const readIds = (() => {
+        try {
+          return JSON.parse(localStorage.getItem('read_messages') || '[]');
+        } catch {
+          return [];
+        }
+      })();
+      const unreadMessages = (Array.isArray(messageList) ? messageList : []).filter(
+        (m) => !m.read && !readIds.includes(String(m._id))
+      );
       setMessageCount(unreadMessages.length);
     } catch (error) {
       console.error('Error fetching message count:', error);
@@ -946,6 +954,9 @@ const AdminDashboard = ({ onLogout }) => {
   useEffect(() => {
     if (activeTab === 'student-proposals') {
       refreshStudentProposalNewCount();
+    }
+    if (activeTab === 'messages-inbox') {
+      refreshMessageCount();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -3030,6 +3041,18 @@ const STUDENT_SUBMISSION_FILE_LABELS = {
   ethicsReviewFee: 'Ethics Review Fee Receipt',
 };
 
+const getProposalStudentFiles = (proposal) => {
+  if (!proposal) return {};
+  const source = proposal.studentFiles && typeof proposal.studentFiles === 'object'
+    ? proposal.studentFiles
+    : proposal.files || {};
+  return Object.fromEntries(
+    Object.entries(source).filter(([key, file]) => (
+      Object.prototype.hasOwnProperty.call(STUDENT_SUBMISSION_FILE_LABELS, key) && file?.filename
+    ))
+  );
+};
+
 const isPreliminaryReviewerRole = (reviewer) => {
   const type = String(reviewer.reviewerType || '').toLowerCase();
   return !type || type === 'preliminary' || type === 'both';
@@ -3220,7 +3243,7 @@ const StudentProposalContent = ({ onNewCountChange }) => {
     ? getReviewerDisplayName(reviewers.find((r) => r.email === selectedDraft.preliminaryReviewer))
     : '';
   const selectedFiles = selectedProposal
-    ? Object.entries(selectedProposal.files || {}).map(([key, file]) => ({
+    ? Object.entries(getProposalStudentFiles(selectedProposal)).map(([key, file]) => ({
       key,
       label: STUDENT_SUBMISSION_FILE_LABELS[key] || key,
       file,
@@ -10047,6 +10070,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
         const readIds = (() => { try { return JSON.parse(localStorage.getItem('read_messages') || '[]'); } catch { return []; } })();
         const processed = sorted.map(m => readIds.includes(String(m._id)) ? { ...m, read: true } : m);
         setMessages(processed);
+        if (onMessageRead) onMessageRead();
       } catch (error) {
         console.error('Error fetching messages:', error);
       } finally {
@@ -10057,7 +10081,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
     if (userInfo.email) {
       fetchMessages();
     }
-  }, [userInfo.email]);
+  }, [userInfo.email, onMessageRead]);
 
   // Fetch all students and reviewers for mapping and dropdowns
   useEffect(() => {
@@ -10337,6 +10361,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
       const { deleteMessage } = await import('../services/api.js');
       await deleteMessage(inboxDeleteTargetId);
       setMessages(prev => prev.filter(m => m._id !== inboxDeleteTargetId));
+      if (onMessageRead) onMessageRead();
     } catch (err) {
       console.error('Error deleting message:', err);
     } finally {
@@ -10350,6 +10375,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
       const { deleteMessage } = await import('../services/api.js');
       await Promise.all(messages.map(m => deleteMessage(m._id)));
       setMessages([]);
+      if (onMessageRead) onMessageRead();
     } catch (err) {
       console.error('Error deleting all messages:', err);
     } finally {
