@@ -96,7 +96,7 @@
   border-collapse: collapse;
   font-size: 0.875rem;
   text-align: left;
-  table-layout: auto;
+  table-layout: fixed;
 }
 
 .sp-table thead tr {
@@ -148,6 +148,54 @@
   font-weight: 600;
   color: #0f172a;
   line-height: 1.35;
+  max-width: 0;
+  overflow: hidden;
+}
+
+.sp-col-indicator { width: 8%; }
+.sp-col-title { width: 18%; }
+.sp-col-student { width: 15%; }
+.sp-col-date { width: 9%; }
+.sp-col-department { width: 19%; }
+.sp-col-reviewer { width: 21%; }
+.sp-col-action { width: 10%; }
+
+.sp-indicator-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sp-indicator-badge--new {
+  background: #fef3c7;
+  color: #b45309;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.25);
+}
+
+.sp-indicator-badge--seen {
+  background: #ecfdf5;
+  color: #047857;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.2);
+}
+
+.sp-row--new td {
+  background-color: #fffbeb;
+}
+
+.sp-row--new:hover td {
+  background-color: #fef3c7;
+}
+
+.sp-stat--new {
+  color: #b45309;
+  font-weight: 500;
 }
 
 .sp-student-name {
@@ -183,24 +231,47 @@
   box-shadow: 0 0 0 3px rgba(122, 158, 126, 0.15);
 }
 
-.sp-assign-btn {
-  white-space: normal;
-  padding: 0.45rem 0.85rem;
-  font-size: 0.85rem;
-  min-width: 0;
-  width: 100%;
-  max-width: 120px;
-  line-height: 1.2;
+.sp-cell-select {
+  overflow: hidden;
 }
 
-.sp-cell-date,
-.sp-cell-action {
+.sp-table .sp-assign-btn.btn-primary {
+  padding: 0.5rem 0.7rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: 8px;
+  white-space: nowrap;
+  width: auto;
+  max-width: 100%;
+  min-width: 4.75rem;
+  line-height: 1.25;
+  box-sizing: border-box;
+}
+
+.sp-table .sp-assign-btn.btn-primary:hover {
+  transform: none;
+}
+
+.sp-table .sp-assign-btn.btn-primary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.sp-cell-date {
   white-space: nowrap;
 }
 
 .sp-cell-action {
   text-align: center;
-  min-width: 110px;
+  white-space: nowrap;
+  padding: 0.65rem 0.5rem;
+  overflow: visible;
+  vertical-align: middle;
+}
+
+.sp-cell-action .sp-assign-btn {
+  display: inline-flex;
+  margin: 0 auto;
 }
 
 .sp-modal-overlay {
@@ -238,10 +309,22 @@
   border-bottom: 1px solid #eef2f7;
 }
 
+.sp-modal-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
 .sp-modal-header h3 {
   margin: 0;
   font-size: 1.05rem;
   color: var(--text-dark);
+}
+
+.sp-cell-indicator {
+  text-align: center;
+  white-space: nowrap;
 }
 
 .sp-modal-close {
@@ -468,8 +551,16 @@
     white-space: normal;
   }
 
-  .sp-assign-btn {
-    max-width: none;
+  .sp-col-indicator {
+    width: 10%;
+  }
+
+  .sp-col-action {
+    width: 14%;
+  }
+
+  .sp-table .sp-assign-btn.btn-primary {
+    min-width: 4.25rem;
   }
 
   .sp-detail-grid {

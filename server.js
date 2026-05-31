@@ -1791,13 +1791,36 @@ app.get('/api/admin/profile/picture/:filename', async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+const normalizeStudentProposalAdminSeen = (proposal) => {
+  if (!proposal?.studentEmail || !String(proposal.studentEmail).trim()) {
+    return proposal;
+  }
+  if (proposal.submissionType === 'resubmission' || proposal.status === 'Resubmitted') {
+    return proposal;
+  }
+
+  if (proposal.adminSeen === true) {
+    return { ...proposal, adminSeen: true };
+  }
+  if (proposal.adminSeen === false) {
+    return { ...proposal, adminSeen: false };
+  }
+  if (proposal.adminSeenAt) {
+    return { ...proposal, adminSeen: true };
+  }
+  if (proposal.preliminaryReviewer) {
+    return { ...proposal, adminSeen: true };
+  }
+  return { ...proposal, adminSeen: false };
+};
+
 // Proposal operations
 app.get('/api/proposals', async (req, res) => {
   try {
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
     const proposalList = await proposals.find({}).toArray();
-    res.json(proposalList);
+    res.json(proposalList.map(normalizeStudentProposalAdminSeen));
   } catch (error) {
     console.error('Error fetching proposals:', error);
     res.status(500).json({ error: 'Server error' });
@@ -1873,6 +1896,34 @@ app.put('/api/proposals/:id/assign-preliminary', async (req, res) => {
       success: false,
       error: error.message || 'Failed to assign preliminary reviewer',
     });
+  }
+});
+
+// Admin: mark a student submission as seen on Student Proposal page
+app.put('/api/proposals/:id/mark-seen', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getDatabase();
+    const proposals = db.collection(collections.proposals);
+    const adminSeenAt = new Date();
+    const update = { $set: { adminSeen: true, adminSeenAt, updatedAt: adminSeenAt } };
+
+    let result;
+    if (ObjectId.isValid(id) && String(new ObjectId(id)) === id) {
+      result = await proposals.updateOne({ _id: new ObjectId(id) }, update);
+    }
+    if (!result || result.matchedCount === 0) {
+      result = await proposals.updateOne({ protocolCode: id }, update);
+    }
+
+    if (!result || result.matchedCount === 0) {
+      return res.status(404).json({ success: false, error: 'Proposal not found' });
+    }
+
+    res.json({ success: true, adminSeen: true, adminSeenAt });
+  } catch (error) {
+    console.error('Error marking proposal as seen:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
@@ -2141,6 +2192,7 @@ app.post('/api/student/submit-files', upload.fields([
       preliminaryReviewerName: '',
       files,
       status: 'Pending Preliminary Reviewer',
+      adminSeen: false,
       submissionDate: new Date(),
       createdAt: new Date(),
       updatedAt: new Date()
@@ -2223,6 +2275,7 @@ app.put('/api/student/proposals/:id', upload.fields([
     const updatedData = {
       researchTitle: proposalTitle || existingProposal.researchTitle,
       files: newFiles,
+      adminSeen: false,
       updatedAt: new Date()
     };
 

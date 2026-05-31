@@ -771,6 +771,22 @@ const getProfilePicUrl = (path) => {
   return path;
 };
 
+const isStudentSubmissionProposal = (proposal) => {
+  const hasStudent = proposal?.studentEmail && String(proposal.studentEmail).trim() !== '';
+  const isResubmission = proposal?.submissionType === 'resubmission' || proposal?.status === 'Resubmitted';
+  return hasStudent && !isResubmission;
+};
+
+const isStudentProposalNew = (proposal) => {
+  if (!isStudentSubmissionProposal(proposal)) return false;
+  if (proposal.adminSeen === true) return false;
+  if (proposal.adminSeen === false) return true;
+  if (proposal.adminSeenAt) return false;
+  // Legacy rows before adminSeen existed: treat as seen if already assigned
+  if (proposal.preliminaryReviewer) return false;
+  return true;
+};
+
 const AdminDashboard = ({ onLogout }) => {
 
   // Initialize activeTab with localStorage data if available
@@ -807,6 +823,7 @@ const AdminDashboard = ({ onLogout }) => {
   const [messageCount, setMessageCount] = useState(0);
 
   const [notifCount, setNotifCount] = useState(0);
+  const [studentProposalNewCount, setStudentProposalNewCount] = useState(0);
   const [uploadingPic, setUploadingPic] = useState(false);
   const [picError, setPicError] = useState('');
   const [picSuccess, setPicSuccess] = useState('');
@@ -901,11 +918,37 @@ const AdminDashboard = ({ onLogout }) => {
     }
   };
 
+  const refreshStudentProposalNewCount = useCallback(async (countOverride) => {
+    if (typeof countOverride === 'number') {
+      setStudentProposalNewCount(countOverride);
+      return;
+    }
+    try {
+      const { getAllProposals } = await import('../services/api.js');
+      const list = await getAllProposals();
+      const newCount = (Array.isArray(list) ? list : [])
+        .filter(isStudentSubmissionProposal)
+        .filter(isStudentProposalNew).length;
+      setStudentProposalNewCount(newCount);
+    } catch (error) {
+      console.error('Error fetching new student proposal count:', error);
+      setStudentProposalNewCount(0);
+    }
+  }, []);
+
   useEffect(() => {
     refreshMessageCount();
     refreshNotifCount();
+    refreshStudentProposalNewCount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userInfo]);
+
+  useEffect(() => {
+    if (activeTab === 'student-proposals') {
+      refreshStudentProposalNewCount();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
 
 
@@ -921,7 +964,7 @@ const AdminDashboard = ({ onLogout }) => {
 
     { id: 'assign-file', label: 'Submit File', icon: <AssignIcon /> },
 
-    { id: 'student-proposals', label: 'Student Proposal', icon: <FileCheckIcon /> },
+    { id: 'student-proposals', label: 'Student Proposal', icon: <FileCheckIcon />, badge: studentProposalNewCount > 0 ? studentProposalNewCount : null },
 
     { id: 'messages-inbox', label: 'Files And Messages Submitted', icon: <MessageIcon />, badge: messageCount > 0 ? messageCount : null },
 
@@ -1157,7 +1200,7 @@ const AdminDashboard = ({ onLogout }) => {
 
       case 'student-proposals':
 
-        return <StudentProposalContent />;
+        return <StudentProposalContent onNewCountChange={refreshStudentProposalNewCount} />;
 
       case 'message-researcher':
 
@@ -3001,7 +3044,7 @@ const getReviewerDisplayName = (reviewer) => {
 };
 
 // ── Student Proposal (admin assigns department + preliminary reviewer) ─────
-const StudentProposalContent = () => {
+const StudentProposalContent = ({ onNewCountChange }) => {
   const [proposals, setProposals] = useState([]);
   const [reviewers, setReviewers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -3020,12 +3063,9 @@ const StudentProposalContent = () => {
         getAllReviewers(),
       ]);
       const list = Array.isArray(proposalsData) ? proposalsData : [];
-      const studentOnly = list.filter((p) => {
-        const hasStudent = p.studentEmail && String(p.studentEmail).trim() !== '';
-        const isResubmission = p.submissionType === 'resubmission' || p.status === 'Resubmitted';
-        return hasStudent && !isResubmission;
-      });
+      const studentOnly = list.filter(isStudentSubmissionProposal);
       setProposals(studentOnly);
+      onNewCountChange?.(studentOnly.filter(isStudentProposalNew).length);
       setReviewers(Array.isArray(reviewersData) ? reviewersData : []);
 
       const draft = {};
@@ -3045,11 +3085,64 @@ const StudentProposalContent = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onNewCountChange]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const applyProposalSeen = useCallback((proposalId, adminSeenAt) => {
+    setProposals((prev) => {
+      const target = prev.find((p) => toRecordId(p._id) === proposalId);
+      if (!target || !isStudentProposalNew(target)) return prev;
+
+      const seenAt = adminSeenAt || new Date().toISOString();
+      const next = prev.map((p) => (
+        toRecordId(p._id) === proposalId
+          ? { ...p, adminSeen: true, adminSeenAt: seenAt }
+          : p
+      ));
+      onNewCountChange?.(next.filter(isStudentProposalNew).length);
+      return next;
+    });
+  }, [onNewCountChange]);
+
+  const handleProposalRowClick = useCallback(async (proposalId) => {
+    setSelectedProposalId(proposalId);
+
+    const target = proposals.find((p) => toRecordId(p._id) === proposalId);
+    const wasNew = Boolean(target && isStudentProposalNew(target));
+
+    if (wasNew) {
+      const seenAt = new Date().toISOString();
+      setProposals((prev) => {
+        const next = prev.map((p) => (
+          toRecordId(p._id) === proposalId
+            ? { ...p, adminSeen: true, adminSeenAt: seenAt }
+            : p
+        ));
+        onNewCountChange?.(next.filter(isStudentProposalNew).length);
+        return next;
+      });
+    }
+
+    if (!wasNew) return;
+
+    try {
+      const { markStudentProposalSeen } = await import('../services/api.js');
+      const result = await markStudentProposalSeen(proposalId);
+      if (!result.success) {
+        await loadData();
+        onNewCountChange?.();
+        return;
+      }
+      applyProposalSeen(proposalId, result.adminSeenAt);
+    } catch (err) {
+      console.error('Error marking proposal as seen:', err);
+      await loadData();
+      onNewCountChange?.();
+    }
+  }, [proposals, applyProposalSeen, loadData, onNewCountChange]);
 
   const getReviewersForDepartment = useCallback((department) => {
     const dept = String(department || '').trim().toUpperCase();
@@ -3120,6 +3213,7 @@ const StudentProposalContent = () => {
     : '—');
 
   const pendingCount = proposals.filter((p) => !p.preliminaryReviewer).length;
+  const newCount = proposals.filter(isStudentProposalNew).length;
   const selectedProposal = filteredProposals.find((p) => toRecordId(p._id) === selectedProposalId) || null;
   const selectedDraft = selectedProposal ? (rowDraft[toRecordId(selectedProposal._id)] || { department: '', preliminaryReviewer: '' }) : null;
   const selectedReviewerName = selectedDraft?.preliminaryReviewer
@@ -3184,6 +3278,11 @@ const StudentProposalContent = () => {
         <span className="sp-stat sp-stat--pending">
           <strong>{pendingCount}</strong> awaiting assignment
         </span>
+        {newCount > 0 && (
+          <span className="sp-stat sp-stat--new">
+            <strong>{newCount}</strong> new submission{newCount !== 1 ? 's' : ''}
+          </span>
+        )}
       </div>
 
       {loading ? (
@@ -3193,8 +3292,18 @@ const StudentProposalContent = () => {
       ) : (
         <div className="sp-table-wrap">
           <table className="sp-table">
+            <colgroup>
+              <col className="sp-col-indicator" />
+              <col className="sp-col-title" />
+              <col className="sp-col-student" />
+              <col className="sp-col-date" />
+              <col className="sp-col-department" />
+              <col className="sp-col-reviewer" />
+              <col className="sp-col-action" />
+            </colgroup>
             <thead>
               <tr>
+                <th>Status</th>
                 <th>Proposal Title</th>
                 <th>Submitted By</th>
                 <th>Submitted</th>
@@ -3210,13 +3319,22 @@ const StudentProposalContent = () => {
                 const deptReviewers = getReviewersForDepartment(draft.department);
                 const isAssigned = Boolean(proposal.preliminaryReviewer);
                 const isSaving = savingId === id;
+                const isNew = isStudentProposalNew(proposal);
 
                 return (
                   <tr
                     key={id}
-                    className={`${isAssigned ? 'sp-row--assigned' : ''} ${selectedProposalId === id ? 'sp-row--selected' : ''}`}
-                    onClick={() => setSelectedProposalId(id)}
+                    className={`${isAssigned ? 'sp-row--assigned' : ''} ${isNew ? 'sp-row--new' : ''} ${selectedProposalId === id ? 'sp-row--selected' : ''}`}
+                    onClick={() => handleProposalRowClick(id)}
                   >
+                    <td className="sp-cell-indicator">
+                      <span
+                        className={`sp-indicator-badge ${isNew ? 'sp-indicator-badge--new' : 'sp-indicator-badge--seen'}`}
+                        title={isNew ? 'New submission — open to mark as seen' : 'Seen'}
+                      >
+                        {isNew ? 'New' : 'Seen'}
+                      </span>
+                    </td>
                     <td className="sp-td-title" title={proposal.researchTitle || 'Untitled Proposal'}>
                       <span className="sp-cell-ellipsis">{proposal.researchTitle || 'Untitled Proposal'}</span>
                     </td>
@@ -3267,7 +3385,10 @@ const StudentProposalContent = () => {
                       <button
                         type="button"
                         className="btn-primary sp-assign-btn"
-                        onClick={() => handleAssign(id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAssign(id);
+                        }}
                         disabled={isSaving || !draft.department || !draft.preliminaryReviewer}
                       >
                         {isSaving ? 'Assigning…' : isAssigned ? 'Reassign' : 'Assign'}
@@ -3285,7 +3406,16 @@ const StudentProposalContent = () => {
         <div className="sp-modal-overlay" onClick={() => setSelectedProposalId('')}>
           <div className="sp-modal" onClick={(e) => e.stopPropagation()}>
             <div className="sp-modal-header">
-              <h3>Student Proposal Details</h3>
+              <div className="sp-modal-header-title">
+                <h3>Student Proposal Details</h3>
+                {selectedProposal && (
+                  <span
+                    className={`sp-indicator-badge ${isStudentProposalNew(selectedProposal) ? 'sp-indicator-badge--new' : 'sp-indicator-badge--seen'}`}
+                  >
+                    {isStudentProposalNew(selectedProposal) ? 'New' : 'Seen'}
+                  </span>
+                )}
+              </div>
               <button
                 type="button"
                 className="sp-modal-close"

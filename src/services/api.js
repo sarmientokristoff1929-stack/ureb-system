@@ -72,6 +72,29 @@ export const assignStudentProposalReviewer = async (proposalId, { department, pr
   }
 };
 
+export const markStudentProposalSeen = async (proposalId) => {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/proposals/${encodeURIComponent(proposalId)}/mark-seen`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.error || `Failed to mark proposal as seen (${response.status})`,
+      };
+    }
+    return data;
+  } catch (error) {
+    console.error('Error marking student proposal as seen:', error);
+    return { success: false, error: 'Failed to mark proposal as seen' };
+  }
+};
+
 export const getProposalsByReviewer = async (reviewerId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/proposals/reviewer/${reviewerId}`);

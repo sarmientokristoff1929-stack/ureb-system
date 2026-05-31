@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { API_BASE_URL } from '../services/api';
+import { API_BASE_URL, viewFile, downloadReviewerFile } from '../services/api';
 import './studentdashboard.css';
 
 // localStorage helpers for deleted proposals (Render deployment workaround)
@@ -1158,9 +1158,10 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [restrictedModalOpen, setRestrictedModalOpen] = useState(false);
   const [dueReminders, setDueReminders] = useState([]);
-  const [viewFilesModalOpen, setViewFilesModalOpen] = useState(false);
   const [editProposalModalOpen, setEditProposalModalOpen] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState(null);
+  const [editSuccessModalOpen, setEditSuccessModalOpen] = useState(false);
+  const [openFilesDropdownId, setOpenFilesDropdownId] = useState(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -1403,16 +1404,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
                           <span className={`up-status up-status--${statusClass}`}>
                             {proposal.status || 'Pending'}
                           </span>
-                          <button
-                            className="up-icon-btn"
-                            onClick={() => {
-                              setSelectedProposal(proposal);
-                              setViewFilesModalOpen(true);
-                            }}
-                            title="View files"
-                          >
-                            <EyeIcon />
-                          </button>
+
                           <button
                             className="up-icon-btn"
                             onClick={() => {
@@ -1470,10 +1462,102 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
                       </div>
 
                       <div className="up-card-footer">
-                        <span className="up-files-chip">
-                          <FileIcon />
-                          {fileCount > 0 ? `${fileCount} file${fileCount !== 1 ? 's' : ''} attached` : 'No files'}
-                        </span>
+                        {fileCount > 0 ? (
+                          <div className="up-files-dropdown-wrap">
+                            <button
+                              className="up-view-files-btn"
+                              onClick={() => setOpenFilesDropdownId(
+                                openFilesDropdownId === proposal._id ? null : proposal._id
+                              )}
+                            >
+                              <FileIcon />
+                              View Files ({fileCount})
+                              <svg
+                                className={`up-chevron ${openFilesDropdownId === proposal._id ? 'up-chevron--open' : ''}`}
+                                width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                              >
+                                <polyline points="6 9 12 15 18 9" />
+                              </svg>
+                            </button>
+                            {openFilesDropdownId === proposal._id && (
+                              <div className="up-files-dropdown">
+                                {Object.entries(proposal.files).map(([key, fileData]) => {
+                                  if (!fileData) return null;
+                                  // Server stores: { filename: 'fieldname-timestamp-rand.ext', originalname: 'user-name.pdf', ... }
+                                  const originalName = fileData.originalname || fileData.name || fileData.fileName || key;
+                                  const serverFilename = fileData.filename || null;
+                                  const hasFile = !!serverFilename;
+
+                                  const handleView = () => {
+                                    if (serverFilename) viewFile(serverFilename);
+                                  };
+
+                                  const handleDownload = async () => {
+                                    if (!serverFilename) return;
+                                    const result = await downloadReviewerFile(serverFilename, originalName);
+                                    if (!result.success) {
+                                      alert(`Could not download "${originalName}".\nPlease try again or contact the administrator.`);
+                                    }
+                                  };
+
+                                  return (
+                                    <div key={key} className="up-files-dropdown-item">
+                                      {/* File icon */}
+                                      <svg className="up-fdi-fileicon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                        <polyline points="14 2 14 8 20 8" />
+                                      </svg>
+
+                                      {/* File name */}
+                                      <span className="up-files-dropdown-name" title={originalName}>{originalName}</span>
+
+                                      {/* Action buttons */}
+                                      <div className="up-fdi-actions">
+                                        {hasFile ? (
+                                          <>
+                                            {/* View button — opens in browser/Office viewer */}
+                                            <button
+                                              className="up-fdi-btn up-fdi-btn--view"
+                                              onClick={handleView}
+                                              title="View file"
+                                            >
+                                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                                <circle cx="12" cy="12" r="3" />
+                                              </svg>
+                                              View
+                                            </button>
+
+                                            {/* Download button — triggers file download */}
+                                            <button
+                                              className="up-fdi-btn up-fdi-btn--download"
+                                              onClick={handleDownload}
+                                              title="Download file"
+                                            >
+                                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                                <polyline points="7 10 12 15 17 10" />
+                                                <line x1="12" y1="15" x2="12" y2="3" />
+                                              </svg>
+                                              Download
+                                            </button>
+                                          </>
+                                        ) : (
+                                          <span className="up-files-dropdown-nolink">No file</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="up-files-chip">
+                            <FileIcon /> No files
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1523,13 +1607,6 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
         </div>
       )}
 
-      {viewFilesModalOpen && (
-        <ViewFilesModal
-          proposal={selectedProposal}
-          onClose={() => { setViewFilesModalOpen(false); setSelectedProposal(null); }}
-        />
-      )}
-
       {editProposalModalOpen && (
         <EditProposalModal
           proposal={selectedProposal}
@@ -1538,8 +1615,30 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
             setProposals(prev => prev.map(p => p._id === updatedProposal._id ? updatedProposal : p));
             setEditProposalModalOpen(false);
             setSelectedProposal(null);
+            setEditSuccessModalOpen(true);
           }}
         />
+      )}
+
+      {editSuccessModalOpen && (
+        <div className="mini-modal-overlay" onClick={() => setEditSuccessModalOpen(false)}>
+          <div className="mini-modal" onClick={e => e.stopPropagation()}>
+            <div className="mini-modal-icon" style={{ backgroundColor: '#f0fdf4', color: '#16a34a' }}>
+              <CheckIcon />
+            </div>
+            <h4 className="mini-modal-title">Success</h4>
+            <p className="mini-modal-text">Your proposal has been updated successfully.</p>
+            <div className="mini-modal-actions">
+              <button 
+                className="mini-modal-btn" 
+                style={{ backgroundColor: '#16a34a', color: '#fff', width: '100%' }} 
+                onClick={() => setEditSuccessModalOpen(false)}
+              >
+                Okay
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

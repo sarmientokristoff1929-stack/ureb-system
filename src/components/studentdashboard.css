@@ -3097,6 +3097,165 @@
   color: var(--primary-green, #7A9E7E);
 }
 
+/* ── View Files Dropdown ───────────────────────────────────── */
+.up-files-dropdown-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.up-view-files-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: transparent;
+  border: 1.5px solid var(--primary-green, #7A9E7E);
+  color: var(--primary-green, #5a7a5e);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.38rem 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+
+.up-view-files-btn:hover {
+  background: var(--primary-green, #7A9E7E);
+  color: #fff;
+}
+
+.up-view-files-btn svg {
+  flex-shrink: 0;
+}
+
+.up-chevron {
+  margin-left: auto;
+  transition: transform 0.22s ease;
+}
+
+.up-chevron--open {
+  transform: rotate(180deg);
+}
+
+.up-files-dropdown {
+  margin-top: 0.45rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  overflow: hidden;
+  animation: dropdownFadeIn 0.18s ease;
+}
+
+@keyframes dropdownFadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.up-files-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.8rem;
+  color: #374151;
+}
+
+.up-files-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.up-files-dropdown-item svg {
+  color: var(--primary-green, #7A9E7E);
+  flex-shrink: 0;
+}
+
+.up-files-dropdown-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.up-files-dropdown-open {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary-green, #5a7a5e);
+  text-decoration: none;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--primary-green, #7A9E7E);
+  border-radius: 5px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.up-files-dropdown-open:hover {
+  background: var(--primary-green, #7A9E7E);
+  color: #fff;
+}
+
+.up-files-dropdown-nolink {
+  flex-shrink: 0;
+  font-size: 0.73rem;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* File dropdown item — icon & actions */
+.up-fdi-fileicon {
+  color: var(--primary-green, #7A9E7E);
+  flex-shrink: 0;
+}
+
+.up-fdi-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.up-fdi-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.22rem 0.55rem;
+  border-radius: 5px;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+/* View button — outlined teal/green */
+.up-fdi-btn--view {
+  background: transparent;
+  border-color: #0ea5e9;
+  color: #0ea5e9;
+}
+
+.up-fdi-btn--view:hover {
+  background: #0ea5e9;
+  color: #fff;
+}
+
+/* Download button — solid green */
+.up-fdi-btn--download {
+  background: var(--primary-green, #7A9E7E);
+  border-color: var(--primary-green, #7A9E7E);
+  color: #fff;
+}
+
+.up-fdi-btn--download:hover {
+  background: var(--dark-green, #4A6B4E);
+  border-color: var(--dark-green, #4A6B4E);
+}
+
+
 /* ── Student Profile (sp-) ────────────────────────────────── */
 .sp-page {
   display: flex;
