@@ -3606,9 +3606,10 @@ const MarkCompletedReviewContent = () => {
               ? (assignment.status || 'Pending')
               : (proposal.status || assignment.status || 'Pending');
             const proposalCompleted = (proposal.status || '').toLowerCase() === 'completed';
+            const assignmentCompleted = normalizeMcrStatus(assignment.status) === 'completed';
             const completed = rType === 'secondary'
-              ? normalizeMcrStatus(assignmentStatus) === 'completed'
-              : proposalCompleted;
+              ? assignmentCompleted
+              : (proposalCompleted || assignmentCompleted);
             const rowKey = proposalId || assignmentProtocolCode;
 
             const rowData = {
@@ -3740,6 +3741,7 @@ const MarkCompletedReviewContent = () => {
     setUpdating(prev => ({ ...prev, [rowKey]: true }));
     try {
       let res;
+      let data = {};
       if (isSecondary) {
         res = await fetch(`${import.meta.env.VITE_API_URL}/api/assignments/status`, {
           method: 'PUT',
@@ -3752,14 +3754,30 @@ const MarkCompletedReviewContent = () => {
             status: dbAssignmentStatus,
           }),
         });
+        data = await res.json().catch(() => ({}));
       } else {
         res = await fetch(`${import.meta.env.VITE_API_URL}/api/proposals/${encodeURIComponent(proposalRef)}/status`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: dbProposalStatus }),
         });
+        data = await res.json().catch(() => ({}));
+        if (res.ok && data.success !== false) {
+          const assignmentRes = await fetch(`${import.meta.env.VITE_API_URL}/api/assignments/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              assignmentId: row.assignmentId || undefined,
+              proposalId: proposalRef,
+              protocolCode: row.protocolCode || undefined,
+              reviewerEmail: reviewer.reviewerEmail || reviewer.email,
+              status: dbAssignmentStatus,
+            }),
+          });
+          const assignmentData = await assignmentRes.json().catch(() => ({}));
+          data = { ...data, ...assignmentData };
+        }
       }
-      const data = await res.json().catch(() => ({}));
       if (!res.ok || data.success === false) {
         console.error('Failed to update status:', data.error || res.statusText);
       } else if (isSecondary && data.matchedCount === 0) {

@@ -412,6 +412,52 @@ const buildProposalIdMatchers = (proposalId) => {
   return matchers;
 };
 
+const mapProposalStatusToAssignmentStatus = (status) => {
+  const normalized = String(status || '').toLowerCase().trim();
+  if (normalized === 'completed') return 'Completed';
+  if (normalized === 'under review') return 'Under Review';
+  if (normalized === 'pending') return 'Pending';
+  return status;
+};
+
+const buildProposalRefMatchers = (proposalRef) => {
+  const matchers = [];
+  const ref = String(proposalRef || '').trim();
+  if (!ref) return matchers;
+
+  if (ObjectId.isValid(ref) && String(new ObjectId(ref)) === ref) {
+    matchers.push(...buildProposalIdMatchers(ref));
+  }
+
+  const normalizedProtocol = ref.toUpperCase().replace(/\s+/g, '');
+  if (normalizedProtocol) {
+    matchers.push({ protocolCode: normalizedProtocol });
+  }
+  if (ref !== normalizedProtocol) {
+    matchers.push({ protocolCode: ref });
+  }
+
+  return matchers;
+};
+
+const syncStudentAssignmentsForProposalStatus = async (db, proposalRef, status) => {
+  const proposalMatchers = buildProposalRefMatchers(proposalRef);
+  if (!proposalMatchers.length) return { matchedCount: 0, modifiedCount: 0 };
+
+  const assignments = db.collection(collections.assignments);
+  const assignmentStatus = mapProposalStatusToAssignmentStatus(status);
+
+  return assignments.updateMany(
+    {
+      $and: [
+        { $or: proposalMatchers },
+        studentAssignmentFilter(),
+      ],
+    },
+    { $set: { status: assignmentStatus, updatedAt: new Date() } }
+  );
+};
+
 const markReviewerAssignmentsUnderReview = async (db, { proposalId, protocolCode, reviewerEmail, decision }) => {
   if (!reviewerEmail) return { matchedCount: 0, modifiedCount: 0 };
 
@@ -1970,7 +2016,18 @@ app.put('/api/proposals/:id/status', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Proposal not found' });
     }
 
-    res.json({ success: true, status });
+    let assignmentSync = { matchedCount: 0, modifiedCount: 0 };
+    try {
+      assignmentSync = await syncStudentAssignmentsForProposalStatus(db, id, status);
+    } catch (syncErr) {
+      console.log('Could not sync student assignment status:', syncErr.message);
+    }
+
+    res.json({
+      success: true,
+      status,
+      assignmentsUpdated: assignmentSync.modifiedCount || 0,
+    });
   } catch (error) {
     console.error('Error updating proposal status:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
@@ -3033,44 +3090,33 @@ app.put('/api/assignments/status', async (req, res) => {
     const db = getDatabase();
     const assignments = db.collection(collections.assignments);
 
-    let result = { matchedCount: 0 };
+    let result = { matchedCount: 0, modifiedCount: 0 };
 
-    const buildProposalMatchers = (id) => {
-      const matchers = [{ proposalId: id }, { protocolCode: id }];
-      const normalizedProtocol = String(id).toUpperCase().replace(/\s+/g, '');
-      if (normalizedProtocol !== id) {
-        matchers.push({ protocolCode: normalizedProtocol });
-      }
-      if (ObjectId.isValid(id) && String(new ObjectId(id)) === id) {
-        matchers.push({ proposalId: new ObjectId(id) });
-      }
-      return matchers;
-    };
+    const assignmentStatus = mapProposalStatusToAssignmentStatus(status);
 
     const updateByProposal = async () => {
       const proposalMatchers = [
-        ...buildProposalMatchers(proposalId),
-        ...(protocolCode ? buildProposalMatchers(protocolCode) : []),
+        ...buildProposalIdMatchers(proposalId),
+        ...(protocolCode ? buildProposalIdMatchers(protocolCode) : []),
       ];
       const uniqueMatchers = proposalMatchers.filter((m, i, arr) =>
         arr.findIndex(x => JSON.stringify(x) === JSON.stringify(m)) === i
       );
 
-      const escapedEmail = String(reviewerEmail).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       return assignments.updateMany(
         {
           $or: uniqueMatchers,
-          reviewerEmail: { $regex: new RegExp(`^${escapedEmail}$`, 'i') },
+          reviewerEmail: emailRegexFilter(reviewerEmail),
         },
-        { $set: { status, updatedAt: new Date() } }
+        { $set: { status: assignmentStatus, updatedAt: new Date() } }
       );
     };
 
     // Prefer direct assignment id when provided; fall back to proposal/reviewer match
-    if (assignmentId && ObjectId.isValid(assignmentId) && String(new ObjectId(assignmentId)) === assignmentId) {
+    if (assignmentId && ObjectId.isValid(String(assignmentId))) {
       result = await assignments.updateOne(
         { _id: new ObjectId(assignmentId) },
-        { $set: { status, updatedAt: new Date() } }
+        { $set: { status: assignmentStatus, updatedAt: new Date() } }
       );
     }
 
@@ -3080,7 +3126,29 @@ app.put('/api/assignments/status', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing assignmentId or proposalId/reviewerEmail' });
     }
 
-    res.json({ success: true, matchedCount: result.matchedCount });
+    // Secondary Mark Done: keep linked student proposal status in sync
+    if ((result.modifiedCount > 0 || result.matchedCount > 0) && proposalId) {
+      const normalizedProposalStatus = String(assignmentStatus).toLowerCase() === 'completed'
+        ? 'completed'
+        : 'Under Review';
+      try {
+        const proposals = db.collection(collections.proposals);
+        const proposalMatchers = [
+          ...buildProposalIdMatchers(proposalId),
+          ...(protocolCode ? buildProposalIdMatchers(protocolCode) : []),
+        ];
+        if (proposalMatchers.length) {
+          await proposals.updateMany(
+            { $or: proposalMatchers },
+            { $set: { status: normalizedProposalStatus, updatedAt: new Date() } }
+          );
+        }
+      } catch (proposalSyncErr) {
+        console.log('Could not sync proposal status from assignment:', proposalSyncErr.message);
+      }
+    }
+
+    res.json({ success: true, matchedCount: result.matchedCount, modifiedCount: result.modifiedCount });
   } catch (error) {
     console.error('Error updating assignment status:', error);
     res.status(500).json({ success: false, error: 'Server error' });
