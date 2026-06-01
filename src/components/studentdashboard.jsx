@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { API_BASE_URL, viewFile, downloadReviewerFile } from '../services/api';
+import { API_BASE_URL, viewFile, downloadReviewerFile, sendStudentMessageToAdmin } from '../services/api';
 import './studentdashboard.css';
 
 // localStorage helpers for deleted proposals (Render deployment workaround)
@@ -3160,14 +3160,199 @@ const HistoryContent = () => {
   );
 };
 
+const MAX_MESSAGE_ATTACHMENTS = 15;
+const MAX_MESSAGE_FILE_BYTES = 10 * 1024 * 1024;
+const MESSAGE_ATTACHMENT_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain',
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+]);
+
+const isValidMessageAttachment = (file) =>
+  file
+  && MESSAGE_ATTACHMENT_TYPES.has(file.type)
+  && file.size > 0
+  && file.size <= MAX_MESSAGE_FILE_BYTES;
+
+const createMessageUploadZone = () => ({
+  id: `zone-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+  file: null,
+});
+
+const MessageUploadDropZone = ({ zone, showRemoveZone, onFileSet, onRemoveZone, onInvalidFile }) => {
+  const [isDragOver, setIsDragOver] = useState(false);
+  const inputId = `msg-admin-upload-${zone.id}`;
+
+  const applyFile = (file) => {
+    if (!file) return;
+    if (!isValidMessageAttachment(file)) {
+      onInvalidFile();
+      return;
+    }
+    onFileSet(zone.id, file);
+  };
+
+  return (
+    <div style={{ marginBottom: '1rem', position: 'relative' }}>
+      {showRemoveZone && (
+        <button
+          type="button"
+          onClick={() => onRemoveZone(zone.id)}
+          style={{
+            position: 'absolute',
+            top: '0.5rem',
+            right: '0.5rem',
+            zIndex: 1,
+            padding: '0.25rem 0.6rem',
+            fontSize: '0.75rem',
+            background: '#fff',
+            border: '1px solid #d1d5db',
+            borderRadius: '6px',
+            color: '#6b7280',
+            cursor: 'pointer',
+          }}
+        >
+          Remove
+        </button>
+      )}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragOver(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          setIsDragOver(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragOver(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file) applyFile(file);
+        }}
+        style={{
+          border: `2px dashed ${isDragOver ? '#4a7c59' : '#ddd'}`,
+          borderRadius: '8px',
+          padding: '2rem',
+          textAlign: 'center',
+          background: isDragOver ? '#f0fdf4' : '#fafafa',
+          transition: 'all 0.2s',
+        }}
+      >
+        {zone.file ? (
+          <>
+            <FileIcon />
+            <p style={{ color: '#374151', margin: '0.5rem 0', fontWeight: 500 }}>
+              {zone.file.name}
+            </p>
+            <p style={{ color: '#999', fontSize: '0.85rem', margin: '0 0 0.75rem' }}>
+              ({(zone.file.size / 1024 / 1024).toFixed(2)} MB)
+            </p>
+            <button
+              type="button"
+              onClick={() => onFileSet(zone.id, null)}
+              style={{
+                marginRight: '0.5rem',
+                padding: '0.4rem 0.75rem',
+                background: '#fff',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                color: '#6b7280',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+              }}
+            >
+              Clear file
+            </button>
+            <label
+              htmlFor={inputId}
+              style={{ color: '#4a7c59', cursor: 'pointer', textDecoration: 'underline', fontSize: '0.9rem' }}
+            >
+              Replace
+            </label>
+          </>
+        ) : (
+          <>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="1.5" style={{ marginBottom: '0.5rem' }}>
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <p style={{ color: '#666', margin: '0.5rem 0' }}>
+              Drag and drop files here, or{' '}
+              <label
+                htmlFor={inputId}
+                style={{ color: '#4a7c59', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                browse
+              </label>
+            </p>
+            <p style={{ color: '#999', fontSize: '0.85rem', margin: 0 }}>
+              Up to {MAX_MESSAGE_ATTACHMENTS} files, 10MB each. PDF, DOC, DOCX, TXT, JPG, PNG
+            </p>
+          </>
+        )}
+        <input
+          type="file"
+          id={inputId}
+          accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+          onChange={(e) => {
+            applyFile(e.target.files?.[0]);
+            e.target.value = '';
+          }}
+          style={{ display: 'none' }}
+        />
+      </div>
+    </div>
+  );
+};
+
 const MessageAdminContent = ({ userInfo }) => {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
-  const [attachedFiles, setAttachedFiles] = useState([]);
-  const [isDragOver, setIsDragOver] = useState(false);
+  const [uploadZones, setUploadZones] = useState([createMessageUploadZone()]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [sentAttachmentCount, setSentAttachmentCount] = useState(0);
   const [sending, setSending] = useState(false);
+
+  const attachedFiles = uploadZones
+    .map((z) => z.file)
+    .filter((file) => file instanceof File);
+  const canAddMoreZones = uploadZones.length < MAX_MESSAGE_ATTACHMENTS;
+
+  const showInvalidFileError = () => {
+    setError('Invalid file type or file too large (max 10MB)');
+    setTimeout(() => setError(''), 4000);
+  };
+
+  const setZoneFile = (zoneId, file) => {
+    setUploadZones((prev) =>
+      prev.map((zone) => (zone.id === zoneId ? { ...zone, file } : zone))
+    );
+  };
+
+  const addUploadZone = () => {
+    if (!canAddMoreZones) {
+      setError(`You can attach up to ${MAX_MESSAGE_ATTACHMENTS} files per message`);
+      setTimeout(() => setError(''), 4000);
+      return;
+    }
+    setUploadZones((prev) => [...prev, createMessageUploadZone()]);
+  };
+
+  const removeUploadZone = (zoneId) => {
+    setUploadZones((prev) => {
+      const next = prev.filter((z) => z.id !== zoneId);
+      return next.length > 0 ? next : [createMessageUploadZone()];
+    });
+  };
+
+  const resetUploadZones = () => setUploadZones([createMessageUploadZone()]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -3182,28 +3367,28 @@ const MessageAdminContent = ({ userInfo }) => {
     setSending(true);
 
     try {
-      const formData = new FormData();
-      formData.append('senderEmail', userInfo?.email || '');
-      formData.append('senderName', userInfo?.name || 'Student');
-      formData.append('subject', subject || 'Message from Student');
-      formData.append('message', message);
-      attachedFiles.forEach((file, index) => {
-        formData.append(`file${index}`, file);
+      const result = await sendStudentMessageToAdmin({
+        senderEmail: userInfo?.email || '',
+        senderName: userInfo?.name || 'Student',
+        subject: subject || 'Message from Student',
+        message,
+        attachments: attachedFiles,
       });
-
-      const response = await fetch(`${API_BASE_URL}/messages/student-to-admin`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const result = await response.json();
 
       if (result.success) {
+        const received = Number(result.filesReceived ?? 0);
+        if (attachedFiles.length > 0 && received !== attachedFiles.length) {
+          setError(
+            `Only ${received} of ${attachedFiles.length} file(s) were saved. Please try sending again.`
+          );
+          return;
+        }
+        setSentAttachmentCount(received);
         setSuccess(true);
         setSubject('');
         setMessage('');
-        setAttachedFiles([]);
-        setTimeout(() => setSuccess(false), 3000);
+        resetUploadZones();
+        setTimeout(() => setSuccess(false), 4000);
       } else {
         setError(result.error || 'Failed to send message');
       }
@@ -3215,75 +3400,12 @@ const MessageAdminContent = ({ userInfo }) => {
     }
   };
 
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    const validTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/plain',
-      'image/jpeg',
-      'image/jpg',
-      'image/png'
-    ];
-    const validFiles = files.filter(file => validTypes.includes(file.type) && file.size <= 10 * 1024 * 1024);
-
-    if (validFiles.length > 0) {
-      setAttachedFiles(prev => [...prev, ...validFiles]);
-    }
-
-    if (validFiles.length !== files.length) {
-      setError('Some files were invalid or too large (max 10MB) and were not added');
-      setTimeout(() => setError(''), 3000);
-    }
-  };
-
-  const handleRemoveFile = (index) => {
-    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragOver(false);
-
-    const files = Array.from(e.dataTransfer.files);
-    const validTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/plain',
-      'image/jpeg',
-      'image/jpg',
-      'image/png'
-    ];
-    const validFiles = files.filter(file => validTypes.includes(file.type) && file.size <= 10 * 1024 * 1024);
-
-    if (validFiles.length > 0) {
-      setAttachedFiles(prev => [...prev, ...validFiles]);
-    }
-
-    if (validFiles.length !== files.length) {
-      setError('Some files were invalid or too large (max 10MB) and were not added');
-      setTimeout(() => setError(''), 3000);
-    }
-  };
-
   return (
     <div className="content-section" style={{ padding: '1rem' }}>
       <div className="form-card" style={{ marginLeft: '0.5rem', width: '100%' }}>
         <h2>Message Admin</h2>
         <p style={{ color: '#666', marginBottom: '1.5rem' }}>
-          Send a message directly to the UREB admin. You can attach files if needed.
+          Send a message directly to the UREB admin. You can attach multiple files if needed.
         </p>
 
         {/* Success Modal */}
@@ -3328,6 +3450,9 @@ const MessageAdminContent = ({ userInfo }) => {
               </h3>
               <p style={{ margin: '0 0 1.5rem', color: '#666' }}>
                 Your message has been sent to the admin successfully.
+                {sentAttachmentCount > 0 && (
+                  <> {sentAttachmentCount} attachment{sentAttachmentCount === 1 ? '' : 's'} were received.</>
+                )}
               </p>
               <button
                 onClick={() => setSuccess(false)}
@@ -3401,96 +3526,48 @@ const MessageAdminContent = ({ userInfo }) => {
             />
           </div>
 
-          {/* File Upload Area */}
           <div className="form-group" style={{ marginBottom: '1.5rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
               Attach Files (Optional)
             </label>
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              style={{
-                border: `2px dashed ${isDragOver ? '#4a7c59' : '#ddd'}`,
-                borderRadius: '8px',
-                padding: '2rem',
-                textAlign: 'center',
-                background: isDragOver ? '#f0fdf4' : '#fafafa',
-                transition: 'all 0.2s'
-              }}
-            >
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="1.5" style={{ marginBottom: '0.5rem' }}>
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-              <p style={{ color: '#666', margin: '0.5rem 0' }}>
-                Drag and drop files here, or{' '}
-                <label style={{ color: '#4a7c59', cursor: 'pointer', textDecoration: 'underline' }}>
-                  browse
-                  <input
-                    type="file"
-                    multiple
-                    onChange={handleFileChange}
-                    style={{ display: 'none' }}
-                    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
-                  />
-                </label>
-              </p>
-              <p style={{ color: '#999', fontSize: '0.85rem', margin: 0 }}>
-                Maximum file size: 10MB. Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG
-              </p>
-            </div>
-          </div>
 
-          {/* Attached Files List */}
-          {attachedFiles.length > 0 && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-                Attached Files ({attachedFiles.length})
-              </label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                {attachedFiles.map((file, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.5rem 0.75rem',
-                      background: '#f0f0f0',
-                      borderRadius: '6px',
-                      fontSize: '0.9rem'
-                    }}
-                  >
-                    <FileIcon />
-                    <span style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {file.name}
-                    </span>
-                    <span style={{ color: '#999', fontSize: '0.8rem' }}>
-                      ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFile(index)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: '#666',
-                        padding: '0.25rem',
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}
-                      title="Remove file"
-                    >
-                      <XIcon />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+            {uploadZones.map((zone, index) => (
+              <MessageUploadDropZone
+                key={zone.id}
+                zone={zone}
+                showRemoveZone={uploadZones.length > 1}
+                onFileSet={setZoneFile}
+                onRemoveZone={removeUploadZone}
+                onInvalidFile={showInvalidFileError}
+              />
+            ))}
+
+            {canAddMoreZones && (
+              <button
+                type="button"
+                onClick={addUploadZone}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.65rem 1.25rem',
+                  background: '#f0fdf4',
+                  border: '1px solid #4a7c59',
+                  borderRadius: '8px',
+                  color: '#4a7c59',
+                  fontSize: '0.95rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Add Another Attachment
+              </button>
+            )}
+          </div>
 
           <div className="form-actions" style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
             <button
@@ -3498,7 +3575,7 @@ const MessageAdminContent = ({ userInfo }) => {
               onClick={() => {
                 setSubject('');
                 setMessage('');
-                setAttachedFiles([]);
+                resetUploadZones();
                 setError('');
               }}
               disabled={sending}

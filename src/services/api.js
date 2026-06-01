@@ -306,6 +306,40 @@ export const sendMessage = async (messageData) => {
   }
 };
 
+export const sendStudentMessageToAdmin = async ({ senderEmail, senderName, subject, message, attachments = [] }) => {
+  try {
+    const formData = new FormData();
+    formData.append('senderEmail', senderEmail || '');
+    formData.append('senderName', senderName || 'Student');
+    formData.append('subject', subject || 'Message from Student');
+    formData.append('message', message);
+    const files = attachments.filter((file) => file instanceof File);
+    formData.append('attachmentCount', String(files.length));
+    files.forEach((file, index) => {
+      const name = file.name || `attachment-${index + 1}`;
+      formData.append('attachments', file, name);
+    });
+
+    const response = await fetch(`${API_BASE_URL}/messages/student-to-admin`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.error || `Failed to send message (${response.status})`,
+        filesReceived: data.filesReceived ?? 0,
+      };
+    }
+    return data;
+  } catch (error) {
+    console.error('Error sending student message to admin:', error);
+    return { success: false, error: 'Failed to send message' };
+  }
+};
+
 export const sendEmail = async (emailData) => {
   try {
     const response = await fetch(`${API_BASE_URL}/send-email`, {

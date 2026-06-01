@@ -3431,34 +3431,135 @@ app.post('/api/messages/reply', upload.array('files', 10), async (req, res) => {
   }
 });
 
-// Student message to admin (with optional file attachments)
-app.post('/api/messages/student-to-admin', upload.any(), async (req, res) => {
+const uploadMessageFileToGridFS = (file, index = 0) => {
+  const uniqueSuffix = `${Date.now()}-${index}-${Math.round(Math.random() * 1e9)}`;
+  const ext = path.extname(file.originalname || '') || '';
+  const filename = `msg-attach-${uniqueSuffix}${ext}`;
+
+  return new Promise((resolve, reject) => {
+    const uploadStream = gfsBucket.openUploadStream(filename, {
+      contentType: file.mimetype || 'application/octet-stream',
+      metadata: {
+        originalName: file.originalname,
+        source: 'student_to_admin',
+      },
+    });
+    uploadStream.end(file.buffer);
+    uploadStream.on('finish', () => resolve(filename));
+    uploadStream.on('error', reject);
+  });
+};
+
+const uploadMessageAttachmentsToGridFS = async (files) => {
+  const fileRecords = [];
+  const errors = [];
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (!file) {
+      errors.push({ name: `attachment-${i + 1}`, error: 'Missing file' });
+      continue;
+    }
+    if (!file.buffer?.length) {
+      errors.push({ name: file.originalname || `attachment-${i + 1}`, error: 'File data missing or empty' });
+      continue;
+    }
+    try {
+      const gfsFilename = await uploadMessageFileToGridFS(file, i);
+      fileRecords.push({
+        filename: gfsFilename,
+        originalname: file.originalname,
+        size: file.size,
+        mimetype: file.mimetype,
+      });
+    } catch (err) {
+      console.error('[student-to-admin] Error uploading file to GridFS:', file.originalname, err);
+      errors.push({ name: file.originalname || `attachment-${i + 1}`, error: err.message });
+    }
+  }
+
+  return { fileRecords, errors };
+};
+
+const normalizeMessageAttachments = (msg) => {
+  if (!msg) return msg;
+  if (!msg.files) {
+    msg.files = [];
+    msg.attachmentCount = 0;
+    return msg;
+  }
+
+  let files = msg.files;
+  if (!Array.isArray(files)) {
+    files = Object.values(files);
+  }
+
+  msg.files = files
+    .filter((f) => f && (f.filename || f.originalname || f.path))
+    .map((f) => ({
+      filename: f.filename || f.path,
+      originalname: f.originalname || f.filename || f.path,
+      size: f.size,
+      mimetype: f.mimetype,
+    }));
+
+  msg.attachmentCount = msg.files.length;
+  return msg;
+};
+
+// Student message to admin (optional multiple file attachments)
+app.post('/api/messages/student-to-admin', upload.array('attachments', 15), async (req, res) => {
   try {
     const { senderEmail, senderName, subject, message } = req.body;
-    const files = req.files || [];
+    const uploadFiles = Array.isArray(req.files) ? req.files : [];
 
     if (!senderEmail || !message) {
       return res.status(400).json({ success: false, error: 'Sender email and message are required' });
     }
 
+    if (!gfsBucket) {
+      return res.status(503).json({ success: false, error: 'File storage is not ready. Please try again shortly.' });
+    }
+
+    const expectedCount = Number.parseInt(req.body.attachmentCount, 10);
+
+    if (Number.isFinite(expectedCount) && expectedCount > 0 && uploadFiles.length !== expectedCount) {
+      return res.status(400).json({
+        success: false,
+        error: `Expected ${expectedCount} attachment(s) but received ${uploadFiles.length}. Please try again.`,
+        filesReceived: uploadFiles.length,
+      });
+    }
+
+    const { fileRecords, errors } = await uploadMessageAttachmentsToGridFS(uploadFiles);
+
+    if (errors.length > 0) {
+      return res.status(500).json({
+        success: false,
+        error: `Could not save all attachments: ${errors.map((e) => e.name).join(', ')}`,
+        filesReceived: fileRecords.length,
+        filesFailed: errors.length,
+      });
+    }
+
+    if (uploadFiles.length > 0 && fileRecords.length !== uploadFiles.length) {
+      return res.status(500).json({
+        success: false,
+        error: `Only ${fileRecords.length} of ${uploadFiles.length} attachment(s) were saved. Please try again.`,
+        filesReceived: fileRecords.length,
+      });
+    }
+
+    if (Number.isFinite(expectedCount) && expectedCount > 0 && fileRecords.length !== expectedCount) {
+      return res.status(500).json({
+        success: false,
+        error: `Only ${fileRecords.length} of ${expectedCount} attachment(s) were saved. Please try again.`,
+        filesReceived: fileRecords.length,
+      });
+    }
+
     const db = getDatabase();
     const messages = db.collection(collections.messages);
-
-    // Upload files to GridFS and collect file records
-    const fileRecords = [];
-    for (const file of files) {
-      try {
-        const gfsFilename = await uploadToGridFS(file);
-        fileRecords.push({
-          filename: gfsFilename,
-          originalname: file.originalname,
-          size: file.size,
-          mimetype: file.mimetype
-        });
-      } catch (err) {
-        console.error('[student-to-admin] Error uploading file to GridFS:', err);
-      }
-    }
 
     const newMessage = {
       senderEmail,
@@ -3467,14 +3568,27 @@ app.post('/api/messages/student-to-admin', upload.any(), async (req, res) => {
       subject: subject || 'Message from Student',
       message,
       files: fileRecords,
+      attachmentCount: fileRecords.length,
       sentAt: new Date(),
       createdAt: new Date(),
       type: 'student_to_admin',
-      read: false
+      read: false,
     };
 
     const result = await messages.insertOne(newMessage);
-    res.json({ success: true, message: { _id: result.insertedId, ...newMessage } });
+
+    console.log('[student-to-admin] saved message', {
+      id: result.insertedId,
+      senderEmail,
+      filesSaved: fileRecords.length,
+      names: fileRecords.map((f) => f.originalname),
+    });
+
+    res.json({
+      success: true,
+      filesReceived: fileRecords.length,
+      message: { _id: result.insertedId, ...newMessage },
+    });
   } catch (error) {
     console.error('Error sending student message:', error);
     res.status(500).json({ success: false, error: 'Server error' });
@@ -3549,7 +3663,7 @@ app.get('/api/messages/:userId', async (req, res) => {
           }
         }
       }
-      return msg;
+      return normalizeMessageAttachments(msg);
     }));
 
     res.json(enriched);
@@ -4234,7 +4348,10 @@ app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     console.error('Multer error:', err);
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ success: false, error: 'File too large. Max size is 10MB.' });
+      return res.status(400).json({ success: false, error: 'File too large. Max size is 10MB per file.' });
+    }
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({ success: false, error: 'Too many attachments. Maximum is 15 files per message.' });
     }
     return res.status(400).json({ success: false, error: 'File upload error: ' + err.message });
   }
