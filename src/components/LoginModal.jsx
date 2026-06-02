@@ -635,7 +635,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                       <path d="M2 12l10 5 10-5" />
                     </svg>
                   </div>
-                  <h2 style={{ color: '#2e7d32', marginBottom: '0.5rem' }}>Welcome, Students!</h2>
+                  <h2 style={{ color: '#2e7d32', marginBottom: '0.5rem' }}>Welcome, Researchers!</h2>
                   <div className="registration-data-reminder registration-data-reminder--modal" style={{ marginBottom: '1.5rem', borderColor: '#388E3C', backgroundColor: '#f1f8e9' }}>
                     <p>
                       Welcome to UREB! Before you register, please ensure all your information is accurate.

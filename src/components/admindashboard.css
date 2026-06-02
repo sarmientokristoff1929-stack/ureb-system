@@ -5210,6 +5210,34 @@
   border-color: #dc2626;
 }
 
+.inbox-generate-report-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #4a7c59 0%, #3d6b4a 100%);
+  border: none;
+  border-radius: 10px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(74, 124, 89, 0.28);
+}
+
+.inbox-generate-report-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 14px rgba(74, 124, 89, 0.38);
+  transform: translateY(-1px);
+}
+
+.inbox-generate-report-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #94a3b8;
+}
+
 
 
 /* List */

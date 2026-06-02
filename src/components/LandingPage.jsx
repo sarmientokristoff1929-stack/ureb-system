@@ -283,32 +283,41 @@ const About = () => {
       image: '/Dr.Emily.png'
     },
     {
+      name: 'DR. JERALYN N. HEMILLAN',
+      role: 'Current UREB Director',
+      description: 'Leads and oversees the operations of UREB, ensuring ethical compliance, effective research review processes, and the promotion of responsible research practices within the institution.',
+      image: '/Dr.%20Gera.png'
+    },
+    {
       name: 'Mary Grace Obenza',
       role: 'UREB Technical Assistant',
-      description: 'Managing protocol reviews and providing guidance on ethical research practices.',
+      description: 'Manages the submission, review, and documentation of graduate research proposals, ensuring adherence to research policies, academic standards, and institutional requirements.',
       image: '/Ms.Obenza.png'
     },
     {
       name: 'Mary Cris Decena',
       role: 'UREB Technical Assistant',
-      description: 'Specializing in biomedical research ethics and regulatory compliance.',
+      description: 'Manages the submission, review, and documentation of undergraduate research proposals, ensuring compliance with institutional research policies and procedures.',
       image: '/Ms.Cris.png'
     },
     {
       name: 'Ermelyn Padalapat',
       role: 'Web Designer',
-      description: 'Specializing in biomedical research ethics and regulatory compliance.',
+      subtext: 'Intern',
+      description: 'Creates graphic designs and system interfaces, developing visual assets, layouts, and user-centered designs that enhance the system functionality and appearance.',
       image: '/Ermelyn.png'
     },
     {
       name: 'Kristofer John Sarmiento',
       role: 'System Developer',
-      description: 'Developing and maintaining the UREB online portal and submission system.',
+      subtext: 'Intern',
+      description: 'Created the initial version of the system, designing its core structure, features, and functionality that served as the foundation for subsequent development.',
       image: '/Kristoff.png'
     },
     {
       name: 'Rozel Candado',
-      role: 'Technical Support',
+      role: 'Technical Support/System Enhancer',
+      subtext: 'Intern',
       description: 'Providing essential troubleshooting and user support to ensure reliable platform operations.',
       image: '/rozel.jpg'
     }
@@ -350,6 +359,9 @@ const About = () => {
                 <div className="team-info">
                   <h3 className="team-name">{member.name}</h3>
                   <span className="team-role">{member.role}</span>
+                  {member.subtext && (
+                    <span className="team-subtext">{member.subtext}</span>
+                  )}
                   <p className="team-description">{member.description}</p>
                 </div>
               </div>

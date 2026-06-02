@@ -8,6 +8,7 @@ import './admindashboard-sp.css';
 import './AddAdminModal.css';
 
 import './GenerateReportModal.css';
+import InboxReportModal from './InboxReportModal';
 
 
 
@@ -10021,6 +10022,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
   const [deleteAllModalOpen, setDeleteAllModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState(''); // Search filter
   const [openFilesDropdownId, setOpenFilesDropdownId] = useState(null); // Files dropdown tracker
+  const [isInboxReportOpen, setIsInboxReportOpen] = useState(false);
 
   // Click outside to close files dropdown
   useEffect(() => {
@@ -10166,23 +10168,19 @@ const MessagesInboxContent = ({ onMessageRead }) => {
     return map;
   }, [allReviewers]);
 
-  // Resolve message sender type and department
+  // Resolve message sender type and department (message.type is source of truth)
   const getMessageMetadata = useCallback((msg) => {
-    const email = (msg.senderEmail || '').toLowerCase();
+    const email = (msg.senderEmail || '').toLowerCase().trim();
+    const inReviewer = Boolean(reviewerInfoMap[email]);
+    const inStudent = Boolean(studentInfoMap[email]);
 
-    // Determine type
-    let type = msg.type === 'reviewer_to_admin' ? 'reviewer' : (msg.type === 'student_to_admin' ? 'student' : null);
-    if (!type) {
-      if (reviewerInfoMap[email]) {
-        type = 'reviewer';
-      } else if (studentInfoMap[email]) {
-        type = 'student';
-      } else {
-        type = 'student'; // fallback
-      }
-    }
+    let type = null;
+    if (msg.type === 'reviewer_to_admin') type = 'reviewer';
+    else if (msg.type === 'student_to_admin') type = 'student';
+    else if (inReviewer && !inStudent) type = 'reviewer';
+    else if (inStudent && !inReviewer) type = 'student';
+    else if (inReviewer && inStudent) type = 'reviewer';
 
-    // Resolve name
     let name = msg.senderName || msg.senderEmail || 'Unknown';
     if (type === 'reviewer' && reviewerInfoMap[email]) {
       name = reviewerInfoMap[email].name;
@@ -10190,7 +10188,6 @@ const MessagesInboxContent = ({ onMessageRead }) => {
       name = studentInfoMap[email].name;
     }
 
-    // Resolve department
     let department = '';
     if (type === 'reviewer' && reviewerInfoMap[email]) {
       department = reviewerInfoMap[email].department;
@@ -10198,7 +10195,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
       department = studentInfoMap[email].department;
     }
 
-    return { type, name, department };
+    return { type, name, department, inReviewer, inStudent };
   }, [studentInfoMap, reviewerInfoMap]);
 
   // Filter reviewers in the dropdown based on selected department
@@ -10524,6 +10521,48 @@ const MessagesInboxContent = ({ onMessageRead }) => {
 
   const unreadCount = messages.filter(m => !m.read).length;
 
+  const inboxReportFilterSummary = useMemo(() => {
+    const deptLabel =
+      !selectedDepartment
+        ? 'None selected'
+        : selectedDepartment === 'All'
+          ? 'All Departments'
+          : DEPARTMENT_NAMES[selectedDepartment] || selectedDepartment;
+
+    const reviewerLabel =
+      selectedReviewer && selectedReviewer !== 'All'
+        ? reviewersDropdownOptions.find((r) => r.email === selectedReviewer)?.name || selectedReviewer
+        : selectedReviewer === 'All'
+          ? 'All Reviewers'
+          : '';
+
+    const studentLabel =
+      selectedStudent && selectedStudent !== 'All'
+        ? (() => {
+            const s = studentsDropdownOptions.find((st) => st.email === selectedStudent);
+            return s?.name || `${s?.firstName || ''} ${s?.lastName || ''}`.trim() || selectedStudent;
+          })()
+        : selectedStudent === 'All'
+          ? 'All Students'
+          : '';
+
+    return {
+      department: deptLabel,
+      senderType: selectedSenderType || 'All',
+      reviewer: reviewerLabel,
+      student: studentLabel,
+      search: searchQuery.trim(),
+    };
+  }, [
+    selectedDepartment,
+    selectedSenderType,
+    selectedReviewer,
+    selectedStudent,
+    searchQuery,
+    reviewersDropdownOptions,
+    studentsDropdownOptions,
+  ]);
+
   return (
     <>
       <div className="inbox-wrapper">
@@ -10595,6 +10634,26 @@ const MessagesInboxContent = ({ onMessageRead }) => {
           </div>
 
           <div className="inbox-header-actions">
+            <button
+              type="button"
+              className="inbox-generate-report-btn"
+              onClick={() => setIsInboxReportOpen(true)}
+              disabled={!selectedDepartment}
+              title={
+                selectedDepartment
+                  ? 'Generate report with analytics and export'
+                  : 'Select a department first'
+              }
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+              </svg>
+              Generate Report
+            </button>
+
             {unreadCount > 0 && (
               <button className="inbox-mark-all-btn" onClick={markAllAsRead}>
                 Mark all as read
@@ -10850,6 +10909,15 @@ const MessagesInboxContent = ({ onMessageRead }) => {
 
         setMessages={setMessages}
 
+      />
+
+      <InboxReportModal
+        isOpen={isInboxReportOpen}
+        onClose={() => setIsInboxReportOpen(false)}
+        messages={filteredMessages}
+        getMessageMetadata={getMessageMetadata}
+        departmentNames={DEPARTMENT_NAMES}
+        filterSummary={inboxReportFilterSummary}
       />
 
 
