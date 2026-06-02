@@ -283,7 +283,7 @@ const About = () => {
       image: '/Dr.Emily.png'
     },
     {
-      name: 'DR. JERALYN N. HEMILLAN',
+      name: 'Dr. Jeralyn N. Hemillan',
       role: 'Current UREB Director',
       description: 'Leads and oversees the operations of UREB, ensuring ethical compliance, effective research review processes, and the promotion of responsible research practices within the institution.',
       image: '/Dr.%20Gera.png'

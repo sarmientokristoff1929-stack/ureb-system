@@ -2329,29 +2329,32 @@ app.post('/api/student/submit-files', upload.fields([
 
     const { studentEmail, studentName, proposalTitle } = req.body;
 
-    let department = '';
-    if (studentEmail) {
-      const students = db.collection(collections.students);
-      const student = await students.findOne({ email: emailRegexFilter(studentEmail) });
-      department = student?.department || '';
-    }
+    const students = db.collection(collections.students);
+    const departmentPromise = studentEmail
+      ? students.findOne(
+          { email: emailRegexFilter(studentEmail) },
+          { projection: { department: 1 } }
+        )
+      : Promise.resolve(null);
 
-    // Process uploaded files → GridFS
+    // Process uploaded files → GridFS (parallel to reduce total submit time)
     const files = {};
-    if (req.files) {
-      for (const fieldname of Object.keys(req.files)) {
-        const fileArray = req.files[fieldname];
-        if (fileArray && fileArray.length > 0) {
-          const gfsFilename = await uploadToGridFS(fileArray[0]);
+    const uploadTasks = req.files
+      ? Object.entries(req.files).map(async ([fieldname, fileArray]) => {
+          if (!fileArray || fileArray.length === 0) return;
+          const file = fileArray[0];
+          const gfsFilename = await uploadToGridFS(file);
           files[fieldname] = {
             filename: gfsFilename,
-            originalname: fileArray[0].originalname,
-            size: fileArray[0].size,
-            mimetype: fileArray[0].mimetype
+            originalname: file.originalname,
+            size: file.size,
+            mimetype: file.mimetype,
           };
-        }
-      }
-    }
+        })
+      : [];
+
+    const [student] = await Promise.all([departmentPromise, Promise.all(uploadTasks)]);
+    const department = student?.department || '';
 
     const studentFiles = pickStudentAssignmentFiles(files);
 
@@ -2374,23 +2377,25 @@ app.post('/api/student/submit-files', upload.fields([
 
     const result = await proposals.insertOne(newProposal);
 
-    // Create notification for admin about student submission
-    const notifications = db.collection(collections.notifications);
-    await notifications.insertOne({
-      type: 'student_submission',
-      title: 'New Student Submission',
-      message: `A new research proposal "${proposalTitle || 'Untitled'}" has been submitted by ${studentName || studentEmail}. Please assign a preliminary reviewer.`,
-      proposalId: result.insertedId.toString(),
-      studentEmail,
-      recipientEmail: 'admin',
-      read: false,
-      createdAt: new Date()
-    });
-
     res.json({
       success: true,
       proposal: { _id: result.insertedId, ...newProposal }
     });
+
+    // Create notification for admin about student submission (background; don't block response)
+    const notifications = db.collection(collections.notifications);
+    notifications
+      .insertOne({
+        type: 'student_submission',
+        title: 'New Student Submission',
+        message: `A new research proposal "${proposalTitle || 'Untitled'}" has been submitted by ${studentName || studentEmail}. Please assign a preliminary reviewer.`,
+        proposalId: result.insertedId.toString(),
+        studentEmail,
+        recipientEmail: 'admin',
+        read: false,
+        createdAt: new Date(),
+      })
+      .catch((err) => console.error('Failed to create admin notification:', err?.message || err));
   } catch (error) {
     console.error('Error submitting student files:', error);
     res.status(500).json({ success: false, error: 'Server error: ' + error.message });
