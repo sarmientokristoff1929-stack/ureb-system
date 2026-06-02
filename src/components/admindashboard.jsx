@@ -976,7 +976,7 @@ const AdminDashboard = ({ onLogout }) => {
 
     { id: 'assign-file', label: 'Submit File', icon: <AssignIcon /> },
 
-    { id: 'student-proposals', label: 'Student Proposal', icon: <FileCheckIcon />, badge: studentProposalNewCount > 0 ? studentProposalNewCount : null },
+    { id: 'student-proposals', label: 'Student Proposals', icon: <FileCheckIcon />, badge: studentProposalNewCount > 0 ? studentProposalNewCount : null },
 
     { id: 'messages-inbox', label: 'Files And Messages Submitted', icon: <MessageIcon />, badge: messageCount > 0 ? messageCount : null },
 
