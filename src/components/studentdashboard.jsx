@@ -1748,7 +1748,7 @@ const NotificationsContent = ({ userInfo }) => {
 
 const ADD_FILES_FILE_FIELDS = [
   'proposal', 'approvalSheet', 'urebForm2', 'applicationForm6',
-  'accomplishedForm8', 'accomplishedForm10A', 'instrumentTool', 'ethicsReviewFee',
+  'accomplishedForm8', 'accomplishedForm10A', 'instrumentTool', 'routingForm', 'ethicsReviewFee',
 ];
 
 const EMPTY_ADD_FILES_FORM = {
@@ -1759,6 +1759,7 @@ const EMPTY_ADD_FILES_FORM = {
   accomplishedForm8: null,
   accomplishedForm10A: null,
   instrumentTool: null,
+  routingForm: null,
   ethicsReviewFee: null,
   proposalTitle: '',
 };
@@ -1921,6 +1922,7 @@ const EditProposalModal = ({ proposal, onClose, onSuccess }) => {
             {renderFileInput('accomplishedForm8', 'Accomplished Form 8')}
             {renderFileInput('accomplishedForm10A', 'Accomplish Form 10 A')}
             {renderFileInput('instrumentTool', 'Copy of instrument/tool')}
+            {renderFileInput('routingForm', 'Routing')}
             {renderFileInput('ethicsReviewFee', 'Ethics Review Fee (Receipt)')}
           </div>
 
@@ -2053,6 +2055,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
         {renderFileInput('accomplishedForm8', 'Accomplished Form 8', 'See attached form and accomplish only applicable pages')}
         {renderFileInput('accomplishedForm10A', 'Accomplish Form 10 A', 'See attached form')}
         {renderFileInput('instrumentTool', 'Copy of instrument/tool', 'e.g. questionnaire that will be administered to participants, if study entails human participants. Provide a link if instrument is administered online')}
+        {renderFileInput('routingForm', 'Routing')}
         {renderFileInput('ethicsReviewFee', 'Ethics Review Fee (Receipt)')}
 
         <p className="field-description" style={{ marginTop: '0.5rem' }}>

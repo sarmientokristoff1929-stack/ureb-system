@@ -6,6 +6,7 @@ const REVIEWER_FILE_FIELD_LABELS = {
   urebForm11: 'UREB Form 11',
   urebForm16: 'UREB Form 16',
   instrumentTool: 'Instrument Tool',
+  routingForm: 'Routing',
   ethicsReviewFee: 'Ethics Review Fee',
 };
 

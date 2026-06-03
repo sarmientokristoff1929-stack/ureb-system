@@ -277,14 +277,8 @@ const About = () => {
 
   const team = [
     {
-      name: 'Dr. Melay Antonio',
-      role: 'UREB Director',
-      description: 'Leading the UREB with over 15 years of experience in research ethics and participant protection.',
-      image: '/Dr.Emily.png'
-    },
-    {
       name: 'Dr. Jeralyn N. Hemillan',
-      role: 'Current UREB Director',
+      role: 'UREB Director',
       description: 'Leads and oversees the operations of UREB, ensuring ethical compliance, effective research review processes, and the promotion of responsible research practices within the institution.',
       image: '/Dr.%20Gera.png'
     },

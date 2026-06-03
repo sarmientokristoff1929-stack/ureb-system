@@ -327,7 +327,7 @@ const collections = {
 
 const STUDENT_ASSIGNMENT_FILE_KEYS = [
   'proposal', 'approvalSheet', 'urebForm2', 'applicationForm6',
-  'accomplishedForm8', 'accomplishedForm10A', 'instrumentTool', 'ethicsReviewFee',
+  'accomplishedForm8', 'accomplishedForm10A', 'instrumentTool', 'routingForm', 'ethicsReviewFee',
 ];
 
 const ADMIN_ASSIGNMENT_FILE_KEYS = [
@@ -2321,6 +2321,7 @@ app.post('/api/student/submit-files', upload.fields([
   { name: 'accomplishedForm8', maxCount: 1 },
   { name: 'accomplishedForm10A', maxCount: 1 },
   { name: 'instrumentTool', maxCount: 1 },
+  { name: 'routingForm', maxCount: 1 },
   { name: 'ethicsReviewFee', maxCount: 1 }
 ]), async (req, res) => {
   try {
@@ -2411,6 +2412,7 @@ app.put('/api/student/proposals/:id', upload.fields([
   { name: 'accomplishedForm8', maxCount: 1 },
   { name: 'accomplishedForm10A', maxCount: 1 },
   { name: 'instrumentTool', maxCount: 1 },
+  { name: 'routingForm', maxCount: 1 },
   { name: 'ethicsReviewFee', maxCount: 1 }
 ]), async (req, res) => {
   try {

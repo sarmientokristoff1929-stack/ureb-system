@@ -3039,6 +3039,7 @@ const STUDENT_SUBMISSION_FILE_LABELS = {
   accomplishedForm8: 'Accomplished Form 8',
   accomplishedForm10A: 'Accomplished Form 10-A',
   instrumentTool: 'Research Instrument / Tool',
+  routingForm: 'Routing',
   ethicsReviewFee: 'Ethics Review Fee Receipt',
 };
 
