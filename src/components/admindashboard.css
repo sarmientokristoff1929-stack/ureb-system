@@ -15888,6 +15888,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 0.855rem;
+  table-layout: fixed;
 }
 
 .mcr-table thead tr {
@@ -15903,6 +15904,8 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   border-bottom: 2px solid var(--soft-green);
 }
 
@@ -15933,10 +15936,71 @@
   background: #dcfce7 !important;
 }
 
+.mcr-col-num {
+  width: 3%;
+  text-align: center;
+}
+
+.mcr-col-reviewer {
+  width: 12%;
+}
+
+.mcr-col-email {
+  width: 14%;
+}
+
+.mcr-col-student {
+  width: 12%;
+}
+
+.mcr-col-protocol {
+  width: 10%;
+}
+
+.mcr-col-title {
+  width: 25%;
+}
+
+.mcr-col-status {
+  width: 10%;
+}
+
+.mcr-col-action {
+  width: 10%;
+}
+
+/* Preliminary view — no protocol column; redistribute title width */
+.mcr-table--preliminary .mcr-col-reviewer {
+  width: 14%;
+}
+
+.mcr-table--preliminary .mcr-col-email {
+  width: 16%;
+}
+
+.mcr-table--preliminary .mcr-col-student {
+  width: 14%;
+}
+
+.mcr-table--preliminary .mcr-col-title {
+  width: 32%;
+}
+
+.mcr-table--preliminary .mcr-col-status {
+  width: 11%;
+}
+
+.mcr-td-name,
+.mcr-td-email,
+.mcr-td-student {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .mcr-td-name {
   font-weight: 600;
   color: #1e293b;
-  white-space: nowrap;
 }
 
 .mcr-td-email {
@@ -15989,10 +16053,22 @@
   flex: 1;
 }
 
+.mcr-dd-select-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  width: 100%;
+}
+
 .mcr-toolbar-filter {
   flex: 1;
   min-width: 220px;
   max-width: 320px;
+}
+
+.mcr-toolbar-filter .mcr-dd-select-wrapper {
+  max-width: none;
 }
 
 .mcr-toolbar-stats {
@@ -16018,6 +16094,11 @@
 
 .mcr-protocol-code {
   display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
   font-family: ui-monospace, monospace;
   font-size: 0.8rem;
   font-weight: 600;
@@ -16028,12 +16109,38 @@
   letter-spacing: 0.3px;
 }
 
+.mcr-col-status,
+.mcr-col-action {
+  text-align: center;
+}
+
+.mcr-td-title-cell {
+  overflow: hidden;
+  max-width: 0;
+}
+
 .mcr-td-title {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 220px;
+}
+
+.mcr-td-protocol {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mcr-td-num {
+  text-align: center;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.mcr-td-status,
+.mcr-td-action {
+  text-align: center;
 }
 
 /* Action buttons */
@@ -16082,13 +16189,18 @@
 
 @media (max-width: 768px) {
   .mcr-table {
-    min-width: 900px;
+    min-width: 960px;
     font-size: 0.78rem;
   }
 
   .mcr-table th,
   .mcr-row td {
     padding: 0.5rem 0.75rem;
+  }
+
+  .mcr-toolbar-filter {
+    max-width: none;
+    flex: 1 1 100%;
   }
 }
 

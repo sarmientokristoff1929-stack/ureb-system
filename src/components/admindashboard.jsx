@@ -3983,17 +3983,27 @@ const MarkCompletedReviewContent = () => {
               </p>
             ) : (
               <div className="mcr-table-wrap">
-                <table className="mcr-table">
+                <table className={`mcr-table ${isPreliminary ? 'mcr-table--preliminary' : 'mcr-table--secondary'}`}>
+                  <colgroup>
+                    <col className="mcr-col-num" />
+                    <col className="mcr-col-reviewer" />
+                    <col className="mcr-col-email" />
+                    <col className="mcr-col-student" />
+                    {!isPreliminary && <col className="mcr-col-protocol" />}
+                    <col className="mcr-col-title" />
+                    <col className="mcr-col-status" />
+                    <col className="mcr-col-action" />
+                  </colgroup>
                   <thead>
                     <tr>
-                      <th style={{ width: '40px', textAlign: 'center' }}>#</th>
-                      <th>Reviewer</th>
-                      <th>Email</th>
-                      <th>Student (Proponent)</th>
-                      {!isPreliminary && <th>Protocol Code</th>}
-                      <th>Research Proposal Title</th>
-                      <th style={{ textAlign: 'center' }}>Status</th>
-                      <th style={{ textAlign: 'center', width: '120px' }}>Action</th>
+                      <th className="mcr-col-num">#</th>
+                      <th className="mcr-col-reviewer">Reviewer</th>
+                      <th className="mcr-col-email">Email</th>
+                      <th className="mcr-col-student">Student (Proponent)</th>
+                      {!isPreliminary && <th className="mcr-col-protocol">Protocol Code</th>}
+                      <th className="mcr-col-title">Research Proposal Title</th>
+                      <th className="mcr-col-status">Status</th>
+                      <th className="mcr-col-action">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -4009,24 +4019,24 @@ const MarkCompletedReviewContent = () => {
                           key={`${reviewer.key}-${rowKey}-${idx}`}
                           className={`mcr-row ${idx % 2 === 1 ? 'mcr-row--alt' : ''} ${isDone ? 'mcr-row--done' : ''}`}
                         >
-                          <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</td>
-                          <td className="mcr-td-name">{reviewer.name}</td>
-                          <td className="mcr-td-email">{reviewer.reviewerEmail || reviewer.email}</td>
-                          <td>{row.leader}</td>
+                          <td className="mcr-td-num">{idx + 1}</td>
+                          <td className="mcr-td-name" title={reviewer.name}>{reviewer.name}</td>
+                          <td className="mcr-td-email" title={reviewer.reviewerEmail || reviewer.email}>{reviewer.reviewerEmail || reviewer.email}</td>
+                          <td className="mcr-td-student" title={row.leader}>{row.leader}</td>
                           {!isPreliminary && (
-                            <td>
-                              <span className="mcr-protocol-code">{row.protocolCode}</span>
+                            <td className="mcr-td-protocol">
+                              <span className="mcr-protocol-code" title={row.protocolCode}>{row.protocolCode}</span>
                             </td>
                           )}
-                          <td style={{ maxWidth: '220px' }}>
+                          <td className="mcr-td-title-cell">
                             <span className="mcr-td-title" title={row.title}>{row.title}</span>
                           </td>
-                          <td style={{ textAlign: 'center' }}>
+                          <td className="mcr-td-status">
                             <span className={`mcr-status ${isDone ? 'mcr-status--completed' : (pStatus === 'under review' ? 'mcr-status--review' : 'mcr-status--pending')}`}>
                               {getMcrStatusLabel(pStatus)}
                             </span>
                           </td>
-                          <td style={{ textAlign: 'center' }}>
+                          <td className="mcr-td-action">
                             <button
                               type="button"
                               onClick={() => handleProposalToggle(row, pStatus, reviewer)}
