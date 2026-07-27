@@ -677,23 +677,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
     }
   };
 
-  const handleAddCoMember = () => {
-    setCoMemberError('');
-    if (!newCoMember.name.trim() || !newCoMember.email.trim()) {
-      setCoMemberError('Name and email are required');
-      return;
-    }
-    const updated = [...coMembers, { ...newCoMember, id: Date.now().toString() }];
-    setCoMembers(updated);
-    setNewCoMember({ name: '', email: '', role: '' });
-    setShowCoMemberForm(false);
-  };
-
-  const handleRemoveCoMember = (id) => {
-    setCoMembers(prev => prev.filter(m => m.id !== id));
-  };
-
-  const handleSaveCoMembers = async () => {
+  const saveCoMembersToDatabase = async (listToSave) => {
     setCoMemberLoading(true);
     setCoMemberError('');
     setCoMemberSuccess('');
@@ -701,12 +685,12 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
       const response = await fetch(`${API_BASE_URL}/student/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userInfo.email, coMembers }),
+        body: JSON.stringify({ email: userInfo.email, coMembers: listToSave }),
       });
       const result = await response.json();
       if (result.success) {
-        setStudentData(prev => ({ ...prev, coMembers }));
-        setCoMemberSuccess('Co-members saved successfully');
+        setStudentData(prev => ({ ...prev, coMembers: listToSave }));
+        setCoMemberSuccess('Co-members updated successfully');
         setTimeout(() => setCoMemberSuccess(''), 4000);
       } else {
         setCoMemberError(result.error || 'Failed to save co-members');
@@ -717,6 +701,34 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
     } finally {
       setCoMemberLoading(false);
     }
+  };
+
+  const handleAddCoMember = async () => {
+    setCoMemberError('');
+    if (!newCoMember.name.trim() || !newCoMember.email.trim()) {
+      setCoMemberError('Name and email are required');
+      return;
+    }
+    const updated = [...coMembers, { ...newCoMember, id: Date.now().toString() }];
+    setCoMembers(updated);
+    setNewCoMember({ name: '', email: '', role: '' });
+    setShowCoMemberForm(false);
+    await saveCoMembersToDatabase(updated);
+  };
+
+  const handleRemoveCoMember = async (id, idx) => {
+    const updated = coMembers.filter((m, index) => {
+      if (id && (m.id === id || m._id === id)) {
+        return false;
+      }
+      return index !== idx;
+    });
+    setCoMembers(updated);
+    await saveCoMembersToDatabase(updated);
+  };
+
+  const handleSaveCoMembers = async () => {
+    await saveCoMembersToDatabase(coMembers);
   };
 
   if (loading) {
@@ -1032,8 +1044,8 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
               <span className="sp-not-set">No co-members added yet</span>
             </div>
           ) : (
-            coMembers.map((member) => (
-              <div className="sp-info-row" key={member.id} style={{ alignItems: 'center' }}>
+            coMembers.map((member, idx) => (
+              <div className="sp-info-row" key={member.id || member._id || idx} style={{ alignItems: 'center' }}>
                 <div style={{ flex: 1 }}>
                   <span className="sp-info-value" style={{ fontWeight: 600 }}>{member.name}</span>
                   <span className="sp-info-label" style={{ marginLeft: '0.75rem', display: 'inline', minWidth: 'auto' }}>
@@ -1047,7 +1059,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
                 </div>
                 <button
                   className="sp-btn sp-btn--ghost sp-btn--sm"
-                  onClick={() => handleRemoveCoMember(member.id)}
+                  onClick={() => handleRemoveCoMember(member.id || member._id, idx)}
                   style={{ color: '#b52b2b' }}
                 >
                   Remove
@@ -1057,7 +1069,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
           )}
         </div>
 
-        {coMembers.length > 0 && (
+        {(coMembers.length > 0 || (studentData?.coMembers && studentData.coMembers.length > 0)) && (
           <div className="sp-form-actions" style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid #f0f4f0' }}>
             <button className="sp-btn sp-btn--primary" onClick={handleSaveCoMembers} disabled={coMemberLoading}>
               {coMemberLoading ? 'Saving…' : 'Save Co-Members'}
@@ -1148,7 +1160,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
   const [stats, setStats] = useState({
     totalProposals: 0,
     pendingReviews: 0,
-    approvedProposals: 0,
+    completedProposals: 0,
     notifications: 0
   });
   const [recentActivity, setRecentActivity] = useState([]);
@@ -1193,13 +1205,13 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
           const s = (proposal.status || 'Pending').toLowerCase();
           return s === 'pending' || s === 'under review';
         }).length;
-        const approvedProposals = activeProposals.filter(proposal => proposal.status === 'approved').length;
+        const completedProposals = activeProposals.filter(proposal => (proposal.status || '').toLowerCase() === 'completed').length;
         const notificationsCount = notificationsData.filter(msg => msg.type === 'admin_to_student').length;
 
         setStats({
           totalProposals: activeProposals.length,
           pendingReviews: pendingReviewsCount + pendingProposalsCount,
-          approvedProposals: approvedProposals,
+          completedProposals: completedProposals,
           notifications: notificationsCount
         });
 
@@ -1212,7 +1224,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
         setStats({
           totalProposals: 0,
           pendingReviews: 0,
-          approvedProposals: 0,
+          completedProposals: 0,
           notifications: 0
         });
         setRecentActivity([]);
@@ -1234,7 +1246,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
 
           proposals.forEach(proposal => {
             const status = (proposal.status || 'Pending').toLowerCase();
-            if (status !== 'approved') {
+            if (status !== 'approved' && status !== 'completed') {
               const submittedDate = new Date(proposal.createdAt || proposal.uploadDate || Date.now());
               const deadlineDate = new Date(submittedDate);
               deadlineDate.setFullYear(deadlineDate.getFullYear() + 1);
@@ -1344,12 +1356,12 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon approved">
+          <div className="stat-icon completed">
             <DashboardIcon />
           </div>
           <div className="stat-info">
-            <h3>{stats.approvedProposals}</h3>
-            <p>Approved</p>
+            <h3>{stats.completedProposals}</h3>
+            <p>Completed</p>
           </div>
         </div>
         <div className="stat-card">
@@ -1922,7 +1934,7 @@ const EditProposalModal = ({ proposal, onClose, onSuccess }) => {
             {renderFileInput('accomplishedForm8', 'Accomplished Form 8')}
             {renderFileInput('accomplishedForm10A', 'Accomplish Form 10 A')}
             {renderFileInput('instrumentTool', 'Copy of instrument/tool')}
-            {renderFileInput('routingForm', 'Routing')}
+            {renderFileInput('routingForm', 'Routing Slip')}
             {renderFileInput('ethicsReviewFee', 'Ethics Review Fee (Receipt)')}
           </div>
 
@@ -2055,7 +2067,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
         {renderFileInput('accomplishedForm8', 'Accomplished Form 8', 'See attached form and accomplish only applicable pages')}
         {renderFileInput('accomplishedForm10A', 'Accomplish Form 10 A', 'See attached form')}
         {renderFileInput('instrumentTool', 'Copy of instrument/tool', 'e.g. questionnaire that will be administered to participants, if study entails human participants. Provide a link if instrument is administered online')}
-        {renderFileInput('routingForm', 'Routing')}
+        {renderFileInput('routingForm', 'Routing Slip')}
         {renderFileInput('ethicsReviewFee', 'Ethics Review Fee (Receipt)')}
 
         <p className="field-description" style={{ marginTop: '0.5rem' }}>

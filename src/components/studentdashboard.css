@@ -1317,7 +1317,7 @@
   color: var(--status-pending);
 }
 
-.stat-icon.approved {
+.stat-icon.completed {
   background: rgba(56, 142, 60, 0.1);
   color: var(--status-completed);
 }
