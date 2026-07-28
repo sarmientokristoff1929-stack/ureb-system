@@ -1138,36 +1138,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
     }
     setPwdLoading(true);
     try {
-      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
-
-      // Step 1: Fetch the reviewer record to verify current password
-      const listRes = await fetch(`${API_BASE}/reviewers`);
-      const reviewers = await listRes.json();
-      const reviewer = Array.isArray(reviewers)
-        ? reviewers.find(r => (r.email || '').toLowerCase() === (userInfo?.email || '').toLowerCase())
-        : null;
-
-      if (!reviewer) {
-        setPwdError('Reviewer account not found.');
-        setPwdLoading(false);
-        return;
-      }
-
-      // Step 2: Verify current password
-      if (reviewer.password !== currentPassword) {
-        setPwdError('Current password is incorrect.');
-        setPwdLoading(false);
-        return;
-      }
-
-      // Step 3: Update password via existing reviewer update endpoint
-      const reviewerId = String(reviewer._id);
-      const updateRes = await fetch(`${API_BASE}/reviewers/${reviewerId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: newPassword }),
-      });
-      const result = await updateRes.json();
+      const result = await changeReviewerPassword(userInfo?.email, currentPassword, newPassword);
       if (result.success) {
         setPwdSuccess('Password changed successfully.');
         setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
