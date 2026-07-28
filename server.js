@@ -1270,30 +1270,46 @@ app.put('/api/reviewers/profile', async (req, res) => {
 // Change reviewer password
 app.put('/api/reviewer/change-password', async (req, res) => {
   try {
+    console.log('=== REVIEWER PASSWORD CHANGE REQUEST ===');
+    console.log('Request body:', { email: req.body.email, hasCurrentPassword: !!req.body.currentPassword, hasNewPassword: !!req.body.newPassword });
+    
     const db = getDatabase();
     const reviewers = db.collection(collections.reviewers);
     const { email, currentPassword, newPassword } = req.body;
 
     if (!email || !currentPassword || !newPassword) {
+      console.log('Missing required fields');
       return res.status(400).json({ success: false, error: 'All fields are required' });
     }
     if (newPassword.length < 6) {
+      console.log('New password too short');
       return res.status(400).json({ success: false, error: 'New password must be at least 6 characters' });
     }
 
     const reviewer = await reviewers.findOne({ email });
+    console.log('Reviewer found:', reviewer ? { email: reviewer.email, hasPassword: !!reviewer.password, passwordLength: reviewer.password?.length } : null);
+    
     if (!reviewer) {
+      console.log('Reviewer not found');
       return res.status(404).json({ success: false, error: 'Reviewer not found' });
     }
 
+    console.log('Password comparison:', {
+      storedPassword: reviewer.password,
+      providedPassword: currentPassword,
+      match: reviewer.password === currentPassword
+    });
+
     if (reviewer.password !== currentPassword) {
+      console.log('Password mismatch');
       return res.status(400).json({ success: false, error: 'Current password is incorrect' });
     }
 
-    await reviewers.updateOne(
+    const result = await reviewers.updateOne(
       { email },
       { $set: { password: newPassword, updatedAt: new Date() } }
     );
+    console.log('Update result:', result);
 
     res.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {

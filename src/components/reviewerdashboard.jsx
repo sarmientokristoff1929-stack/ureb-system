@@ -1138,7 +1138,14 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
     }
     setPwdLoading(true);
     try {
+      console.log('=== REVIEWER PASSWORD CHANGE ===');
+      console.log('Email:', userInfo?.email);
+      console.log('Has current password:', !!currentPassword);
+      console.log('Has new password:', !!newPassword);
+      
       const result = await changeReviewerPassword(userInfo?.email, currentPassword, newPassword);
+      console.log('Password change result:', result);
+      
       if (result.success) {
         setPwdSuccess('Password changed successfully.');
         setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -1146,9 +1153,11 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
         setShowPasswordForm(false);
         setTimeout(() => setPwdSuccess(''), 4000);
       } else {
+        console.error('Password change failed:', result.error);
         setPwdError(result.error || 'Failed to change password.');
       }
-    } catch {
+    } catch (err) {
+      console.error('Password change error:', err);
       setPwdError('Failed to change password. Check your connection.');
     } finally {
       setPwdLoading(false);
