@@ -24,15 +24,15 @@
 .login-modal-container {
   background: white;
   border-radius: 24px;
-  max-width: 900px;
-  width: 100%;
+  max-width: 1100px;
+  width: 95%;
   position: relative;
   box-shadow: 0 25px 80px rgba(122, 158, 126, 0.3);
   animation: slideUp 0.3s ease;
   overflow: hidden;
   display: flex;
-  min-height: 500px;
-  max-height: 90vh;
+  min-height: 540px;
+  max-height: 92vh;
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -116,8 +116,8 @@
 }
 
 .login-modal-right {
-  flex: 1;
-  padding: 3rem 2.5rem;
+  flex: 1.4;
+  padding: 3rem 3rem;
   display: flex;
   flex-direction: column;
   overflow-y: auto;

@@ -45,8 +45,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [middleName, setMiddleName] = useState('');
   const [lastName, setLastName] = useState('');
   const [suffix, setSuffix] = useState('');
-  const [studentId, setStudentId] = useState('');
   const [gender, setGender] = useState('');
+  const [researcherType, setResearcherType] = useState('');
   const [department, setDepartment] = useState('');
   const [program, setProgram] = useState('');
   const [regGmail, setRegGmail] = useState('');
@@ -254,8 +254,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     setMiddleName('');
     setLastName('');
     setSuffix('');
-    setStudentId('');
     setGender('');
+    setResearcherType('');
     setDepartment('');
     setProgram('');
     setRegGmail('');
@@ -321,8 +321,9 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       middleName,
       lastName,
       suffix,
-      studentId,
+      sex: gender,
       gender,
+      researcherType,
       department,
       program,
       email: regGmail,  // Changed from gmail to email
@@ -350,8 +351,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
         setMiddleName('');
         setLastName('');
         setSuffix('');
-        setStudentId('');
         setGender('');
+        setResearcherType('');
         setDepartment('');
         setProgram('');
         setRegGmail('');
@@ -418,6 +419,22 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                   {error && <div className="login-error-message">{error}</div>}
 
                   <div className="login-form-group">
+                    <label htmlFor="researcherType">Researcher Type </label>
+                    <select
+                      id="researcherType"
+                      value={researcherType}
+                      onChange={(e) => setResearcherType(e.target.value)}
+                      required
+                    >
+                      <option value="">Select researcher type</option>
+                      <option value="Faculty Researcher">Faculty Researcher</option>
+                      <option value="Staff Researcher">Staff Researcher</option>
+                      <option value="External Researcher">External Researcher</option>
+                      <option value="Student Researcher">Student Researcher</option>
+                    </select>
+                  </div>
+
+                  <div className="login-form-group">
                     <label htmlFor="firstName">First Name </label>
                     <input
                       type="text"
@@ -480,42 +497,16 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                   </div>
 
                   <div className="login-form-group">
-                    <label htmlFor="studentId">Student ID Number </label>
-                    <input
-                      type="text"
-                      id="studentId"
-                      value={studentId}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        // Remove all characters except numbers and hyphens
-                        const validValue = value.replace(/[^0-9-]/g, '');
-                        setStudentId(validValue);
-                      }}
-                      onKeyPress={(e) => {
-                        // Allow only numbers, hyphens, and control keys
-                        if (!/[0-9-]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'Tab' && e.key !== 'Enter') {
-                          e.preventDefault();
-                        }
-                      }}
-                      placeholder="Enter your student ID (e.g., 2022-2025 or 20231234)"
-                      required
-                      inputMode="text"
-                      pattern="[0-9\-]+"
-                    />
-                  </div>
-
-                  <div className="login-form-group">
-                    <label htmlFor="gender">Gender </label>
+                    <label htmlFor="gender">Sex </label>
                     <select
                       id="gender"
                       value={gender}
                       onChange={(e) => setGender(e.target.value)}
                       required
                     >
-                      <option value="">Select your gender</option>
+                      <option value="">Select your sex</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
-                      <option value="LGBTQ">LGBTQ</option>
                     </select>
                   </div>
 

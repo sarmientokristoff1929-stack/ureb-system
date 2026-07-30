@@ -401,7 +401,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedInfo, setEditedInfo] = useState({
     firstName: '', middleName: '', lastName: '', suffix: '',
-    studentId: '', gender: '', department: '', program: '', gmail: '', facebookLink: '',
+    gender: '', researcherType: '', department: '', program: '', gmail: '', facebookLink: '',
   });
   const [loading, setLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
@@ -446,8 +446,8 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
             middleName: student.middleName || '',
             lastName: student.lastName || '',
             suffix: student.suffix || '',
-            studentId: student.studentId || '',
             gender: student.gender || '',
+            researcherType: student.researcherType || '',
             department: student.department || '',
             program: student.program || '',
             gmail: student.gmail || '',
@@ -580,8 +580,9 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
         firstName: studentData.firstName || '',
         middleName: studentData.middleName || '',
         lastName: studentData.lastName || '',
-        studentId: studentData.studentId || '',
+        suffix: studentData.suffix || '',
         gender: studentData.gender || '',
+        researcherType: studentData.researcherType || '',
         department: studentData.department || '',
         program: studentData.program || '',
         gmail: studentData.gmail || '',
@@ -608,7 +609,6 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
           middleName: result.student.middleName,
           lastName: result.student.lastName,
           email: result.student.gmail,
-          studentId: result.student.studentId,
           gender: result.student.gender,
           department: result.student.department,
           program: result.student.program,
@@ -823,9 +823,6 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
         </div>
         <div className="sp-hero-info">
           <h2 className="sp-hero-name">{fullName}</h2>
-          {studentData?.studentId && (
-            <span className="sp-id-badge">ID&nbsp;{studentData.studentId}</span>
-          )}
           <p className="sp-hero-email">{studentData?.gmail || userInfo?.email || '—'}</p>
           <p className="sp-hero-role">Principal Investigator (Leader)</p>
         </div>
@@ -853,8 +850,8 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
           <div className="sp-info-list">
             {[
               { label: 'Full Name', value: fullName },
-              { label: 'Student ID', value: studentData?.studentId },
-              { label: 'Gender', value: studentData?.gender || studentData?.sex },
+              { label: 'Sex', value: studentData?.sex || studentData?.gender },
+              { label: 'Researcher Type', value: studentData?.researcherType },
               { label: 'Department', value: studentData?.department },
               { label: 'Program', value: studentData?.program },
               { label: 'Gmail', value: studentData?.gmail },
@@ -923,22 +920,29 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
 
             <div className="sp-field-row sp-field-row--2">
               <div className="sp-field">
-                <label htmlFor="sp-sid">Student ID</label>
-                <input id="sp-sid" type="text" value={editedInfo.studentId}
-                  onChange={e => setEditedInfo(p => ({ ...p, studentId: e.target.value }))}
-                  placeholder="e.g. 2023-00001" />
-              </div>
-              <div className="sp-field">
-                <label htmlFor="sp-gender">Gender</label>
+                <label htmlFor="sp-gender">Sex</label>
                 <select
                   id="sp-gender"
-                  value={editedInfo.gender}
-                  onChange={e => setEditedInfo(p => ({ ...p, gender: e.target.value }))}
+                  value={editedInfo.sex || editedInfo.gender || ''}
+                  onChange={e => setEditedInfo(p => ({ ...p, sex: e.target.value, gender: e.target.value }))}
                 >
-                  <option value="">Select gender</option>
+                  <option value="">Select sex</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
-                  <option value="LGBTQ">LGBTQ</option>
+                </select>
+              </div>
+              <div className="sp-field">
+                <label htmlFor="sp-researcherType">Researcher Type</label>
+                <select
+                  id="sp-researcherType"
+                  value={editedInfo.researcherType || ''}
+                  onChange={e => setEditedInfo(p => ({ ...p, researcherType: e.target.value }))}
+                >
+                  <option value="">Select Researcher Type</option>
+                  <option value="Faculty Researcher">Faculty Researcher</option>
+                  <option value="Staff Researcher">Staff Researcher</option>
+                  <option value="External Researcher">External Researcher</option>
+                  <option value="Student Researcher">Student Researcher</option>
                 </select>
               </div>
             </div>

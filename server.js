@@ -695,7 +695,7 @@ app.post('/api/auth/login', async (req, res) => {
       user = await findStudentByLoginEmail(students, email);
       userType = 'student';
       if (user) {
-        console.log(`Found user in students collection: ${JSON.stringify({ email: user.email, gmail: user.gmail, studentId: user.studentId })}`);
+        console.log(`Found user in students collection: ${JSON.stringify({ email: user.email, gmail: user.gmail })}`);
       }
     }
 
@@ -811,34 +811,27 @@ app.post('/api/auth/register', async (req, res) => {
     console.log('[DEBUG] Raw req.body.gender:', req.body.gender);
     console.log('[DEBUG] Server /api/auth/register - full req.body:', JSON.stringify(req.body, null, 2));
 
-    const { firstName, middleName, lastName, suffix, studentId, gender, department, program, email, password, role } = req.body;
+    const { firstName, middleName, lastName, suffix, sex, gender, researcherType, department, program, email, password, role } = req.body;
 
     const emailNorm = (email || '').trim().toLowerCase();
-    const genderNorm = (gender != null && String(gender).trim()) ? String(gender).trim() : '';
+    const sexNorm = ((sex || gender) != null && String(sex || gender).trim()) ? String(sex || gender).trim() : '';
 
-    console.log('[DEBUG] Extracted gender from destructuring:', gender);
-    console.log('[DEBUG] Computed genderNorm:', genderNorm);
-    console.log('Registration request received:', { firstName, lastName, suffix, studentId, gender: genderNorm, department, program, email: emailNorm });
+    console.log('[DEBUG] Extracted sex/gender from destructuring:', sex || gender);
+    console.log('[DEBUG] Computed sexNorm:', sexNorm);
+    console.log('Registration request received:', { firstName, lastName, suffix, sex: sexNorm, researcherType, department, program, email: emailNorm });
 
     const db = getDatabase();
     const students = db.collection(collections.students);
     const users = db.collection(collections.users);
 
     // Check if student already exists in students collection
-    const existingStudent = await students.findOne({
-      $or: [
-        { email: emailNorm },
-        { studentId: studentId }
-      ]
-    });
+    const existingStudent = await students.findOne({ email: emailNorm });
 
     if (existingStudent) {
-      console.log('Student already exists:', existingStudent.email || existingStudent.studentId);
+      console.log('Student already exists:', existingStudent.email);
       return res.json({
         success: false,
-        error: existingStudent.email === emailNorm
-          ? 'A student with this email already exists'
-          : 'A student with this ID already exists'
+        error: 'A student with this email already exists'
       });
     }
 
@@ -858,8 +851,9 @@ app.post('/api/auth/register', async (req, res) => {
       middleName: middleName || '',
       lastName,
       suffix: suffix || '',
-      studentId,
-      gender: genderNorm,
+      sex: sexNorm,
+      gender: sexNorm,
+      researcherType: researcherType || '',
       department,
       program: program || '',
       email: emailNorm,
@@ -872,12 +866,12 @@ app.post('/api/auth/register', async (req, res) => {
     };
 
     console.log('Creating new student:', { ...newStudent, password: '[HIDDEN]' });
-    console.log('[DEBUG] About to insert - gender value:', newStudent.gender);
+    console.log('[DEBUG] About to insert - sex value:', newStudent.sex);
     const result = await students.insertOne(newStudent);
     console.log('[DEBUG] Insert result:', result);
     console.log('Student created successfully with ID:', result.insertedId);
 
-    console.log('[DEBUG] Sending response with gender:', newStudent.gender);
+    console.log('[DEBUG] Sending response with sex:', newStudent.sex);
     res.json({
       success: true,
       message: 'Registration successful',
@@ -887,8 +881,9 @@ app.post('/api/auth/register', async (req, res) => {
         lastName: newStudent.lastName,
         suffix: newStudent.suffix,
         email: newStudent.email,
-        studentId: newStudent.studentId,
+        sex: newStudent.sex,
         gender: newStudent.gender,
+        researcherType: newStudent.researcherType,
         department: newStudent.department,
         program: newStudent.program
       }
@@ -1446,8 +1441,9 @@ app.put('/api/students/:id', async (req, res) => {
       'lastName',
       'suffix',
       'email',
-      'studentId',
+      'sex',
       'gender',
+      'researcherType',
       'department',
       'program',
       'role',
@@ -1464,6 +1460,8 @@ app.put('/api/students/:id', async (req, res) => {
         updateData[key] = body[key];
       }
     }
+    if (body.sex !== undefined) updateData.gender = body.sex;
+    if (body.gender !== undefined) updateData.sex = body.gender;
 
     const fn = updateData.firstName !== undefined ? updateData.firstName : existing.firstName;
     const mn = updateData.middleName !== undefined ? updateData.middleName : existing.middleName;
@@ -1536,13 +1534,13 @@ function studentProfilePayload(student) {
   const plain = JSON.parse(JSON.stringify(student));
   const { password, sex, ...safe } = plain;
   const gmail = safe.gmail || safe.email || '';
-  const gender = String(safe.gender || sex || '').trim();
+  const sexVal = String(safe.sex || safe.gender || sex || '').trim();
   // Build profile picture URL from GridFS filename
   let profilePicture = safe.profilePicture || null;
   if (safe.profilePictureGridFS) {
     profilePicture = `/api/student/profile/picture/${safe.profilePictureGridFS}?t=${Date.now()}`;
   }
-  return { ...safe, gmail, gender, profilePicture };
+  return { ...safe, gmail, gender: sexVal, sex: sexVal, profilePicture };
 }
 
 function reviewerProfilePayload(reviewer) {
@@ -1581,7 +1579,7 @@ app.get('/api/student/profile', async (req, res) => {
       console.log('[DEBUG] Student not found for email:', raw);
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
-    console.log('[DEBUG] Student found:', student.email, '| gender in DB:', student.gender);
+    console.log('[DEBUG] Student found:', student.email, '| sex in DB:', student.sex || student.gender);
 
     res.json({ success: true, student: studentProfilePayload(student) });
   } catch (error) {
@@ -1593,7 +1591,7 @@ app.get('/api/student/profile', async (req, res) => {
 // PUT update student profile by email
 app.put('/api/student/profile', async (req, res) => {
   try {
-    const { email, firstName, middleName, lastName, suffix, studentId, gender, department, program, gmail, coMembers, facebookLink } = req.body;
+    const { email, firstName, middleName, lastName, suffix, sex, gender, researcherType, department, program, gmail, coMembers, facebookLink } = req.body;
     if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
 
     const db = getDatabase();
@@ -1602,14 +1600,17 @@ app.put('/api/student/profile', async (req, res) => {
     const student = await findStudentByLoginEmail(students, email);
     if (!student) return res.status(404).json({ success: false, error: 'Student not found' });
 
+    const sexInput = sex !== undefined ? sex : gender;
+    const sexVal = sexInput !== undefined ? (sexInput != null && String(sexInput).trim() ? String(sexInput).trim() : '') : undefined;
+
     const updateFields = {
       updatedAt: new Date(),
       ...(firstName !== undefined && { firstName }),
       ...(middleName !== undefined && { middleName }),
       ...(lastName !== undefined && { lastName }),
       ...(suffix !== undefined && { suffix }),
-      ...(studentId !== undefined && { studentId }),
-      ...(gender !== undefined && { gender: (gender != null && String(gender).trim()) ? String(gender).trim() : '' }),
+      ...(sexVal !== undefined && { sex: sexVal, gender: sexVal }),
+      ...(researcherType !== undefined && { researcherType }),
       ...(department !== undefined && { department }),
       ...(program !== undefined && { program }),
       ...(gmail !== undefined && { gmail: (gmail || '').trim().toLowerCase() }),

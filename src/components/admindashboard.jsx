@@ -2744,26 +2744,15 @@ const AddReviewerContent = () => {
             </div>
 
             <div className="form-group">
-
-              <label>Gender</label>
-
+              <label>Sex</label>
               <select
-
                 name="gender"
-
                 value={formData.gender || ''}
-
                 onChange={handleInputChange}
-
               >
-
-                <option value="">Select Gender</option>
-
+                <option value="">Select Sex</option>
                 <option value="Male">Male</option>
-
                 <option value="Female">Female</option>
-
-                <option value="LGBTQ">LGBTQ</option>
               </select>
             </div>
           </div>
@@ -5107,17 +5096,11 @@ const MessageResearcherContent = () => {
 
       const department = (student.department || '').toLowerCase();
 
-      const studentId = (student.studentId || '').toLowerCase();
-
-
-
       return name.includes(searchLower) ||
 
         email.includes(searchLower) ||
 
-        department.includes(searchLower) ||
-
-        studentId.includes(searchLower);
+        department.includes(searchLower);
 
     });
 
@@ -5281,7 +5264,7 @@ const MessageResearcherContent = () => {
 
                   type="text"
 
-                  placeholder="Search by name, email, department, or student ID..."
+                  placeholder="Search by name, email, or department..."
 
                   value={searchQuery}
 
@@ -5342,8 +5325,6 @@ const MessageResearcherContent = () => {
                       {student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || student.email}
 
                       {student.department && ` - ${student.department}`}
-
-                      {student.studentId && ` - ${student.studentId}`}
 
                     </option>
 
@@ -6371,13 +6352,11 @@ const ManageUsersContent = () => {
 
         email: user.email || '',
 
-        department: user.department || '',
-
-        role: user.role || '',
-
-        studentId: user.studentId || '',
+        sex: user.sex || user.gender || '',
 
         gender: user.gender || '',
+
+        researcherType: user.researcherType || '',
 
         program: user.program || '',
         coMembers: user.coMembers || [],
@@ -6833,9 +6812,11 @@ const ManageUsersContent = () => {
     if (searchQuery) {
 
       const query = searchQuery.toLowerCase().trim();
-      const isGenderSearch = ['male', 'female', 'lgbtq'].includes(query);
+      const isSexSearch = ['male', 'female'].includes(query);
 
       filteredData = filteredData.filter(item => {
+
+        const itemSex = (item.sex || item.gender || '').toLowerCase();
 
         if (type === 'reviewer') {
 
@@ -6849,7 +6830,7 @@ const ManageUsersContent = () => {
 
             (item.name && item.name.toLowerCase().includes(query)) ||
 
-            (isGenderSearch && item.gender && item.gender.toLowerCase() === query)
+            (isSexSearch && itemSex === query)
 
           );
 
@@ -6865,7 +6846,7 @@ const ManageUsersContent = () => {
 
             (item.name && item.name.toLowerCase().includes(query)) ||
 
-            (isGenderSearch && item.gender && item.gender.toLowerCase() === query)
+            (isSexSearch && itemSex === query)
 
           );
 
@@ -6877,7 +6858,7 @@ const ManageUsersContent = () => {
 
             (item.email && item.email.toLowerCase().includes(query)) ||
 
-            (isGenderSearch && item.gender && item.gender.toLowerCase() === query)
+            (isSexSearch && itemSex === query)
 
           );
 
@@ -7241,7 +7222,7 @@ const ManageUsersContent = () => {
 
                   <th>Email</th>
 
-                  <th>Gender</th>
+                  <th>Sex</th>
 
                   <th>Department</th>
 
@@ -7279,7 +7260,7 @@ const ManageUsersContent = () => {
 
                       <td>{reviewer.email}</td>
 
-                      <td>{reviewer.gender || 'Not set'}</td>
+                      <td>{reviewer.sex || reviewer.gender || 'Not set'}</td>
 
                       <td>{reviewer.department || 'Not specified'}</td>
 
@@ -7441,9 +7422,7 @@ const ManageUsersContent = () => {
 
                   <th>Name</th>
 
-                  <th>Student ID</th>
-
-                  <th>Gender</th>
+                  <th>Sex</th>
 
                   <th>Email</th>
 
@@ -7465,7 +7444,7 @@ const ManageUsersContent = () => {
 
                   <tr>
 
-                    <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-medium)' }}>
+                    <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-medium)' }}>
 
                       No students found.
 
@@ -7481,9 +7460,7 @@ const ManageUsersContent = () => {
 
                       <td>{student.name || `${student.firstName} ${student.lastName}`}</td>
 
-                      <td>{student.studentId}</td>
-
-                      <td>{student.gender || 'Not set'}</td>
+                      <td>{student.sex || student.gender || 'Not set'}</td>
 
                       <td>{student.email}</td>
 
@@ -7834,25 +7811,23 @@ const ManageUsersContent = () => {
 
                   <div className="form-group">
 
-                    <label>Gender</label>
+                    <label>Sex</label>
 
                     <select
 
                       name="gender"
 
-                      value={editFormData.gender || ''}
+                      value={editFormData.sex || editFormData.gender || ''}
 
                       onChange={handleEditInputChange}
 
                     >
 
-                      <option value="">Select Gender</option>
+                      <option value="">Select Sex</option>
 
                       <option value="Male">Male</option>
 
                       <option value="Female">Female</option>
-
-                      <option value="LGBTQ">LGBTQ</option>
 
                     </select>
 
@@ -7873,62 +7848,64 @@ const ManageUsersContent = () => {
                   </div>
                 </>
               )}
+
+
+
+
               {editingUser?.userType === 'student' && (
                 <>
-                  <div style={{ padding: '0.5rem 0', marginBottom: '1rem', borderBottom: '1.5px solid #eee' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#2d3436', margin: 0 }}>Student Information</h3>
+                  <div className="form-group">
+
+                    <label>Sex</label>
+
+                    <select
+
+                      name="gender"
+
+                      value={editFormData.sex || editFormData.gender || ''}
+
+                      onChange={handleEditInputChange}
+
+                    >
+
+                      <option value="">Select Sex</option>
+
+                      <option value="Male">Male</option>
+
+                      <option value="Female">Female</option>
+
+                    </select>
+
                   </div>
 
                   <div className="form-group">
 
-                    <label>Student ID</label>
+                    <label>Researcher Type</label>
 
-                    <input
+                    <select
 
-                      type="text"
+                      name="researcherType"
 
-                      name="studentId"
-
-                      value={editFormData.studentId || ''}
+                      value={editFormData.researcherType || ''}
 
                       onChange={handleEditInputChange}
 
-                    />
+                    >
+
+                      <option value="">Select Researcher Type</option>
+
+                      <option value="Faculty Researcher">Faculty Researcher</option>
+
+                      <option value="Staff Researcher">Staff Researcher</option>
+
+                      <option value="External Researcher">External Researcher</option>
+
+                      <option value="Student Researcher">Student Researcher</option>
+
+                    </select>
 
                   </div>
                 </>
-
-              )}
-
-
-
-              {editingUser?.userType === 'student' && (
-
-                <div className="form-group">
-
-                  <label>Gender</label>
-
-                  <select
-
-                    name="gender"
-
-                    value={editFormData.gender || ''}
-
-                    onChange={handleEditInputChange}
-
-                  >
-
-                    <option value="">Select Gender</option>
-
-                    <option value="Male">Male</option>
-
-                    <option value="Female">Female</option>
-
-                    <option value="LGBTQ">LGBTQ</option>
-
-                  </select>
-
-                </div>
               )}
               <div className="form-group">
 
