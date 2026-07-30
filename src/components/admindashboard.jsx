@@ -6367,6 +6367,8 @@ const ManageUsersContent = () => {
 
         lastName: user.lastName || '',
 
+        suffix: user.suffix || '',
+
         email: user.email || '',
 
         department: user.department || '',
@@ -6391,6 +6393,8 @@ const ManageUsersContent = () => {
         middleName: user.middleName || '',
 
         lastName: user.lastName || '',
+
+        suffix: user.suffix || '',
 
         title: user.title || '',
 
@@ -6417,6 +6421,8 @@ const ManageUsersContent = () => {
         middleName: user.middleName || '',
 
         lastName: user.lastName || '',
+
+        suffix: user.suffix || '',
 
         title: user.title || '',
 
@@ -7725,6 +7731,60 @@ const ManageUsersContent = () => {
                   required
 
                 />
+
+              </div>
+
+
+
+              <div className="form-group">
+
+                <label>Suffix (optional)</label>
+
+                <select
+
+                  name="suffix"
+
+                  value={editFormData.suffix || ''}
+
+                  onChange={handleEditInputChange}
+
+                >
+
+                  <option value="">None</option>
+
+                  <option value="Jr.">Jr.</option>
+
+                  <option value="Sr.">Sr.</option>
+
+                  <option value="II">II</option>
+
+                  <option value="III">III</option>
+
+                  <option value="IV">IV</option>
+
+                  <option value="V">V</option>
+
+                  <option value="VI">VI</option>
+
+                  <option value="Ph.D.">Ph.D.</option>
+
+                  <option value="Ed.D.">Ed.D.</option>
+
+                  <option value="M.D.">M.D.</option>
+
+                  <option value="M.S.">M.S.</option>
+
+                  <option value="M.A.">M.A.</option>
+
+                  <option value="CPA">CPA</option>
+
+                  <option value="Engr.">Engr.</option>
+
+                  <option value="RN">RN</option>
+
+                  <option value="LPT">LPT</option>
+
+                </select>
 
               </div>
 

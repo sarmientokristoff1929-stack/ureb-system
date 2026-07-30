@@ -692,10 +692,10 @@ app.post('/api/auth/login', async (req, res) => {
 
     // If not found in users, check students collection
     if (!user) {
-      user = await students.findOne({ email });
+      user = await findStudentByLoginEmail(students, email);
       userType = 'student';
       if (user) {
-        console.log(`Found user in students collection: ${JSON.stringify({ email: user.email, studentId: user.studentId })}`);
+        console.log(`Found user in students collection: ${JSON.stringify({ email: user.email, gmail: user.gmail, studentId: user.studentId })}`);
       }
     }
 
@@ -811,14 +811,14 @@ app.post('/api/auth/register', async (req, res) => {
     console.log('[DEBUG] Raw req.body.gender:', req.body.gender);
     console.log('[DEBUG] Server /api/auth/register - full req.body:', JSON.stringify(req.body, null, 2));
 
-    const { firstName, middleName, lastName, studentId, gender, department, program, email, password, role } = req.body;
+    const { firstName, middleName, lastName, suffix, studentId, gender, department, program, email, password, role } = req.body;
 
     const emailNorm = (email || '').trim().toLowerCase();
     const genderNorm = (gender != null && String(gender).trim()) ? String(gender).trim() : '';
 
     console.log('[DEBUG] Extracted gender from destructuring:', gender);
     console.log('[DEBUG] Computed genderNorm:', genderNorm);
-    console.log('Registration request received:', { firstName, lastName, studentId, gender: genderNorm, department, program, email: emailNorm });
+    console.log('Registration request received:', { firstName, lastName, suffix, studentId, gender: genderNorm, department, program, email: emailNorm });
 
     const db = getDatabase();
     const students = db.collection(collections.students);
@@ -857,6 +857,7 @@ app.post('/api/auth/register', async (req, res) => {
       firstName,
       middleName: middleName || '',
       lastName,
+      suffix: suffix || '',
       studentId,
       gender: genderNorm,
       department,
@@ -884,6 +885,7 @@ app.post('/api/auth/register', async (req, res) => {
         _id: result.insertedId,
         firstName: newStudent.firstName,
         lastName: newStudent.lastName,
+        suffix: newStudent.suffix,
         email: newStudent.email,
         studentId: newStudent.studentId,
         gender: newStudent.gender,
@@ -1442,6 +1444,7 @@ app.put('/api/students/:id', async (req, res) => {
       'firstName',
       'middleName',
       'lastName',
+      'suffix',
       'email',
       'studentId',
       'gender',
@@ -1465,10 +1468,12 @@ app.put('/api/students/:id', async (req, res) => {
     const fn = updateData.firstName !== undefined ? updateData.firstName : existing.firstName;
     const mn = updateData.middleName !== undefined ? updateData.middleName : existing.middleName;
     const ln = updateData.lastName !== undefined ? updateData.lastName : existing.lastName;
-    updateData.name = [fn, mn, ln]
+    const sfx = updateData.suffix !== undefined ? updateData.suffix : existing.suffix;
+    const baseNameParts = [fn, mn, ln]
       .filter((p) => p != null && String(p).trim() !== '')
-      .map((p) => String(p).trim())
-      .join(' ');
+      .map((p) => String(p).trim());
+    const baseName = baseNameParts.join(' ');
+    updateData.name = sfx && String(sfx).trim() !== '' ? `${baseName} ${String(sfx).trim()}`.trim() : baseName;
 
     const result = await students.updateOne(
       { _id: new ObjectId(id) },
@@ -1588,7 +1593,7 @@ app.get('/api/student/profile', async (req, res) => {
 // PUT update student profile by email
 app.put('/api/student/profile', async (req, res) => {
   try {
-    const { email, firstName, middleName, lastName, studentId, gender, department, program, gmail, coMembers, facebookLink } = req.body;
+    const { email, firstName, middleName, lastName, suffix, studentId, gender, department, program, gmail, coMembers, facebookLink } = req.body;
     if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
 
     const db = getDatabase();
@@ -1602,6 +1607,7 @@ app.put('/api/student/profile', async (req, res) => {
       ...(firstName !== undefined && { firstName }),
       ...(middleName !== undefined && { middleName }),
       ...(lastName !== undefined && { lastName }),
+      ...(suffix !== undefined && { suffix }),
       ...(studentId !== undefined && { studentId }),
       ...(gender !== undefined && { gender: (gender != null && String(gender).trim()) ? String(gender).trim() : '' }),
       ...(department !== undefined && { department }),
@@ -1615,7 +1621,9 @@ app.put('/api/student/profile', async (req, res) => {
     const fn = firstName ?? student.firstName ?? '';
     const mn = middleName ?? student.middleName ?? '';
     const ln = lastName ?? student.lastName ?? '';
-    updateFields.name = [fn, mn, ln].filter(Boolean).join(' ');
+    const sfx = suffix ?? student.suffix ?? '';
+    const baseName = [fn, mn, ln].filter(Boolean).join(' ');
+    updateFields.name = sfx ? `${baseName} ${sfx}`.trim() : baseName;
 
     await students.updateOne({ _id: student._id }, { $set: updateFields });
 

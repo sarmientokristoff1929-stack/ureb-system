@@ -44,6 +44,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [firstName, setFirstName] = useState('');
   const [middleName, setMiddleName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [suffix, setSuffix] = useState('');
   const [studentId, setStudentId] = useState('');
   const [gender, setGender] = useState('');
   const [department, setDepartment] = useState('');
@@ -252,6 +253,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     setFirstName('');
     setMiddleName('');
     setLastName('');
+    setSuffix('');
     setStudentId('');
     setGender('');
     setDepartment('');
@@ -318,6 +320,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       firstName,
       middleName,
       lastName,
+      suffix,
       studentId,
       gender,
       department,
@@ -346,6 +349,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
         setFirstName('');
         setMiddleName('');
         setLastName('');
+        setSuffix('');
         setStudentId('');
         setGender('');
         setDepartment('');
@@ -446,6 +450,33 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                       placeholder="Enter your last name"
                       required
                     />
+                  </div>
+
+                  <div className="login-form-group">
+                    <label htmlFor="suffix">Suffix (Optional)</label>
+                    <select
+                      id="suffix"
+                      value={suffix}
+                      onChange={(e) => setSuffix(e.target.value)}
+                    >
+                      <option value="">None</option>
+                      <option value="Jr.">Jr.</option>
+                      <option value="Sr.">Sr.</option>
+                      <option value="II">II</option>
+                      <option value="III">III</option>
+                      <option value="IV">IV</option>
+                      <option value="V">V</option>
+                      <option value="VI">VI</option>
+                      <option value="Ph.D.">Ph.D.</option>
+                      <option value="Ed.D.">Ed.D.</option>
+                      <option value="M.D.">M.D.</option>
+                      <option value="M.S.">M.S.</option>
+                      <option value="M.A.">M.A.</option>
+                      <option value="CPA">CPA</option>
+                      <option value="Engr.">Engr.</option>
+                      <option value="RN">RN</option>
+                      <option value="LPT">LPT</option>
+                    </select>
                   </div>
 
                   <div className="login-form-group">
@@ -635,7 +666,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                       <path d="M2 12l10 5 10-5" />
                     </svg>
                   </div>
-                  <h2 style={{ color: '#2e7d32', marginBottom: '0.5rem' }}>Welcome, Researchers!</h2>
+                  <h2 style={{ color: '#2e7d32', marginBottom: '0.5rem' }}>Welcome, Researcher!</h2>
                   <div className="registration-data-reminder registration-data-reminder--modal" style={{ marginBottom: '1.5rem', borderColor: '#388E3C', backgroundColor: '#f1f8e9' }}>
                     <p>
                       Welcome to UREB! Before you register, please ensure all your information is accurate.

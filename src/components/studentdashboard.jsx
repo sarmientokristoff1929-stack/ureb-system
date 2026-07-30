@@ -400,7 +400,7 @@ const StudentDashboard = ({ onLogout }) => {
 const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedInfo, setEditedInfo] = useState({
-    firstName: '', middleName: '', lastName: '',
+    firstName: '', middleName: '', lastName: '', suffix: '',
     studentId: '', gender: '', department: '', program: '', gmail: '', facebookLink: '',
   });
   const [loading, setLoading] = useState(true);
@@ -445,6 +445,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
             firstName: student.firstName || '',
             middleName: student.middleName || '',
             lastName: student.lastName || '',
+            suffix: student.suffix || '',
             studentId: student.studentId || '',
             gender: student.gender || '',
             department: student.department || '',
@@ -469,7 +470,8 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
   const getFullName = () => {
     if (!studentData) return userInfo?.name || 'Student';
     const parts = [studentData.firstName, studentData.middleName, studentData.lastName].filter(Boolean);
-    return parts.length > 0 ? parts.join(' ') : (studentData.name || userInfo?.name || 'Student');
+    const base = parts.length > 0 ? parts.join(' ') : (studentData.name || userInfo?.name || 'Student');
+    return studentData.suffix ? `${base} ${studentData.suffix}` : base;
   };
 
   const handleProfilePicClick = () => {
@@ -876,7 +878,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
           <div className="sp-edit-form">
             <p className="sp-edit-hint">Update your personal information below.</p>
 
-            <div className="sp-field-row sp-field-row--3">
+            <div className="sp-field-row sp-field-row--4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
               {[
                 { id: 'sp-fn', key: 'firstName', label: 'First Name', ph: 'First name' },
                 { id: 'sp-mn', key: 'middleName', label: 'Middle Name', ph: 'Middle name (optional)' },
@@ -891,6 +893,32 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
                     data-lpignore="true" />
                 </div>
               ))}
+              <div className="sp-field">
+                <label htmlFor="sp-sfx">Suffix (Optional)</label>
+                <select
+                  id="sp-sfx"
+                  value={editedInfo.suffix || ''}
+                  onChange={e => setEditedInfo(p => ({ ...p, suffix: e.target.value }))}
+                >
+                  <option value="">None</option>
+                  <option value="Jr.">Jr.</option>
+                  <option value="Sr.">Sr.</option>
+                  <option value="II">II</option>
+                  <option value="III">III</option>
+                  <option value="IV">IV</option>
+                  <option value="V">V</option>
+                  <option value="VI">VI</option>
+                  <option value="Ph.D.">Ph.D.</option>
+                  <option value="Ed.D.">Ed.D.</option>
+                  <option value="M.D.">M.D.</option>
+                  <option value="M.S.">M.S.</option>
+                  <option value="M.A.">M.A.</option>
+                  <option value="CPA">CPA</option>
+                  <option value="Engr.">Engr.</option>
+                  <option value="RN">RN</option>
+                  <option value="LPT">LPT</option>
+                </select>
+              </div>
             </div>
 
             <div className="sp-field-row sp-field-row--2">
