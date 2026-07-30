@@ -3235,14 +3235,15 @@ function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Check if Gmail exists in system
+// Check if Email exists in system (supports institutional and standard emails)
 app.post('/api/check-gmail-exists', async (req, res) => {
   try {
-    const { gmail } = req.body;
+    const { gmail, email } = req.body;
+    const targetEmail = (email || gmail || '').trim().toLowerCase();
 
-    // Validate Gmail address
-    const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail.com$/;
-    if (!gmailRegex.test(gmail)) {
+    // Validate email address format (institutional or standard)
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(targetEmail)) {
       return res.json({ exists: false });
     }
 
@@ -3252,9 +3253,9 @@ app.post('/api/check-gmail-exists', async (req, res) => {
     const reviewers = db.collection(collections.reviewers);
 
     // Check in all collections
-    const existingStudent = await students.findOne({ email: gmail });
-    const existingUser = await users.findOne({ email: gmail });
-    const existingReviewer = await reviewers.findOne({ email: gmail });
+    const existingStudent = await students.findOne({ email: targetEmail });
+    const existingUser = await users.findOne({ email: targetEmail });
+    const existingReviewer = await reviewers.findOne({ email: targetEmail });
 
     const exists = !!(existingStudent || existingUser || existingReviewer);
 
@@ -3267,26 +3268,27 @@ app.post('/api/check-gmail-exists', async (req, res) => {
 
 // Send OTP endpoint
 app.post('/api/send-otp', (req, res) => {
-  const { gmail } = req.body;
+  const { gmail, email } = req.body;
+  const targetEmail = (email || gmail || '').trim().toLowerCase();
 
-  // Validate Gmail address
-  const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail.com$/;
-  if (!gmailRegex.test(gmail)) {
-    return res.json({ success: false, error: 'Invalid Gmail address' });
+  // Validate email address format (institutional or standard)
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(targetEmail)) {
+    return res.json({ success: false, error: 'Invalid email address' });
   }
 
   // Generate and store OTP immediately
   const otp = generateOTP();
   const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-  otpStore.set(gmail, { otp, expiry });
+  otpStore.set(targetEmail, { otp, expiry });
 
   // Respond to the client right away — do NOT wait for the email
-  res.json({ success: true, message: 'OTP sent to your Gmail address' });
+  res.json({ success: true, message: 'OTP sent to your email address' });
 
   // Send the email in the background (fire-and-forget)
   const mailOptions = {
     from: `UREB System <${process.env.GMAIL_EMAIL}>`,
-    to: gmail,
+    to: targetEmail,
     subject: 'UREB System - Email Verification OTP',
     text: `Your OTP for email verification is: ${otp}\n\nThis OTP will expire in 10 minutes.\n\nIf you didn't request this OTP, please ignore this email.`,
     html: `
@@ -3305,17 +3307,18 @@ app.post('/api/send-otp', (req, res) => {
   };
 
   transporter.sendMail(mailOptions)
-    .then(() => console.log(`OTP emailed to ${gmail}`))
-    .catch((err) => console.error(`Failed to email OTP to ${gmail}:`, err.message));
+    .then(() => console.log(`OTP emailed to ${targetEmail}`))
+    .catch((err) => console.error(`Failed to email OTP to ${targetEmail}:`, err.message));
 });
 
 // Verify OTP endpoint
 app.post('/api/verify-otp', (req, res) => {
   try {
-    const { gmail, otp } = req.body;
+    const { gmail, email, otp } = req.body;
+    const targetEmail = (email || gmail || '').trim().toLowerCase();
 
     // Get stored OTP
-    const storedData = otpStore.get(gmail);
+    const storedData = otpStore.get(targetEmail);
 
     if (!storedData) {
       return res.json({ success: false, error: 'OTP not found or expired' });
@@ -3323,7 +3326,7 @@ app.post('/api/verify-otp', (req, res) => {
 
     // Check expiry
     if (new Date() > storedData.expiry) {
-      otpStore.delete(gmail);
+      otpStore.delete(targetEmail);
       return res.json({ success: false, error: 'OTP expired' });
     }
 

@@ -823,6 +823,11 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
         </div>
         <div className="sp-hero-info">
           <h2 className="sp-hero-name">{fullName}</h2>
+          {studentData?.researcherType && (
+            <span className="sp-id-badge" style={{ display: 'inline-block', marginBottom: '0.4rem', backgroundColor: '#eef2ff', color: '#4f46e5', border: '1px solid #c7d2fe' }}>
+              {studentData.researcherType}
+            </span>
+          )}
           <p className="sp-hero-email">{studentData?.gmail || userInfo?.email || '—'}</p>
           <p className="sp-hero-role">Principal Investigator (Leader)</p>
         </div>
@@ -852,7 +857,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
               { label: 'Full Name', value: fullName },
               { label: 'Sex', value: studentData?.sex || studentData?.gender },
               { label: 'Researcher Type', value: studentData?.researcherType },
-              { label: 'Department', value: studentData?.department },
+              { label: 'Faculty / Insti / Agency / College', value: studentData?.department },
               { label: 'Program', value: studentData?.program },
               { label: 'Gmail', value: studentData?.gmail },
               { label: 'Facebook', value: studentData?.facebookLink, isLink: true },
@@ -956,13 +961,13 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
                   autoComplete="off" />
               </div>
               <div className="sp-field">
-                <label htmlFor="sp-dept">Department</label>
+                <label htmlFor="sp-dept">Faculty / Insti / Agency / College</label>
                 <select
                   id="sp-dept"
                   value={editedInfo.department}
                   onChange={e => setEditedInfo(p => ({ ...p, department: e.target.value }))}
                 >
-                  <option value="">Select Department</option>
+                  <option value="">Select Faculty / Insti / Agency / College</option>
                   <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
                   <option value="FTED">FTED- Faculty of Teacher Education</option>
                   <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>

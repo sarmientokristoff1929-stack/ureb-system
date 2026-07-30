@@ -48,6 +48,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [gender, setGender] = useState('');
   const [researcherType, setResearcherType] = useState('');
   const [department, setDepartment] = useState('');
+  const [affiliationType, setAffiliationType] = useState('');
+  const [customAffiliation, setCustomAffiliation] = useState('');
   const [program, setProgram] = useState('');
   const [regGmail, setRegGmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
@@ -63,13 +65,13 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const debounceTimer = useRef(null);
   const pendingRegistrationRef = useRef(null);
 
-  // Gmail validation function
-  const validateGmail = (gmail) => {
-    const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
-    return gmailRegex.test(gmail);
+  // Institutional / Email validation function
+  const validateGmail = (email) => {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test((email || '').trim());
   };
 
-  // Check if Gmail exists in system
+  // Check if email exists in system
   const checkGmailExists = async (gmail) => {
     if (!validateGmail(gmail)) {
       setGmailExists(false);
@@ -80,12 +82,12 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       const response = await fetch(`${API_BASE_URL}/check-gmail-exists`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gmail }),
+        body: JSON.stringify({ email: gmail, gmail }),
       });
       const result = await response.json();
       setGmailExists(result.exists);
     } catch (error) {
-      console.error('Error checking Gmail:', error);
+      console.error('Error checking email:', error);
       setGmailExists(false);
     } finally {
       setCheckingGmail(false);
@@ -238,6 +240,14 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     'UREB Board': ['University Research Ethics Board Member']
   };
 
+  const handleAffiliationTypeChange = (e) => {
+    const selectedType = e.target.value;
+    setAffiliationType(selectedType);
+    setDepartment('');
+    setCustomAffiliation('');
+    setProgram('');
+  };
+
   // Handle department change to reset program
   const handleDepartmentChange = (e) => {
     const selectedDepartment = e.target.value;
@@ -257,6 +267,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     setGender('');
     setResearcherType('');
     setDepartment('');
+    setAffiliationType('');
+    setCustomAffiliation('');
     setProgram('');
     setRegGmail('');
     setRegPassword('');
@@ -324,8 +336,9 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       sex: gender,
       gender,
       researcherType,
-      department,
-      program,
+      affiliationType,
+      department: (affiliationType === 'Institution' || affiliationType === 'Agency') ? customAffiliation : department,
+      program: (affiliationType === 'Institution' || affiliationType === 'Agency') ? 'N/A' : program,
       email: regGmail,  // Changed from gmail to email
       password: regPassword,
       role: 'student'
@@ -354,6 +367,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
         setGender('');
         setResearcherType('');
         setDepartment('');
+        setAffiliationType('');
+        setCustomAffiliation('');
         setProgram('');
         setRegGmail('');
         setGmailExists(false);
@@ -511,60 +526,91 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                   </div>
 
                   <div className="login-form-group">
-                    <label htmlFor="department">Department </label>
+                    <label htmlFor="affiliationType">Affiliation Category </label>
                     <select
-                      id="department"
-                      value={department}
-                      onChange={handleDepartmentChange}
+                      id="affiliationType"
+                      value={affiliationType}
+                      onChange={handleAffiliationTypeChange}
                       required
                     >
-                      <option value="">Select your department</option>
-                      <option value="FAIS">FAIS - Faculty of Advanced and International Studies</option>
-                      <option value="FNAHS">FNAHS - Faculty of Nursing and Allied Health Sciences</option>
-                      <option value="FTED">FTED - Faculty of Teacher Education</option>
-                      <option value="FBM">FBM - Faculty of Business and Management</option>
-                      <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
-                      <option value="FTED">FTED- Faculty of Teacher Education</option>
-                      <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
-                      <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
-                      <option value="FBM">FBM-Faculty of Business Management</option>
-                      <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
-                      <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
-                      <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
-                      <option value="SEIC">SEIC- San Isidro Extension Campus</option>
-                      <option value="BEC">BEC-BanayBanay Extension Campus</option>
-                      <option value="CEC">CEC-Cateel Extension Campus</option>
-                      <option value="BGEC">BGEC-Baganga Extension Campus</option>
-                      <option value="TEC">TEC-Tarragona Extension Campus</option>
-                      <option value="NSTP">NSTP-National Service Training Program</option>
-                      <option value="ICS">ICS- Indigenous Community Studies</option>
-                      <option value="Community Representatives">Community Representatives</option>
-                      <option value="UREB Board">UREB Board - University Research Ethics Board</option>
+                      <option value="">Select Category (Faculty, Institution, Agency, College)</option>
+                      <option value="Faculty">Faculty</option>
+                      <option value="College">College</option>
+                      <option value="Institution">Institution</option>
+                      <option value="Agency">Agency</option>
                     </select>
                   </div>
 
-                  <div className="login-form-group">
-                    <label htmlFor="program">Program </label>
-                    <select
-                      id="program"
-                      value={program}
-                      onChange={(e) => setProgram(e.target.value)}
-                      required
-                      disabled={!department}
-                    >
-                      <option value="">
-                        {department ? 'Select your program' : 'Select department first'}
-                      </option>
-                      {department && departmentPrograms[department]?.map((prog, index) => (
-                        <option key={index} value={prog}>
-                          {prog}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {(affiliationType === 'Faculty' || affiliationType === 'College') && (
+                    <>
+                      <div className="login-form-group">
+                        <label htmlFor="department">{affiliationType === 'College' ? 'College' : 'Faculty'} </label>
+                        <select
+                          id="department"
+                          value={department}
+                          onChange={handleDepartmentChange}
+                          required
+                        >
+                          <option value="">Select your {affiliationType === 'College' ? 'college' : 'faculty'}</option>
+                          <option value="FAIS">FAIS - Faculty of Advanced and International Studies</option>
+                          <option value="FNAHS">FNAHS - Faculty of Nursing and Allied Health Sciences</option>
+                          <option value="FTED">FTED - Faculty of Teacher Education</option>
+                          <option value="FBM">FBM - Faculty of Business and Management</option>
+                          <option value="FALS">FALS - Faculty of Agriculture and Life Sciences</option>
+                          <option value="FNAS">FNAS - Faculty of Nursing and Allied Health Science</option>
+                          <option value="FCJE">FCJE - Faculty of Criminology Justice Education</option>
+                          <option value="FACET">FACET - Faculty of Computing, Engineering, Technology</option>
+                          <option value="FHUSOCOM">FHUSOCOM - Faculty of Humanities, Social Science & Communication</option>
+                          <option value="SEIC">SEIC - San Isidro Extension Campus</option>
+                          <option value="BEC">BEC - BanayBanay Extension Campus</option>
+                          <option value="CEC">CEC - Cateel Extension Campus</option>
+                          <option value="BGEC">BGEC - Baganga Extension Campus</option>
+                          <option value="TEC">TEC - Tarragona Extension Campus</option>
+                          <option value="NSTP">NSTP - National Service Training Program</option>
+                          <option value="ICS">ICS - Indigenous Community Studies</option>
+                          <option value="Community Representatives">Community Representatives</option>
+                          <option value="UREB Board">UREB Board - University Research Ethics Board</option>
+                        </select>
+                      </div>
+
+                      <div className="login-form-group">
+                        <label htmlFor="program">Program </label>
+                        <select
+                          id="program"
+                          value={program}
+                          onChange={(e) => setProgram(e.target.value)}
+                          required
+                          disabled={!department}
+                        >
+                          <option value="">
+                            {department ? 'Select your program' : 'Select faculty/college first'}
+                          </option>
+                          {department && departmentPrograms[department]?.map((prog, index) => (
+                            <option key={index} value={prog}>
+                              {prog}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  )}
+
+                  {(affiliationType === 'Institution' || affiliationType === 'Agency') && (
+                    <div className="login-form-group">
+                      <label htmlFor="customAffiliation">{affiliationType === 'Institution' ? 'Institution Name' : 'Agency Name'} </label>
+                      <input
+                        type="text"
+                        id="customAffiliation"
+                        value={customAffiliation}
+                        onChange={(e) => setCustomAffiliation(e.target.value)}
+                        placeholder={affiliationType === 'Institution' ? 'Enter your institution name' : 'Enter your agency name'}
+                        required
+                      />
+                    </div>
+                  )}
 
                   <div className="login-form-group">
-                    <label htmlFor="regGmail">Gmail </label>
+                    <label htmlFor="regGmail">Institutional / Email Address </label>
                     <input
                       type="email"
                       id="regGmail"
@@ -577,20 +623,20 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                           debouncedCheckGmail(value);
                         }
                       }}
-                      placeholder="Enter your Gmail address"
+                      placeholder="e.g., name@dorsu.edu.ph or name@gmail.com"
                       required
                     />
                     {regGmail && !validateGmail(regGmail) && (
-                      <div className="gmail-error-message">Please enter a valid Gmail address (@gmail.com)</div>
+                      <div className="gmail-error-message">Please enter a valid institutional or email address (e.g., @dorsu.edu.ph)</div>
                     )}
                     {checkingGmail && (
-                      <div className="gmail-checking-message">Checking...</div>
+                      <div className="gmail-checking-message">Checking email availability...</div>
                     )}
                     {gmailExists && validateGmail(regGmail) && (
-                      <div className="gmail-exists-message">This Gmail address is already registered in the system</div>
+                      <div className="gmail-exists-message">This email address is already registered in the system</div>
                     )}
                     {regGmail && validateGmail(regGmail) && !checkingGmail && !gmailExists && (
-                      <div className="gmail-checking-message" style={{ color: '#388E3C' }}>✓ Gmail address is available</div>
+                      <div className="gmail-checking-message" style={{ color: '#388E3C' }}>✓ Email address is available</div>
                     )}
                   </div>
 

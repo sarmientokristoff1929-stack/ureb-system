@@ -2803,7 +2803,7 @@ const AddReviewerContent = () => {
 
             <div className="form-group">
 
-              <label>Department</label>
+              <label>Faculty / Insti / Agency / College</label>
 
               <select
 
@@ -2815,7 +2815,7 @@ const AddReviewerContent = () => {
 
               >
 
-                <option value="">Select Department</option>
+                <option value="">Select Faculty / Insti / Agency / College</option>
 
                 <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
 
@@ -7198,11 +7198,11 @@ const ManageUsersContent = () => {
 
                   onClick={() => handleSort('department')}
 
-                  title="Sort by Department"
+                  title="Sort by Faculty / Insti / Agency / College"
 
                 >
 
-                  Department {sortBy === 'department' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  Faculty / Insti / Agency / College {sortBy === 'department' && (sortOrder === 'asc' ? '↑' : '↓')}
 
                 </button>
 
@@ -7224,7 +7224,7 @@ const ManageUsersContent = () => {
 
                   <th>Sex</th>
 
-                  <th>Department</th>
+                  <th>Faculty / Insti / Agency / College</th>
 
                   <th>Created Date</th>
 
@@ -7400,11 +7400,11 @@ const ManageUsersContent = () => {
 
                   onClick={() => handleSort('department')}
 
-                  title="Sort by Department"
+                  title="Sort by Faculty / Insti / Agency / College"
 
                 >
 
-                  Department {sortBy === 'department' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  Faculty / Insti / Agency / College {sortBy === 'department' && (sortOrder === 'asc' ? '↑' : '↓')}
 
                 </button>
 
@@ -7426,7 +7426,7 @@ const ManageUsersContent = () => {
 
                   <th>Email</th>
 
-                  <th>Department</th>
+                  <th>Faculty / Insti / Agency / College</th>
 
                   <th>Program</th>
 
@@ -7931,7 +7931,7 @@ const ManageUsersContent = () => {
 
               <div className="form-group">
 
-                <label>Department</label>
+                <label>Faculty / Insti / Agency / College</label>
 
                 <select
 
@@ -7945,7 +7945,7 @@ const ManageUsersContent = () => {
 
                 >
 
-                  <option value="">Select Department</option>
+                  <option value="">Select Faculty / Insti / Agency / College</option>
 
                   <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
 
