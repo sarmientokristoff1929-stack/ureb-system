@@ -2380,6 +2380,29 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
   const nextResubNumber = selectedProposal ? (selectedProposal.resubmissionCount || 0) + 1 : 1;
   const nextResubLabel = `Resubmission ${nextResubNumber}`;
 
+  const unifiedHistory = useMemo(() => {
+    if (!selectedProposal) return [];
+    const history = Array.isArray(selectedProposal.resubmissionHistory) && selectedProposal.resubmissionHistory.length > 0
+      ? [...selectedProposal.resubmissionHistory]
+      : [];
+
+    if (history.length === 0 && (selectedProposal.studentFiles || selectedProposal.files)) {
+      const studentFilesObj = selectedProposal.studentFiles || selectedProposal.files || {};
+      if (Object.keys(studentFilesObj).length > 0) {
+        history.push({
+          resubmissionNumber: 0,
+          label: 'Original Submission',
+          submittedAt: selectedProposal.createdAt || selectedProposal.submissionDate || new Date(),
+          resubmissionReason: 'Initial proposal submission',
+          files: studentFilesObj,
+          studentEmail: selectedProposal.studentEmail,
+          studentName: selectedProposal.proponent
+        });
+      }
+    }
+    return history;
+  }, [selectedProposal]);
+
   const handleProposalChange = (proposalId) => {
     setSelectedProposalId(proposalId);
     const target = proposals.find(p => String(p._id) === String(proposalId));
@@ -2510,7 +2533,55 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
     );
   }
 
-  const resubHistory = (Array.isArray(selectedProposal?.resubmissionHistory) ? selectedProposal.resubmissionHistory : []).filter(h => h.resubmissionNumber > 0 && h.label !== 'Original Submission');
+  const getHistoryItemFiles = (h) => {
+    const filesObj = h.files || h.studentFiles || {};
+    if (!filesObj) return [];
+
+    const FILE_KEY_LABELS = {
+      proposal: 'Proposal Document',
+      approvalSheet: 'Approval Sheet',
+      urebForm2: 'UREB Form 2',
+      applicationForm6: 'Application Form 6',
+      accomplishedForm8: 'Accomplished Form 8',
+      accomplishedForm10A: 'Accomplished Form 10 A',
+      instrumentTool: 'Instrument / Tool',
+      ethicsReviewFee: 'Ethics Review Fee Receipt',
+      sampleForm1: 'Sample Form 1',
+      sampleForm2: 'Sample Form 2'
+    };
+
+    const getDocLabel = (key, f) => {
+      if (FILE_KEY_LABELS[key]) return FILE_KEY_LABELS[key];
+      if (f?.label) return f.label;
+      if (!key || key.startsWith('file')) return f?.originalname || f?.filename || 'Document';
+      return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+    };
+
+    if (Array.isArray(filesObj)) {
+      return filesObj
+        .filter(f => f && (f.filename || f.originalname || f.storedName))
+        .map((f, idx) => ({
+          key: f.key || `file_${idx}`,
+          label: getDocLabel(f.key || `file_${idx}`, f),
+          filename: f.filename || f.storedName,
+          originalname: f.originalname || f.name || f.filename || f.storedName,
+          size: f.size
+        }));
+    }
+
+    if (typeof filesObj === 'object') {
+      return Object.entries(filesObj)
+        .filter(([_, f]) => f && (f.filename || f.originalname || f.storedName))
+        .map(([key, f]) => ({
+          key,
+          label: getDocLabel(key, f),
+          filename: f.filename || f.storedName,
+          originalname: f.originalname || f.name || f.filename || f.storedName,
+          size: f.size
+        }));
+    }
+    return [];
+  };
 
   return (
     <div className="content-section">
@@ -2522,6 +2593,26 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
           </p>
         </div>
       </div>
+
+      {proposals.length > 1 && (
+        <div style={{ marginBottom: '1.25rem', backgroundColor: '#f8fafc', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+          <label htmlFor="proposalResubSelect" style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '600', fontSize: '0.85rem', color: '#334155' }}>
+            Select Research Proposal to Manage Resubmissions &amp; View History:
+          </label>
+          <select
+            id="proposalResubSelect"
+            value={selectedProposalId}
+            onChange={(e) => handleProposalChange(e.target.value)}
+            style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.875rem', backgroundColor: '#ffffff', color: '#1e293b', fontWeight: '500' }}
+          >
+            {proposals.map((prop) => (
+              <option key={prop._id} value={prop._id}>
+                {prop.researchTitle || 'Untitled Proposal'} — ({prop.resubmissionLabel || 'Initial Submission'})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div style={{
         backgroundColor: '#eff6ff',
@@ -2605,33 +2696,116 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
         </form>
       )}
 
-      {resubHistory.length > 0 && (
-        <div style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0' }}>
-          <h3 style={{ fontSize: '1.1rem', color: '#1e293b', marginBottom: '1rem' }}>Resubmission History Log</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {resubHistory.map((h, i) => (
-              <div key={i} style={{ padding: '0.85rem 1rem', border: '1px solid #e2e8f0', borderRadius: '6px', backgroundColor: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontWeight: '700', color: '#4338ca', fontSize: '0.85rem' }}>
-                      {h.label || `Resubmission ${h.resubmissionNumber || i}`}
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                      {h.submittedAt ? new Date(h.submittedAt).toLocaleString() : ''}
-                    </span>
-                  </div>
-                  {h.resubmissionReason && (
-                    <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: '#475569' }}>
-                      Reason: {h.resubmissionReason}
-                    </p>
-                  )}
-                </div>
-                <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '600' }}>✓ Saved</span>
-              </div>
-            ))}
+      <div className="resub-history-container">
+        <div className="resub-history-header">
+          <div className="resub-history-title-group">
+            <h3 className="resub-history-title">Researcher Resubmission History Log</h3>
+            <span className="resub-history-count-badge">
+              {unifiedHistory.length} {unifiedHistory.length === 1 ? 'Entry' : 'Entries'}
+            </span>
           </div>
         </div>
-      )}
+
+        {unifiedHistory.length === 0 ? (
+          <div className="resub-empty-state">
+            <p style={{ margin: 0, fontWeight: '600', color: '#475569' }}>No resubmission history logged yet for this proposal.</p>
+            <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.825rem', color: '#94a3b8' }}>
+              When you resubmit updated documents above, your submission history log and uploaded files table will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="resub-history-table-wrapper">
+            <table className="resub-history-table">
+              <thead>
+                <tr>
+                  <th>Round / Version</th>
+                  <th>Date &amp; Time</th>
+                  <th>Reason / Remarks</th>
+                  <th>Uploaded Documents</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {unifiedHistory.map((h, i) => {
+                  const itemFiles = getHistoryItemFiles(h);
+                  const isOriginal = h.resubmissionNumber === 0 || h.label === 'Original Submission';
+                  return (
+                    <tr key={i}>
+                      <td>
+                        <span className={`resub-badge ${isOriginal ? 'resub-badge--blue' : 'resub-badge--purple'}`}>
+                          {h.label || (h.resubmissionNumber ? `Resubmission ${h.resubmissionNumber}` : `Round ${i + 1}`)}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '0.8rem', color: '#475569', whiteSpace: 'nowrap' }}>
+                          {h.submittedAt ? new Date(h.submittedAt).toLocaleString() : 'N/A'}
+                        </span>
+                      </td>
+                      <td style={{ maxWidth: '240px' }}>
+                        <span style={{ fontSize: '0.825rem', color: '#334155', display: 'block', wordBreak: 'break-word' }}>
+                          {h.resubmissionReason || (isOriginal ? 'Initial proposal submission' : 'Updated files resubmitted')}
+                        </span>
+                      </td>
+                      <td>
+                        {itemFiles.length === 0 ? (
+                          <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                            No specific file records attached
+                          </span>
+                        ) : (
+                          <div className="resub-file-list">
+                            {itemFiles.map((file, fIdx) => (
+                              <div key={fIdx} className="resub-file-item">
+                                <div className="resub-file-info">
+                                  <div className="resub-file-icon">
+                                    <FileIcon />
+                                  </div>
+                                  <div className="resub-file-details">
+                                    <span className="resub-file-label">{file.label}</span>
+                                    <span className="resub-file-name" title={file.originalname}>
+                                      {file.originalname}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="resub-file-actions">
+                                  {file.filename && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        className="resub-action-btn resub-action-btn--view"
+                                        title="View Document"
+                                        onClick={() => viewFile(file.filename)}
+                                      >
+                                        <EyeIcon /> View
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="resub-action-btn resub-action-btn--download"
+                                        title="Download Document"
+                                        onClick={() => downloadReviewerFile(file.filename, file.originalname || file.filename)}
+                                      >
+                                        <DownloadIcon /> Download
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <span className="resub-badge resub-badge--green">
+                          ✓ Saved
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
       <NoFileModal isOpen={noFileModalOpen} onClose={() => setNoFileModalOpen(false)} />
     </div>
   );
