@@ -2447,14 +2447,7 @@ app.post('/api/student/submit-files', upload.fields([
 
     const studentFiles = pickStudentAssignmentFiles(files);
 
-    const initialResubmissionHistory = [{
-      resubmissionNumber: 0,
-      label: 'Original Submission',
-      submittedAt: new Date(),
-      files: studentFiles,
-      studentEmail: studentEmail || '',
-      studentName: studentName || 'Unknown'
-    }];
+    const initialResubmissionHistory = [];
 
     const newProposal = {
       researchTitle: proposalTitle || 'Untitled Proposal',
@@ -2467,9 +2460,9 @@ app.post('/api/student/submit-files', upload.fields([
       studentFiles,
       adminFiles: {},
       resubmissionCount: 0,
-      resubmissionLabel: 'Original Submission',
+      resubmissionLabel: '',
       resubmissionHistory: initialResubmissionHistory,
-      status: 'Pending Preliminary Reviewer',
+      status: 'Pending Reviewer',
       adminSeen: false,
       submissionDate: new Date(),
       createdAt: new Date(),
@@ -2489,7 +2482,7 @@ app.post('/api/student/submit-files', upload.fields([
       .insertOne({
         type: 'student_submission',
         title: 'New Student Submission',
-        message: `A new research proposal "${proposalTitle || 'Untitled'}" has been submitted by ${studentName || studentEmail}. Please assign a preliminary reviewer.`,
+        message: `A new research proposal "${proposalTitle || 'Untitled'}" has been submitted by ${studentName || studentEmail}. Please assign a reviewer.`,
         proposalId: result.insertedId.toString(),
         studentEmail,
         recipientEmail: 'admin',
@@ -2597,7 +2590,7 @@ app.put('/api/student/proposals/:id', upload.fields([
       resubmissionCount: nextResubCount,
       resubmissionLabel: resubLabel,
       resubmissionHistory: resubHistory,
-      submissionType: existingProposal.submissionType || 'initial',
+      submissionType: 'initial',
       isResubmissionProposal: false,
       adminSeen: false,
       updatedAt: new Date()
@@ -2605,26 +2598,7 @@ app.put('/api/student/proposals/:id', upload.fields([
 
     await proposals.updateOne({ _id: new ObjectId(id) }, { $set: updatedData });
 
-    // Also insert a separate resubmission proposal record so it reflects distinctly in Uploaded Proposals
-    const resubProposalRecord = {
-      researchTitle: `${proposalTitle || existingProposal.researchTitle} (${resubLabel})`,
-      proponent: existingProposal.proponent || 'Student',
-      studentEmail: studentEmail || existingProposal.studentEmail,
-      department: existingProposal.department || 'N/A',
-      resubmissionCount: nextResubCount,
-      resubmissionLabel: resubLabel,
-      resubmissionReason: reasonText,
-      isResubmissionProposal: true,
-      originalProposalId: id.toString(),
-      submissionType: 'resubmission',
-      studentFiles,
-      adminFiles,
-      files: { ...studentFiles, ...adminFiles },
-      status: `Resubmitted (${resubLabel})`,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    await proposals.insertOne(resubProposalRecord).catch(err => console.error('Error inserting resubmission proposal record:', err));
+
 
     // Send resubmission notification message to admin
     const messages = db.collection(collections.messages);
@@ -2716,7 +2690,7 @@ app.post('/api/student/resubmit-files', upload.array('files'), async (req, res) 
             resubmissionCount: nextResubCount,
             resubmissionLabel: resubLabel,
             resubmissionHistory: resubHistory,
-            submissionType: targetProp.submissionType || 'initial',
+            submissionType: 'initial',
             isResubmissionProposal: false,
             adminSeen: false,
             updatedAt: new Date()
@@ -2724,25 +2698,7 @@ app.post('/api/student/resubmit-files', upload.array('files'), async (req, res) 
         }
       );
 
-      // Create separate proposal record so it reflects distinctly in Uploaded Proposals
-      const resubProposalRecord = {
-        researchTitle: `${targetProp.researchTitle || 'Resubmitted Proposal'} (${resubLabel})`,
-        proponent: studentName || targetProp.proponent || 'Student',
-        studentEmail: studentEmail || targetProp.studentEmail,
-        department: targetProp.department || 'N/A',
-        resubmissionCount: nextResubCount,
-        resubmissionLabel: resubLabel,
-        resubmissionReason: resubmissionReason || 'Resubmitted updated files',
-        isResubmissionProposal: true,
-        originalProposalId: targetProp._id.toString(),
-        submissionType: 'resubmission',
-        studentFiles: updatedStudentFiles,
-        files: updatedFiles,
-        status: `Resubmitted (${resubLabel})`,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      await proposals.insertOne(resubProposalRecord).catch(err => console.error('Error inserting resubmission record:', err));
+
     }
 
     // Send message to admin about resubmission

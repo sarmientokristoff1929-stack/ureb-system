@@ -3214,7 +3214,7 @@ function StudentProposalContent({ onNewCountChange }) {
   const handleAssign = async (proposalId) => {
     const draft = rowDraft[proposalId];
     if (!draft?.department || !draft?.preliminaryReviewer) {
-      setFeedback({ type: 'error', message: 'Select both department and preliminary reviewer before assigning.' });
+      setFeedback({ type: 'error', message: 'Select both department and reviewer before assigning.' });
       return;
     }
 
@@ -3226,7 +3226,7 @@ function StudentProposalContent({ onNewCountChange }) {
       if (!result.success) {
         throw new Error(result.error || 'Assignment failed');
       }
-      setFeedback({ type: 'success', message: 'Department and preliminary reviewer assigned successfully.' });
+      setFeedback({ type: 'success', message: 'Department and reviewer assigned successfully.' });
       await loadData();
     } catch (err) {
       setFeedback({ type: 'error', message: err.message || 'Failed to assign reviewer.' });
@@ -3277,7 +3277,7 @@ function StudentProposalContent({ onNewCountChange }) {
         <div>
           <h2 className="sp-title">Student Proposal</h2>
           <p className="sp-subtitle">
-            Review student file submissions and assign a department and preliminary reviewer for each proposal.
+            Review student file submissions and assign a department and reviewer for each proposal.
           </p>
         </div>
         <button type="button" className="btn-secondary" onClick={loadData} disabled={loading}>
@@ -13125,9 +13125,9 @@ function StudentSubmissionsModal({ isOpen, onClose }) {
                         </td>
                         <td className="ssm-td-name">{proposal.proponent || '—'}</td>
                         <td className="ssm-td-title">{proposal.researchTitle || '—'}</td>
-                        <td>
+                        <td className="ssm-td-status">
                           <span className="ssm-status-badge" style={{ background: statusStyle.bg, color: statusStyle.color }}>
-                            {proposal.status || 'Pending'}
+                            {(proposal.status || 'Pending').replace(/Pending Preliminary Reviewer/gi, 'Pending Reviewer')}
                           </span>
                           {(proposal.resubmissionCount > 0 || proposal.resubmissionLabel) && (
                             <span className="ssm-status-badge" style={{ background: '#ede9fe', color: '#6d28d9', marginLeft: '0.35rem' }}>

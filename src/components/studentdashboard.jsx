@@ -1275,17 +1275,18 @@ function DashboardContent({ userInfo, onTabChange }) {
 
         const deletedIds = getDeletedProposalIds();
         const activeProposals = proposalsData.filter(p => !deletedIds.includes(String(p._id)));
+        const originalProposals = activeProposals.filter(p => !p.isResubmissionProposal && p.submissionType !== 'resubmission');
 
         // Calculate actual stats
-        const underReviewCount = activeProposals.filter(proposal => {
-          const s = (proposal.status || 'Pending').toLowerCase();
-          return s !== 'completed' && s !== 'approved';
+        const underReviewCount = originalProposals.filter(proposal => {
+          const s = (proposal.status || '').toLowerCase().trim();
+          return s === 'under review';
         }).length;
-        const completedProposals = activeProposals.filter(proposal => (proposal.status || '').toLowerCase() === 'completed').length;
+        const completedProposals = originalProposals.filter(proposal => (proposal.status || '').toLowerCase() === 'completed').length;
         const notificationsCount = notificationsData.filter(msg => msg.type === 'admin_to_student').length;
 
         setStats({
-          totalProposals: activeProposals.length,
+          totalProposals: originalProposals.length,
           underReview: underReviewCount,
           completedProposals: completedProposals,
           notifications: notificationsCount
@@ -1371,20 +1372,9 @@ function DashboardContent({ userInfo, onTabChange }) {
       .catch(err => console.error('Background proposal delete failed:', err));
   };
 
-  const [dashboardCategoryFilter, setDashboardCategoryFilter] = useState('all'); // 'all' | 'initial' | 'resubmission'
-
-  const initialCount = useMemo(() => proposals.filter(p => !p.isResubmissionProposal && p.submissionType !== 'resubmission').length, [proposals]);
-  const resubmissionsCount = useMemo(() => proposals.filter(p => p.isResubmissionProposal === true || p.submissionType === 'resubmission').length, [proposals]);
-
   const displayedProposals = useMemo(() => {
-    if (dashboardCategoryFilter === 'initial') {
-      return proposals.filter(p => !p.isResubmissionProposal && p.submissionType !== 'resubmission');
-    }
-    if (dashboardCategoryFilter === 'resubmission') {
-      return proposals.filter(p => p.isResubmissionProposal === true || p.submissionType === 'resubmission');
-    }
-    return proposals;
-  }, [proposals, dashboardCategoryFilter]);
+    return proposals.filter(p => !p.isResubmissionProposal);
+  }, [proposals]);
 
   if (loading) {
     return (
@@ -1471,67 +1461,14 @@ function DashboardContent({ userInfo, onTabChange }) {
           <div className="up-header">
             <div>
               <h2 className="up-title">Uploaded Proposals</h2>
-              <p className="up-subtitle">Track all your submitted research proposals and resubmissions</p>
+              <p className="up-subtitle">Track all your submitted research proposals</p>
             </div>
-            {proposals.length > 0 && (
-              <span className="up-count">{proposals.length} proposal{proposals.length !== 1 ? 's' : ''}</span>
+            {displayedProposals.length > 0 && (
+              <span className="up-count">{displayedProposals.length} proposal{displayedProposals.length !== 1 ? 's' : ''}</span>
             )}
           </div>
 
-          {/* Submission Category Filter Pills */}
-          {proposals.length > 0 && (
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#64748b' }}>Filter View:</span>
-              <button
-                type="button"
-                onClick={() => setDashboardCategoryFilter('all')}
-                style={{
-                  padding: '0.35rem 0.85rem',
-                  borderRadius: '20px',
-                  border: dashboardCategoryFilter === 'all' ? '1px solid #1e293b' : '1px solid #cbd5e1',
-                  backgroundColor: dashboardCategoryFilter === 'all' ? '#1e293b' : '#ffffff',
-                  color: dashboardCategoryFilter === 'all' ? '#ffffff' : '#475569',
-                  fontWeight: '600',
-                  fontSize: '0.8rem',
-                  cursor: 'pointer'
-                }}
-              >
-                All Proposals ({proposals.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setDashboardCategoryFilter('initial')}
-                style={{
-                  padding: '0.35rem 0.85rem',
-                  borderRadius: '20px',
-                  border: dashboardCategoryFilter === 'initial' ? '1px solid #2563eb' : '1px solid #cbd5e1',
-                  backgroundColor: dashboardCategoryFilter === 'initial' ? '#2563eb' : '#ffffff',
-                  color: dashboardCategoryFilter === 'initial' ? '#ffffff' : '#475569',
-                  fontWeight: '600',
-                  fontSize: '0.8rem',
-                  cursor: 'pointer'
-                }}
-              >
-                Initial Submissions ({initialCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setDashboardCategoryFilter('resubmission')}
-                style={{
-                  padding: '0.35rem 0.85rem',
-                  borderRadius: '20px',
-                  border: dashboardCategoryFilter === 'resubmission' ? '1px solid #7c3aed' : '1px solid #cbd5e1',
-                  backgroundColor: dashboardCategoryFilter === 'resubmission' ? '#7c3aed' : '#ffffff',
-                  color: dashboardCategoryFilter === 'resubmission' ? '#ffffff' : '#475569',
-                  fontWeight: '600',
-                  fontSize: '0.8rem',
-                  cursor: 'pointer'
-                }}
-              >
-                Resubmissions ({resubmissionsCount})
-              </button>
-            </div>
-          )}
+
 
           {proposals.length === 0 ? (
             <div className="up-empty">
@@ -1544,12 +1481,14 @@ function DashboardContent({ userInfo, onTabChange }) {
             </div>
           ) : displayedProposals.length === 0 ? (
             <div className="up-empty" style={{ padding: '2rem' }}>
-              <p>No proposals match the selected filter category.</p>
+              <p>No proposals uploaded yet.</p>
             </div>
           ) : (
             <div className="up-list">
               {displayedProposals.map((proposal) => {
-                const status = (proposal.status || 'Pending').toLowerCase();
+                const rawStatus = proposal.status || 'Pending';
+                const displayStatus = rawStatus.replace(/Pending Preliminary Reviewer/gi, 'Pending Reviewer');
+                const status = displayStatus.toLowerCase();
                 const statusClass = status.replace(/\s+/g, '-');
                 const studentFiles = proposal.studentFiles || proposal.files || {};
                 const fileCount = Object.values(studentFiles).filter((f) => f?.filename).length;
@@ -1565,25 +1504,8 @@ function DashboardContent({ userInfo, onTabChange }) {
                         </div>
                         <div className="up-card-top-right" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                           <span className={`up-status up-status--${statusClass}`}>
-                            {proposal.status || 'Pending'}
+                            {displayStatus}
                           </span>
-
-                          {(proposal.resubmissionCount > 0 || proposal.resubmissionLabel) && (
-                            <span style={{
-                              backgroundColor: '#ede9fe',
-                              color: '#6d28d9',
-                              border: '1px solid #ddd6fe',
-                              padding: '0.25rem 0.6rem',
-                              borderRadius: '20px',
-                              fontSize: '0.72rem',
-                              fontWeight: '700',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.04em',
-                              whiteSpace: 'nowrap'
-                            }}>
-                              {proposal.resubmissionLabel || `Resubmission ${proposal.resubmissionCount}`}
-                            </span>
-                          )}
 
 
                           <button
@@ -2207,21 +2129,8 @@ function EditProposalModal({ proposal, onClose, onSuccess }) {
         <div className="mini-modal-icon" style={{ backgroundColor: '#f3e8ff', color: '#7c3aed' }}>
           <UploadIcon />
         </div>
-        <h4 className="mini-modal-title">Resubmit Proposal Files</h4>
-        <div style={{ display: 'flex', justifyContent: 'center', margin: '0.5rem 0' }}>
-          <span style={{
-            backgroundColor: '#ede9fe',
-            color: '#6d28d9',
-            padding: '0.2rem 0.75rem',
-            borderRadius: '9999px',
-            fontSize: '0.8rem',
-            fontWeight: '700',
-            letterSpacing: '0.03em'
-          }}>
-            Preparing {targetLabel}
-          </span>
-        </div>
-        <p className="mini-modal-text">Select updated files to replace existing ones for this proposal.</p>
+        <h4 className="mini-modal-title">Edit Proposal</h4>
+        <p className="mini-modal-text">Update your proposal title or replace uploaded files as needed.</p>
         
         <form onSubmit={handleSubmit} style={{ marginTop: '1.25rem', width: '100%' }}>
           <div className="form-group" style={{ marginBottom: '1rem', textAlign: 'left' }}>
@@ -2233,20 +2142,6 @@ function EditProposalModal({ proposal, onClose, onSuccess }) {
               onChange={(e) => setFormData(p => ({ ...p, proposalTitle: e.target.value }))}
               required
               style={{ width: '100%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '4px' }}
-            />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: '1rem', textAlign: 'left' }}>
-            <label htmlFor="edit-resubmissionReason" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#334155' }}>
-              Reason
-            </label>
-            <textarea
-              id="edit-resubmissionReason"
-              value={formData.resubmissionReason}
-              onChange={(e) => setFormData(p => ({ ...p, resubmissionReason: e.target.value }))}
-              placeholder="e.g. Replaced wrong file submission, updated proposal sections."
-              rows={2}
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '0.875rem' }}
             />
           </div>
 
@@ -2272,8 +2167,8 @@ function EditProposalModal({ proposal, onClose, onSuccess }) {
 
           <div className="mini-modal-actions" style={{ marginTop: '1.5rem', gap: '0.5rem' }}>
             <button type="button" className="mini-modal-btn mini-modal-btn--ghost" onClick={onClose} disabled={uploading}>Cancel</button>
-            <button type="submit" className="mini-modal-btn" style={{ backgroundColor: '#7c3aed', color: '#fff' }} disabled={uploading}>
-              {uploading ? 'Resubmitting...' : `Submit ${targetLabel}`}
+            <button type="submit" className="mini-modal-btn" style={{ backgroundColor: '#2563eb', color: '#fff' }} disabled={uploading}>
+              {uploading ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>
@@ -2615,7 +2510,7 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
     );
   }
 
-  const resubHistory = Array.isArray(selectedProposal?.resubmissionHistory) ? selectedProposal.resubmissionHistory : [];
+  const resubHistory = (Array.isArray(selectedProposal?.resubmissionHistory) ? selectedProposal.resubmissionHistory : []).filter(h => h.resubmissionNumber > 0 && h.label !== 'Original Submission');
 
   return (
     <div className="content-section">
@@ -2632,16 +2527,26 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
         backgroundColor: '#eff6ff',
         border: '1px solid #bfdbfe',
         borderRadius: '8px',
-        padding: '0.85rem 1.15rem',
+        padding: '0.9rem 1.25rem',
         marginBottom: '1.5rem',
         display: 'flex',
-        alignItems: 'center',
-        gap: '0.65rem'
+        flexDirection: 'column',
+        gap: '0.45rem'
       }}>
-        <span style={{ fontSize: '1.1rem' }}>ℹ️</span>
-        <p style={{ margin: 0, fontSize: '0.875rem', color: '#1e40af', fontWeight: '500' }}>
-          <strong>Note:</strong> A maximum of 10 resubmissions will be accepted per research proposal.
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span style={{ fontSize: '1.1rem' }}>ℹ️</span>
+          <p style={{ margin: 0, fontSize: '0.875rem', color: '#1e40af', fontWeight: '600' }}>
+            Important Resubmission Guidelines:
+          </p>
+        </div>
+        <div style={{ marginLeft: '1.6rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#1e40af', fontWeight: '500' }}>
+            • A maximum of 10 resubmissions will be accepted per research proposal.
+          </p>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#1e40af', fontWeight: '500' }}>
+            • You may select only the specific files that require resubmission. Unchanged files can be left blank.
+          </p>
+        </div>
       </div>
 
       {selectedProposal && (
@@ -2684,7 +2589,7 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
               style={{ backgroundColor: '#7c3aed', color: '#fff' }}
               disabled={uploading}
             >
-              {uploading ? 'Submitting Resubmission...' : `Submit ${nextResubLabel}`}
+              {uploading ? 'Resubmitting...' : 'Resubmit'}
             </button>
             <button
               type="button"
