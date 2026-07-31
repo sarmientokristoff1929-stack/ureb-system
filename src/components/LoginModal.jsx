@@ -60,6 +60,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [registerLoading, setRegisterLoading] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
   const [gmailExists, setGmailExists] = useState(false);
   const [checkingGmail, setCheckingGmail] = useState(false);
   const debounceTimer = useRef(null);
@@ -278,6 +279,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     setPasswordTouched(false);
     setShowSuccessModal(false);
     setRegisterLoading(false);
+    setLoginLoading(false);
     setShowRegistrationForm(false);
     setGmailExists(false);
     pendingRegistrationRef.current = null;
@@ -286,16 +288,24 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoginLoading(true);
 
-    const result = await onLogin(email, password);
+    try {
+      const result = await onLogin(email, password);
 
-    if (result.success) {
-      resetForm();
-      onClose();
-    } else if (result.error === 'disabled') {
-      setShowDisabledModal(true);
-    } else {
-      setError(result.error || 'Invalid username or password');
+      if (result.success) {
+        resetForm();
+        onClose();
+      } else if (result.error === 'disabled') {
+        setShowDisabledModal(true);
+      } else {
+        setError(result.error || 'Invalid username or password');
+      }
+    } catch (err) {
+      console.error('Login submit error:', err);
+      setError('An error occurred during sign in');
+    } finally {
+      setLoginLoading(false);
     }
   };
 
@@ -769,8 +779,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                     <span>Remember me</span>
                   </label>
                 </div>
-                <button type="submit" className="login-btn-primary login-modal-submit">
-                  Sign In
+                <button type="submit" className="login-btn-primary login-modal-submit" disabled={loginLoading}>
+                  {loginLoading ? 'Signing in...' : 'Sign In'}
                 </button>
               </form>
             )}

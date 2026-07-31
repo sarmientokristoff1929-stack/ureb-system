@@ -328,6 +328,7 @@ const collections = {
 const STUDENT_ASSIGNMENT_FILE_KEYS = [
   'proposal', 'approvalSheet', 'urebForm2', 'applicationForm6',
   'accomplishedForm8', 'accomplishedForm10A', 'instrumentTool', 'routingForm', 'ethicsReviewFee',
+  'sampleForm1', 'sampleForm2',
 ];
 
 const ADMIN_ASSIGNMENT_FILE_KEYS = [
@@ -2408,7 +2409,9 @@ app.post('/api/student/submit-files', upload.fields([
   { name: 'accomplishedForm10A', maxCount: 1 },
   { name: 'instrumentTool', maxCount: 1 },
   { name: 'routingForm', maxCount: 1 },
-  { name: 'ethicsReviewFee', maxCount: 1 }
+  { name: 'ethicsReviewFee', maxCount: 1 },
+  { name: 'sampleForm1', maxCount: 1 },
+  { name: 'sampleForm2', maxCount: 1 }
 ]), async (req, res) => {
   try {
     const db = getDatabase();
@@ -2499,7 +2502,9 @@ app.put('/api/student/proposals/:id', upload.fields([
   { name: 'accomplishedForm10A', maxCount: 1 },
   { name: 'instrumentTool', maxCount: 1 },
   { name: 'routingForm', maxCount: 1 },
-  { name: 'ethicsReviewFee', maxCount: 1 }
+  { name: 'ethicsReviewFee', maxCount: 1 },
+  { name: 'sampleForm1', maxCount: 1 },
+  { name: 'sampleForm2', maxCount: 1 }
 ]), async (req, res) => {
   try {
     const { id } = req.params;

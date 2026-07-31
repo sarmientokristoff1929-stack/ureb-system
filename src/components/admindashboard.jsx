@@ -3030,6 +3030,8 @@ const STUDENT_SUBMISSION_FILE_LABELS = {
   instrumentTool: 'Research Instrument / Tool',
   routingForm: 'Routing',
   ethicsReviewFee: 'Ethics Review Fee Receipt',
+  sampleForm1: 'Sample Form 1',
+  sampleForm2: 'Sample Form 2',
 };
 
 const getProposalStudentFiles = (proposal) => {

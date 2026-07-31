@@ -2226,7 +2226,9 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
       accomplishedForm10A: 'Accomplished Form 10-A (UREB Form 10-A)',
       instrumentTool: 'Research Instrument / Tool',
       routingForm: 'Routing',
-      ethicsReviewFee: 'Ethics Review Fee Receipt'
+      ethicsReviewFee: 'Ethics Review Fee Receipt',
+      sampleForm1: 'Sample Form 1',
+      sampleForm2: 'Sample Form 2'
     };
     return labels[key] || key;
   };

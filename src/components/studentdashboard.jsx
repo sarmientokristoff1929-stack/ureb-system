@@ -251,6 +251,20 @@ const StudentDashboard = ({ onLogout }) => {
     setIsLogoutModalOpen(false);
   };
 
+  const [studentData, setStudentData] = useState(null);
+
+  useEffect(() => {
+    if (!userInfo?.email) return;
+    fetch(`${API_BASE_URL}/student/profile?email=${encodeURIComponent(userInfo.email)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.student) {
+          setStudentData(data.student);
+        }
+      })
+      .catch(err => console.error('Error fetching student profile:', err));
+  }, [userInfo?.email]);
+
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -258,7 +272,14 @@ const StudentDashboard = ({ onLogout }) => {
       case 'notifications':
         return <NotificationsContent userInfo={userInfo} />;
       case 'add-files':
-        return <AddFilesContent setSubmittedFiles={setSubmittedFiles} setShowSuccessModal={setShowSuccessModal} />;
+        return (
+          <AddFilesContent
+            setSubmittedFiles={setSubmittedFiles}
+            setShowSuccessModal={setShowSuccessModal}
+            userInfo={userInfo}
+            studentData={studentData}
+          />
+        );
       case 'file-templates':
         return <FileTemplatesContent />;
       case 'messages':
@@ -320,7 +341,7 @@ const StudentDashboard = ({ onLogout }) => {
         <div className="sidebar-header">
           <div className="sidebar-logo">
             <img src="/logoureb.png" alt="UREB Logo" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
-            <span>Student Portal</span>
+            <span>Researcher Portal</span>
           </div>
           <button
             className="sidebar-toggle mobile-only"
@@ -1795,9 +1816,18 @@ const NotificationsContent = ({ userInfo }) => {
   );
 };
 
-const ADD_FILES_FILE_FIELDS = [
+const INTERNAL_ADD_FILES_FIELDS = [
   'proposal', 'approvalSheet', 'urebForm2', 'applicationForm6',
   'accomplishedForm8', 'accomplishedForm10A', 'instrumentTool', 'routingForm', 'ethicsReviewFee',
+];
+
+const EXTERNAL_ADD_FILES_FIELDS = [
+  'sampleForm1', 'sampleForm2',
+];
+
+const ALL_ADD_FILES_FILE_FIELDS = [
+  ...INTERNAL_ADD_FILES_FIELDS,
+  ...EXTERNAL_ADD_FILES_FIELDS,
 ];
 
 const EMPTY_ADD_FILES_FORM = {
@@ -1810,6 +1840,8 @@ const EMPTY_ADD_FILES_FORM = {
   instrumentTool: null,
   routingForm: null,
   ethicsReviewFee: null,
+  sampleForm1: null,
+  sampleForm2: null,
   proposalTitle: '',
 };
 
@@ -1891,7 +1923,7 @@ const EditProposalModal = ({ proposal, onClose, onSuccess }) => {
       submitData.append('proposalTitle', formData.proposalTitle);
       submitData.append('studentEmail', user?.email || '');
 
-      ADD_FILES_FILE_FIELDS.forEach((field) => {
+      ALL_ADD_FILES_FILE_FIELDS.forEach((field) => {
         if (formData[field] instanceof File) {
           submitData.append(field, formData[field]);
         }
@@ -1917,11 +1949,11 @@ const EditProposalModal = ({ proposal, onClose, onSuccess }) => {
   };
 
   const renderFileInput = (fieldName, label) => {
-    const existingFile = proposal.files?.[fieldName];
+    const existingFile = proposal.files?.[fieldName] || proposal.studentFiles?.[fieldName];
     const newFile = formData[fieldName];
     
     return (
-      <div className="form-group" style={{ marginBottom: '1rem', textAlign: 'left' }}>
+      <div className="form-group" key={fieldName} style={{ marginBottom: '1rem', textAlign: 'left' }}>
         <label htmlFor={`edit-${fieldName}`} style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#334155' }}>{label}</label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {existingFile && !newFile && (
@@ -1940,6 +1972,11 @@ const EditProposalModal = ({ proposal, onClose, onSuccess }) => {
       </div>
     );
   };
+
+  const isExternalProposal = Boolean(
+    proposal.files?.sampleForm1 || proposal.files?.sampleForm2 ||
+    proposal.studentFiles?.sampleForm1 || proposal.studentFiles?.sampleForm2
+  );
 
   return (
     <div className="mini-modal-overlay" onClick={onClose} style={{ zIndex: 1000, overflowY: 'auto', padding: '2rem 0' }}>
@@ -1964,15 +2001,24 @@ const EditProposalModal = ({ proposal, onClose, onSuccess }) => {
           </div>
 
           <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '4px', backgroundColor: '#f8fafc' }}>
-            {renderFileInput('proposal', 'Proposal')}
-            {renderFileInput('approvalSheet', 'Approval Sheet')}
-            {renderFileInput('urebForm2', 'UREB Form 2')}
-            {renderFileInput('applicationForm6', 'Application for Research Ethics Review Form 6')}
-            {renderFileInput('accomplishedForm8', 'Accomplished Form 8')}
-            {renderFileInput('accomplishedForm10A', 'Accomplish Form 10 A')}
-            {renderFileInput('instrumentTool', 'Copy of instrument/tool')}
-            {renderFileInput('routingForm', 'Routing Slip')}
-            {renderFileInput('ethicsReviewFee', 'Ethics Review Fee (Receipt)')}
+            {isExternalProposal ? (
+              <>
+                {renderFileInput('sampleForm1', 'Sample form 1')}
+                {renderFileInput('sampleForm2', 'Sample form 2')}
+              </>
+            ) : (
+              <>
+                {renderFileInput('proposal', 'Proposal')}
+                {renderFileInput('approvalSheet', 'Approval Sheet')}
+                {renderFileInput('urebForm2', 'UREB Form 2')}
+                {renderFileInput('applicationForm6', 'Application for Research Ethics Review Form 6')}
+                {renderFileInput('accomplishedForm8', 'Accomplished Form 8')}
+                {renderFileInput('accomplishedForm10A', 'Accomplish Form 10 A')}
+                {renderFileInput('instrumentTool', 'Copy of instrument/tool')}
+                {renderFileInput('routingForm', 'Routing Slip')}
+                {renderFileInput('ethicsReviewFee', 'Ethics Review Fee (Receipt)')}
+              </>
+            )}
           </div>
 
           <div className="mini-modal-actions" style={{ marginTop: '1.5rem', gap: '0.5rem' }}>
@@ -1987,9 +2033,13 @@ const EditProposalModal = ({ proposal, onClose, onSuccess }) => {
   );
 };
 
-const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
+const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal, userInfo, studentData }) => {
   const [formData, setFormData] = useState(EMPTY_ADD_FILES_FORM);
   const [uploading, setUploading] = useState(false);
+
+  const currentResearcherType = studentData?.researcherType || userInfo?.researcherType || '';
+  const isExternalResearcher = currentResearcherType === 'External Researcher';
+  const activeFields = isExternalResearcher ? EXTERNAL_ADD_FILES_FIELDS : INTERNAL_ADD_FILES_FIELDS;
 
   const handleFileChange = (fieldName, file) => {
     setFormData(prev => ({
@@ -2008,7 +2058,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const hasFiles = ADD_FILES_FILE_FIELDS.some((field) => formData[field] instanceof File);
+    const hasFiles = activeFields.some((field) => formData[field] instanceof File);
     if (!hasFiles) {
       alert('Please upload at least one file');
       return;
@@ -2020,7 +2070,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
       const user = savedUser ? JSON.parse(savedUser) : null;
 
       const submitData = new FormData();
-      ADD_FILES_FILE_FIELDS.forEach((field) => {
+      activeFields.forEach((field) => {
         if (formData[field] instanceof File) {
           submitData.append(field, formData[field]);
         }
@@ -2038,8 +2088,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
       const result = await response.json();
 
       if (result.success) {
-        // Collect submitted files for modal display
-        const submittedFilesList = ADD_FILES_FILE_FIELDS.filter((field) => formData[field] instanceof File)
+        const submittedFilesList = activeFields.filter((field) => formData[field] instanceof File)
           .map(field => ({
             name: formData[field].name,
             size: (formData[field].size / 1024).toFixed(1) + ' KB'
@@ -2061,7 +2110,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
   };
 
   const renderFileInput = (fieldName, label, description) => (
-    <div className="form-group">
+    <div className="form-group" key={fieldName}>
       <label htmlFor={fieldName}>{label}</label>
       {description && <p className="field-description">{description}</p>}
       <div className="file-upload-area">
@@ -2082,7 +2131,22 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
 
   return (
     <div className="content-section">
-      <h2>Add Files</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <h2 style={{ margin: 0 }}>Add Files</h2>
+        {isExternalResearcher && (
+          <span style={{
+            backgroundColor: '#eff6ff',
+            color: '#1d4ed8',
+            border: '1px solid #bfdbfe',
+            padding: '0.25rem 0.75rem',
+            borderRadius: '9999px',
+            fontSize: '0.875rem',
+            fontWeight: '600'
+          }}>
+            External Researcher
+          </span>
+        )}
+      </div>
       <form className="add-files-form" onSubmit={handleSubmit}>
 
         <div className="form-group">
@@ -2097,15 +2161,24 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal }) => {
           />
         </div>
 
-        {renderFileInput('proposal', 'Proposal')}
-        {renderFileInput('approvalSheet', 'Approval Sheet')}
-        {renderFileInput('urebForm2', 'UREB Form 2')}
-        {renderFileInput('applicationForm6', 'Application for Research Ethics Review Form 6')}
-        {renderFileInput('accomplishedForm8', 'Accomplished Form 8', 'See attached form and accomplish only applicable pages')}
-        {renderFileInput('accomplishedForm10A', 'Accomplish Form 10 A', 'See attached form')}
-        {renderFileInput('instrumentTool', 'Copy of instrument/tool', 'e.g. questionnaire that will be administered to participants, if study entails human participants. Provide a link if instrument is administered online')}
-        {renderFileInput('routingForm', 'Routing Slip')}
-        {renderFileInput('ethicsReviewFee', 'Ethics Review Fee (Receipt)')}
+        {isExternalResearcher ? (
+          <>
+            {renderFileInput('sampleForm1', 'Sample form 1')}
+            {renderFileInput('sampleForm2', 'Sample form 2')}
+          </>
+        ) : (
+          <>
+            {renderFileInput('proposal', 'Proposal')}
+            {renderFileInput('approvalSheet', 'Approval Sheet')}
+            {renderFileInput('urebForm2', 'UREB Form 2')}
+            {renderFileInput('applicationForm6', 'Application for Research Ethics Review Form 6')}
+            {renderFileInput('accomplishedForm8', 'Accomplished Form 8', 'See attached form and accomplish only applicable pages')}
+            {renderFileInput('accomplishedForm10A', 'Accomplish Form 10 A', 'See attached form')}
+            {renderFileInput('instrumentTool', 'Copy of instrument/tool', 'e.g. questionnaire that will be administered to participants, if study entails human participants. Provide a link if instrument is administered online')}
+            {renderFileInput('routingForm', 'Routing Slip')}
+            {renderFileInput('ethicsReviewFee', 'Ethics Review Fee (Receipt)')}
+          </>
+        )}
 
         <p className="field-description" style={{ marginTop: '0.5rem' }}>
           A preliminary reviewer will be assigned by the administrator after you submit your files.
@@ -3726,9 +3799,9 @@ const WelcomeModal = ({ firstName, onClose }) => {
         <div className="welcome-content">
           <div className="welcome-checkmark">✓</div>
           <h2>WELCOME BACK!</h2>
-          <p>We're excited to have you here. Explore features, manage your account, and get started on achieving your goals today</p>
+          <p>We're excited to have you back. Manage your research proposals, track your ethics review progress, and advance your research today.</p>
           <button className="welcome-close-btn" onClick={onClose}>
-            Let's Started
+            Let's Start
           </button>
         </div>
       </div>

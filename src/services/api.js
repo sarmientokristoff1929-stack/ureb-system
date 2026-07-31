@@ -167,7 +167,7 @@ export const submitReview = async (reviewData) => {
     const fileFields = [
       'proposal', 'approvalSheet', 'urebForm2', 'urebForm10B', 'urebForm11',
       'applicationForm6', 'accomplishedForm8', 'accomplishForm10A',
-      'copyOfInstrument', 'ethicsReviewFee', 'form7'
+      'copyOfInstrument', 'ethicsReviewFee', 'form7', 'sampleForm1', 'sampleForm2'
     ];
     fileFields.forEach(field => {
       if (reviewData[field] instanceof File) {
