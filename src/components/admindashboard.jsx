@@ -3060,7 +3060,7 @@ const getReviewerDisplayName = (reviewer) => {
 };
 
 // ── Student Proposal (admin assigns department + preliminary reviewer) ─────
-const StudentProposalContent = ({ onNewCountChange }) => {
+function StudentProposalContent({ onNewCountChange }) {
   const [proposals, setProposals] = useState([]);
   const [reviewers, setReviewers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -3169,17 +3169,29 @@ const StudentProposalContent = ({ onNewCountChange }) => {
       .filter((r) => r.email);
   }, [reviewers]);
 
+  const [submissionTypeFilter, setSubmissionTypeFilter] = useState('all'); // 'all' | 'first' | 'resubmission'
+
   const filteredProposals = useMemo(() => {
-    if (!searchQuery.trim()) return proposals;
+    let result = proposals;
+    if (submissionTypeFilter === 'first') {
+      result = result.filter(p => !p.resubmissionCount || p.resubmissionCount === 0);
+    } else if (submissionTypeFilter === 'resubmission') {
+      result = result.filter(p => (p.resubmissionCount > 0) || p.submissionType === 'resubmission' || (p.status || '').toLowerCase().includes('resubmitted'));
+    }
+
+    if (!searchQuery.trim()) return result;
     const q = searchQuery.toLowerCase();
-    return proposals.filter((p) => {
+    return result.filter((p) => {
       const title = (p.researchTitle || '').toLowerCase();
       const student = (p.proponent || p.studentEmail || '').toLowerCase();
       const dept = (p.department || '').toLowerCase();
       const reviewer = (p.preliminaryReviewerName || p.preliminaryReviewer || '').toLowerCase();
       return title.includes(q) || student.includes(q) || dept.includes(q) || reviewer.includes(q);
     });
-  }, [proposals, searchQuery]);
+  }, [proposals, searchQuery, submissionTypeFilter]);
+
+  const firstSubmissionsCount = useMemo(() => proposals.filter(p => !p.resubmissionCount || p.resubmissionCount === 0).length, [proposals]);
+  const resubmissionsCount = useMemo(() => proposals.filter(p => (p.resubmissionCount > 0) || p.submissionType === 'resubmission' || (p.status || '').toLowerCase().includes('resubmitted')).length, [proposals]);
 
   useEffect(() => {
     if (!filteredProposals.length) {
@@ -3279,6 +3291,69 @@ const StudentProposalContent = ({ onNewCountChange }) => {
           {feedback.message}
         </div>
       )}
+
+      {/* Professional Submission Category Filter */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#475569', marginRight: '0.25rem' }}>
+          Filter Submissions:
+        </span>
+        <button
+          type="button"
+          onClick={() => setSubmissionTypeFilter('all')}
+          style={{
+            padding: '0.4rem 0.9rem',
+            borderRadius: '20px',
+            border: submissionTypeFilter === 'all' ? '1px solid #1e293b' : '1px solid #cbd5e1',
+            backgroundColor: submissionTypeFilter === 'all' ? '#1e293b' : '#ffffff',
+            color: submissionTypeFilter === 'all' ? '#ffffff' : '#475569',
+            fontWeight: '600',
+            fontSize: '0.825rem',
+            cursor: 'pointer',
+            boxShadow: submissionTypeFilter === 'all' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          All Submissions ({proposals.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSubmissionTypeFilter('first')}
+          style={{
+            padding: '0.4rem 0.9rem',
+            borderRadius: '20px',
+            border: submissionTypeFilter === 'first' ? '1px solid #2563eb' : '1px solid #cbd5e1',
+            backgroundColor: submissionTypeFilter === 'first' ? '#2563eb' : '#ffffff',
+            color: submissionTypeFilter === 'first' ? '#ffffff' : '#475569',
+            fontWeight: '600',
+            fontSize: '0.825rem',
+            cursor: 'pointer',
+            boxShadow: submissionTypeFilter === 'first' ? '0 2px 4px rgba(37,99,235,0.2)' : 'none',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          First Submissions ({firstSubmissionsCount})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSubmissionTypeFilter('resubmission')}
+          style={{
+            padding: '0.4rem 0.9rem',
+            borderRadius: '20px',
+            border: submissionTypeFilter === 'resubmission' ? '1px solid #7c3aed' : '1px solid #cbd5e1',
+            backgroundColor: submissionTypeFilter === 'resubmission' ? '#7c3aed' : '#ffffff',
+            color: submissionTypeFilter === 'resubmission' ? '#ffffff' : '#475569',
+            fontWeight: '600',
+            fontSize: '0.825rem',
+            cursor: 'pointer',
+            boxShadow: submissionTypeFilter === 'resubmission' ? '0 2px 4px rgba(124,58,237,0.2)' : 'none',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          Resubmissions ({resubmissionsCount})
+        </button>
+      </div>
 
       <div className="sp-toolbar">
         <input
@@ -5943,7 +6018,7 @@ const MessageReviewerContent = () => {
 
 
 
-const AdminProfileContent = ({
+function AdminProfileContent({
   userInfo,
   uploadingPic,
   picError,
@@ -5962,7 +6037,7 @@ const AdminProfileContent = ({
   handlePasswordUpdate,
   showPasswords,
   setShowPasswords
-}) => {
+}) {
   const initials = (userInfo?.name || 'A').charAt(0).toUpperCase();
   const rawRole = (userInfo?.originalRole || userInfo?.role || 'admin').toLowerCase();
   const isSuperAdmin = rawRole === 'superadmin' || rawRole === 'super-admin' || rawRole === 'root' || rawRole === 'administrator';
@@ -8441,7 +8516,7 @@ const ManageUsersContent = () => {
 
 
 
-const AddAdminModal = ({ isOpen, onClose, onAdminAdded }) => {
+function AddAdminModal({ isOpen, onClose, onAdminAdded }) {
 
   const [formData, setFormData] = useState({
     name: '',
@@ -8771,7 +8846,7 @@ const AddAdminModal = ({ isOpen, onClose, onAdminAdded }) => {
 
 
 
-const NotificationContent = ({ setActiveTab, onRefreshCount }) => {
+function NotificationContent({ setActiveTab, onRefreshCount }) {
 
   const [notifications, setNotifications] = useState([]);
 
@@ -10058,7 +10133,7 @@ const ReviewsFileContent = () => {
 
 
 
-const MessagesInboxContent = ({ onMessageRead }) => {
+function MessagesInboxContent({ onMessageRead }) {
 
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10300,6 +10375,8 @@ const MessagesInboxContent = ({ onMessageRead }) => {
     }
   };
 
+  const [submissionCategoryFilter, setSubmissionCategoryFilter] = useState('All'); // 'All' | 'First' | 'Resubmission'
+
   // Filter messages for table view
   const filteredMessages = useMemo(() => {
     if (!selectedDepartment) {
@@ -10312,6 +10389,10 @@ const MessagesInboxContent = ({ onMessageRead }) => {
       const subject = (message.subject || '').toLowerCase();
       const text = (message.message || '').toLowerCase();
       const query = searchQuery.toLowerCase().trim();
+
+      const isResubmissionMsg = message.submissionType === 'resubmission' || subject.includes('resubmi') || text.includes('resubmi');
+      if (submissionCategoryFilter === 'First' && isResubmissionMsg) return false;
+      if (submissionCategoryFilter === 'Resubmission' && !isResubmissionMsg) return false;
 
       // 1. Search Query Filter
       if (query && !name.toLowerCase().includes(query) && !email.includes(query) && !subject.includes(query) && !text.includes(query)) {
@@ -10736,6 +10817,22 @@ const MessagesInboxContent = ({ onMessageRead }) => {
             </select>
           </div>
 
+          {/* Submission Category Dropdown */}
+          <div className="inbox-filter-group">
+            <label className="inbox-filter-label">Submission Category</label>
+            <select
+              value={submissionCategoryFilter}
+              onChange={(e) => setSubmissionCategoryFilter(e.target.value)}
+              className="inbox-filter-select"
+              disabled={!selectedDepartment}
+              style={{ fontWeight: '600', color: submissionCategoryFilter === 'Resubmission' ? '#7c3aed' : submissionCategoryFilter === 'First' ? '#2563eb' : 'inherit' }}
+            >
+              <option value="All">All Categories</option>
+              <option value="First">First Submissions Only</option>
+              <option value="Resubmission">Resubmissions Only</option>
+            </select>
+          </div>
+
           {/* Sender Type Dropdown */}
           <div className="inbox-filter-group">
             <label className="inbox-filter-label">Select Sender Type</label>
@@ -11034,7 +11131,7 @@ const MessagesInboxContent = ({ onMessageRead }) => {
 
 
 
-const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, onMessageRead, setSuccessMessage, setIsSuccessModalOpen, setMessages }) => {
+function MessageViewModal({ isOpen, onClose, message, userInfo, onMarkAsRead, onMessageRead, setSuccessMessage, setIsSuccessModalOpen, setMessages }) {
 
   const [proposalFiles, setProposalFiles] = useState(null);
 
@@ -11497,7 +11594,7 @@ const MessageViewModal = ({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
 
 
-const SuccessModal = ({ isOpen, onClose, message }) => {
+function SuccessModal({ isOpen, onClose, message }) {
 
   if (!isOpen) return null;
 
@@ -11561,7 +11658,7 @@ const SuccessModal = ({ isOpen, onClose, message }) => {
 
 
 
-const DeleteActivityModal = ({ isOpen, onClose, onConfirm }) => {
+function DeleteActivityModal({ isOpen, onClose, onConfirm }) {
 
   if (!isOpen) return null;
 
@@ -11609,7 +11706,7 @@ const DeleteActivityModal = ({ isOpen, onClose, onConfirm }) => {
 
 
 
-const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
+function LogoutModal({ isOpen, onClose, onConfirm }) {
 
   if (!isOpen) return null;
 
@@ -11631,7 +11728,7 @@ const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
   );
 };
 
-const ConfirmDeletePhotoModal = ({ isOpen, onClose, onConfirm }) => {
+function ConfirmDeletePhotoModal({ isOpen, onClose, onConfirm }) {
   if (!isOpen) return null;
 
   return (
@@ -11656,7 +11753,7 @@ const ConfirmDeletePhotoModal = ({ isOpen, onClose, onConfirm }) => {
 
 // Pending Proposals Modal Component
 
-const PendingProposalsModal = ({ isOpen, onClose }) => {
+function PendingProposalsModal({ isOpen, onClose }) {
 
   const [proposals, setProposals] = useState([]);
 
@@ -11830,7 +11927,7 @@ const PendingProposalsModal = ({ isOpen, onClose }) => {
 
 // Generate Report Modal Component
 
-const GenerateReportModal = ({ isOpen, onClose }) => {
+function GenerateReportModal({ isOpen, onClose }) {
 
   const [reviews, setReviews] = useState([]);
 
@@ -12598,7 +12695,7 @@ const GenerateReportModal = ({ isOpen, onClose }) => {
 
 
 
-const ViewReviewerSubmissionsModal = ({ isOpen, onClose }) => {
+function ViewReviewerSubmissionsModal({ isOpen, onClose }) {
 
   const [reviews, setReviews] = useState([]);
 
@@ -12822,7 +12919,7 @@ const ViewReviewerSubmissionsModal = ({ isOpen, onClose }) => {
 
 
 
-const StudentSubmissionsModal = ({ isOpen, onClose }) => {
+function StudentSubmissionsModal({ isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState('payment-receipts');
   const [proposals, setProposals] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13159,7 +13256,7 @@ const StudentSubmissionsModal = ({ isOpen, onClose }) => {
 
 
 
-const AdminWelcomeModal = ({ firstName, onClose }) => {
+function AdminWelcomeModal({ firstName, onClose }) {
 
   const [confetti, setConfetti] = useState([]);
 

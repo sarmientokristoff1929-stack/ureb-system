@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { API_BASE_URL, viewFile, downloadReviewerFile, sendStudentMessageToAdmin } from '../services/api';
 import './studentdashboard.css';
 
@@ -437,7 +437,7 @@ const StudentDashboard = ({ onLogout }) => {
   );
 };
 
-const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
+function ProfileContent({ userInfo, setUserInfo, onLogout }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedInfo, setEditedInfo] = useState({
     firstName: '', middleName: '', lastName: '', suffix: '',
@@ -1233,7 +1233,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
   );
 };
 
-const DashboardContent = ({ userInfo, onTabChange }) => {
+function DashboardContent({ userInfo, onTabChange }) {
   const [stats, setStats] = useState({
     totalProposals: 0,
     pendingReviews: 0,
@@ -1372,6 +1372,21 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
       .catch(err => console.error('Background proposal delete failed:', err));
   };
 
+  const [dashboardCategoryFilter, setDashboardCategoryFilter] = useState('all'); // 'all' | 'initial' | 'resubmission'
+
+  const initialCount = useMemo(() => proposals.filter(p => !p.resubmissionCount || p.resubmissionCount === 0).length, [proposals]);
+  const resubmissionsCount = useMemo(() => proposals.filter(p => (p.resubmissionCount > 0) || p.submissionType === 'resubmission' || (p.status || '').toLowerCase().includes('resubmitted')).length, [proposals]);
+
+  const displayedProposals = useMemo(() => {
+    if (dashboardCategoryFilter === 'initial') {
+      return proposals.filter(p => !p.resubmissionCount || p.resubmissionCount === 0);
+    }
+    if (dashboardCategoryFilter === 'resubmission') {
+      return proposals.filter(p => (p.resubmissionCount > 0) || p.submissionType === 'resubmission' || (p.status || '').toLowerCase().includes('resubmitted'));
+    }
+    return proposals;
+  }, [proposals, dashboardCategoryFilter]);
+
   if (loading) {
     return (
       <div className="content-section">
@@ -1457,12 +1472,67 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
           <div className="up-header">
             <div>
               <h2 className="up-title">Uploaded Proposals</h2>
-              <p className="up-subtitle">Track all your submitted research proposals</p>
+              <p className="up-subtitle">Track all your submitted research proposals and resubmissions</p>
             </div>
             {proposals.length > 0 && (
               <span className="up-count">{proposals.length} proposal{proposals.length !== 1 ? 's' : ''}</span>
             )}
           </div>
+
+          {/* Submission Category Filter Pills */}
+          {proposals.length > 0 && (
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#64748b' }}>Filter View:</span>
+              <button
+                type="button"
+                onClick={() => setDashboardCategoryFilter('all')}
+                style={{
+                  padding: '0.35rem 0.85rem',
+                  borderRadius: '20px',
+                  border: dashboardCategoryFilter === 'all' ? '1px solid #1e293b' : '1px solid #cbd5e1',
+                  backgroundColor: dashboardCategoryFilter === 'all' ? '#1e293b' : '#ffffff',
+                  color: dashboardCategoryFilter === 'all' ? '#ffffff' : '#475569',
+                  fontWeight: '600',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer'
+                }}
+              >
+                All Proposals ({proposals.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setDashboardCategoryFilter('initial')}
+                style={{
+                  padding: '0.35rem 0.85rem',
+                  borderRadius: '20px',
+                  border: dashboardCategoryFilter === 'initial' ? '1px solid #2563eb' : '1px solid #cbd5e1',
+                  backgroundColor: dashboardCategoryFilter === 'initial' ? '#2563eb' : '#ffffff',
+                  color: dashboardCategoryFilter === 'initial' ? '#ffffff' : '#475569',
+                  fontWeight: '600',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Initial Submissions ({initialCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setDashboardCategoryFilter('resubmission')}
+                style={{
+                  padding: '0.35rem 0.85rem',
+                  borderRadius: '20px',
+                  border: dashboardCategoryFilter === 'resubmission' ? '1px solid #7c3aed' : '1px solid #cbd5e1',
+                  backgroundColor: dashboardCategoryFilter === 'resubmission' ? '#7c3aed' : '#ffffff',
+                  color: dashboardCategoryFilter === 'resubmission' ? '#ffffff' : '#475569',
+                  fontWeight: '600',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Resubmissions ({resubmissionsCount})
+              </button>
+            </div>
+          )}
 
           {proposals.length === 0 ? (
             <div className="up-empty">
@@ -1473,9 +1543,13 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
                 Submit Your First Proposal
               </button>
             </div>
+          ) : displayedProposals.length === 0 ? (
+            <div className="up-empty" style={{ padding: '2rem' }}>
+              <p>No proposals match the selected filter category.</p>
+            </div>
           ) : (
             <div className="up-list">
-              {proposals.map((proposal) => {
+              {displayedProposals.map((proposal) => {
                 const status = (proposal.status || 'Pending').toLowerCase();
                 const statusClass = status.replace(/\s+/g, '-');
                 const studentFiles = proposal.studentFiles || proposal.files || {};
@@ -1775,7 +1849,7 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
   );
 };
 
-const NotificationsContent = ({ userInfo }) => {
+function NotificationsContent({ userInfo }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -1905,7 +1979,7 @@ const EMPTY_ADD_FILES_FORM = {
   proposalTitle: '',
 };
 
-const ViewFilesModal = ({ proposal, onClose }) => {
+function ViewFilesModal({ proposal, onClose }) {
   const [selectedVersionIndex, setSelectedVersionIndex] = useState(null);
 
   if (!proposal) return null;
@@ -2006,7 +2080,7 @@ const ViewFilesModal = ({ proposal, onClose }) => {
   );
 };
 
-const EditProposalModal = ({ proposal, onClose, onSuccess }) => {
+function EditProposalModal({ proposal, onClose, onSuccess }) {
   const nextResubNumber = (proposal?.resubmissionCount || 0) + 1;
   const targetLabel = `Resubmission ${nextResubNumber}`;
 
@@ -2172,7 +2246,7 @@ const EditProposalModal = ({ proposal, onClose, onSuccess }) => {
   );
 };
 
-const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal, userInfo, studentData }) => {
+function AddFilesContent({ setSubmittedFiles, setShowSuccessModal, userInfo, studentData }) {
   const [formData, setFormData] = useState(EMPTY_ADD_FILES_FORM);
   const [uploading, setUploading] = useState(false);
 
@@ -2272,19 +2346,6 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal, userInfo, stu
     <div className="content-section">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <h2 style={{ margin: 0 }}>Add Files</h2>
-        {isExternalResearcher && (
-          <span style={{
-            backgroundColor: '#eff6ff',
-            color: '#1d4ed8',
-            border: '1px solid #bfdbfe',
-            padding: '0.25rem 0.75rem',
-            borderRadius: '9999px',
-            fontSize: '0.875rem',
-            fontWeight: '600'
-          }}>
-            External Researcher
-          </span>
-        )}
       </div>
       <form className="add-files-form" onSubmit={handleSubmit}>
 
@@ -2344,7 +2405,7 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal, userInfo, stu
   );
 };
 
-const ResubmissionContent = ({ userInfo, studentData, setSubmittedFiles, setShowSuccessModal }) => {
+function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShowSuccessModal }) {
   const [proposals, setProposals] = useState([]);
   const [selectedProposalId, setSelectedProposalId] = useState('');
   const [loading, setLoading] = useState(true);
@@ -2528,19 +2589,6 @@ const ResubmissionContent = ({ userInfo, studentData, setSubmittedFiles, setShow
             Resubmit updated research documents cleanly with automated versioning ({nextResubLabel}).
           </p>
         </div>
-        {isExternalResearcher && (
-          <span style={{
-            backgroundColor: '#eff6ff',
-            color: '#1d4ed8',
-            border: '1px solid #bfdbfe',
-            padding: '0.25rem 0.75rem',
-            borderRadius: '9999px',
-            fontSize: '0.875rem',
-            fontWeight: '600'
-          }}>
-            External Researcher
-          </span>
-        )}
       </div>
 
       <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1.25rem', marginBottom: '1.5rem' }}>
@@ -2798,7 +2846,7 @@ const FileTemplatesContent = () => {
   );
 };
 
-const FileViewerModal = ({ file, onClose }) => {
+function FileViewerModal({ file, onClose }) {
   const [zoom, setZoom] = useState(100);
   const [loadError, setLoadError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -3064,7 +3112,7 @@ const FileIcon = () => (
   </svg>
 );
 
-const MessagesContent = ({ userInfo, onMessageRead }) => {
+function MessagesContent({ userInfo, onMessageRead }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [replyModalOpen, setReplyModalOpen] = useState(false);
@@ -3790,7 +3838,7 @@ const createMessageUploadZone = () => ({
   file: null,
 });
 
-const MessageUploadDropZone = ({ zone, showRemoveZone, onFileSet, onRemoveZone, onInvalidFile }) => {
+function MessageUploadDropZone({ zone, showRemoveZone, onFileSet, onRemoveZone, onInvalidFile }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const inputId = `msg-admin-upload-${zone.id}`;
 
@@ -3918,7 +3966,7 @@ const MessageUploadDropZone = ({ zone, showRemoveZone, onFileSet, onRemoveZone, 
   );
 };
 
-const MessageAdminContent = ({ userInfo }) => {
+function MessageAdminContent({ userInfo }) {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [uploadZones, setUploadZones] = useState([createMessageUploadZone()]);
@@ -4243,7 +4291,7 @@ const MessageAdminContent = ({ userInfo }) => {
   );
 };
 
-const WelcomeModal = ({ firstName, onClose }) => {
+function WelcomeModal({ firstName, onClose }) {
   const [confetti, setConfetti] = useState([]);
 
   useEffect(() => {
@@ -4291,7 +4339,7 @@ const WelcomeModal = ({ firstName, onClose }) => {
   );
 };
 
-const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
+function LogoutModal({ isOpen, onClose, onConfirm }) {
   if (!isOpen) return null;
 
   return (
@@ -4312,7 +4360,7 @@ const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
   );
 };
 
-const SuccessModal = ({ onClose, submittedFiles }) => {
+function SuccessModal({ onClose, submittedFiles }) {
   return (
     <div className="success-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="success-modal-container">
