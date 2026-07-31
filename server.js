@@ -1264,6 +1264,29 @@ app.put('/api/reviewers/profile', async (req, res) => {
   }
 });
 
+const COOLDOWN_PERIOD_MS = 30 * 24 * 60 * 60 * 1000; // 30 days (1 month)
+
+function checkPasswordCooldown(userDoc) {
+  if (!userDoc || !userDoc.lastPasswordChange) {
+    return { canChange: true };
+  }
+  const lastChange = new Date(userDoc.lastPasswordChange).getTime();
+  const now = Date.now();
+  const diff = now - lastChange;
+
+  if (diff < COOLDOWN_PERIOD_MS) {
+    const remainingMs = COOLDOWN_PERIOD_MS - diff;
+    const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+    return {
+      canChange: false,
+      remainingDays,
+      error: `Password can only be changed once a month. You can update your password again in ${remainingDays} ${remainingDays === 1 ? 'day' : 'days'}.`
+    };
+  }
+
+  return { canChange: true };
+}
+
 // Change reviewer password
 app.put('/api/reviewer/change-password', async (req, res) => {
   try {
@@ -1291,6 +1314,13 @@ app.put('/api/reviewer/change-password', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Reviewer not found' });
     }
 
+    // Check 1-month password change cooldown
+    const cooldown = checkPasswordCooldown(reviewer);
+    if (!cooldown.canChange) {
+      console.log('Password change blocked by cooldown:', cooldown.error);
+      return res.status(400).json({ success: false, error: cooldown.error, remainingDays: cooldown.remainingDays });
+    }
+
     console.log('Password comparison:', {
       storedPassword: reviewer.password,
       providedPassword: currentPassword,
@@ -1304,7 +1334,7 @@ app.put('/api/reviewer/change-password', async (req, res) => {
 
     const result = await reviewers.updateOne(
       { email },
-      { $set: { password: newPassword, updatedAt: new Date() } }
+      { $set: { password: newPassword, lastPasswordChange: new Date(), updatedAt: new Date() } }
     );
     console.log('Update result:', result);
 
@@ -1674,11 +1704,17 @@ app.put('/api/student/password', async (req, res) => {
     const student = await findStudentByLoginEmail(students, email);
     if (!student) return res.status(404).json({ success: false, error: 'Student not found' });
 
+    // Check 1-month password change cooldown
+    const cooldown = checkPasswordCooldown(student);
+    if (!cooldown.canChange) {
+      return res.status(400).json({ success: false, error: cooldown.error, remainingDays: cooldown.remainingDays });
+    }
+
     if (student.password !== currentPassword) {
       return res.status(400).json({ success: false, error: 'Current password is incorrect' });
     }
 
-    await students.updateOne({ _id: student._id }, { $set: { password: newPassword, updatedAt: new Date() } });
+    await students.updateOne({ _id: student._id }, { $set: { password: newPassword, lastPasswordChange: new Date(), updatedAt: new Date() } });
 
     res.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
@@ -3378,10 +3414,17 @@ app.put('/api/student/change-password', async (req, res) => {
     if (!student) {
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
+
+    // Check 1-month password change cooldown
+    const cooldown = checkPasswordCooldown(student);
+    if (!cooldown.canChange) {
+      return res.status(400).json({ success: false, error: cooldown.error, remainingDays: cooldown.remainingDays });
+    }
+
     if (student.password !== currentPassword) {
       return res.status(400).json({ success: false, error: 'Current password is incorrect' });
     }
-    await students.updateOne({ _id: student._id }, { $set: { password: newPassword, updatedAt: new Date() } });
+    await students.updateOne({ _id: student._id }, { $set: { password: newPassword, lastPasswordChange: new Date(), updatedAt: new Date() } });
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
     console.error('Error changing password:', error);
