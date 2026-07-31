@@ -1236,7 +1236,7 @@ function ProfileContent({ userInfo, setUserInfo, onLogout }) {
 function DashboardContent({ userInfo, onTabChange }) {
   const [stats, setStats] = useState({
     totalProposals: 0,
-    pendingReviews: 0,
+    underReview: 0,
     completedProposals: 0,
     notifications: 0
   });
@@ -1277,17 +1277,16 @@ function DashboardContent({ userInfo, onTabChange }) {
         const activeProposals = proposalsData.filter(p => !deletedIds.includes(String(p._id)));
 
         // Calculate actual stats
-        const pendingReviewsCount = reviewsData.filter(review => review.status === 'pending').length;
-        const pendingProposalsCount = activeProposals.filter(proposal => {
+        const underReviewCount = activeProposals.filter(proposal => {
           const s = (proposal.status || 'Pending').toLowerCase();
-          return s === 'pending' || s === 'under review';
+          return s !== 'completed' && s !== 'approved';
         }).length;
         const completedProposals = activeProposals.filter(proposal => (proposal.status || '').toLowerCase() === 'completed').length;
         const notificationsCount = notificationsData.filter(msg => msg.type === 'admin_to_student').length;
 
         setStats({
           totalProposals: activeProposals.length,
-          pendingReviews: pendingReviewsCount + pendingProposalsCount,
+          underReview: underReviewCount,
           completedProposals: completedProposals,
           notifications: notificationsCount
         });
@@ -1300,7 +1299,7 @@ function DashboardContent({ userInfo, onTabChange }) {
         // Set default values on error
         setStats({
           totalProposals: 0,
-          pendingReviews: 0,
+          underReview: 0,
           completedProposals: 0,
           notifications: 0
         });
@@ -1374,15 +1373,15 @@ function DashboardContent({ userInfo, onTabChange }) {
 
   const [dashboardCategoryFilter, setDashboardCategoryFilter] = useState('all'); // 'all' | 'initial' | 'resubmission'
 
-  const initialCount = useMemo(() => proposals.filter(p => !p.resubmissionCount || p.resubmissionCount === 0).length, [proposals]);
-  const resubmissionsCount = useMemo(() => proposals.filter(p => (p.resubmissionCount > 0) || p.submissionType === 'resubmission' || (p.status || '').toLowerCase().includes('resubmitted')).length, [proposals]);
+  const initialCount = useMemo(() => proposals.filter(p => !p.isResubmissionProposal && p.submissionType !== 'resubmission').length, [proposals]);
+  const resubmissionsCount = useMemo(() => proposals.filter(p => p.isResubmissionProposal === true || p.submissionType === 'resubmission').length, [proposals]);
 
   const displayedProposals = useMemo(() => {
     if (dashboardCategoryFilter === 'initial') {
-      return proposals.filter(p => !p.resubmissionCount || p.resubmissionCount === 0);
+      return proposals.filter(p => !p.isResubmissionProposal && p.submissionType !== 'resubmission');
     }
     if (dashboardCategoryFilter === 'resubmission') {
-      return proposals.filter(p => (p.resubmissionCount > 0) || p.submissionType === 'resubmission' || (p.status || '').toLowerCase().includes('resubmitted'));
+      return proposals.filter(p => p.isResubmissionProposal === true || p.submissionType === 'resubmission');
     }
     return proposals;
   }, [proposals, dashboardCategoryFilter]);
@@ -1443,8 +1442,8 @@ function DashboardContent({ userInfo, onTabChange }) {
             <HistoryIcon />
           </div>
           <div className="stat-info">
-            <h3>{stats.pendingReviews}</h3>
-            <p>Pending</p>
+            <h3>{stats.underReview}</h3>
+            <p>Under Review</p>
           </div>
         </div>
         <div className="stat-card">
@@ -1586,29 +1585,6 @@ function DashboardContent({ userInfo, onTabChange }) {
                             </span>
                           )}
 
-                          <button
-                            className="up-icon-btn"
-                            onClick={() => {
-                              setSelectedProposal(proposal);
-                              setEditProposalModalOpen(true);
-                            }}
-                            title="Resubmit files for this proposal"
-                            style={{
-                              backgroundColor: '#7c3aed',
-                              color: '#ffffff',
-                              border: 'none',
-                              borderRadius: '6px',
-                              padding: '0.35rem 0.65rem',
-                              fontSize: '0.75rem',
-                              fontWeight: '600',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.3rem'
-                            }}
-                          >
-                            <UploadIcon /> Resubmit
-                          </button>
 
                           <button
                             className="up-icon-btn"
@@ -1650,7 +1626,9 @@ function DashboardContent({ userInfo, onTabChange }) {
                         </div>
                         <div className="up-meta-item">
                           <span className="up-meta-label">Reviewer</span>
-                          <span className="up-meta-value">{proposal.preliminaryReviewerName || proposal.preliminaryReviewer || 'Not assigned'}</span>
+                          <span className="up-meta-value" style={{ fontWeight: '600', color: (proposal.preliminaryReviewer || proposal.preliminaryReviewerName) ? '#16a34a' : '#64748b' }}>
+                            {(proposal.preliminaryReviewer || proposal.preliminaryReviewerName) ? 'Assigned' : 'Not assigned'}
+                          </span>
                         </div>
                         <div className="up-meta-item">
                           <span className="up-meta-label">Submitted</span>
@@ -1952,7 +1930,7 @@ function NotificationsContent({ userInfo }) {
 
 const INTERNAL_ADD_FILES_FIELDS = [
   'proposal', 'approvalSheet', 'urebForm2', 'applicationForm6',
-  'accomplishedForm8', 'accomplishedForm10A', 'instrumentTool', 'routingForm', 'ethicsReviewFee',
+  'accomplishedForm8', 'accomplishedForm10A', 'instrumentTool', 'ethicsReviewFee',
 ];
 
 const EXTERNAL_ADD_FILES_FIELDS = [
@@ -1972,7 +1950,6 @@ const EMPTY_ADD_FILES_FORM = {
   accomplishedForm8: null,
   accomplishedForm10A: null,
   instrumentTool: null,
-  routingForm: null,
   ethicsReviewFee: null,
   sampleForm1: null,
   sampleForm2: null,
@@ -2080,6 +2057,60 @@ function ViewFilesModal({ proposal, onClose }) {
   );
 };
 
+function NoFileModal({ isOpen, onClose }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="mini-modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
+      <div className="mini-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px', padding: '1.75rem', borderRadius: '12px', textAlign: 'center', backgroundColor: '#ffffff', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+        <div style={{
+          width: '56px',
+          height: '56px',
+          borderRadius: '50%',
+          backgroundColor: '#fef3c7',
+          color: '#d97706',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 1.25rem auto',
+          boxShadow: '0 4px 6px -1px rgba(217, 119, 6, 0.15)'
+        }}>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.2rem', color: '#1e293b', fontWeight: '700' }}>
+          File Required for Resubmission
+        </h3>
+        <p style={{ margin: '0 0 1.5rem 0', color: '#64748b', fontSize: '0.9rem', lineHeight: '1.5' }}>
+          Please upload at least one updated file for resubmission.
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            width: '100%',
+            padding: '0.7rem',
+            borderRadius: '8px',
+            backgroundColor: '#7c3aed',
+            color: '#ffffff',
+            border: 'none',
+            fontWeight: '600',
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            boxShadow: '0 4px 6px -1px rgba(124, 58, 237, 0.25)',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          Got it
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function EditProposalModal({ proposal, onClose, onSuccess }) {
   const nextResubNumber = (proposal?.resubmissionCount || 0) + 1;
   const targetLabel = `Resubmission ${nextResubNumber}`;
@@ -2089,6 +2120,7 @@ function EditProposalModal({ proposal, onClose, onSuccess }) {
     resubmissionReason: ''
   });
   const [uploading, setUploading] = useState(false);
+  const [noFileModalOpen, setNoFileModalOpen] = useState(false);
 
   if (!proposal) return null;
 
@@ -2098,6 +2130,11 @@ function EditProposalModal({ proposal, onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const hasFiles = ALL_ADD_FILES_FILE_FIELDS.some((field) => formData[field] instanceof File);
+    if (!hasFiles) {
+      setNoFileModalOpen(true);
+      return;
+    }
     setUploading(true);
 
     try {
@@ -2201,7 +2238,7 @@ function EditProposalModal({ proposal, onClose, onSuccess }) {
 
           <div className="form-group" style={{ marginBottom: '1rem', textAlign: 'left' }}>
             <label htmlFor="edit-resubmissionReason" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#334155' }}>
-              Resubmission Reason / Note for Reviewer
+              Reason
             </label>
             <textarea
               id="edit-resubmissionReason"
@@ -2228,7 +2265,6 @@ function EditProposalModal({ proposal, onClose, onSuccess }) {
                 {renderFileInput('accomplishedForm8', 'Accomplished Form 8')}
                 {renderFileInput('accomplishedForm10A', 'Accomplish Form 10 A')}
                 {renderFileInput('instrumentTool', 'Copy of instrument/tool')}
-                {renderFileInput('routingForm', 'Routing Slip')}
                 {renderFileInput('ethicsReviewFee', 'Ethics Review Fee (Receipt)')}
               </>
             )}
@@ -2242,6 +2278,7 @@ function EditProposalModal({ proposal, onClose, onSuccess }) {
           </div>
         </form>
       </div>
+      <NoFileModal isOpen={noFileModalOpen} onClose={() => setNoFileModalOpen(false)} />
     </div>
   );
 };
@@ -2375,13 +2412,12 @@ function AddFilesContent({ setSubmittedFiles, setShowSuccessModal, userInfo, stu
             {renderFileInput('accomplishedForm8', 'Accomplished Form 8', 'See attached form and accomplish only applicable pages')}
             {renderFileInput('accomplishedForm10A', 'Accomplish Form 10 A', 'See attached form')}
             {renderFileInput('instrumentTool', 'Copy of instrument/tool', 'e.g. questionnaire that will be administered to participants, if study entails human participants. Provide a link if instrument is administered online')}
-            {renderFileInput('routingForm', 'Routing Slip')}
             {renderFileInput('ethicsReviewFee', 'Ethics Review Fee (Receipt)')}
           </>
         )}
 
         <p className="field-description" style={{ marginTop: '0.5rem' }}>
-          A preliminary reviewer will be assigned by the administrator after you submit your files.
+          A reviewer will be assigned by the administrator after you submit your files.
         </p>
 
         <div className="form-actions">
@@ -2412,6 +2448,7 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
   const [formData, setFormData] = useState(EMPTY_ADD_FILES_FORM);
   const [resubmissionReason, setResubmissionReason] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [noFileModalOpen, setNoFileModalOpen] = useState(false);
 
   const currentResearcherType = studentData?.researcherType || userInfo?.researcherType || '';
   const isExternalResearcher = currentResearcherType === 'External Researcher';
@@ -2474,7 +2511,7 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
 
     const hasFiles = activeFields.some((field) => formData[field] instanceof File);
     if (!hasFiles) {
-      alert('Please upload at least one updated file for resubmission');
+      setNoFileModalOpen(true);
       return;
     }
 
@@ -2582,58 +2619,36 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
 
   return (
     <div className="content-section">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <div>
           <h2 style={{ margin: 0 }}>Resubmission Portal</h2>
           <p style={{ margin: '0.25rem 0 0 0', color: '#64748b', fontSize: '0.875rem' }}>
-            Resubmit updated research documents cleanly with automated versioning ({nextResubLabel}).
+            Resubmit updated research documents cleanly.
           </p>
         </div>
       </div>
 
-      <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1.25rem', marginBottom: '1.5rem' }}>
-        <label htmlFor="proposalSelect" style={{ display: 'block', fontWeight: '600', color: '#1e293b', marginBottom: '0.5rem' }}>
-          Select Proposal to Resubmit:
-        </label>
-        <select
-          id="proposalSelect"
-          value={selectedProposalId}
-          onChange={(e) => handleProposalChange(e.target.value)}
-          style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.95rem', fontWeight: '500' }}
-        >
-          {proposals.map((p) => (
-            <option key={p._id} value={p._id}>
-              {p.researchTitle || 'Untitled Proposal'} — [{p.resubmissionLabel || `Resubmission ${p.resubmissionCount || 0}`}]
-            </option>
-          ))}
-        </select>
+      <div style={{
+        backgroundColor: '#eff6ff',
+        border: '1px solid #bfdbfe',
+        borderRadius: '8px',
+        padding: '0.85rem 1.15rem',
+        marginBottom: '1.5rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.65rem'
+      }}>
+        <span style={{ fontSize: '1.1rem' }}>ℹ️</span>
+        <p style={{ margin: 0, fontSize: '0.875rem', color: '#1e40af', fontWeight: '500' }}>
+          <strong>Note:</strong> A maximum of 10 resubmissions will be accepted per research proposal.
+        </p>
       </div>
 
       {selectedProposal && (
         <form className="add-files-form" onSubmit={handleSubmit}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', backgroundColor: '#f3e8ff', border: '1px solid #ddd6fe', borderRadius: '6px', marginBottom: '1.5rem' }}>
-            <span style={{ fontWeight: '700', color: '#6d28d9', fontSize: '0.9rem' }}>
-              Target Version: {nextResubLabel}
-            </span>
-            <span style={{ fontSize: '0.8rem', color: '#7c3aed' }}>
-              Current Status: {selectedProposal.status || 'Pending'}
-            </span>
-          </div>
 
           <div className="form-group">
-            <label htmlFor="proposalTitle">Proposal Title</label>
-            <input
-              type="text"
-              id="proposalTitle"
-              value={formData.proposalTitle}
-              onChange={(e) => setFormData(p => ({ ...p, proposalTitle: e.target.value }))}
-              placeholder="Enter proposal title"
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="resubmissionReason">Resubmission Reason / Note for Reviewer</label>
+            <label htmlFor="resubmissionReason">Reason</label>
             <textarea
               id="resubmissionReason"
               value={resubmissionReason}
@@ -2658,7 +2673,6 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
               {renderFileInput('accomplishedForm8', 'Accomplished Form 8', 'See attached form and accomplish only applicable pages')}
               {renderFileInput('accomplishedForm10A', 'Accomplish Form 10 A', 'See attached form')}
               {renderFileInput('instrumentTool', 'Copy of instrument/tool', 'e.g. questionnaire that will be administered to participants')}
-              {renderFileInput('routingForm', 'Routing Slip')}
               {renderFileInput('ethicsReviewFee', 'Ethics Review Fee (Receipt)')}
             </>
           )}
@@ -2713,6 +2727,7 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
           </div>
         </div>
       )}
+      <NoFileModal isOpen={noFileModalOpen} onClose={() => setNoFileModalOpen(false)} />
     </div>
   );
 };

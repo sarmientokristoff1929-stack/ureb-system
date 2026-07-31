@@ -3028,7 +3028,6 @@ const STUDENT_SUBMISSION_FILE_LABELS = {
   accomplishedForm8: 'Accomplished Form 8',
   accomplishedForm10A: 'Accomplished Form 10-A',
   instrumentTool: 'Research Instrument / Tool',
-  routingForm: 'Routing',
   ethicsReviewFee: 'Ethics Review Fee Receipt',
   sampleForm1: 'Sample Form 1',
   sampleForm2: 'Sample Form 2',
@@ -3174,9 +3173,9 @@ function StudentProposalContent({ onNewCountChange }) {
   const filteredProposals = useMemo(() => {
     let result = proposals;
     if (submissionTypeFilter === 'first') {
-      result = result.filter(p => !p.resubmissionCount || p.resubmissionCount === 0);
+      result = result.filter(p => !p.isResubmissionProposal && p.submissionType !== 'resubmission');
     } else if (submissionTypeFilter === 'resubmission') {
-      result = result.filter(p => (p.resubmissionCount > 0) || p.submissionType === 'resubmission' || (p.status || '').toLowerCase().includes('resubmitted'));
+      result = result.filter(p => p.isResubmissionProposal === true || p.submissionType === 'resubmission');
     }
 
     if (!searchQuery.trim()) return result;
@@ -3190,8 +3189,8 @@ function StudentProposalContent({ onNewCountChange }) {
     });
   }, [proposals, searchQuery, submissionTypeFilter]);
 
-  const firstSubmissionsCount = useMemo(() => proposals.filter(p => !p.resubmissionCount || p.resubmissionCount === 0).length, [proposals]);
-  const resubmissionsCount = useMemo(() => proposals.filter(p => (p.resubmissionCount > 0) || p.submissionType === 'resubmission' || (p.status || '').toLowerCase().includes('resubmitted')).length, [proposals]);
+  const firstSubmissionsCount = useMemo(() => proposals.filter(p => !p.isResubmissionProposal && p.submissionType !== 'resubmission').length, [proposals]);
+  const resubmissionsCount = useMemo(() => proposals.filter(p => p.isResubmissionProposal === true || p.submissionType === 'resubmission').length, [proposals]);
 
   useEffect(() => {
     if (!filteredProposals.length) {

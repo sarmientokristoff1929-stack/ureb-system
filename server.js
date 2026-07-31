@@ -327,7 +327,7 @@ const collections = {
 
 const STUDENT_ASSIGNMENT_FILE_KEYS = [
   'proposal', 'approvalSheet', 'urebForm2', 'applicationForm6',
-  'accomplishedForm8', 'accomplishedForm10A', 'instrumentTool', 'routingForm', 'ethicsReviewFee',
+  'accomplishedForm8', 'accomplishedForm10A', 'instrumentTool', 'ethicsReviewFee',
   'sampleForm1', 'sampleForm2',
 ];
 
@@ -2408,7 +2408,6 @@ app.post('/api/student/submit-files', upload.fields([
   { name: 'accomplishedForm8', maxCount: 1 },
   { name: 'accomplishedForm10A', maxCount: 1 },
   { name: 'instrumentTool', maxCount: 1 },
-  { name: 'routingForm', maxCount: 1 },
   { name: 'ethicsReviewFee', maxCount: 1 },
   { name: 'sampleForm1', maxCount: 1 },
   { name: 'sampleForm2', maxCount: 1 }
@@ -2513,7 +2512,6 @@ app.put('/api/student/proposals/:id', upload.fields([
   { name: 'accomplishedForm8', maxCount: 1 },
   { name: 'accomplishedForm10A', maxCount: 1 },
   { name: 'instrumentTool', maxCount: 1 },
-  { name: 'routingForm', maxCount: 1 },
   { name: 'ethicsReviewFee', maxCount: 1 },
   { name: 'sampleForm1', maxCount: 1 },
   { name: 'sampleForm2', maxCount: 1 }
@@ -2596,14 +2594,11 @@ app.put('/api/student/proposals/:id', upload.fields([
 
     const updatedData = {
       researchTitle: proposalTitle || existingProposal.researchTitle,
-      studentFiles,
-      adminFiles,
-      files: { ...studentFiles, ...adminFiles },
       resubmissionCount: nextResubCount,
       resubmissionLabel: resubLabel,
       resubmissionHistory: resubHistory,
-      status: `Resubmitted (${resubLabel})`,
-      submissionType: 'resubmission',
+      submissionType: existingProposal.submissionType || 'initial',
+      isResubmissionProposal: false,
       adminSeen: false,
       updatedAt: new Date()
     };
@@ -2718,13 +2713,11 @@ app.post('/api/student/resubmit-files', upload.array('files'), async (req, res) 
         { _id: targetProp._id },
         {
           $set: {
-            studentFiles: updatedStudentFiles,
-            files: updatedFiles,
             resubmissionCount: nextResubCount,
             resubmissionLabel: resubLabel,
             resubmissionHistory: resubHistory,
-            status: `Resubmitted (${resubLabel})`,
-            submissionType: 'resubmission',
+            submissionType: targetProp.submissionType || 'initial',
+            isResubmissionProposal: false,
             adminSeen: false,
             updatedAt: new Date()
           }

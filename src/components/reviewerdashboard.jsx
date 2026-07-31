@@ -2225,7 +2225,6 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
       accomplishedForm8: 'Accomplished Form 8 (UREB Form 8)',
       accomplishedForm10A: 'Accomplished Form 10-A (UREB Form 10-A)',
       instrumentTool: 'Research Instrument / Tool',
-      routingForm: 'Routing',
       ethicsReviewFee: 'Ethics Review Fee Receipt',
       sampleForm1: 'Sample Form 1',
       sampleForm2: 'Sample Form 2'
