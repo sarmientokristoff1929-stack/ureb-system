@@ -1277,10 +1277,18 @@ function checkPasswordCooldown(userDoc) {
   if (diff < COOLDOWN_PERIOD_MS) {
     const remainingMs = COOLDOWN_PERIOD_MS - diff;
     const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+    const availableDate = new Date(lastChange + COOLDOWN_PERIOD_MS);
+    const formattedDate = availableDate.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
     return {
       canChange: false,
       remainingDays,
-      error: `Password can only be changed once a month. You can update your password again in ${remainingDays} ${remainingDays === 1 ? 'day' : 'days'}.`
+      availableDate: formattedDate,
+      error: `Password can only be changed once a month. You can update your password again on ${formattedDate} (in ${remainingDays} ${remainingDays === 1 ? 'day' : 'days'}).`
     };
   }
 
