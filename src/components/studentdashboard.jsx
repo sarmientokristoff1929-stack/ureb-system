@@ -859,7 +859,7 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
               { label: 'Researcher Type', value: studentData?.researcherType },
               { label: 'Faculty / Insti / Agency / College', value: studentData?.department },
               { label: 'Program', value: studentData?.program },
-              { label: 'Gmail', value: studentData?.gmail },
+              { label: 'Email Address', value: studentData?.gmail || studentData?.email },
               { label: 'Facebook', value: studentData?.facebookLink, isLink: true },
             ].map(({ label, value, isLink }) => (
               <div className="sp-info-row" key={label}>
@@ -954,10 +954,10 @@ const ProfileContent = ({ userInfo, setUserInfo, onLogout }) => {
 
             <div className="sp-field-row sp-field-row--2">
               <div className="sp-field">
-                <label htmlFor="sp-gmail">Gmail Address</label>
+                <label htmlFor="sp-gmail">Email Address</label>
                 <input id="sp-gmail" type="email" value={editedInfo.gmail}
                   onChange={e => setEditedInfo(p => ({ ...p, gmail: e.target.value }))}
-                  placeholder="example@gmail.com"
+                  placeholder="e.g., name@dorsu.edu.ph or name@gmail.com"
                   autoComplete="off" />
               </div>
               <div className="sp-field">

@@ -771,7 +771,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     // Build user response with profile picture for students
     const userResponse = {
-      email: user.email,
+      email: user.email || user.gmail || email,
       name: user.name || `${user.firstName} ${user.lastName}`,
       role: role,
       originalRole: user.role || role,
@@ -1533,14 +1533,14 @@ function studentProfilePayload(student) {
   // Convert MongoDB document to plain object
   const plain = JSON.parse(JSON.stringify(student));
   const { password, sex, ...safe } = plain;
-  const gmail = safe.gmail || safe.email || '';
+  const targetEmail = safe.email || safe.gmail || '';
   const sexVal = String(safe.sex || safe.gender || sex || '').trim();
   // Build profile picture URL from GridFS filename
   let profilePicture = safe.profilePicture || null;
   if (safe.profilePictureGridFS) {
     profilePicture = `/api/student/profile/picture/${safe.profilePictureGridFS}?t=${Date.now()}`;
   }
-  return { ...safe, gmail, gender: sexVal, sex: sexVal, profilePicture };
+  return { ...safe, email: targetEmail, gmail: targetEmail, gender: sexVal, sex: sexVal, profilePicture };
 }
 
 function reviewerProfilePayload(reviewer) {
@@ -1596,9 +1596,26 @@ app.put('/api/student/profile', async (req, res) => {
 
     const db = getDatabase();
     const students = db.collection(collections.students);
+    const users = db.collection(collections.users);
+    const reviewers = db.collection(collections.reviewers);
 
     const student = await findStudentByLoginEmail(students, email);
     if (!student) return res.status(404).json({ success: false, error: 'Student not found' });
+
+    const newEmail = (gmail !== undefined && gmail !== null && String(gmail).trim())
+      ? String(gmail).trim().toLowerCase()
+      : (email !== undefined && email !== null && String(email).trim() ? String(email).trim().toLowerCase() : undefined);
+
+    if (newEmail && newEmail !== (student.email || '').toLowerCase() && newEmail !== (student.gmail || '').toLowerCase()) {
+      // Check if new email is taken by another account
+      const existingStudent = await students.findOne({ _id: { $ne: student._id }, $or: [{ email: newEmail }, { gmail: newEmail }] });
+      const existingUser = await users.findOne({ email: newEmail });
+      const existingReviewer = await reviewers.findOne({ email: newEmail });
+
+      if (existingStudent || existingUser || existingReviewer) {
+        return res.status(400).json({ success: false, error: 'This email address is already in use by another account' });
+      }
+    }
 
     const sexInput = sex !== undefined ? sex : gender;
     const sexVal = sexInput !== undefined ? (sexInput != null && String(sexInput).trim() ? String(sexInput).trim() : '') : undefined;
@@ -1613,7 +1630,7 @@ app.put('/api/student/profile', async (req, res) => {
       ...(researcherType !== undefined && { researcherType }),
       ...(department !== undefined && { department }),
       ...(program !== undefined && { program }),
-      ...(gmail !== undefined && { gmail: (gmail || '').trim().toLowerCase() }),
+      ...(newEmail !== undefined && { email: newEmail, gmail: newEmail }),
       ...(coMembers !== undefined && { coMembers: Array.isArray(coMembers) ? coMembers : [] }),
       ...(facebookLink !== undefined && { facebookLink }),
     };
