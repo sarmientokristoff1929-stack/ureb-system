@@ -1868,15 +1868,15 @@ const ProposalDetailsModal = ({ isOpen, onClose, proposal }) => {
             )}
 
             <div className="detail-row">
-
               <span className="detail-label">Status:</span>
-
               <span className={`status-badge ${proposal.status?.toLowerCase().replace(' ', '-') || 'pending'}`}>
-
                 {proposal.status || 'Pending Review'}
-
               </span>
-
+              {(proposal.resubmissionCount > 0 || proposal.resubmissionLabel) && (
+                <span className="status-badge" style={{ backgroundColor: '#ede9fe', color: '#6d28d9', marginLeft: '0.35rem' }}>
+                  {proposal.resubmissionLabel || `Resubmission ${proposal.resubmissionCount}`}
+                </span>
+              )}
             </div>
 
           </div>

@@ -87,6 +87,15 @@ const UploadIcon = () => (
   </svg>
 );
 
+const ResubmissionIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+    <path d="M16 21h5v-5" />
+  </svg>
+);
+
 const ProfileIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -218,6 +227,7 @@ const StudentDashboard = ({ onLogout }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     { id: 'add-files', label: 'Add Files', icon: <FilePlusIcon /> },
+    { id: 'resubmission', label: 'Resubmission', icon: <ResubmissionIcon /> },
     { id: 'file-templates', label: 'File Templates', icon: <FileTemplatesIcon /> },
     { id: 'messages', label: 'Messages', icon: <MailIcon />, badge: messageCount > 0 ? messageCount : null },
     { id: 'message-admin', label: 'Message Admin', icon: <MessageIcon /> },
@@ -278,6 +288,15 @@ const StudentDashboard = ({ onLogout }) => {
             setShowSuccessModal={setShowSuccessModal}
             userInfo={userInfo}
             studentData={studentData}
+          />
+        );
+      case 'resubmission':
+        return (
+          <ResubmissionContent
+            userInfo={userInfo}
+            studentData={studentData}
+            setSubmittedFiles={setSubmittedFiles}
+            setShowSuccessModal={setShowSuccessModal}
           />
         );
       case 'file-templates':
@@ -1471,10 +1490,51 @@ const DashboardContent = ({ userInfo, onTabChange }) => {
                           <h3 className="up-card-title">{proposal.researchTitle || 'Untitled Proposal'}</h3>
                           <span className="up-card-id">#{proposal._id?.slice(-8) || 'N/A'}</span>
                         </div>
-                        <div className="up-card-top-right">
+                        <div className="up-card-top-right" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                           <span className={`up-status up-status--${statusClass}`}>
                             {proposal.status || 'Pending'}
                           </span>
+
+                          {(proposal.resubmissionCount > 0 || proposal.resubmissionLabel) && (
+                            <span style={{
+                              backgroundColor: '#ede9fe',
+                              color: '#6d28d9',
+                              border: '1px solid #ddd6fe',
+                              padding: '0.25rem 0.6rem',
+                              borderRadius: '20px',
+                              fontSize: '0.72rem',
+                              fontWeight: '700',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.04em',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {proposal.resubmissionLabel || `Resubmission ${proposal.resubmissionCount}`}
+                            </span>
+                          )}
+
+                          <button
+                            className="up-icon-btn"
+                            onClick={() => {
+                              setSelectedProposal(proposal);
+                              setEditProposalModalOpen(true);
+                            }}
+                            title="Resubmit files for this proposal"
+                            style={{
+                              backgroundColor: '#7c3aed',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '6px',
+                              padding: '0.35rem 0.65rem',
+                              fontSize: '0.75rem',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem'
+                            }}
+                          >
+                            <UploadIcon /> Resubmit
+                          </button>
 
                           <button
                             className="up-icon-btn"
@@ -1846,10 +1906,17 @@ const EMPTY_ADD_FILES_FORM = {
 };
 
 const ViewFilesModal = ({ proposal, onClose }) => {
+  const [selectedVersionIndex, setSelectedVersionIndex] = useState(null);
+
   if (!proposal) return null;
 
-  const files = proposal.studentFiles || proposal.files || {};
-  const fileKeys = Object.keys(files).filter((key) => files[key]?.filename);
+  const history = Array.isArray(proposal.resubmissionHistory) ? proposal.resubmissionHistory : [];
+  
+  const activeFilesObj = (selectedVersionIndex !== null && history[selectedVersionIndex]?.files)
+    ? history[selectedVersionIndex].files
+    : (proposal.studentFiles || proposal.files || {});
+
+  const fileKeys = Object.keys(activeFilesObj).filter((key) => activeFilesObj[key]?.filename || activeFilesObj[key]?.originalname);
 
   const handleDownload = (key, file) => {
     const downloadUrl = file.filename
@@ -1860,24 +1927,62 @@ const ViewFilesModal = ({ proposal, onClose }) => {
 
   return (
     <div className="mini-modal-overlay" onClick={onClose} style={{ zIndex: 1000 }}>
-      <div className="mini-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '90%' }}>
+      <div className="mini-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '550px', width: '90%' }}>
         <div className="mini-modal-icon" style={{ backgroundColor: '#f0f9ff', color: '#0ea5e9' }}>
           <EyeIcon />
         </div>
-        <h4 className="mini-modal-title">Attached Files</h4>
+        <h4 className="mini-modal-title">Attached Files & Resubmissions</h4>
         <p className="mini-modal-text">{proposal.researchTitle || 'Untitled Proposal'}</p>
+
+        {history.length > 0 && (
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', margin: '0.75rem 0', justifyContent: 'center' }}>
+            <button
+              onClick={() => setSelectedVersionIndex(null)}
+              style={{
+                padding: '0.25rem 0.6rem',
+                borderRadius: '12px',
+                border: '1px solid #cbd5e1',
+                fontSize: '0.75rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                backgroundColor: selectedVersionIndex === null ? '#2563eb' : '#f8fafc',
+                color: selectedVersionIndex === null ? '#ffffff' : '#475569'
+              }}
+            >
+              Latest Version
+            </button>
+            {history.map((h, i) => (
+              <button
+                key={i}
+                onClick={() => setSelectedVersionIndex(i)}
+                style={{
+                  padding: '0.25rem 0.6rem',
+                  borderRadius: '12px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '0.75rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  backgroundColor: selectedVersionIndex === i ? '#7c3aed' : '#f8fafc',
+                  color: selectedVersionIndex === i ? '#ffffff' : '#475569'
+                }}
+              >
+                {h.label || `Resubmission ${h.resubmissionNumber || i}`}
+              </button>
+            ))}
+          </div>
+        )}
         
         <div style={{ marginTop: '1rem', textAlign: 'left', maxHeight: '300px', overflowY: 'auto' }}>
           {fileKeys.length === 0 ? (
-            <p>No files attached.</p>
+            <p style={{ textAlign: 'center', color: '#64748b' }}>No files attached in this version.</p>
           ) : (
             fileKeys.map(key => {
-              const file = files[key];
+              const file = activeFilesObj[key];
               return (
                 <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
                     <FileIcon />
-                    <span style={{ fontSize: '0.875rem', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '250px' }}>
+                    <span style={{ fontSize: '0.875rem', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '260px' }}>
                       {file.originalname || file.filename}
                     </span>
                   </div>
@@ -1902,7 +2007,13 @@ const ViewFilesModal = ({ proposal, onClose }) => {
 };
 
 const EditProposalModal = ({ proposal, onClose, onSuccess }) => {
-  const [formData, setFormData] = useState({ proposalTitle: proposal?.researchTitle || '' });
+  const nextResubNumber = (proposal?.resubmissionCount || 0) + 1;
+  const targetLabel = `Resubmission ${nextResubNumber}`;
+
+  const [formData, setFormData] = useState({
+    proposalTitle: proposal?.researchTitle || '',
+    resubmissionReason: ''
+  });
   const [uploading, setUploading] = useState(false);
 
   if (!proposal) return null;
@@ -1922,6 +2033,7 @@ const EditProposalModal = ({ proposal, onClose, onSuccess }) => {
       const submitData = new FormData();
       submitData.append('proposalTitle', formData.proposalTitle);
       submitData.append('studentEmail', user?.email || '');
+      submitData.append('resubmissionReason', formData.resubmissionReason || '');
 
       ALL_ADD_FILES_FILE_FIELDS.forEach((field) => {
         if (formData[field] instanceof File) {
@@ -1981,13 +2093,26 @@ const EditProposalModal = ({ proposal, onClose, onSuccess }) => {
   return (
     <div className="mini-modal-overlay" onClick={onClose} style={{ zIndex: 1000, overflowY: 'auto', padding: '2rem 0' }}>
       <div className="mini-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '90%', margin: 'auto' }}>
-        <div className="mini-modal-icon" style={{ backgroundColor: '#f0fdf4', color: '#16a34a' }}>
-          <EditIcon />
+        <div className="mini-modal-icon" style={{ backgroundColor: '#f3e8ff', color: '#7c3aed' }}>
+          <UploadIcon />
         </div>
-        <h4 className="mini-modal-title">Edit Proposal</h4>
-        <p className="mini-modal-text">Update the title or attach new files to replace existing ones.</p>
+        <h4 className="mini-modal-title">Resubmit Proposal Files</h4>
+        <div style={{ display: 'flex', justifyContent: 'center', margin: '0.5rem 0' }}>
+          <span style={{
+            backgroundColor: '#ede9fe',
+            color: '#6d28d9',
+            padding: '0.2rem 0.75rem',
+            borderRadius: '9999px',
+            fontSize: '0.8rem',
+            fontWeight: '700',
+            letterSpacing: '0.03em'
+          }}>
+            Preparing {targetLabel}
+          </span>
+        </div>
+        <p className="mini-modal-text">Select updated files to replace existing ones for this proposal.</p>
         
-        <form onSubmit={handleSubmit} style={{ marginTop: '1.5rem', width: '100%' }}>
+        <form onSubmit={handleSubmit} style={{ marginTop: '1.25rem', width: '100%' }}>
           <div className="form-group" style={{ marginBottom: '1rem', textAlign: 'left' }}>
             <label htmlFor="edit-proposalTitle" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#334155' }}>Proposal Title</label>
             <input
@@ -2000,7 +2125,21 @@ const EditProposalModal = ({ proposal, onClose, onSuccess }) => {
             />
           </div>
 
-          <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '4px', backgroundColor: '#f8fafc' }}>
+          <div className="form-group" style={{ marginBottom: '1rem', textAlign: 'left' }}>
+            <label htmlFor="edit-resubmissionReason" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#334155' }}>
+              Resubmission Reason / Note for Reviewer
+            </label>
+            <textarea
+              id="edit-resubmissionReason"
+              value={formData.resubmissionReason}
+              onChange={(e) => setFormData(p => ({ ...p, resubmissionReason: e.target.value }))}
+              placeholder="e.g. Replaced wrong file submission, updated proposal sections."
+              rows={2}
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '0.875rem' }}
+            />
+          </div>
+
+          <div style={{ maxHeight: '350px', overflowY: 'auto', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '4px', backgroundColor: '#f8fafc' }}>
             {isExternalProposal ? (
               <>
                 {renderFileInput('sampleForm1', 'Sample form 1')}
@@ -2023,8 +2162,8 @@ const EditProposalModal = ({ proposal, onClose, onSuccess }) => {
 
           <div className="mini-modal-actions" style={{ marginTop: '1.5rem', gap: '0.5rem' }}>
             <button type="button" className="mini-modal-btn mini-modal-btn--ghost" onClick={onClose} disabled={uploading}>Cancel</button>
-            <button type="submit" className="mini-modal-btn" style={{ backgroundColor: '#2563eb', color: '#fff' }} disabled={uploading}>
-              {uploading ? 'Saving...' : 'Save Changes'}
+            <button type="submit" className="mini-modal-btn" style={{ backgroundColor: '#7c3aed', color: '#fff' }} disabled={uploading}>
+              {uploading ? 'Resubmitting...' : `Submit ${targetLabel}`}
             </button>
           </div>
         </form>
@@ -2201,6 +2340,331 @@ const AddFilesContent = ({ setSubmittedFiles, setShowSuccessModal, userInfo, stu
           </button>
         </div>
       </form>
+    </div>
+  );
+};
+
+const ResubmissionContent = ({ userInfo, studentData, setSubmittedFiles, setShowSuccessModal }) => {
+  const [proposals, setProposals] = useState([]);
+  const [selectedProposalId, setSelectedProposalId] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [formData, setFormData] = useState(EMPTY_ADD_FILES_FORM);
+  const [resubmissionReason, setResubmissionReason] = useState('');
+  const [uploading, setUploading] = useState(false);
+
+  const currentResearcherType = studentData?.researcherType || userInfo?.researcherType || '';
+  const isExternalResearcher = currentResearcherType === 'External Researcher';
+  const activeFields = isExternalResearcher ? EXTERNAL_ADD_FILES_FIELDS : INTERNAL_ADD_FILES_FIELDS;
+
+  useEffect(() => {
+    const fetchStudentProposals = async () => {
+      if (!userInfo?.email) return;
+      try {
+        const response = await fetch(`${API_BASE_URL}/proposals/student/${encodeURIComponent(userInfo.email)}`);
+        if (response.ok) {
+          const data = await response.json();
+          const deletedIds = getDeletedProposalIds();
+          const active = data.filter(p => !deletedIds.includes(String(p._id)));
+          setProposals(active);
+          if (active.length > 0) {
+            setSelectedProposalId(active[0]._id);
+            setFormData(prev => ({
+              ...prev,
+              proposalTitle: active[0].researchTitle || ''
+            }));
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching proposals for resubmission:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStudentProposals();
+  }, [userInfo?.email]);
+
+  const selectedProposal = proposals.find(p => String(p._id) === String(selectedProposalId)) || null;
+  const nextResubNumber = selectedProposal ? (selectedProposal.resubmissionCount || 0) + 1 : 1;
+  const nextResubLabel = `Resubmission ${nextResubNumber}`;
+
+  const handleProposalChange = (proposalId) => {
+    setSelectedProposalId(proposalId);
+    const target = proposals.find(p => String(p._id) === String(proposalId));
+    setFormData({
+      ...EMPTY_ADD_FILES_FORM,
+      proposalTitle: target ? (target.researchTitle || '') : ''
+    });
+    setResubmissionReason('');
+  };
+
+  const handleFileChange = (fieldName, file) => {
+    setFormData(prev => ({
+      ...prev,
+      [fieldName]: file
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedProposalId) {
+      alert('Please select a proposal to resubmit');
+      return;
+    }
+
+    const hasFiles = activeFields.some((field) => formData[field] instanceof File);
+    if (!hasFiles) {
+      alert('Please upload at least one updated file for resubmission');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const submitData = new FormData();
+      submitData.append('proposalTitle', formData.proposalTitle);
+      submitData.append('studentEmail', userInfo?.email || '');
+      submitData.append('resubmissionReason', resubmissionReason || 'Resubmitted updated files');
+
+      activeFields.forEach((field) => {
+        if (formData[field] instanceof File) {
+          submitData.append(field, formData[field]);
+        }
+      });
+
+      const response = await fetch(`${API_BASE_URL}/student/proposals/${selectedProposalId}`, {
+        method: 'PUT',
+        body: submitData
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const submittedFilesList = activeFields.filter((field) => formData[field] instanceof File)
+          .map(field => ({
+            name: formData[field].name,
+            size: (formData[field].size / 1024).toFixed(1) + ' KB'
+          }));
+
+        setSubmittedFiles(submittedFilesList);
+        setShowSuccessModal(true);
+
+        setFormData({ ...EMPTY_ADD_FILES_FORM });
+        setResubmissionReason('');
+
+        const updatedResp = await fetch(`${API_BASE_URL}/proposals/student/${encodeURIComponent(userInfo.email)}`);
+        if (updatedResp.ok) {
+          const freshData = await updatedResp.json();
+          const deletedIds = getDeletedProposalIds();
+          setProposals(freshData.filter(p => !deletedIds.includes(String(p._id))));
+        }
+      } else {
+        alert('Error resubmitting files: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error submitting resubmission:', error);
+      alert('Error submitting resubmission. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const renderFileInput = (fieldName, label, description) => {
+    const existingFile = selectedProposal?.studentFiles?.[fieldName] || selectedProposal?.files?.[fieldName];
+
+    return (
+      <div className="form-group" key={fieldName}>
+        <label htmlFor={`resub-${fieldName}`}>{label}</label>
+        {description && <p className="field-description">{description}</p>}
+        {existingFile && !formData[fieldName] && (
+          <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.2rem 0 0.5rem 0' }}>
+            Current File: <strong>{existingFile.originalname || existingFile.filename}</strong>
+          </p>
+        )}
+        <div className="file-upload-area">
+          <input
+            type="file"
+            id={`resub-${fieldName}`}
+            onChange={(e) => handleFileChange(fieldName, e.target.files[0])}
+            accept=".pdf,.doc,.docx,.txt"
+          />
+          <div className="file-upload-label">
+            <UploadIcon />
+            <p>{formData[fieldName] ? formData[fieldName].name : 'Click to select replacement file'}</p>
+            <span>PDF, DOC, DOCX, TXT (MAX. 10MB)</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="content-section">
+        <h2>Resubmission</h2>
+        <p>Loading your submitted proposals...</p>
+      </div>
+    );
+  }
+
+  if (proposals.length === 0) {
+    return (
+      <div className="content-section">
+        <div className="up-empty-state" style={{ padding: '3rem 1rem' }}>
+          <div className="up-empty-icon"><FilePlusIcon /></div>
+          <h3>No Proposals Available for Resubmission</h3>
+          <p>You haven't submitted any research proposals yet. Once you submit a proposal under "Add Files", you can manage resubmissions here anytime.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const resubHistory = Array.isArray(selectedProposal?.resubmissionHistory) ? selectedProposal.resubmissionHistory : [];
+
+  return (
+    <div className="content-section">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div>
+          <h2 style={{ margin: 0 }}>Resubmission Portal</h2>
+          <p style={{ margin: '0.25rem 0 0 0', color: '#64748b', fontSize: '0.875rem' }}>
+            Resubmit updated research documents cleanly with automated versioning ({nextResubLabel}).
+          </p>
+        </div>
+        {isExternalResearcher && (
+          <span style={{
+            backgroundColor: '#eff6ff',
+            color: '#1d4ed8',
+            border: '1px solid #bfdbfe',
+            padding: '0.25rem 0.75rem',
+            borderRadius: '9999px',
+            fontSize: '0.875rem',
+            fontWeight: '600'
+          }}>
+            External Researcher
+          </span>
+        )}
+      </div>
+
+      <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1.25rem', marginBottom: '1.5rem' }}>
+        <label htmlFor="proposalSelect" style={{ display: 'block', fontWeight: '600', color: '#1e293b', marginBottom: '0.5rem' }}>
+          Select Proposal to Resubmit:
+        </label>
+        <select
+          id="proposalSelect"
+          value={selectedProposalId}
+          onChange={(e) => handleProposalChange(e.target.value)}
+          style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.95rem', fontWeight: '500' }}
+        >
+          {proposals.map((p) => (
+            <option key={p._id} value={p._id}>
+              {p.researchTitle || 'Untitled Proposal'} — [{p.resubmissionLabel || `Resubmission ${p.resubmissionCount || 0}`}]
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {selectedProposal && (
+        <form className="add-files-form" onSubmit={handleSubmit}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', backgroundColor: '#f3e8ff', border: '1px solid #ddd6fe', borderRadius: '6px', marginBottom: '1.5rem' }}>
+            <span style={{ fontWeight: '700', color: '#6d28d9', fontSize: '0.9rem' }}>
+              Target Version: {nextResubLabel}
+            </span>
+            <span style={{ fontSize: '0.8rem', color: '#7c3aed' }}>
+              Current Status: {selectedProposal.status || 'Pending'}
+            </span>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="proposalTitle">Proposal Title</label>
+            <input
+              type="text"
+              id="proposalTitle"
+              value={formData.proposalTitle}
+              onChange={(e) => setFormData(p => ({ ...p, proposalTitle: e.target.value }))}
+              placeholder="Enter proposal title"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="resubmissionReason">Resubmission Reason / Note for Reviewer</label>
+            <textarea
+              id="resubmissionReason"
+              value={resubmissionReason}
+              onChange={(e) => setResubmissionReason(e.target.value)}
+              placeholder="State the reason for this resubmission (e.g. replaced wrong document, revised protocol as requested)"
+              rows={2}
+              style={{ width: '100%', padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.875rem' }}
+            />
+          </div>
+
+          {isExternalResearcher ? (
+            <>
+              {renderFileInput('sampleForm1', 'Sample form 1')}
+              {renderFileInput('sampleForm2', 'Sample form 2')}
+            </>
+          ) : (
+            <>
+              {renderFileInput('proposal', 'Proposal')}
+              {renderFileInput('approvalSheet', 'Approval Sheet')}
+              {renderFileInput('urebForm2', 'UREB Form 2')}
+              {renderFileInput('applicationForm6', 'Application for Research Ethics Review Form 6')}
+              {renderFileInput('accomplishedForm8', 'Accomplished Form 8', 'See attached form and accomplish only applicable pages')}
+              {renderFileInput('accomplishedForm10A', 'Accomplish Form 10 A', 'See attached form')}
+              {renderFileInput('instrumentTool', 'Copy of instrument/tool', 'e.g. questionnaire that will be administered to participants')}
+              {renderFileInput('routingForm', 'Routing Slip')}
+              {renderFileInput('ethicsReviewFee', 'Ethics Review Fee (Receipt)')}
+            </>
+          )}
+
+          <div className="form-actions" style={{ marginTop: '1.5rem' }}>
+            <button
+              type="submit"
+              className="btn-primary"
+              style={{ backgroundColor: '#7c3aed', color: '#fff' }}
+              disabled={uploading}
+            >
+              {uploading ? 'Submitting Resubmission...' : `Submit ${nextResubLabel}`}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setFormData({ ...EMPTY_ADD_FILES_FORM, proposalTitle: selectedProposal.researchTitle || '' });
+                setResubmissionReason('');
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        </form>
+      )}
+
+      {resubHistory.length > 0 && (
+        <div style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0' }}>
+          <h3 style={{ fontSize: '1.1rem', color: '#1e293b', marginBottom: '1rem' }}>Resubmission History Log</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {resubHistory.map((h, i) => (
+              <div key={i} style={{ padding: '0.85rem 1rem', border: '1px solid #e2e8f0', borderRadius: '6px', backgroundColor: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontWeight: '700', color: '#4338ca', fontSize: '0.85rem' }}>
+                      {h.label || `Resubmission ${h.resubmissionNumber || i}`}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                      {h.submittedAt ? new Date(h.submittedAt).toLocaleString() : ''}
+                    </span>
+                  </div>
+                  {h.resubmissionReason && (
+                    <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: '#475569' }}>
+                      Reason: {h.resubmissionReason}
+                    </p>
+                  )}
+                </div>
+                <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '600' }}>✓ Saved</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -3054,18 +3518,36 @@ const HistoryContent = () => {
         const hiddenIds = getHiddenHistoryIds();
 
         proposals.filter(p => !deletedProposalIds.includes(String(p._id)) && !hiddenIds.includes(String(p._id))).forEach(proposal => {
-          activities.push({
-            id: proposal._id,
-            type: 'proposal',
-            title: proposal.researchTitle || 'Untitled Proposal',
-            action: 'Submitted research proposal',
-            date: proposal.createdAt || proposal.submittedAt || new Date(),
-            status: proposal.status || 'pending',
-            details: {
-              department: proposal.department || 'Unknown',
-              abstract: 'Research proposal submitted for review'
-            }
-          });
+          const resubHistory = Array.isArray(proposal.resubmissionHistory) ? proposal.resubmissionHistory : [];
+          if (resubHistory.length > 0) {
+            resubHistory.forEach((h, idx) => {
+              activities.push({
+                id: `${proposal._id}-resub-${idx}`,
+                type: idx === 0 ? 'proposal' : 'resubmission',
+                title: proposal.researchTitle || 'Untitled Proposal',
+                action: idx === 0 ? 'Submitted initial research proposal' : `Resubmitted files (${h.label || `Resubmission ${idx}`})`,
+                date: h.submittedAt || proposal.createdAt || new Date(),
+                status: h.label || (idx === 0 ? 'Original Submission' : `Resubmission ${idx}`),
+                details: {
+                  department: proposal.department || 'Unknown',
+                  abstract: h.resubmissionReason || (idx === 0 ? 'Initial submission' : 'Resubmitted updated proposal files')
+                }
+              });
+            });
+          } else {
+            activities.push({
+              id: proposal._id,
+              type: 'proposal',
+              title: proposal.researchTitle || 'Untitled Proposal',
+              action: proposal.resubmissionCount > 0 ? `Resubmitted files (${proposal.resubmissionLabel})` : 'Submitted research proposal',
+              date: proposal.updatedAt || proposal.createdAt || new Date(),
+              status: proposal.resubmissionCount > 0 ? proposal.resubmissionLabel : (proposal.status || 'pending'),
+              details: {
+                department: proposal.department || 'Unknown',
+                abstract: 'Research proposal submitted for review'
+              }
+            });
+          }
         });
 
         reviews.filter(r => !hiddenIds.includes(String(r._id))).forEach(review => {

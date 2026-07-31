@@ -2448,6 +2448,15 @@ app.post('/api/student/submit-files', upload.fields([
 
     const studentFiles = pickStudentAssignmentFiles(files);
 
+    const initialResubmissionHistory = [{
+      resubmissionNumber: 0,
+      label: 'Original Submission',
+      submittedAt: new Date(),
+      files: studentFiles,
+      studentEmail: studentEmail || '',
+      studentName: studentName || 'Unknown'
+    }];
+
     const newProposal = {
       researchTitle: proposalTitle || 'Untitled Proposal',
       proponent: studentName || 'Unknown',
@@ -2458,6 +2467,9 @@ app.post('/api/student/submit-files', upload.fields([
       files: studentFiles,
       studentFiles,
       adminFiles: {},
+      resubmissionCount: 0,
+      resubmissionLabel: 'Original Submission',
+      resubmissionHistory: initialResubmissionHistory,
       status: 'Pending Preliminary Reviewer',
       adminSeen: false,
       submissionDate: new Date(),
@@ -2513,14 +2525,16 @@ app.put('/api/student/proposals/:id', upload.fields([
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
 
-    const { studentEmail, proposalTitle } = req.body;
+    const { studentEmail, proposalTitle, resubmissionReason } = req.body;
 
     const existingProposal = await proposals.findOne({ _id: new ObjectId(id) });
     if (!existingProposal) {
       return res.status(404).json({ success: false, error: 'Proposal not found' });
     }
 
-    if (existingProposal.studentEmail !== studentEmail) {
+    const reqEmailNorm = (studentEmail || '').trim().toLowerCase();
+    const propEmailNorm = (existingProposal.studentEmail || '').trim().toLowerCase();
+    if (propEmailNorm && reqEmailNorm && propEmailNorm !== reqEmailNorm) {
       return res.status(403).json({ success: false, error: 'Unauthorized to edit this proposal' });
     }
 
@@ -2547,16 +2561,72 @@ app.put('/api/student/proposals/:id', upload.fields([
     const studentFiles = pickStudentAssignmentFiles(newFiles);
     const adminFiles = pickAdminAssignmentFiles(existingProposal.adminFiles || existingProposal.files || {});
 
+    // Calculate resubmission count and history
+    const prevCount = typeof existingProposal.resubmissionCount === 'number' ? existingProposal.resubmissionCount : 0;
+    const nextResubCount = prevCount + 1;
+    const resubLabel = `Resubmission ${nextResubCount}`;
+
+    // Preserve existing history or seed initial submission
+    let resubHistory = Array.isArray(existingProposal.resubmissionHistory)
+      ? [...existingProposal.resubmissionHistory]
+      : [];
+
+    if (resubHistory.length === 0 && existingProposal.studentFiles && Object.keys(existingProposal.studentFiles).length > 0) {
+      resubHistory.push({
+        resubmissionNumber: 0,
+        label: 'Original Submission',
+        submittedAt: existingProposal.createdAt || existingProposal.submissionDate || new Date(),
+        files: { ...existingProposal.studentFiles },
+        studentEmail: existingProposal.studentEmail,
+        studentName: existingProposal.proponent
+      });
+    }
+
+    const reasonText = resubmissionReason || 'Updated proposal files';
+
+    resubHistory.push({
+      resubmissionNumber: nextResubCount,
+      label: resubLabel,
+      resubmissionReason: reasonText,
+      submittedAt: new Date(),
+      files: { ...studentFiles },
+      studentEmail: studentEmail || existingProposal.studentEmail,
+      studentName: existingProposal.proponent
+    });
+
     const updatedData = {
       researchTitle: proposalTitle || existingProposal.researchTitle,
       studentFiles,
       adminFiles,
       files: { ...studentFiles, ...adminFiles },
+      resubmissionCount: nextResubCount,
+      resubmissionLabel: resubLabel,
+      resubmissionHistory: resubHistory,
+      status: `Resubmitted (${resubLabel})`,
+      submissionType: 'resubmission',
       adminSeen: false,
       updatedAt: new Date()
     };
 
     await proposals.updateOne({ _id: new ObjectId(id) }, { $set: updatedData });
+
+    // Send resubmission notification message to admin
+    const messages = db.collection(collections.messages);
+    await messages.insertOne({
+      senderEmail: studentEmail || existingProposal.studentEmail || 'student',
+      recipientEmail: 'admin',
+      subject: `Proposal ${resubLabel}`,
+      message: `${existingProposal.proponent || 'Student'} has submitted ${resubLabel} for proposal "${proposalTitle || existingProposal.researchTitle}". Reason: ${reasonText}`,
+      senderName: existingProposal.proponent || 'Student',
+      type: 'student_to_admin',
+      submissionType: 'resubmission',
+      resubmissionLabel: resubLabel,
+      resubmissionReason: reasonText,
+      relatedProposalId: id.toString(),
+      files: studentFiles,
+      read: false,
+      createdAt: new Date()
+    }).catch(err => console.error('Failed to create resubmission message:', err));
 
     const finalProposal = await proposals.findOne({ _id: new ObjectId(id) });
 
@@ -2577,7 +2647,8 @@ app.post('/api/student/resubmit-files', upload.array('files'), async (req, res) 
     const proposals = db.collection(collections.proposals);
     const messages = db.collection(collections.messages);
 
-    const { resubmissionReason, studentEmail, studentName, submissionType } = req.body;
+    const { resubmissionReason, studentEmail, studentName, submissionType, proposalId, relatedProposalId } = req.body;
+    const targetProposalId = proposalId || relatedProposalId;
 
     // Process uploaded files → GridFS
     const files = {};
@@ -2594,41 +2665,75 @@ app.post('/api/student/resubmit-files', upload.array('files'), async (req, res) 
       }
     }
 
-    // Create resubmission record
-    const newResubmission = {
-      researchTitle: 'Resubmitted Files',
-      proponent: studentName || 'Unknown',
-      studentEmail: studentEmail || '',
-      resubmissionReason: resubmissionReason || '',
-      files,
-      status: 'Resubmitted',
-      submissionType: submissionType || 'resubmission',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+    let targetProp = null;
+    if (targetProposalId && ObjectId.isValid(targetProposalId)) {
+      targetProp = await proposals.findOne({ _id: new ObjectId(targetProposalId) });
+    } else if (studentEmail) {
+      targetProp = await proposals.findOne({ studentEmail: emailRegexFilter(studentEmail) }, { sort: { createdAt: -1 } });
+    }
 
-    // Save resubmission to proposals collection
-    const result = await proposals.insertOne(newResubmission);
+    let finalPropId = targetProp?._id?.toString() || '';
+
+    if (targetProp) {
+      const prevCount = typeof targetProp.resubmissionCount === 'number' ? targetProp.resubmissionCount : 0;
+      const nextResubCount = prevCount + 1;
+      const resubLabel = `Resubmission ${nextResubCount}`;
+
+      let resubHistory = Array.isArray(targetProp.resubmissionHistory) ? [...targetProp.resubmissionHistory] : [];
+      resubHistory.push({
+        resubmissionNumber: nextResubCount,
+        label: resubLabel,
+        resubmissionReason: resubmissionReason || 'Resubmitted updated files',
+        submittedAt: new Date(),
+        files,
+        studentEmail: studentEmail || targetProp.studentEmail,
+        studentName: studentName || targetProp.proponent
+      });
+
+      const updatedStudentFiles = { ...targetProp.studentFiles, ...files };
+      const updatedFiles = { ...targetProp.files, ...files };
+
+      await proposals.updateOne(
+        { _id: targetProp._id },
+        {
+          $set: {
+            studentFiles: updatedStudentFiles,
+            files: updatedFiles,
+            resubmissionCount: nextResubCount,
+            resubmissionLabel: resubLabel,
+            resubmissionHistory: resubHistory,
+            status: `Resubmitted (${resubLabel})`,
+            submissionType: 'resubmission',
+            adminSeen: false,
+            updatedAt: new Date()
+          }
+        }
+      );
+    }
 
     // Send message to admin about resubmission
     const messageRecord = {
       senderEmail: studentEmail || 'student',
       recipientEmail: process.env.GMAIL_EMAIL || 'admin',
-      subject: 'Files Resubmitted',
-      message: `${studentName || 'Student'} has resubmitted files with the following reason: ${resubmissionReason}`,
+      subject: `Files Resubmitted (${targetProp?.resubmissionLabel || 'Resubmission'})`,
+      message: `${studentName || 'Student'} has resubmitted files: ${resubmissionReason || 'Updated files'}`,
       senderName: studentName || 'Student',
       type: 'student_to_admin',
       submissionType: 'resubmission',
-      relatedProposalId: result.insertedId.toString(),
+      resubmissionLabel: targetProp?.resubmissionLabel || 'Resubmission',
+      resubmissionReason: resubmissionReason || '',
+      relatedProposalId: finalPropId,
+      files,
       read: false,
       createdAt: new Date()
     };
 
-    await messages.insertOne(messageRecord);
+    const msgResult = await messages.insertOne(messageRecord);
 
     res.json({
       success: true,
-      resubmission: { _id: result.insertedId, ...newResubmission }
+      message: messageRecord,
+      messageId: msgResult.insertedId
     });
   } catch (error) {
     console.error('Error resubmitting student files:', error);

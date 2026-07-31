@@ -10475,24 +10475,18 @@ const MessagesInboxContent = ({ onMessageRead }) => {
   };
 
   const renderMessageFilesTableCell = (message) => {
-    if (message.submissionType === 'resubmission') {
-      return (
-        <span className="inbox-table-badge resubmission">
-          Resubmission
-        </span>
-      );
-    }
-
     let fileList = [];
     if (message.files) {
       if (Array.isArray(message.files)) {
         fileList = message.files;
       } else {
-        fileList = Object.values(message.files);
+        fileList = Object.values(message.files).filter(Boolean);
       }
     }
 
-    if (fileList.length === 0) {
+    const isResubmission = message.submissionType === 'resubmission';
+
+    if (fileList.length === 0 && !isResubmission) {
       return <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>No files</span>;
     }
 
@@ -13039,6 +13033,11 @@ const StudentSubmissionsModal = ({ isOpen, onClose }) => {
                           <span className="ssm-status-badge" style={{ background: statusStyle.bg, color: statusStyle.color }}>
                             {proposal.status || 'Pending'}
                           </span>
+                          {(proposal.resubmissionCount > 0 || proposal.resubmissionLabel) && (
+                            <span className="ssm-status-badge" style={{ background: '#ede9fe', color: '#6d28d9', marginLeft: '0.35rem' }}>
+                              {proposal.resubmissionLabel || `Resubmission ${proposal.resubmissionCount}`}
+                            </span>
+                          )}
                         </td>
                         <td className="ssm-td-date">{formatDate(proposal.submissionDate || proposal.createdAt)}</td>
                         <td className="ssm-td-files">
