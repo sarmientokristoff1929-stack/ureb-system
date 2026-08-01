@@ -5,10 +5,10 @@ import './reviewerdashboard.css';
 import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, getReviewerAssignments, downloadReviewerFile, deleteMessage, markMessageAsRead, changeReviewerPassword, getReviewerProfile, getUserNotifications, markNotificationAsRead, deleteNotification } from '../services/api';
 
 const formatAssignmentStatus = (status) => {
-  if (!status) return 'Pending';
+  if (!status) return 'Under Review';
   const normalized = String(status).toLowerCase().trim();
   if (normalized === 'completed') return 'Completed';
-  if (normalized === 'pending') return 'Pending';
+  if (normalized === 'pending') return 'Under Review';
   if (normalized === 'under review') return 'Under Review';
   return status;
 };
@@ -264,8 +264,8 @@ const ReviewerDashboard = ({ onLogout }) => {
   const [assignedCount, setAssignedCount] = useState(0);
   const [messageCount, setMessageCount] = useState(0);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [isSecondaryReviewer, setIsSecondaryReviewer] = useState(false);
-  const [isPreliminaryReviewer, setIsPreliminaryReviewer] = useState(false);
+  const [isSecondaryReviewer, setIsSecondaryReviewer] = useState(true);
+  const [isPreliminaryReviewer, setIsPreliminaryReviewer] = useState(true);
   const [reviewerType, setReviewerType] = useState('');
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -343,10 +343,7 @@ const ReviewerDashboard = ({ onLogout }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     { id: 'assigned-proposals', label: 'Assigned Proposals', icon: <FileCheckIcon />, badge: assignedCount > 0 ? assignedCount : null },
-    // Show Submit Review only for Preliminary Reviewers or Both
-    ...(isPreliminaryReviewer ? [{ id: 'pending-reviews', label: 'Submit Review', icon: <ClockIcon />, subtext: '(Preliminary Reviewer)' }] : []),
-    // Show Submit Secondary File only for Secondary Reviewers or Both
-    ...(isSecondaryReviewer ? [{ id: 'submit-secondary-file', label: 'Submit Secondary File', icon: <SubmitSecondaryFileIcon />, subtext: '(Secondary Reviewer)' }] : []),
+    { id: 'submit-secondary-file', label: 'Submit Review', icon: <SubmitSecondaryFileIcon /> },
     { id: 'submitted-reviews', label: 'Submitted Reviews', icon: <CheckIcon /> },
     { id: 'file-templates', label: 'File Templates', icon: <FileTemplatesIcon /> },
     { id: 'messages', label: 'Messages', icon: <MessageIcon />, badge: messageCount > 0 ? messageCount : null },
@@ -1281,13 +1278,6 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
               { label: 'Full Name', value: fullName },
               { label: 'Email', value: userInfo?.email },
               { label: 'Department', value: profileData.department },
-              {
-                label: 'Reviewer Type', value: reviewerType ?
-                  (reviewerType === 'preliminary' ? 'Preliminary Reviewer' :
-                    reviewerType === 'secondary' ? 'Secondary Reviewer' :
-                      reviewerType === 'both' ? 'Both (Preliminary & Secondary)' : reviewerType)
-                  : null
-              },
             ].map(({ label, value }) => (
               <div className="sp-info-row" key={label}>
                 <span className="sp-info-label">{label}</span>
@@ -1686,7 +1676,7 @@ const DashboardContent = () => {
 
             <h3>{loading ? '-' : stats.pendingReviews}</h3>
 
-            <p>Pending</p>
+            <p>Under Review</p>
 
           </div>
 
@@ -1869,8 +1859,8 @@ const ProposalDetailsModal = ({ isOpen, onClose, proposal }) => {
 
             <div className="detail-row">
               <span className="detail-label">Status:</span>
-              <span className={`status-badge ${proposal.status?.toLowerCase().replace(' ', '-') || 'pending'}`}>
-                {proposal.status || 'Pending Review'}
+              <span className={`status-badge ${formatAssignmentStatus(proposal.status).toLowerCase().replace(/\s+/g, '-')}`}>
+                {formatAssignmentStatus(proposal.status)}
               </span>
               {(proposal.resubmissionCount > 0 || proposal.resubmissionLabel) && (
                 <span className="status-badge" style={{ backgroundColor: '#ede9fe', color: '#6d28d9', marginLeft: '0.35rem' }}>
@@ -2376,6 +2366,22 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                       fontFamily: 'monospace'
                     }}>
                       {assignment.protocolCode}
+                    </span>
+                  </p>
+                )}
+                {(assignment.initialReviewDecision || assignment.proposal?.initialReviewDecision) && (
+                  <p style={{ margin: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#374151' }}>Initial Review Decision:</span>
+                    <span style={{
+                      backgroundColor: '#f0fdf4',
+                      color: '#166534',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                      fontWeight: '700',
+                      border: '1px solid #bbf7d0'
+                    }}>
+                      {assignment.initialReviewDecision || assignment.proposal?.initialReviewDecision}
                     </span>
                   </p>
                 )}
@@ -3803,7 +3809,7 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
   if (loading) {
     return (
       <div className="content-section">
-        <h2>Submit Secondary File</h2>
+        <h2>Submit Review</h2>
         <div className="loading-state">Loading proposals...</div>
       </div>
     );
@@ -3811,7 +3817,7 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
 
   return (
     <div className="content-section">
-      <h2>Submit Secondary File</h2>
+      <h2>Submit Review</h2>
 
       <form onSubmit={handleSubmit} className="review-form">
         {/* Protocol Code Dropdown */}
@@ -3915,6 +3921,9 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
             <h3>{selectedProposal.protocolCode}</h3>
             <p><strong>Title:</strong> {selectedProposal.researchTitle}</p>
             <p><strong>Proponent:</strong> {selectedProposal.proponent}</p>
+            {(selectedProposal.initialReviewDecision || selectedProposal.proposal?.initialReviewDecision) && (
+              <p><strong>Initial Review Decision:</strong> <span style={{ color: '#166534', fontWeight: '700' }}>{selectedProposal.initialReviewDecision || selectedProposal.proposal?.initialReviewDecision}</span></p>
+            )}
           </div>
         )}
 
@@ -3925,7 +3934,7 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
             className="btn-primary"
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Secondary Files'}
+            {isSubmitting ? 'Submitting...' : 'Submit Review'}
           </button>
           <button
             type="button"

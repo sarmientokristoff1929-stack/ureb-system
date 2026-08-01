@@ -1246,6 +1246,7 @@ function DashboardContent({ userInfo, onTabChange }) {
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [restrictedModalOpen, setRestrictedModalOpen] = useState(false);
+  const [restrictedActionType, setRestrictedActionType] = useState('edit');
   const [dueReminders, setDueReminders] = useState([]);
   const [editProposalModalOpen, setEditProposalModalOpen] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState(null);
@@ -1456,6 +1457,32 @@ function DashboardContent({ userInfo, onTabChange }) {
         </div>
       </div>
 
+      <div style={{
+        backgroundColor: '#eff6ff',
+        border: '1px solid #bfdbfe',
+        borderRadius: '8px',
+        padding: '0.9rem 1.25rem',
+        marginBottom: '1.5rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.5rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span style={{ fontSize: '1.1rem' }}>ℹ️</span>
+          <p style={{ margin: 0, fontSize: '0.875rem', color: '#1e40af', fontWeight: '600' }}>
+            Important Proposal Guidelines &amp; Notes:
+          </p>
+        </div>
+        <div style={{ marginLeft: '1.6rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+          <p style={{ margin: 0, fontSize: '0.84rem', color: '#1e40af', lineHeight: '1.4' }}>
+            • <strong>Editing Note:</strong> You can edit your proposal details or replace files as long as <strong>no reviewer has been assigned</strong>. Once assigned, editing is restricted.
+          </p>
+          <p style={{ margin: 0, fontSize: '0.84rem', color: '#1e40af', lineHeight: '1.4' }}>
+            • <strong>Deletion Note:</strong> You can delete a submitted proposal before a reviewer is assigned. Once assigned, deletion is disabled as the proposal is under active review.
+          </p>
+        </div>
+      </div>
+
       <div className="dashboard-sections">
         <div className="up-section">
           <div className="up-header">
@@ -1502,17 +1529,19 @@ function DashboardContent({ userInfo, onTabChange }) {
                           <h3 className="up-card-title">{proposal.researchTitle || 'Untitled Proposal'}</h3>
                           <span className="up-card-id">#{proposal._id?.slice(-8) || 'N/A'}</span>
                         </div>
-                        <div className="up-card-top-right" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <div className="up-card-top-right" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
                           <span className={`up-status up-status--${statusClass}`}>
                             {displayStatus}
                           </span>
 
-
                           <button
-                            className="up-icon-btn"
+                            type="button"
+                            className="up-action-btn up-action-btn--edit"
                             onClick={() => {
+                              const hasReviewer = Boolean(proposal.preliminaryReviewer || proposal.preliminaryReviewerName);
                               const s = (proposal.status || 'Pending').toLowerCase();
-                              if (s === 'under review' || s === 'submitted to admin' || s === 'review submitted') {
+                              if (hasReviewer || s === 'under review' || s === 'submitted to admin' || s === 'review submitted') {
+                                setRestrictedActionType('edit');
                                 setRestrictedModalOpen(true);
                               } else {
                                 setSelectedProposal(proposal);
@@ -1521,13 +1550,16 @@ function DashboardContent({ userInfo, onTabChange }) {
                             }}
                             title="Edit proposal"
                           >
-                            <EditIcon />
+                            <EditIcon /> Edit Proposal
                           </button>
                           <button
-                            className="up-delete-btn"
+                            type="button"
+                            className="up-action-btn up-action-btn--delete"
                             onClick={() => { 
+                              const hasReviewer = Boolean(proposal.preliminaryReviewer || proposal.preliminaryReviewerName);
                               const s = (proposal.status || 'Pending').toLowerCase();
-                              if (s === 'under review' || s === 'submitted to admin' || s === 'review submitted') {
+                              if (hasReviewer || s === 'under review' || s === 'submitted to admin' || s === 'review submitted') {
+                                setRestrictedActionType('delete');
                                 setRestrictedModalOpen(true);
                               } else {
                                 setDeleteTargetId(proposal._id); 
@@ -1536,7 +1568,7 @@ function DashboardContent({ userInfo, onTabChange }) {
                             }}
                             title="Delete proposal"
                           >
-                            <TrashIcon />
+                            <TrashIcon /> Delete Proposal
                           </button>
                         </div>
                       </div>
@@ -1697,8 +1729,14 @@ function DashboardContent({ userInfo, onTabChange }) {
                 <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
               </svg>
             </div>
-            <h4 className="mini-modal-title">Action Restricted</h4>
-            <p className="mini-modal-text">You can't delete this Proposal because it's under review.</p>
+            <h4 className="mini-modal-title">
+              {restrictedActionType === 'delete' ? 'Delete Proposal Restricted' : 'Edit Proposal Restricted'}
+            </h4>
+            <p className="mini-modal-text">
+              {restrictedActionType === 'delete'
+                ? 'You cannot delete this proposal because a reviewer has already been assigned and it is currently under review.'
+                : 'You cannot edit this proposal because a reviewer has already been assigned and it is currently under review.'}
+            </p>
             <div className="mini-modal-actions">
               <button 
                 className="mini-modal-btn" 
@@ -2382,25 +2420,11 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
 
   const unifiedHistory = useMemo(() => {
     if (!selectedProposal) return [];
-    const history = Array.isArray(selectedProposal.resubmissionHistory) && selectedProposal.resubmissionHistory.length > 0
-      ? [...selectedProposal.resubmissionHistory]
+    const history = Array.isArray(selectedProposal.resubmissionHistory)
+      ? selectedProposal.resubmissionHistory
       : [];
 
-    if (history.length === 0 && (selectedProposal.studentFiles || selectedProposal.files)) {
-      const studentFilesObj = selectedProposal.studentFiles || selectedProposal.files || {};
-      if (Object.keys(studentFilesObj).length > 0) {
-        history.push({
-          resubmissionNumber: 0,
-          label: 'Original Submission',
-          submittedAt: selectedProposal.createdAt || selectedProposal.submissionDate || new Date(),
-          resubmissionReason: 'Initial proposal submission',
-          files: studentFilesObj,
-          studentEmail: selectedProposal.studentEmail,
-          studentName: selectedProposal.proponent
-        });
-      }
-    }
-    return history;
+    return history.filter(h => h && h.resubmissionNumber > 0 && h.label !== 'Original Submission');
   }, [selectedProposal]);
 
   const handleProposalChange = (proposalId) => {
@@ -2594,25 +2618,7 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
         </div>
       </div>
 
-      {proposals.length > 1 && (
-        <div style={{ marginBottom: '1.25rem', backgroundColor: '#f8fafc', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <label htmlFor="proposalResubSelect" style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '600', fontSize: '0.85rem', color: '#334155' }}>
-            Select Research Proposal to Manage Resubmissions &amp; View History:
-          </label>
-          <select
-            id="proposalResubSelect"
-            value={selectedProposalId}
-            onChange={(e) => handleProposalChange(e.target.value)}
-            style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.875rem', backgroundColor: '#ffffff', color: '#1e293b', fontWeight: '500' }}
-          >
-            {proposals.map((prop) => (
-              <option key={prop._id} value={prop._id}>
-                {prop.researchTitle || 'Untitled Proposal'} — ({prop.resubmissionLabel || 'Initial Submission'})
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+
 
       <div style={{
         backgroundColor: '#eff6ff',
@@ -2728,12 +2734,11 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
               <tbody>
                 {unifiedHistory.map((h, i) => {
                   const itemFiles = getHistoryItemFiles(h);
-                  const isOriginal = h.resubmissionNumber === 0 || h.label === 'Original Submission';
                   return (
                     <tr key={i}>
                       <td>
-                        <span className={`resub-badge ${isOriginal ? 'resub-badge--blue' : 'resub-badge--purple'}`}>
-                          {h.label || (h.resubmissionNumber ? `Resubmission ${h.resubmissionNumber}` : `Round ${i + 1}`)}
+                        <span className="resub-badge resub-badge--purple">
+                          {h.label || (h.resubmissionNumber ? `Resubmission ${h.resubmissionNumber}` : `Resubmission ${i + 1}`)}
                         </span>
                       </td>
                       <td>
@@ -2743,7 +2748,7 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
                       </td>
                       <td style={{ maxWidth: '240px' }}>
                         <span style={{ fontSize: '0.825rem', color: '#334155', display: 'block', wordBreak: 'break-word' }}>
-                          {h.resubmissionReason || (isOriginal ? 'Initial proposal submission' : 'Updated files resubmitted')}
+                          {h.resubmissionReason || 'Updated files resubmitted'}
                         </span>
                       </td>
                       <td>

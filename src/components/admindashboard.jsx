@@ -2855,34 +2855,6 @@ const AddReviewerContent = () => {
 
             </div>
 
-            <div className="form-group">
-
-              <label>Reviewer Type</label>
-
-              <select
-
-                name="reviewerType"
-
-                value={formData.reviewerType}
-
-                onChange={handleInputChange}
-
-                required
-
-              >
-
-                <option value="">Select Reviewer Type</option>
-
-                <option value="preliminary">Preliminary Reviewer</option>
-
-                <option value="secondary">Secondary Reviewer</option>
-
-                <option value="both">Both (Preliminary & Secondary)</option>
-
-              </select>
-
-            </div>
-
           </div>
 
           <div className="form-actions">
@@ -3873,42 +3845,29 @@ const MarkCompletedReviewContent = () => {
     return 'Pending';
   };
 
-  const hasRoleSelected = reviewerTypeFilter === 'preliminary' || reviewerTypeFilter === 'secondary';
-  const isPreliminary = reviewerTypeFilter === 'preliminary';
-
   const proposalMatchesFilter = (p) => {
-    if (!hasRoleSelected) return false;
-    const protocolCode = (p.protocolCode || '').trim();
-    const student = (p.leader || '').trim();
-    const hasStudent = student && student !== 'Unknown';
-    if (isPreliminary) return hasStudent;
-    return protocolCode && hasStudent;
+    return Boolean(p.title || p.leader || p.researchTitle || p.protocolCode);
   };
 
-  const reviewerOptions = hasRoleSelected
-    ? reviewerRows
-    .filter(r => r.reviewerType === reviewerTypeFilter)
+  const reviewerOptions = reviewerRows
     .map(r => ({
       ...r,
       assignmentCount: (r.proposals || []).filter(proposalMatchesFilter).length,
     }))
     .filter(r => r.assignmentCount > 0)
-    .sort((a, b) => a.name.localeCompare(b.name))
-    : [];
+    .sort((a, b) => a.name.localeCompare(b.name));
 
-  const allTableRows = hasRoleSelected ? reviewerOptions
+  const allTableRows = reviewerOptions
     .flatMap(reviewer => (reviewer.proposals || []).filter(proposalMatchesFilter).map(p => ({ ...p, reviewer })))
     .sort((a, b) => {
       const nameCmp = a.reviewer.name.localeCompare(b.reviewer.name);
       if (nameCmp !== 0) return nameCmp;
-      if (isPreliminary) return (a.title || '').localeCompare(b.title || '');
-      return (a.protocolCode || '').localeCompare(b.protocolCode || '');
-    })
-    : [];
+      return (a.title || a.researchTitle || '').localeCompare(b.title || b.researchTitle || '');
+    });
 
   const hasReviewerSelected = selectedReviewerKey === 'all' || reviewerOptions.some(r => r.key === selectedReviewerKey);
 
-  const tableRows = !hasRoleSelected || !hasReviewerSelected
+  const tableRows = !hasReviewerSelected
     ? []
     : selectedReviewerKey === 'all'
       ? allTableRows
@@ -3919,27 +3878,20 @@ const MarkCompletedReviewContent = () => {
     : null;
 
   useEffect(() => {
-    if (!selectedReviewerKey || selectedReviewerKey === 'all') return;
-    const exists = reviewerRows.some(
-      r => r.key === selectedReviewerKey && r.reviewerType === reviewerTypeFilter
-    );
-    if (!exists) setSelectedReviewerKey('');
-  }, [selectedReviewerKey, reviewerTypeFilter, reviewerRows]);
+    if (!selectedReviewerKey) {
+      setSelectedReviewerKey('all');
+    }
+  }, [selectedReviewerKey]);
 
   const completedCount = tableRows.filter(row => isMcrCompleted(getRowStatus(row))).length;
   const totalCount = tableRows.length;
-  const roleLabel = isPreliminary ? 'Preliminary' : 'Secondary';
 
   return (
     <div className="mcr-wrapper">
       <div className="mcr-header">
         <h2 className="mcr-title">Mark Completed Review</h2>
         <p className="mcr-subtitle">
-          {!hasRoleSelected
-            ? 'Select a reviewer role and reviewer to view and manage completed reviews.'
-            : isPreliminary
-              ? 'View preliminary reviewer assignments with a student proposal. Mark reviews completed or reset as needed.'
-              : 'View secondary reviewer assignments with a student proposal and protocol code. Mark reviews completed or reset as needed.'}
+          Select a reviewer to view assignments and manage completed reviews.
         </p>
       </div>
 
@@ -3953,29 +3905,6 @@ const MarkCompletedReviewContent = () => {
           <div className="mcr-toolbar">
             <div className="mcr-toolbar-filters">
               <div className="mcr-dd-select-group mcr-toolbar-filter">
-                <label className="mcr-dd-label" htmlFor="mcr-type-select">
-                  Reviewer Role
-                </label>
-                <div className="mcr-dd-select-wrapper">
-                  <select
-                    id="mcr-type-select"
-                    className="mcr-dd-select"
-                    value={reviewerTypeFilter}
-                    onChange={e => {
-                      setReviewerTypeFilter(e.target.value);
-                      setSelectedReviewerKey('');
-                    }}
-                  >
-                    <option value="">Select Reviewer Role</option>
-                    <option value="preliminary">Preliminary</option>
-                    <option value="secondary">Secondary</option>
-                  </select>
-                  <svg className="mcr-dd-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </div>
-              </div>
-              <div className="mcr-dd-select-group mcr-toolbar-filter">
                 <label className="mcr-dd-label" htmlFor="mcr-reviewer-select">
                   Select Reviewer
                 </label>
@@ -3985,9 +3914,7 @@ const MarkCompletedReviewContent = () => {
                     className="mcr-dd-select"
                     value={selectedReviewerKey}
                     onChange={e => setSelectedReviewerKey(e.target.value)}
-                    disabled={!hasRoleSelected}
                   >
-                    <option value="">Select Reviewer</option>
                     <option value="all">All Reviewers</option>
                     {reviewerOptions.map(r => (
                       <option key={r.key} value={r.key}>
@@ -4013,48 +3940,34 @@ const MarkCompletedReviewContent = () => {
 
           <div className="mcr-section">
             <div className="mcr-section-header">
-              <span
-                className="mcr-dot"
-                style={{ background: reviewerTypeFilter === 'preliminary' ? '#2563eb' : '#7c3aed' }}
-              />
+              <span className="mcr-dot" style={{ background: '#2563eb' }} />
               <h3 className="mcr-section-title">
-                {!hasRoleSelected
-                  ? 'Reviewer Assignments'
-                  : selectedReviewer
-                    ? selectedReviewer.name
-                    : selectedReviewerKey === 'all'
-                      ? `All ${roleLabel} Reviewers`
-                      : 'Reviewer Assignments'}
+                {selectedReviewer
+                  ? selectedReviewer.name
+                  : selectedReviewerKey === 'all'
+                    ? 'All Reviewers'
+                    : 'Reviewer Assignments'}
               </h3>
-              <span className="mcr-section-badge" style={{
-                background: reviewerTypeFilter === 'preliminary' ? '#dbeafe' : '#ede9fe',
-                color: reviewerTypeFilter === 'preliminary' ? '#1d4ed8' : '#6d28d9',
-              }}>
+              <span className="mcr-section-badge" style={{ background: '#dbeafe', color: '#1d4ed8' }}>
                 {totalCount} record{totalCount !== 1 ? 's' : ''}
               </span>
             </div>
 
             {totalCount === 0 ? (
               <p className="mcr-no-data">
-                {!hasRoleSelected
-                  ? 'Please select a reviewer role to continue.'
-                  : !hasReviewerSelected
-                    ? 'Please select a reviewer to view assignments.'
-                    : selectedReviewer
-                      ? `No assignments found for ${selectedReviewer.name}.`
-                      : isPreliminary
-                        ? 'No preliminary reviewers with a student proposal found.'
-                        : 'No secondary reviewers with both a student proposal and protocol code found.'}
+                {selectedReviewer
+                  ? `No assignments found for ${selectedReviewer.name}.`
+                  : 'No reviewer assignments found.'}
               </p>
             ) : (
               <div className="mcr-table-wrap">
-                <table className={`mcr-table ${isPreliminary ? 'mcr-table--preliminary' : 'mcr-table--secondary'}`}>
+                <table className="mcr-table mcr-table--preliminary">
                   <colgroup>
                     <col className="mcr-col-num" />
                     <col className="mcr-col-reviewer" />
                     <col className="mcr-col-email" />
                     <col className="mcr-col-student" />
-                    {!isPreliminary && <col className="mcr-col-protocol" />}
+                    <col className="mcr-col-protocol" />
                     <col className="mcr-col-title" />
                     <col className="mcr-col-status" />
                     <col className="mcr-col-action" />
@@ -4065,7 +3978,7 @@ const MarkCompletedReviewContent = () => {
                       <th className="mcr-col-reviewer">Reviewer</th>
                       <th className="mcr-col-email">Email</th>
                       <th className="mcr-col-student">Student (Proponent)</th>
-                      {!isPreliminary && <th className="mcr-col-protocol">Protocol Code</th>}
+                      <th className="mcr-col-protocol">Protocol Code</th>
                       <th className="mcr-col-title">Research Proposal Title</th>
                       <th className="mcr-col-status">Status</th>
                       <th className="mcr-col-action">Action</th>
@@ -4087,12 +4000,10 @@ const MarkCompletedReviewContent = () => {
                           <td className="mcr-td-num">{idx + 1}</td>
                           <td className="mcr-td-name" title={reviewer.name}>{reviewer.name}</td>
                           <td className="mcr-td-email" title={reviewer.reviewerEmail || reviewer.email}>{reviewer.reviewerEmail || reviewer.email}</td>
-                          <td className="mcr-td-student" title={row.leader}>{row.leader}</td>
-                          {!isPreliminary && (
-                            <td className="mcr-td-protocol">
-                              <span className="mcr-protocol-code" title={row.protocolCode}>{row.protocolCode}</span>
-                            </td>
-                          )}
+                          <td className="mcr-td-student" title={row.leader}>{row.leader || 'N/A'}</td>
+                          <td className="mcr-td-protocol">
+                            <span className="mcr-protocol-code" title={row.protocolCode || 'N/A'}>{row.protocolCode || 'N/A'}</span>
+                          </td>
                           <td className="mcr-td-title-cell">
                             <span className="mcr-td-title" title={row.title}>{row.title}</span>
                           </td>
@@ -4105,7 +4016,7 @@ const MarkCompletedReviewContent = () => {
                             <button
                               type="button"
                               onClick={() => handleProposalToggle(row, pStatus, reviewer)}
-                              disabled={isBusy || !(row.proposalId || (!isPreliminary && row.protocolCode))}
+                              disabled={isBusy || !(row.proposalId || row._id || row.protocolCode)}
                               className={`mcr-btn ${isDone ? 'mcr-btn--reset' : 'mcr-btn--complete'}`}
                             >
                               {isBusy ? (
@@ -4162,6 +4073,8 @@ const AssignFileContent = () => {
       secondaryReviewer1: '',
 
       secondaryReviewer2: '',
+
+      initialReviewDecision: '',
 
       startDate: '',
 
@@ -4304,8 +4217,6 @@ const AssignFileContent = () => {
 
     { key: 'urebForm6', label: 'UREB Form 6' },
 
-    { key: 'urebForm7', label: 'UREB Form 7' },
-
     { key: 'urebForm8A', label: 'UREB Form 8(A)' },
 
     { key: 'urebForm10A', label: 'UREB Form 10(A)' },
@@ -4444,13 +4355,13 @@ const AssignFileContent = () => {
 
     if (!formData.protocolCode.trim()) errors.protocolCode = 'Protocol Code is required';
 
-    if (!formData.secondaryReviewer1.trim()) errors.secondaryReviewer1 = 'Secondary Reviewer 1 is required';
+    if (!formData.secondaryReviewer1.trim()) errors.secondaryReviewer1 = 'Reviewer 1 is required';
 
     if (
       formData.secondaryReviewer2.trim() &&
       formData.secondaryReviewer1.trim() === formData.secondaryReviewer2.trim()
     ) {
-      errors.secondaryReviewer2 = 'Secondary Reviewer 2 must be different from Secondary Reviewer 1';
+      errors.secondaryReviewer2 = 'Reviewer 2 must be different from Reviewer 1';
     }
 
     if (!formData.startDate) errors.startDate = 'Start Date is required';
@@ -4530,6 +4441,10 @@ const AssignFileContent = () => {
 
       if (formData.secondaryReviewer2.trim()) {
         formDataToSend.append('secondaryReviewer2', formData.secondaryReviewer2);
+      }
+
+      if (formData.initialReviewDecision) {
+        formDataToSend.append('initialReviewDecision', formData.initialReviewDecision);
       }
 
       formDataToSend.append('startDate', formData.startDate);
@@ -4802,7 +4717,7 @@ const AssignFileContent = () => {
 
           <div className="form-group">
 
-            <label>Secondary Reviewer 1</label>
+            <label>Reviewer 1</label>
 
             <select
 
@@ -4858,7 +4773,7 @@ const AssignFileContent = () => {
 
           <div className="form-group">
 
-            <label>Secondary Reviewer 2 <span className="optional-label">(Optional)</span></label>
+            <label>Reviewer 2</label>
 
             <select
 
@@ -4870,7 +4785,7 @@ const AssignFileContent = () => {
 
             >
 
-              <option value="">Select Reviewer (Optional)</option>
+              <option value="">Select Reviewer</option>
 
               {loadingReviewers ? (
 
@@ -4909,6 +4824,34 @@ const AssignFileContent = () => {
             </select>
 
             {validationErrors.secondaryReviewer2 && <span className="error-text">{validationErrors.secondaryReviewer2}</span>}
+
+          </div>
+
+          <div className="form-group">
+
+            <label>Initial Review Decision</label>
+
+            <select
+
+              name="initialReviewDecision"
+
+              value={formData.initialReviewDecision || ''}
+
+              onChange={handleInputChange}
+
+            >
+
+              <option value="">Select Initial Review Decision</option>
+
+              <option value="Exempted">Exempted</option>
+
+              <option value="Expedited">Expedited</option>
+
+              <option value="Full Review">Full Review</option>
+
+              <option value="No Human Involvement">No Human Involvement</option>
+
+            </select>
 
           </div>
 
@@ -7909,19 +7852,6 @@ const ManageUsersContent = () => {
 
                   </div>
 
-                  <div className="form-group">
-                    <label>Reviewer Type</label>
-                    <select
-                      name="reviewerType"
-                      value={editFormData.reviewerType || ''}
-                      onChange={handleEditInputChange}
-                    >
-                      <option value="">Select Reviewer Type</option>
-                      <option value="preliminary">Preliminary Reviewer</option>
-                      <option value="secondary">Secondary Reviewer</option>
-                      <option value="both">Both (Preliminary & Secondary)</option>
-                    </select>
-                  </div>
                 </>
               )}
 
@@ -9904,9 +9834,7 @@ const ReviewsFileContent = () => {
 
                   { key: 'copyOfInstrument', label: 'Copy of Instrument/Tool' },
 
-                  { key: 'ethicsReviewFee', label: 'Ethics Review Fee (Receipt)' },
-
-                  { key: 'form7', label: 'Form 7' }
+                  { key: 'ethicsReviewFee', label: 'Ethics Review Fee (Receipt)' }
 
                 ].map(({ key, label }) => {
 

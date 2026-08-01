@@ -4120,6 +4120,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         studentEmail: existingProposal.studentEmail,
         researchTitle: existingProposal.researchTitle,
         proponent: existingProposal.proponent || existingProposal.studentName,
+        initialReviewDecision: req.body.initialReviewDecision || existingProposal.initialReviewDecision || null,
         updatedAt: new Date(),
       };
       const lockedStatuses = ['completed', 'approved', 'rejected'];
@@ -4138,6 +4139,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         protocolCode,
         researchTitle,
         proponent,
+        initialReviewDecision: req.body.initialReviewDecision || null,
         dateOfApplication: new Date(),
         status: 'Under Review',
         reviewers: {
@@ -4215,6 +4217,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         researchTitle: researchTitle,
         proponent: proponent,
         studentEmail: studentEmail,
+        initialReviewDecision: req.body.initialReviewDecision || existingProposal?.initialReviewDecision || null,
         assignedFiles: adminAssignedFiles,
         reviewPeriod: {
           startDate: new Date(startDate),
