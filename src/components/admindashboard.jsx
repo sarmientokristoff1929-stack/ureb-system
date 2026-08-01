@@ -20,6 +20,8 @@ import InboxReportModal from './InboxReportModal';
 
 const formatReviewerName = (reviewer) => {
 
+  if (!reviewer) return '';
+
   const firstName = reviewer.firstName || '';
 
   const middleName = reviewer.middleName || '';
@@ -28,11 +30,9 @@ const formatReviewerName = (reviewer) => {
 
   const title = reviewer.title || '';
 
-
-
   const baseName = [firstName, middleName, lastName].filter(Boolean).join(' ');
 
-  const fallbackName = reviewer.name || baseName;
+  const fallbackName = reviewer.name || baseName || reviewer.email || 'Unnamed Reviewer';
 
 
 
@@ -976,7 +976,7 @@ const AdminDashboard = ({ onLogout }) => {
 
     { id: 'assign-file', label: 'Submit File', icon: <AssignIcon /> },
 
-    { id: 'student-proposals', label: 'Student Proposals', icon: <FileCheckIcon />, badge: studentProposalNewCount > 0 ? studentProposalNewCount : null },
+    { id: 'student-proposals', label: 'Researcher Proposal', icon: <FileCheckIcon />, badge: studentProposalNewCount > 0 ? studentProposalNewCount : null },
 
     { id: 'messages-inbox', label: 'Files And Messages Submitted', icon: <MessageIcon />, badge: messageCount > 0 ? messageCount : null },
 
@@ -4098,9 +4098,7 @@ const AssignFileContent = () => {
 
       approvedProposal: null,
 
-      questionnaire: null,
-
-      cvOfProponent: null
+      questionnaire: null
 
     };
 
@@ -4223,9 +4221,7 @@ const AssignFileContent = () => {
 
     { key: 'approvedProposal', label: 'Approved Proposal' },
 
-    { key: 'questionnaire', label: 'Questionnaire' },
-
-    { key: 'cvOfProponent', label: 'CV of Proponent' }
+    { key: 'questionnaire', label: 'Questionnaire' }
 
   ];
 
@@ -4517,9 +4513,7 @@ const AssignFileContent = () => {
 
           approvedProposal: null,
 
-          questionnaire: null,
-
-          cvOfProponent: null
+          questionnaire: null
 
         });
 
@@ -4587,9 +4581,7 @@ const AssignFileContent = () => {
 
       approvedProposal: null,
 
-      questionnaire: null,
-
-      cvOfProponent: null
+      questionnaire: null
 
     });
 
@@ -6614,72 +6606,72 @@ const ManageUsersContent = () => {
 
     if (!deletingUser) return;
 
-
-
     try {
 
       const { deleteUser, deleteReviewer, deleteStudent } = await import('../services/api.js');
 
       let result;
+      const userTypeStr = (deletingUser.userType || '').toLowerCase();
 
-
-
-      if (deletingUser.userType === 'admin') {
-
-        result = await deleteUser(deletingUser._id);
-
-      } else if (deletingUser.userType === 'reviewer') {
+      if (userTypeStr.includes('reviewer')) {
 
         result = await deleteReviewer(deletingUser._id);
 
-      } else if (deletingUser.userType === 'student') {
+      } else if (userTypeStr.includes('student')) {
 
         result = await deleteStudent(deletingUser._id);
 
+      } else {
+
+        result = await deleteUser(deletingUser._id);
+
       }
 
+      if (result && result.success) {
 
+        const deletedId = deletingUser._id;
 
-      if (result.success) {
+        // Optimistically filter local state immediately so table renders cleanly
+        setReviewers(prev => (Array.isArray(prev) ? prev.filter(r => String(r._id) !== String(deletedId)) : []));
+        setStudents(prev => (Array.isArray(prev) ? prev.filter(s => String(s._id) !== String(deletedId)) : []));
+        setUsers(prev => (Array.isArray(prev) ? prev.filter(u => String(u._id) !== String(deletedId)) : []));
 
-        // Refresh the data
+        // Close delete modal cleanly before opening success modal
+        setIsDeleteModalOpen(false);
+        setDeletingUser(null);
+        setIsDeleteSuccessModalOpen(true);
 
-        const fetchUsers = async () => {
-
+        // Refresh data in background safely
+        try {
           const { getAllUsers, getAllReviewers, getAllStudents } = await import('../services/api.js');
 
           const [userList, reviewerList, studentList] = await Promise.all([
-
-            getAllUsers(),
-
-            getAllReviewers(),
-
-            getAllStudents()
-
+            getAllUsers().catch(() => null),
+            getAllReviewers().catch(() => null),
+            getAllStudents().catch(() => null)
           ]);
 
-          const nonReviewerUsers = userList.filter(user => user.role !== 'reviewer');
+          if (Array.isArray(userList)) {
+            const nonReviewerUsers = userList.filter(user => user && user.role !== 'reviewer');
+            setUsers(nonReviewerUsers);
+          }
 
-          setUsers(nonReviewerUsers);
+          if (Array.isArray(reviewerList)) {
+            setReviewers(reviewerList);
+          }
 
-          setReviewers(reviewerList);
-
-          setStudents(studentList);
-
-        };
-
-        fetchUsers();
-
-
-
-        closeDeleteModal();
-
-        setIsDeleteSuccessModalOpen(true);
+          if (Array.isArray(studentList)) {
+            setStudents(studentList);
+          }
+        } catch (fetchErr) {
+          console.warn('Background refresh error after delete:', fetchErr);
+        }
 
       } else {
 
-        setDeleteErrorMessage(result.error || 'Failed to delete user');
-
+        setIsDeleteModalOpen(false);
+        setDeletingUser(null);
+        setDeleteErrorMessage(result?.error || 'Failed to delete user');
         setIsDeleteErrorModalOpen(true);
 
       }
@@ -6687,9 +6679,9 @@ const ManageUsersContent = () => {
     } catch (error) {
 
       console.error('Error deleting user:', error);
-
-      setDeleteErrorMessage('Error deleting user. Please try again.');
-
+      setIsDeleteModalOpen(false);
+      setDeletingUser(null);
+      setDeleteErrorMessage('An unexpected error occurred while deleting the user. Please try again.');
       setIsDeleteErrorModalOpen(true);
 
     }
@@ -6822,7 +6814,7 @@ const ManageUsersContent = () => {
 
   const filterAndSortData = (data, type) => {
 
-    let filteredData = data;
+    let filteredData = Array.isArray(data) ? [...data].filter(Boolean) : [];
 
 
 
@@ -7477,7 +7469,7 @@ const ManageUsersContent = () => {
 
                     <tr key={index}>
 
-                      <td>{student.name || `${student.firstName} ${student.lastName}`}</td>
+                      <td>{student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || student.email || 'Unnamed Student'}</td>
 
                       <td>{student.sex || student.gender || 'Not set'}</td>
 
@@ -8211,7 +8203,7 @@ const ManageUsersContent = () => {
 
       {/* Delete Confirmation Modal */}
 
-      {isDeleteModalOpen && (
+      {isDeleteModalOpen && deletingUser && (
 
         <div className="logout-modal-overlay" onClick={(e) => e.target === e.currentTarget && closeDeleteModal()}>
 
@@ -8782,8 +8774,7 @@ function NotificationContent({ setActiveTab, onRefreshCount }) {
   const [loading, setLoading] = useState(true);
 
   const [expandedGroups, setExpandedGroups] = useState({}); // Track which reviewer groups are expanded
-
-
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   useEffect(() => {
 
@@ -8924,17 +8915,23 @@ function NotificationContent({ setActiveTab, onRefreshCount }) {
 
 
 
-  const handleDeleteNotification = (e, id) => {
+  const requestDeleteNotification = (e, id) => {
 
     e.stopPropagation();
+    setDeleteConfirmId(id);
 
+  };
+
+  const confirmDeleteNotification = () => {
+    if (!deleteConfirmId) return;
+    const id = deleteConfirmId;
     const deleted = getDeletedIds();
     if (!deleted.includes(id)) {
       localStorage.setItem('deleted_notifications', JSON.stringify([...deleted, id]));
     }
     setNotifications(prev => prev.filter(n => n._id !== id));
     if (onRefreshCount) onRefreshCount();
-
+    setDeleteConfirmId(null);
   };
 
 
@@ -9183,13 +9180,13 @@ function NotificationContent({ setActiveTab, onRefreshCount }) {
 
                           className="notif-delete-btn"
 
-                          onClick={(e) => handleDeleteNotification(e, notification._id)}
+                          onClick={(e) => requestDeleteNotification(e, notification._id)}
 
                           title="Delete notification"
 
                         >
 
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
                             <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
 
@@ -9214,6 +9211,42 @@ function NotificationContent({ setActiveTab, onRefreshCount }) {
         )}
 
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="mini-modal-overlay" onClick={() => setDeleteConfirmId(null)}>
+          <div className="mini-modal" onClick={e => e.stopPropagation()}>
+            <div className="mini-modal-icon" style={{ backgroundColor: '#fef2f2', color: '#dc2626' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6l-1 14H6L5 6"></path>
+                <path d="M10 11v6"></path>
+                <path d="M14 11v6"></path>
+                <path d="M9 6V4h6v2"></path>
+              </svg>
+            </div>
+            <h4 className="mini-modal-title">Delete Notification</h4>
+            <p className="mini-modal-text">
+              Are you sure you want to delete this notification? This action cannot be undone.
+            </p>
+            <div className="mini-modal-actions">
+              <button
+                className="mini-modal-btn mini-modal-btn--ghost"
+                onClick={() => setDeleteConfirmId(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="mini-modal-btn mini-modal-btn--danger"
+                style={{ backgroundColor: '#dc2626', color: '#fff' }}
+                onClick={confirmDeleteNotification}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
 

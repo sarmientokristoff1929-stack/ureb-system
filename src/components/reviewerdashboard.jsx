@@ -2207,7 +2207,6 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
       urebForm10A: 'UREB Form 10-A',
       approvedProposal: 'Approved Proposal',
       questionnaire: 'Questionnaire',
-      cvOfProponent: 'CV of Proponent',
       // Student-submitted files
       proposal: 'Research Proposal',
       approvalSheet: 'Approval Sheet',

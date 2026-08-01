@@ -334,7 +334,7 @@ const STUDENT_ASSIGNMENT_FILE_KEYS = [
 const ADMIN_ASSIGNMENT_FILE_KEYS = [
   'urebForm16', 'urebForm10B', 'urebForm11', 'urebForm2', 'urebForm6',
   'urebForm7', 'urebForm8A', 'urebForm10A', 'approvedProposal',
-  'questionnaire', 'cvOfProponent',
+  'questionnaire',
 ];
 
 const pickFilesByKeys = (filesObj, keys) => {
@@ -4003,8 +4003,7 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
   { name: 'urebForm8A', maxCount: 1 },
   { name: 'urebForm10A', maxCount: 1 },
   { name: 'approvedProposal', maxCount: 1 },
-  { name: 'questionnaire', maxCount: 1 },
-  { name: 'cvOfProponent', maxCount: 1 }
+  { name: 'questionnaire', maxCount: 1 }
 ]), async (req, res) => {
   try {
     let {
