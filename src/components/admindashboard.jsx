@@ -6600,6 +6600,18 @@ const ManageUsersContent = () => {
 
   };
 
+  const closeDeleteSuccessModal = () => {
+
+    setIsDeleteSuccessModalOpen(false);
+
+  };
+
+  const closeDeleteErrorModal = () => {
+
+    setIsDeleteErrorModalOpen(false);
+
+  };
+
 
 
   const confirmDelete = async () => {
