@@ -3735,12 +3735,17 @@ const normalizeMessageAttachments = (msg) => {
 
   msg.files = files
     .filter((f) => f && (f.filename || f.originalname || f.path))
-    .map((f) => ({
-      filename: f.filename || f.path,
-      originalname: f.originalname || f.filename || f.path,
-      size: f.size,
-      mimetype: f.mimetype,
-    }));
+    .map((f) => {
+      const storedName = f.path ? (String(f.path).startsWith('uploads/') || String(f.path).startsWith('uploads\\') ? String(f.path).split(/[/\\]/).pop() : f.path) : f.filename;
+      const displayName = f.originalname || f.filename || f.path;
+      return {
+        filename: storedName,
+        originalname: displayName,
+        path: storedName,
+        size: f.size,
+        mimetype: f.mimetype,
+      };
+    });
 
   msg.attachmentCount = msg.files.length;
   return msg;
@@ -4554,7 +4559,8 @@ app.post('/api/send-message-to-reviewer', upload.any(), async (req, res) => {
         const gfsFilename = await uploadToGridFS(file);
         console.log('[upload] GridFS filename stored:', gfsFilename);
         fileRecords.push({
-          filename: file.originalname,
+          filename: gfsFilename,
+          originalname: file.originalname,
           size: file.size,
           mimetype: file.mimetype,
           path: gfsFilename // Store GridFS filename for retrieval
@@ -4563,6 +4569,7 @@ app.post('/api/send-message-to-reviewer', upload.any(), async (req, res) => {
         console.error('Failed to upload file to GridFS:', err.message);
         fileRecords.push({
           filename: file.originalname,
+          originalname: file.originalname,
           size: file.size,
           mimetype: file.mimetype,
           path: null

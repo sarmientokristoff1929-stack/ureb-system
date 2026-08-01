@@ -4185,16 +4185,43 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
                     </span>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                       {message.files.map((file, i) => {
-                        const storedName = file.path ? (file.path.startsWith('uploads/') || file.path.startsWith('uploads\\') ? file.path.split(/[/\\]/).pop() : file.path) : file.filename;
-                        const downloadUrl = storedName ? `${import.meta.env.VITE_API_URL}/api/download/${encodeURIComponent(storedName)}?name=${encodeURIComponent(file.filename || file.originalname || 'attachment')}` : null;
+                        const storedName = file.filename || (file.path ? (file.path.startsWith('uploads/') || file.path.startsWith('uploads\\') ? file.path.split(/[/\\]/).pop() : file.path) : null);
+                        const displayName = file.originalname || file.filename || 'attachment';
+                        const apiBaseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+                        const downloadUrl = storedName ? `${apiBaseUrl}/api/download/${encodeURIComponent(storedName)}?name=${encodeURIComponent(displayName)}` : null;
+                        const viewUrl = storedName ? `${apiBaseUrl}/api/view/${encodeURIComponent(storedName)}` : null;
                         return (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f3f4f6', padding: '0.4rem 0.75rem', borderRadius: '6px', fontSize: '0.85rem' }}>
-                            <span style={{ fontWeight: 500, color: '#1f2937' }}>{file.filename || file.originalname}</span>
-                            {file.size && <span style={{ color: '#6b7280', fontSize: '0.75rem' }}>({(file.size / 1024).toFixed(1)} KB)</span>}
-                            {downloadUrl && (
-                              <a href={downloadUrl} target="_blank" rel="noopener noreferrer" download style={{ color: '#2563eb', textDecoration: 'none', marginLeft: '0.25rem', fontWeight: 600 }}>
-                                Download
-                              </a>
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.4rem 0.75rem', borderRadius: '6px', fontSize: '0.85rem' }}>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2">
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                              <polyline points="14 2 14 8 20 8" />
+                            </svg>
+                            <span style={{ fontWeight: 500, color: '#1e293b' }}>{displayName}</span>
+                            {file.size && <span style={{ color: '#64748b', fontSize: '0.75rem' }}>({(file.size / 1024).toFixed(1)} KB)</span>}
+                            {storedName && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '0.5rem' }}>
+                                {viewUrl && (
+                                  <a
+                                    href={viewUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ background: '#3b82f6', color: '#ffffff', textDecoration: 'none', padding: '3px 9px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                  >
+                                    View
+                                  </a>
+                                )}
+                                {downloadUrl && (
+                                  <a
+                                    href={downloadUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    download={displayName}
+                                    style={{ background: '#10b981', color: '#ffffff', textDecoration: 'none', padding: '3px 9px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                  >
+                                    Download
+                                  </a>
+                                )}
+                              </div>
                             )}
                           </div>
                         );
