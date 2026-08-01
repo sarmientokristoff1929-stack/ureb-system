@@ -397,12 +397,48 @@ const buildAdminInboxQuery = (adminEmail) => {
 };
 
 const isAdminAccount = async (db, email) => {
-  const students = db.collection(collections.students);
+  if (!email) return false;
+  const cleanEmail = String(email).trim().toLowerCase();
+
+  // Explicit admin identifiers
+  if (cleanEmail === 'admin' || cleanEmail === 'administrator' || cleanEmail === 'admin@ureb.local') return true;
+  if (process.env.GMAIL_EMAIL && cleanEmail === process.env.GMAIL_EMAIL.trim().toLowerCase()) return true;
+
+  // Check reviewers collection
   const reviewers = db.collection(collections.reviewers);
-  const isStudent = await students.findOne({ email: emailRegexFilter(email) }, { projection: { _id: 1 } });
+  const isReviewer = await reviewers.findOne({
+    $or: [
+      { email: emailRegexFilter(email) },
+      { gmail: emailRegexFilter(email) }
+    ]
+  }, { projection: { _id: 1 } });
+  if (isReviewer) return false;
+
+  // Check students collection
+  const students = db.collection(collections.students);
+  const isStudent = await students.findOne({
+    $or: [
+      { email: emailRegexFilter(email) },
+      { gmail: emailRegexFilter(email) }
+    ]
+  }, { projection: { _id: 1 } });
   if (isStudent) return false;
-  const isReviewer = await reviewers.findOne({ email: emailRegexFilter(email) }, { projection: { _id: 1 } });
-  return !isReviewer;
+
+  // Check users collection for role
+  const users = db.collection(collections.users);
+  const user = await users.findOne({
+    $or: [
+      { email: emailRegexFilter(email) },
+      { gmail: emailRegexFilter(email) }
+    ]
+  });
+  if (user) {
+    const role = String(user.role || '').toLowerCase().trim();
+    if (role === 'reviewer' || role === 'student') return false;
+    if (role === 'admin' || role === 'superadmin' || role === 'super-admin' || role === 'administrator' || role === 'root') return true;
+  }
+
+  return false;
 };
 
 const buildProposalIdMatchers = (proposalId) => {
@@ -3836,10 +3872,9 @@ app.get('/api/messages/:userId', async (req, res) => {
     const db = getDatabase();
     const messages = db.collection(collections.messages);
     const students = db.collection(collections.students);
+    const reviewers = db.collection(collections.reviewers);
     const users = db.collection(collections.users);
 
-    // Determine if the requesting user is an admin:
-    // Admins are NOT in the students or reviewers collections.
     const isAdmin = await isAdminAccount(db, userId);
 
     const query = isAdmin
@@ -3851,18 +3886,26 @@ app.get('/api/messages/:userId', async (req, res) => {
         ],
       };
 
-    const messageList = await messages.find(query).sort({ createdAt: -1 }).toArray();
+    const messageList = await messages.find(query).sort({ createdAt: -1, sentAt: -1, _id: -1 }).toArray();
 
-    // Enrich messages with actual sender name from students/users collections
+    // Enrich messages with actual sender name from students/reviewers/users collections
     const enriched = await Promise.all(messageList.map(async (msg) => {
-      if (!msg.senderName || msg.senderName === 'Student') {
-        const student = await students.findOne({ email: msg.senderEmail }, { projection: { firstName: 1, lastName: 1, name: 1 } });
+      if (msg.read === undefined) msg.read = false;
+      if (!msg.createdAt && msg.sentAt) msg.createdAt = msg.sentAt;
+
+      if (!msg.senderName || msg.senderName === 'Student' || msg.senderName === 'Reviewer') {
+        const student = await students.findOne({ email: emailRegexFilter(msg.senderEmail) }, { projection: { firstName: 1, lastName: 1, name: 1 } });
         if (student) {
           msg.senderName = student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || msg.senderEmail;
         } else {
-          const user = await users.findOne({ email: msg.senderEmail }, { projection: { firstName: 1, lastName: 1, name: 1 } });
-          if (user) {
-            msg.senderName = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || msg.senderEmail;
+          const reviewer = await reviewers.findOne({ email: emailRegexFilter(msg.senderEmail) }, { projection: { firstName: 1, lastName: 1, name: 1 } });
+          if (reviewer) {
+            msg.senderName = reviewer.name || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim() || msg.senderEmail;
+          } else {
+            const user = await users.findOne({ email: emailRegexFilter(msg.senderEmail) }, { projection: { firstName: 1, lastName: 1, name: 1 } });
+            if (user) {
+              msg.senderName = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || msg.senderEmail;
+            }
           }
         }
       }
@@ -4488,8 +4531,9 @@ app.post('/api/send-message-to-student', upload.any(), async (req, res) => {
 });
 
 // Send message to reviewer endpoint
-app.post('/api/send-message-to-reviewer', express.json(), (req, res) => {
+app.post('/api/send-message-to-reviewer', upload.any(), async (req, res) => {
   const { reviewerEmail, recipientName: clientRecipientName, message } = req.body;
+  const files = req.files || [];
 
   // Validate required fields
   if (!reviewerEmail || !message) {
@@ -4501,6 +4545,33 @@ app.post('/api/send-message-to-reviewer', express.json(), (req, res) => {
 
   const recipientName = clientRecipientName || reviewerEmail;
 
+  // Upload files to GridFS first
+  const fileRecords = [];
+  if (files.length > 0) {
+    for (const file of files) {
+      try {
+        console.log('[upload] reviewer message file.fieldname:', file.fieldname, 'originalname:', file.originalname);
+        const gfsFilename = await uploadToGridFS(file);
+        console.log('[upload] GridFS filename stored:', gfsFilename);
+        fileRecords.push({
+          filename: file.originalname,
+          size: file.size,
+          mimetype: file.mimetype,
+          path: gfsFilename // Store GridFS filename for retrieval
+        });
+      } catch (err) {
+        console.error('Failed to upload file to GridFS:', err.message);
+        fileRecords.push({
+          filename: file.originalname,
+          size: file.size,
+          mimetype: file.mimetype,
+          path: null
+        });
+      }
+    }
+    console.log('[upload] reviewer message fileRecords:', fileRecords);
+  }
+
   // Respond immediately
   res.json({ success: true, message: 'Message sent successfully', recipientName });
 
@@ -4509,17 +4580,21 @@ app.post('/api/send-message-to-reviewer', express.json(), (req, res) => {
   const messages = db.collection(collections.messages);
   messages.insertOne({
     senderEmail: process.env.GMAIL_EMAIL || 'admin',
-    recipientEmail: reviewerEmail,
+    senderName: 'UREB Administrator',
+    recipientEmail: String(reviewerEmail).trim(),
     recipientName,
     message,
+    files: fileRecords,
+    createdAt: new Date(),
     sentAt: new Date(),
     type: 'admin_to_reviewer',
+    read: false,
     status: 'sent'
   }).catch(err => console.error('Failed to save message to DB:', err.message));
 
   // Send email in background
   if (process.env.GMAIL_EMAIL && process.env.GMAIL_APP_PASSWORD) {
-    const emailContent = `
+    let emailContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: #7A9E7E; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
           <h1 style="margin: 0; font-size: 24px;">admin</h1>
@@ -4528,6 +4603,21 @@ app.post('/api/send-message-to-reviewer', express.json(), (req, res) => {
           <div style="background: white; padding: 20px; border-radius: 6px; border-left: 4px solid #7A9E7E; margin-bottom: 20px;">
             <p style="margin: 0; line-height: 1.6; color: #555;">${message}</p>
           </div>
+    `;
+
+    if (files.length > 0) {
+      emailContent += `
+        <div style="background: #e8f5e8; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+          <h3 style="margin: 0 0 10px 0; color: #4a6b4e;">Attached Files (${files.length}):</h3>
+          <ul style="margin: 0; padding-left: 20px; color: #555;">
+      `;
+      files.forEach(file => {
+        emailContent += `<li style="margin-bottom: 5px;">${file.originalname} (${(file.size / 1024).toFixed(1)} KB)</li>`;
+      });
+      emailContent += `</ul></div>`;
+    }
+
+    emailContent += `
           <div style="border-top: 1px solid #ddd; padding-top: 20px; margin-top: 20px;">
             <p style="margin: 0; font-size: 12px; color: #999;">
               Sent via UREB System on ${new Date().toLocaleString()}
@@ -4542,6 +4632,11 @@ app.post('/api/send-message-to-reviewer', express.json(), (req, res) => {
       to: reviewerEmail,
       subject: `admin`,
       html: emailContent,
+      attachments: files.map(file => ({
+        filename: file.originalname,
+        content: file.buffer,
+        contentType: file.mimetype,
+      })),
     })
       .then(() => console.log('Email sent to reviewer:', reviewerEmail))
       .catch(err => console.error('Email failed:', err.message));

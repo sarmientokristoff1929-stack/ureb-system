@@ -4178,6 +4178,31 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
 
                 <p>{message.message || 'No content'}</p>
 
+                {message.files && message.files.length > 0 && (
+                  <div className="message-attachments" style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #e5e7eb' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#374151', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}>
+                      📎 Attachments ({message.files.length})
+                    </span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      {message.files.map((file, i) => {
+                        const storedName = file.path ? (file.path.startsWith('uploads/') || file.path.startsWith('uploads\\') ? file.path.split(/[/\\]/).pop() : file.path) : file.filename;
+                        const downloadUrl = storedName ? `${import.meta.env.VITE_API_URL}/api/download/${encodeURIComponent(storedName)}?name=${encodeURIComponent(file.filename || file.originalname || 'attachment')}` : null;
+                        return (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f3f4f6', padding: '0.4rem 0.75rem', borderRadius: '6px', fontSize: '0.85rem' }}>
+                            <span style={{ fontWeight: 500, color: '#1f2937' }}>{file.filename || file.originalname}</span>
+                            {file.size && <span style={{ color: '#6b7280', fontSize: '0.75rem' }}>({(file.size / 1024).toFixed(1)} KB)</span>}
+                            {downloadUrl && (
+                              <a href={downloadUrl} target="_blank" rel="noopener noreferrer" download style={{ color: '#2563eb', textDecoration: 'none', marginLeft: '0.25rem', fontWeight: 600 }}>
+                                Download
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
               </div>
 
               <div className="message-actions">

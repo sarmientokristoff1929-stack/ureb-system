@@ -5663,229 +5663,214 @@ const MessageReviewerContent = () => {
 
 
   const handleSubmit = (e) => {
-
     e.preventDefault();
-
     if (!selectedReviewer || !message) {
-
       setError('Please select a reviewer and enter a message');
-
       return;
-
     }
 
     setError('');
-
     const selectedReviewerObj = reviewers.find(r => r.email === selectedReviewer);
-
     const recipientName = selectedReviewerObj
-
       ? (selectedReviewerObj.name || `${selectedReviewerObj.firstName || ''} ${selectedReviewerObj.lastName || ''}`.trim())
-
       : '';
 
     // Show success immediately
-
     setMessageSuccessRecipient(recipientName || 'reviewer');
-
     setIsMessageSuccessModalOpen(true);
 
     // Capture values before resetting form
-
     const reviewerEmail = selectedReviewer;
-
     const messageText = message;
+    const filesToSend = [...attachedFiles];
 
     // Reset form immediately
-
     setSelectedReviewer('');
-
     setMessage('');
+    setAttachedFiles([]);
 
-    // Send in background
+    // Upload in background via FormData
+    const formDataToSend = new FormData();
+    formDataToSend.append('reviewerEmail', reviewerEmail);
+    formDataToSend.append('recipientName', recipientName);
+    formDataToSend.append('message', messageText);
+    filesToSend.forEach((file, index) => {
+      formDataToSend.append(`file${index}`, file);
+    });
 
     fetch(`${import.meta.env.VITE_API_URL}/api/send-message-to-reviewer`, {
-
       method: 'POST',
-
-      headers: { 'Content-Type': 'application/json' },
-
-      body: JSON.stringify({
-
-        reviewerEmail,
-
-        recipientName,
-
-        message: messageText
-
-      }),
-
+      body: formDataToSend,
     }).catch(err => console.error('Message send failed:', err));
-
   };
 
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    setAttachedFiles(prev => [...prev, ...files]);
+  };
 
+  const handleRemoveFile = (index) => {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const validFiles = files.filter(file => {
+      const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'image/jpeg', 'image/jpg', 'image/png'];
+      return validTypes.includes(file.type) && file.size <= 10 * 1024 * 1024; // 10MB limit
+    });
+
+    if (validFiles.length > 0) {
+      setAttachedFiles(prev => [...prev, ...validFiles]);
+    }
+
+    if (validFiles.length !== files.length) {
+      setError('Some files were invalid or too large and were not added');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
 
   return (
-
     <div className="form-content full-width">
-
       <div className="form-card">
-
         <h2>Message Reviewer</h2>
-
         <form className="message-form" onSubmit={handleSubmit}>
-
           <div className="form-group">
-
             <label>Select Reviewer</label>
-
             <div className="student-selector">
-
               <div className="student-controls">
-
                 <input
-
                   type="text"
-
                   placeholder="Search by name, email, department, or expertise..."
-
                   value={searchQuery}
-
                   onChange={(e) => setSearchQuery(e.target.value)}
-
                   className="student-search"
-
                 />
-
               </div>
 
               {searchQuery && (
-
                 <div className="search-results-info">
-
                   Found <span className="results-count">{filteredReviewers.length}</span> reviewers matching "{searchQuery}"
-
                   {filteredReviewers.length === 0 && " - Try different keywords"}
-
                 </div>
-
               )}
 
               <div className="student-dropdown">
-
                 <select
-
                   value={selectedReviewer}
-
                   onChange={(e) => setSelectedReviewer(e.target.value)}
-
                   required
-
                   className="student-select"
-
                 >
-
                   <option value="">
-
                     {filteredReviewers.length === 0
-
                       ? 'No reviewers found - adjust your search'
-
                       : `Select a reviewer (${filteredReviewers.length} available)`
-
                     }
-
                   </option>
-
                   {filteredReviewers.map((reviewer) => (
-
                     <option key={reviewer._id} value={reviewer.email}>
-
                       {reviewer.name || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim() || reviewer.email}
-
                       {reviewer.department && ` - ${reviewer.department}`}
-
                       {reviewer.expertise && ` - ${reviewer.expertise}`}
-
                     </option>
-
                   ))}
-
                 </select>
-
               </div>
-
             </div>
-
           </div>
-
-
 
           <div className="form-group">
-
-            <label>Message</label>
-
-            <textarea
-
-              value={message}
-
-              onChange={(e) => setMessage(e.target.value)}
-
-              placeholder="Enter your message here..."
-
-              rows="6"
-
-              required
-
-            />
-
+            <label>Attached Files</label>
+            <div
+              className={`file-upload-area ${isDragOver ? 'dragover' : ''}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => document.getElementById('message-reviewer-file-upload').click()}
+            >
+              <input
+                type="file"
+                multiple
+                onChange={handleFileChange}
+                accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                style={{ display: 'none' }}
+                id="message-reviewer-file-upload"
+              />
+              <div className="file-upload-label">
+                <FilePlusIcon />
+                <p>{isDragOver ? 'Drop files here' : 'Click to upload files or drag and drop'}</p>
+                <span>PDF, DOC, DOCX, TXT, JPG, PNG (MAX. 10MB per file)</span>
+              </div>
+            </div>
           </div>
 
+          {attachedFiles.length > 0 && (
+            <div className="uploaded-files">
+              <h4>Attached Files:</h4>
+              <ul>
+                {attachedFiles.map((file, index) => (
+                  <li key={index}>
+                    <span>{file.name}</span>
+                    <span>({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                    <button
+                      type="button"
+                      className="remove-file-btn"
+                      onClick={() => handleRemoveFile(index)}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
+          <div className="form-group">
+            <label>Message</label>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Enter your message here..."
+              rows="6"
+              required
+            />
+          </div>
 
           {error && <div className="error-message">{error}</div>}
 
-
-
           <div className="form-actions">
-
             <button type="submit" className="btn-primary" disabled={loading}>
-
               {loading ? 'Sending...' : 'Send Message'}
-
             </button>
-
             <button
-
               type="button"
-
               className="btn-secondary"
-
               onClick={() => {
-
                 setSelectedReviewer('');
-
                 setSearchQuery('');
-
                 setMessage('');
-
                 setAttachedFiles([]);
-
                 setIsDragOver(false);
-
                 setError('');
-
                 setSuccess('');
-
               }}
-
             >
-
               Clear
-
             </button>
-
           </div>
 
         </form>
