@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { API_BASE_URL, viewFile, downloadReviewerFile, sendStudentMessageToAdmin } from '../services/api';
 import './studentdashboard.css';
 
@@ -12,6 +12,20 @@ const saveDeletedProposalId = (id) => {
     const ids = getDeletedProposalIds();
     if (!ids.includes(String(id))) {
       localStorage.setItem('deleted_proposals', JSON.stringify([...ids, String(id)]));
+    }
+  } catch { }
+};
+
+const NOTIF_HIDDEN_KEY = 'ureb_hidden_notifications';
+const getHiddenNotifIds = () => {
+  try { return JSON.parse(localStorage.getItem(NOTIF_HIDDEN_KEY) || '[]'); }
+  catch { return []; }
+};
+const saveHiddenNotifId = (id) => {
+  try {
+    const ids = getHiddenNotifIds();
+    if (!ids.includes(String(id))) {
+      localStorage.setItem(NOTIF_HIDDEN_KEY, JSON.stringify([...ids, String(id)]));
     }
   } catch { }
 };
@@ -1791,15 +1805,80 @@ function NotificationsContent({ userInfo }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchExpiringProposals = async () => {
-      if (!userInfo?.email) return;
-      try {
-        const response = await fetch(`${API_BASE_URL}/proposals/student/${encodeURIComponent(userInfo.email)}`);
-        if (response.ok) {
-          const proposals = await response.json();
-          const expiringNotifs = [];
+  const fetchNotificationsData = useCallback(async () => {
+    if (!userInfo?.email) return;
+    try {
+      const email = userInfo.email;
+      const [proposalsRes, notifsRes, msgsRes, hiddenRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/proposals/student/${encodeURIComponent(email)}`).catch(() => null),
+        fetch(`${API_BASE_URL}/notifications/${encodeURIComponent(email)}`).catch(() => null),
+        fetch(`${API_BASE_URL}/messages/${encodeURIComponent(email)}`).catch(() => null),
+        fetch(`${API_BASE_URL}/user-hidden-items/${encodeURIComponent(email)}`).catch(() => null)
+      ]);
 
+      let dbHiddenIds = [];
+      if (hiddenRes && hiddenRes.ok) {
+        try {
+          const hiddenData = await hiddenRes.json();
+          if (hiddenData && Array.isArray(hiddenData.hiddenIds)) {
+            dbHiddenIds = hiddenData.hiddenIds.map(String);
+          }
+        } catch {}
+      }
+
+      const localHiddenNotifIds = getHiddenNotifIds();
+      const hiddenIds = Array.from(new Set([...localHiddenNotifIds, ...dbHiddenIds]));
+
+      const allNotifs = [];
+
+      // 1. Database notifications
+      if (notifsRes && notifsRes.ok) {
+        const dbNotifs = await notifsRes.json();
+        if (Array.isArray(dbNotifs)) {
+          dbNotifs.forEach(n => {
+            const idStr = String(n._id);
+            if (!hiddenIds.includes(idStr)) {
+              allNotifs.push({
+                id: idStr,
+                dbId: n._id,
+                isDbNotif: true,
+                type: n.type || 'info',
+                title: n.title || 'Notification',
+                message: n.message || n.content || '',
+                time: n.createdAt ? new Date(n.createdAt).toLocaleDateString() + ' ' + new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently',
+                read: Boolean(n.read)
+              });
+            }
+          });
+        }
+      }
+
+      // 2. Direct Messages to Researcher
+      if (msgsRes && msgsRes.ok) {
+        const msgs = await msgsRes.json();
+        if (Array.isArray(msgs)) {
+          msgs.filter(m => m.type === 'admin_to_student' || m.type === 'admin_to_researcher' || m.type === 'reviewer_to_student').forEach(m => {
+            const idStr = `msg-${m._id}`;
+            if (!hiddenIds.includes(idStr) && !hiddenIds.includes(String(m._id))) {
+              allNotifs.push({
+                id: idStr,
+                dbId: m._id,
+                isMessage: true,
+                type: 'info',
+                title: m.subject || `Message from ${m.senderName || 'Admin'}`,
+                message: m.message || m.content || '',
+                time: m.createdAt ? new Date(m.createdAt).toLocaleDateString() + ' ' + new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently',
+                read: Boolean(m.read)
+              });
+            }
+          });
+        }
+      }
+
+      // 3. Proposal Expiration Warnings
+      if (proposalsRes && proposalsRes.ok) {
+        const proposals = await proposalsRes.json();
+        if (Array.isArray(proposals)) {
           proposals.forEach((proposal) => {
             const status = (proposal.status || 'Pending').toLowerCase();
             if (status !== 'approved') {
@@ -1808,40 +1887,45 @@ function NotificationsContent({ userInfo }) {
               deadlineDate.setFullYear(deadlineDate.getFullYear() + 1);
               const today = new Date();
               const daysRemaining = Math.ceil((deadlineDate - today) / (1000 * 3600 * 24));
+              const expId = `exp-${proposal._id}`;
 
-              if (daysRemaining <= 14 && daysRemaining > 0) {
-                expiringNotifs.push({
-                  id: `exp-${proposal._id}`,
-                  type: 'warning',
-                  title: 'Requirement Expiration Warning',
-                  message: `Your proposal "${proposal.researchTitle || 'Untitled'}" is expiring in ${daysRemaining} day(s) (1-year limit).`,
-                  time: new Date().toLocaleDateString(),
-                  read: false
-                });
-              } else if (daysRemaining <= 0) {
-                expiringNotifs.push({
-                  id: `exp-${proposal._id}`,
-                  type: 'warning',
-                  title: 'Requirement Expired',
-                  message: `Your proposal "${proposal.researchTitle || 'Untitled'}" has exceeded the 1-year validity period.`,
-                  time: new Date().toLocaleDateString(),
-                  read: false
-                });
+              if (!hiddenIds.includes(expId)) {
+                if (daysRemaining <= 14 && daysRemaining > 0) {
+                  allNotifs.push({
+                    id: expId,
+                    type: 'warning',
+                    title: 'Requirement Expiration Warning',
+                    message: `Your proposal "${proposal.researchTitle || 'Untitled'}" is expiring in ${daysRemaining} day(s) (1-year limit).`,
+                    time: new Date().toLocaleDateString(),
+                    read: false
+                  });
+                } else if (daysRemaining <= 0) {
+                  allNotifs.push({
+                    id: expId,
+                    type: 'warning',
+                    title: 'Requirement Expired',
+                    message: `Your proposal "${proposal.researchTitle || 'Untitled'}" has exceeded the 1-year validity period.`,
+                    time: new Date().toLocaleDateString(),
+                    read: false
+                  });
+                }
               }
             }
           });
-
-          setNotifications(expiringNotifs);
         }
-      } catch (error) {
-        console.error('Error fetching proposals for notifications:', error);
-      } finally {
-        setLoading(false);
       }
-    };
 
-    fetchExpiringProposals();
+      setNotifications(allNotifs);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [userInfo]);
+
+  useEffect(() => {
+    fetchNotificationsData();
+  }, [fetchNotificationsData]);
 
   const markAsRead = (id) => {
     setNotifications(notifications.map(notif =>
@@ -1849,9 +1933,88 @@ function NotificationsContent({ userInfo }) {
     ));
   };
 
+  const handleDeleteNotification = async (id, dbId, isMessage, isDbNotif) => {
+    // 1. Optimistic UI delete & local backup
+    saveHiddenNotifId(id);
+    if (dbId) saveHiddenNotifId(dbId);
+    setNotifications(prev => prev.filter(n => String(n.id) !== String(id)));
+
+    // 2. Realtime Database Deletion
+    try {
+      if (isDbNotif && dbId) {
+        fetch(`${API_BASE_URL}/notifications/${dbId}/delete`, { method: 'POST' }).catch(() => null);
+        fetch(`${API_BASE_URL}/notifications/${dbId}`, { method: 'DELETE' }).catch(() => null);
+      } else if (isMessage && dbId) {
+        fetch(`${API_BASE_URL}/messages/${dbId}`, { method: 'DELETE' }).catch(() => null);
+      }
+
+      if (userInfo?.email) {
+        fetch(`${API_BASE_URL}/user-hidden-items`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userInfo.email, itemId: String(id), itemType: 'notification' })
+        }).catch(() => null);
+        if (dbId) {
+          fetch(`${API_BASE_URL}/user-hidden-items`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: userInfo.email, itemId: String(dbId), itemType: 'notification' })
+          }).catch(() => null);
+        }
+      }
+    } catch (err) {
+      console.error('Realtime DB notification deletion failed:', err);
+    }
+  };
+
+  const handleDeleteAllNotifications = async () => {
+    const notifsToDelete = [...notifications];
+    notifsToDelete.forEach(n => {
+      saveHiddenNotifId(n.id);
+      if (n.dbId) saveHiddenNotifId(n.dbId);
+    });
+    setNotifications([]);
+
+    try {
+      for (const n of notifsToDelete) {
+        if (n.isDbNotif && n.dbId) {
+          fetch(`${API_BASE_URL}/notifications/${n.dbId}/delete`, { method: 'POST' }).catch(() => null);
+          fetch(`${API_BASE_URL}/notifications/${n.dbId}`, { method: 'DELETE' }).catch(() => null);
+        } else if (n.isMessage && n.dbId) {
+          fetch(`${API_BASE_URL}/messages/${n.dbId}`, { method: 'DELETE' }).catch(() => null);
+        }
+      }
+
+      if (userInfo?.email && notifsToDelete.length > 0) {
+        const itemIds = notifsToDelete.map(n => String(n.id));
+        fetch(`${API_BASE_URL}/user-hidden-items/clear-all`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userInfo.email, itemIds, itemType: 'notification' })
+        }).catch(() => null);
+      }
+    } catch (err) {
+      console.error('Realtime DB clear all notifications failed:', err);
+    }
+  };
+
   return (
     <div className="content-section">
-      <h2>Notifications</h2>
+      <div className="sm-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div>
+          <h2>Notifications</h2>
+        </div>
+        {notifications.length > 0 && (
+          <button
+            className="hist-delete-all-btn"
+            title="Delete all notifications"
+            onClick={handleDeleteAllNotifications}
+          >
+            <TrashIcon />
+            <span>Delete All</span>
+          </button>
+        )}
+      </div>
       <div className="notifications-list">
         {loading ? (
           <div className="loading-state">Loading notifications...</div>
@@ -1870,7 +2033,7 @@ function NotificationsContent({ userInfo }) {
                 <p>{notification.message}</p>
                 <span className="notification-time">{notification.time}</span>
               </div>
-              <div className="notification-actions">
+              <div className="notification-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {!notification.read && (
                   <button
                     className="btn-secondary"
@@ -1879,6 +2042,13 @@ function NotificationsContent({ userInfo }) {
                     Mark as Read
                   </button>
                 )}
+                <button
+                  className="hist-item-delete-btn"
+                  title="Delete notification"
+                  onClick={() => handleDeleteNotification(notification.id, notification.dbId, notification.isMessage, notification.isDbNotif)}
+                >
+                  <TrashIcon />
+                </button>
               </div>
             </div>
           ))
@@ -3641,9 +3811,10 @@ const HistoryContent = () => {
       if (!userInfo?.email) return;
 
       try {
-        const [proposalsResponse, reviewsResponse] = await Promise.all([
+        const [proposalsResponse, reviewsResponse, hiddenResponse] = await Promise.all([
           fetch(`${API_BASE_URL}/proposals/student/${encodeURIComponent(userInfo.email)}`),
-          fetch(`${API_BASE_URL}/reviews/student/${encodeURIComponent(userInfo.email)}`)
+          fetch(`${API_BASE_URL}/reviews/student/${encodeURIComponent(userInfo.email)}`),
+          fetch(`${API_BASE_URL}/user-hidden-items/${encodeURIComponent(userInfo.email)}`).catch(() => null)
         ]);
 
         if (!proposalsResponse.ok || !reviewsResponse.ok) {
@@ -3660,26 +3831,38 @@ const HistoryContent = () => {
         const proposals = await proposalsResponse.json();
         const reviews = await reviewsResponse.json();
 
+        let dbHiddenIds = [];
+        if (hiddenResponse && hiddenResponse.ok) {
+          const hiddenData = await hiddenResponse.json();
+          if (Array.isArray(hiddenData.hiddenIds)) {
+            dbHiddenIds = hiddenData.hiddenIds.map(String);
+          }
+        }
+
         const activities = [];
         const deletedProposalIds = getDeletedProposalIds();
-        const hiddenIds = getHiddenHistoryIds();
+        const localHiddenIds = getHiddenHistoryIds();
+        const hiddenIds = Array.from(new Set([...localHiddenIds, ...dbHiddenIds]));
 
         proposals.filter(p => !deletedProposalIds.includes(String(p._id)) && !hiddenIds.includes(String(p._id))).forEach(proposal => {
           const resubHistory = Array.isArray(proposal.resubmissionHistory) ? proposal.resubmissionHistory : [];
           if (resubHistory.length > 0) {
             resubHistory.forEach((h, idx) => {
-              activities.push({
-                id: `${proposal._id}-resub-${idx}`,
-                type: idx === 0 ? 'proposal' : 'resubmission',
-                title: proposal.researchTitle || 'Untitled Proposal',
-                action: idx === 0 ? 'Submitted initial research proposal' : `Resubmitted files (${h.label || `Resubmission ${idx}`})`,
-                date: h.submittedAt || proposal.createdAt || new Date(),
-                status: h.label || (idx === 0 ? 'Original Submission' : `Resubmission ${idx}`),
-                details: {
-                  department: proposal.department || 'Unknown',
-                  abstract: h.resubmissionReason || (idx === 0 ? 'Initial submission' : 'Resubmitted updated proposal files')
-                }
-              });
+              const actId = `${proposal._id}-resub-${idx}`;
+              if (!hiddenIds.includes(actId)) {
+                activities.push({
+                  id: actId,
+                  type: idx === 0 ? 'proposal' : 'resubmission',
+                  title: proposal.researchTitle || 'Untitled Proposal',
+                  action: idx === 0 ? 'Submitted initial research proposal' : `Resubmitted files (${h.label || `Resubmission ${idx}`})`,
+                  date: h.submittedAt || proposal.createdAt || new Date(),
+                  status: h.label || (idx === 0 ? 'Original Submission' : `Resubmission ${idx}`),
+                  details: {
+                    department: proposal.department || 'Unknown',
+                    abstract: h.resubmissionReason || (idx === 0 ? 'Initial submission' : 'Resubmitted updated proposal files')
+                  }
+                });
+              }
             });
           } else {
             activities.push({
@@ -3725,17 +3908,42 @@ const HistoryContent = () => {
     if (userInfo) fetchHistory();
   }, [userInfo]);
 
-  const handleDeleteOne = () => {
+  const handleDeleteOne = async () => {
     const { id } = confirmModal;
     saveHiddenHistoryId(id);
     setHistory(prev => prev.filter(a => String(a.id) !== String(id)));
     setConfirmModal({ open: false, mode: null, id: null });
+
+    if (userInfo?.email) {
+      try {
+        await fetch(`${API_BASE_URL}/user-hidden-items`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userInfo.email, itemId: String(id), itemType: 'history' })
+        });
+      } catch (err) {
+        console.error('Realtime DB history item deletion failed:', err);
+      }
+    }
   };
 
-  const handleDeleteAll = () => {
-    history.forEach(a => saveHiddenHistoryId(a.id));
+  const handleDeleteAll = async () => {
+    const currentIds = history.map(a => a.id);
+    currentIds.forEach(id => saveHiddenHistoryId(id));
     setHistory([]);
     setConfirmModal({ open: false, mode: null, id: null });
+
+    if (userInfo?.email && currentIds.length > 0) {
+      try {
+        await fetch(`${API_BASE_URL}/user-hidden-items/clear-all`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userInfo.email, itemIds: currentIds.map(String), itemType: 'history' })
+        });
+      } catch (err) {
+        console.error('Realtime DB clear all history failed:', err);
+      }
+    }
   };
 
   const formatDate = (dateStr) => {

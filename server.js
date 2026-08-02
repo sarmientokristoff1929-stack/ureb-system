@@ -331,7 +331,8 @@ const collections = {
   reviews: 'reviews',
   messages: 'messages',
   notifications: 'notifications',
-  assignments: 'assignments'
+  assignments: 'assignments',
+  user_hidden_items: 'user_hidden_items'
 };
 
 const STUDENT_ASSIGNMENT_FILE_KEYS = [
@@ -3140,6 +3141,83 @@ app.post('/api/notifications/:id/delete', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting notification:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+app.delete('/api/notifications/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getDatabase();
+    const notifications = db.collection(collections.notifications);
+    await notifications.deleteOne({ _id: new ObjectId(id) });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting notification via DELETE:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// User hidden items endpoints (notifications, history) for real-time database deletion
+app.get('/api/user-hidden-items/:email', async (req, res) => {
+  try {
+    const email = (req.params.email || '').toLowerCase().trim();
+    if (!email) return res.json({ success: true, hiddenIds: [] });
+    const db = getDatabase();
+    const col = db.collection(collections.user_hidden_items);
+    const records = await col.find({ email }).toArray();
+    const hiddenIds = records.map(r => String(r.itemId));
+    res.json({ success: true, hiddenIds });
+  } catch (error) {
+    console.error('Error fetching user hidden items:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+app.post('/api/user-hidden-items', async (req, res) => {
+  try {
+    const { email, itemId, itemType } = req.body;
+    if (!email || !itemId) {
+      return res.status(400).json({ success: false, error: 'Missing email or itemId' });
+    }
+    const normEmail = String(email).toLowerCase().trim();
+    const strItemId = String(itemId);
+    const db = getDatabase();
+    const col = db.collection(collections.user_hidden_items);
+    await col.updateOne(
+      { email: normEmail, itemId: strItemId },
+      { $set: { email: normEmail, itemId: strItemId, itemType: itemType || 'general', hiddenAt: new Date() } },
+      { upsert: true }
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving hidden item:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+app.post('/api/user-hidden-items/clear-all', async (req, res) => {
+  try {
+    const { email, itemIds, itemType } = req.body;
+    if (!email || !Array.isArray(itemIds)) {
+      return res.status(400).json({ success: false, error: 'Missing email or itemIds array' });
+    }
+    const normEmail = String(email).toLowerCase().trim();
+    const db = getDatabase();
+    const col = db.collection(collections.user_hidden_items);
+    const bulkOps = itemIds.map(id => ({
+      updateOne: {
+        filter: { email: normEmail, itemId: String(id) },
+        update: { $set: { email: normEmail, itemId: String(id), itemType: itemType || 'general', hiddenAt: new Date() } },
+        upsert: true
+      }
+    }));
+    if (bulkOps.length > 0) {
+      await col.bulkWrite(bulkOps);
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error clearing user items:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

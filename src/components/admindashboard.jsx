@@ -988,7 +988,7 @@ const AdminDashboard = ({ onLogout }) => {
 
     { id: 'message-reviewer', label: 'Message Reviewer', icon: <MessageIcon /> },
 
-    { id: 'message-researcher', label: 'Message Student', icon: <MessageIcon /> },
+    { id: 'message-researcher', label: 'Message Researcher', icon: <MessageIcon /> },
 
     { id: 'notification', label: 'Notification (File)', icon: <NotificationIcon />, badge: notifCount > 0 ? notifCount : null },
     { id: 'profile', label: 'Admin Settings', icon: <SettingsIcon /> },
@@ -5081,7 +5081,7 @@ const MessageResearcherContent = () => {
 
         console.error('Error fetching students:', error);
 
-        setError('Failed to fetch students');
+        setError('Failed to fetch researchers');
 
       }
 
@@ -5131,7 +5131,7 @@ const MessageResearcherContent = () => {
 
     if (!selectedStudent || !message) {
 
-      setError('Please select a student and enter a message');
+      setError('Please select a researcher and enter a message');
 
       return;
 
@@ -5145,7 +5145,7 @@ const MessageResearcherContent = () => {
       : '';
 
     // Show success immediately — don't wait for file upload
-    setMessageSuccessRecipient(recipientName || 'student');
+    setMessageSuccessRecipient(recipientName || 'researcher');
     setIsMessageSuccessModalOpen(true);
 
     // Capture values before resetting form
@@ -5259,13 +5259,13 @@ const MessageResearcherContent = () => {
 
       <div className="form-card">
 
-        <h2>Message Student</h2>
+        <h2>Message Researcher</h2>
 
         <form className="message-form" onSubmit={handleSubmit}>
 
           <div className="form-group">
 
-            <label>Select Student</label>
+            <label>Select Researcher</label>
 
             <div className="student-selector">
 
@@ -5293,7 +5293,7 @@ const MessageResearcherContent = () => {
 
                 <div className="search-results-info">
 
-                  Found <span className="results-count">{filteredStudents.length}</span> students matching "{searchQuery}"
+                  Found <span className="results-count">{filteredStudents.length}</span> researchers matching "{searchQuery}"
 
                   {filteredStudents.length === 0 && " - Try different keywords"}
 
@@ -5321,9 +5321,9 @@ const MessageResearcherContent = () => {
 
                     {filteredStudents.length === 0
 
-                      ? 'No students found - adjust your search'
+                      ? 'No researchers found - adjust your search'
 
-                      : `Select a student (${filteredStudents.length} available)`
+                      : `Select a researcher (${filteredStudents.length} available)`
 
                     }
 
@@ -6693,7 +6693,7 @@ const ManageUsersContent = () => {
 
     { id: 'reviewers', label: 'Reviewer' },
 
-    { id: 'students', label: 'Students' }
+    { id: 'students', label: 'Researcher' }
 
   ];
 
@@ -7126,93 +7126,103 @@ const ManageUsersContent = () => {
 
             {/* Search and Sort Controls */}
 
-            <div className="search-sort-controls" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <div className="search-sort-controls" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'space-between' }}>
 
-              <div className="group">
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
 
-                <svg className="icon" aria-hidden="true" viewBox="0 0 24 24">
+                <div className="group">
 
-                  <g>
+                  <svg className="icon" aria-hidden="true" viewBox="0 0 24 24">
 
-                    <path d="M21.53 20.47l-3.66-3.66C19.195 15.24 20 13.214 20 11c0-4.97-4.03-9-9-9s-9 4.03-9 9 4.03 9 9 9c2.215 0 4.24-.804 5.808-2.13l3.66 3.66c.147.146.34.22.53.22s.385-.073.53-.22c.295-.293.295-.767.002-1.06zM3.5 11c0-4.135 3.365-7.5 7.5-7.5s7.5 3.365 7.5 7.5-3.365 7.5-7.5 7.5-7.5-3.365-7.5-7.5z"></path>
+                    <g>
 
-                  </g>
+                      <path d="M21.53 20.47l-3.66-3.66C19.195 15.24 20 13.214 20 11c0-4.97-4.03-9-9-9s-9 4.03-9 9 4.03 9 9 9c2.215 0 4.24-.804 5.808-2.13l3.66 3.66c.147.146.34.22.53.22s.385-.073.53-.22c.295-.293.295-.767.002-1.06zM3.5 11c0-4.135 3.365-7.5 7.5-7.5s7.5 3.365 7.5 7.5-3.365 7.5-7.5 7.5-7.5-3.365-7.5-7.5z"></path>
 
-                </svg>
+                    </g>
 
-                <input
+                  </svg>
 
-                  placeholder="Search"
+                  <input
 
-                  type="search"
+                    placeholder="Search"
 
-                  className="input"
+                    type="search"
 
-                  value={searchQuery}
+                    className="input"
 
-                  onChange={handleSearch}
+                    value={searchQuery}
 
-                />
+                    onChange={handleSearch}
+
+                  />
+
+                </div>
+
+                <div className="sort-controls" style={{ display: 'flex', gap: '0.5rem' }}>
+
+                  <button
+
+                    className={`btn-secondary ${sortBy === 'name' ? 'active' : ''}`}
+
+                    onClick={() => handleSort('name')}
+
+                    title="Sort by Name"
+
+                  >
+
+                    Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+
+                  </button>
+
+                  <button
+
+                    className={`btn-secondary ${sortBy === 'firstName' ? 'active' : ''}`}
+
+                    onClick={() => handleSort('firstName')}
+
+                    title="Sort by First Name"
+
+                  >
+
+                    First Name {sortBy === 'firstName' && (sortOrder === 'asc' ? '↑' : '↓')}
+
+                  </button>
+
+                  <button
+
+                    className={`btn-secondary ${sortBy === 'lastName' ? 'active' : ''}`}
+
+                    onClick={() => handleSort('lastName')}
+
+                    title="Sort by Last Name"
+
+                  >
+
+                    Last Name {sortBy === 'lastName' && (sortOrder === 'asc' ? '↑' : '↓')}
+
+                  </button>
+
+                  <button
+
+                    className={`btn-secondary ${sortBy === 'department' ? 'active' : ''}`}
+
+                    onClick={() => handleSort('department')}
+
+                    title="Sort by Faculty / Insti / Agency / College"
+
+                  >
+
+                    Faculty / Insti / Agency / College {sortBy === 'department' && (sortOrder === 'asc' ? '↑' : '↓')}
+
+                  </button>
+
+                </div>
 
               </div>
 
-              <div className="sort-controls" style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ marginLeft: 'auto', fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-medium, #4b5563)', whiteSpace: 'nowrap' }}>
 
-                <button
-
-                  className={`btn-secondary ${sortBy === 'name' ? 'active' : ''}`}
-
-                  onClick={() => handleSort('name')}
-
-                  title="Sort by Name"
-
-                >
-
-                  Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
-
-                </button>
-
-                <button
-
-                  className={`btn-secondary ${sortBy === 'firstName' ? 'active' : ''}`}
-
-                  onClick={() => handleSort('firstName')}
-
-                  title="Sort by First Name"
-
-                >
-
-                  First Name {sortBy === 'firstName' && (sortOrder === 'asc' ? '↑' : '↓')}
-
-                </button>
-
-                <button
-
-                  className={`btn-secondary ${sortBy === 'lastName' ? 'active' : ''}`}
-
-                  onClick={() => handleSort('lastName')}
-
-                  title="Sort by Last Name"
-
-                >
-
-                  Last Name {sortBy === 'lastName' && (sortOrder === 'asc' ? '↑' : '↓')}
-
-                </button>
-
-                <button
-
-                  className={`btn-secondary ${sortBy === 'department' ? 'active' : ''}`}
-
-                  onClick={() => handleSort('department')}
-
-                  title="Sort by Faculty / Insti / Agency / College"
-
-                >
-
-                  Faculty / Insti / Agency / College {sortBy === 'department' && (sortOrder === 'asc' ? '↑' : '↓')}
-
-                </button>
+                Reviewer: {reviewers.length}
 
               </div>
 
@@ -7328,93 +7338,103 @@ const ManageUsersContent = () => {
 
             {/* Search and Sort Controls */}
 
-            <div className="search-sort-controls" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <div className="search-sort-controls" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'space-between' }}>
 
-              <div className="group">
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
 
-                <svg className="icon" aria-hidden="true" viewBox="0 0 24 24">
+                <div className="group">
 
-                  <g>
+                  <svg className="icon" aria-hidden="true" viewBox="0 0 24 24">
 
-                    <path d="M21.53 20.47l-3.66-3.66C19.195 15.24 20 13.214 20 11c0-4.97-4.03-9-9-9s-9 4.03-9 9 4.03 9 9 9c2.215 0 4.24-.804 5.808-2.13l3.66 3.66c.147.146.34.22.53.22s.385-.073.53-.22c.295-.293.295-.767.002-1.06zM3.5 11c0-4.135 3.365-7.5 7.5-7.5s7.5 3.365 7.5 7.5-3.365 7.5-7.5 7.5-7.5-3.365-7.5-7.5z"></path>
+                    <g>
 
-                  </g>
+                      <path d="M21.53 20.47l-3.66-3.66C19.195 15.24 20 13.214 20 11c0-4.97-4.03-9-9-9s-9 4.03-9 9 4.03 9 9 9c2.215 0 4.24-.804 5.808-2.13l3.66 3.66c.147.146.34.22.53.22s.385-.073.53-.22c.295-.293.295-.767.002-1.06zM3.5 11c0-4.135 3.365-7.5 7.5-7.5s7.5 3.365 7.5 7.5-3.365 7.5-7.5 7.5-7.5-3.365-7.5-7.5z"></path>
 
-                </svg>
+                    </g>
 
-                <input
+                  </svg>
 
-                  placeholder="Search"
+                  <input
 
-                  type="search"
+                    placeholder="Search"
 
-                  className="input"
+                    type="search"
 
-                  value={searchQuery}
+                    className="input"
 
-                  onChange={handleSearch}
+                    value={searchQuery}
 
-                />
+                    onChange={handleSearch}
+
+                  />
+
+                </div>
+
+                <div className="sort-controls" style={{ display: 'flex', gap: '0.5rem' }}>
+
+                  <button
+
+                    className={`btn-secondary ${sortBy === 'name' ? 'active' : ''}`}
+
+                    onClick={() => handleSort('name')}
+
+                    title="Sort by Name"
+
+                  >
+
+                    Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+
+                  </button>
+
+                  <button
+
+                    className={`btn-secondary ${sortBy === 'firstName' ? 'active' : ''}`}
+
+                    onClick={() => handleSort('firstName')}
+
+                    title="Sort by First Name"
+
+                  >
+
+                    First Name {sortBy === 'firstName' && (sortOrder === 'asc' ? '↑' : '↓')}
+
+                  </button>
+
+                  <button
+
+                    className={`btn-secondary ${sortBy === 'lastName' ? 'active' : ''}`}
+
+                    onClick={() => handleSort('lastName')}
+
+                    title="Sort by Last Name"
+
+                  >
+
+                    Last Name {sortBy === 'lastName' && (sortOrder === 'asc' ? '↑' : '↓')}
+
+                  </button>
+
+                  <button
+
+                    className={`btn-secondary ${sortBy === 'department' ? 'active' : ''}`}
+
+                    onClick={() => handleSort('department')}
+
+                    title="Sort by Faculty / Insti / Agency / College"
+
+                  >
+
+                    Faculty / Insti / Agency / College {sortBy === 'department' && (sortOrder === 'asc' ? '↑' : '↓')}
+
+                  </button>
+
+                </div>
 
               </div>
 
-              <div className="sort-controls" style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ marginLeft: 'auto', fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-medium, #4b5563)', whiteSpace: 'nowrap' }}>
 
-                <button
-
-                  className={`btn-secondary ${sortBy === 'name' ? 'active' : ''}`}
-
-                  onClick={() => handleSort('name')}
-
-                  title="Sort by Name"
-
-                >
-
-                  Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
-
-                </button>
-
-                <button
-
-                  className={`btn-secondary ${sortBy === 'firstName' ? 'active' : ''}`}
-
-                  onClick={() => handleSort('firstName')}
-
-                  title="Sort by First Name"
-
-                >
-
-                  First Name {sortBy === 'firstName' && (sortOrder === 'asc' ? '↑' : '↓')}
-
-                </button>
-
-                <button
-
-                  className={`btn-secondary ${sortBy === 'lastName' ? 'active' : ''}`}
-
-                  onClick={() => handleSort('lastName')}
-
-                  title="Sort by Last Name"
-
-                >
-
-                  Last Name {sortBy === 'lastName' && (sortOrder === 'asc' ? '↑' : '↓')}
-
-                </button>
-
-                <button
-
-                  className={`btn-secondary ${sortBy === 'department' ? 'active' : ''}`}
-
-                  onClick={() => handleSort('department')}
-
-                  title="Sort by Faculty / Insti / Agency / College"
-
-                >
-
-                  Faculty / Insti / Agency / College {sortBy === 'department' && (sortOrder === 'asc' ? '↑' : '↓')}
-
-                </button>
+                Researcher: {students.length}
 
               </div>
 
@@ -7454,7 +7474,7 @@ const ManageUsersContent = () => {
 
                     <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-medium)' }}>
 
-                      No students found.
+                      No researchers found.
 
                     </td>
 
@@ -7643,7 +7663,7 @@ const ManageUsersContent = () => {
 
             <div className="modal-header">
 
-              <h2>Edit {editingUser?.userType === 'admin' ? 'Admin' : editingUser?.userType === 'reviewer' ? 'Reviewer' : 'Student'}</h2>
+              <h2>Edit {editingUser?.userType === 'admin' ? 'Admin' : editingUser?.userType === 'reviewer' ? 'Reviewer' : 'Researcher'}</h2>
 
               <button className="modal-close" onClick={closeEditModal}>
 
@@ -8177,8 +8197,8 @@ const ManageUsersContent = () => {
             <div className="logout-modal-body">
               <p>
                 {disablingStudent?.disabled
-                  ? 'Are you sure you want to enable this student\'s account? They will be able to log in again.'
-                  : 'Are you sure you want to disable this student\'s account? They will not be able to log in.'}
+                  ? 'Are you sure you want to enable this researcher\'s account? They will be able to log in again.'
+                  : 'Are you sure you want to disable this researcher\'s account? They will not be able to log in.'}
               </p>
               <p><strong>{disablingStudent?.name || `${disablingStudent?.firstName || ''} ${disablingStudent?.lastName || ''}`.trim() || disablingStudent?.email}</strong></p>
             </div>
@@ -8214,7 +8234,7 @@ const ManageUsersContent = () => {
 
             <div className="logout-modal-body">
 
-              <p>Are you sure you want to delete this {deletingUser?.userType}?</p>
+              <p>Are you sure you want to delete this {deletingUser?.userType === 'student' ? 'researcher' : deletingUser?.userType}?</p>
 
               <p><strong>{deletingUser?.name || deletingUser?.email}</strong></p>
 
@@ -8236,7 +8256,7 @@ const ManageUsersContent = () => {
 
               <button className="logout-modal-btn-primary" onClick={confirmDelete}>
 
-                Delete {deletingUser?.userType}
+                Delete {deletingUser?.userType === 'student' ? 'Researcher' : deletingUser?.userType === 'admin' ? 'Admin' : deletingUser?.userType === 'reviewer' ? 'Reviewer' : deletingUser?.userType}
 
               </button>
 
