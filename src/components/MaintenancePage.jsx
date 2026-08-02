@@ -28,10 +28,6 @@ const MaintenancePage = () => {
         <p className="maintenance-subdescription">
           We sincerely appreciate your patience and understanding. All existing research protocols, applications, and account data remain completely safe and protected.
         </p>
-
-        <div className="maintenance-footer">
-          <p>© {new Date().getFullYear()} DORSU - University Research Ethics Board. All rights reserved.</p>
-        </div>
       </div>
     </div>
   );
