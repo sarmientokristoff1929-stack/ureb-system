@@ -19,15 +19,19 @@ console.log('******************************************');
 console.log('*** SERVER v2.0 - GENDER FIX ACTIVE  ***');
 console.log('******************************************');
 
-// Middleware
+// Middleware & Security Hardening
 app.use(cors());
-// Debug middleware to log registration requests
+
+// Global Security Response Headers
 app.use((req, res, next) => {
-  if (req.path === '/api/auth/register' && req.method === 'POST') {
-    console.log('[DEBUG] Raw request body before express.json():', req.body);
-  }
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   next();
 });
+
+// Request body parser
 app.use(express.json());
 
 // Version endpoint to verify deployment
@@ -239,8 +243,11 @@ const MIME_MAP = {
   '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
 
-// Diagnostic endpoint — shows server path info
+// Diagnostic endpoint — disabled in production for security
 app.get('/api/debug-paths', (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ error: 'Access denied' });
+  }
   const testFile = 'urebForm16-1772010333565-744759165.pdf';
   const testPath = path.join(uploadsDir, testFile);
   res.json({
@@ -248,15 +255,16 @@ app.get('/api/debug-paths', (req, res) => {
     uploadsDir,
     testPath,
     testExists: fs.existsSync(testPath),
-    uploadsDirExists: fs.existsSync(uploadsDir),
-    files: fs.existsSync(uploadsDir) ? fs.readdirSync(uploadsDir).slice(0, 10) : []
+    uploadsDirExists: fs.existsSync(uploadsDir)
   });
 });
 
-// Download endpoint — disk first, then GridFS fallback
+// Download endpoint — disk first, then GridFS fallback (Sanitized against path traversal)
 app.get('/api/download/*', async (req, res) => {
-  const filename = req.params[0];
-  const originalName = req.query.name || filename;
+  const rawParam = req.params[0] || '';
+  // Strip path directory components to prevent path traversal attacks (../)
+  const filename = path.basename(rawParam);
+  const originalName = req.query.name ? path.basename(req.query.name) : filename;
   console.log('[download] requested:', filename);
   try {
     const resolved = await resolveFile(filename);
@@ -265,7 +273,7 @@ app.get('/api/download/*', async (req, res) => {
     const mime = resolved.meta?.contentType
       || MIME_MAP[path.extname(filename).toLowerCase()]
       || 'application/octet-stream';
-    res.setHeader('Content-Disposition', `attachment; filename="${originalName}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${originalName.replace(/"/g, '')}"`);
     res.setHeader('Content-Type', mime);
     if (resolved.source === 'gridfs') {
       gfsBucket.openDownloadStreamByName(filename).pipe(res);
@@ -283,9 +291,10 @@ app.get('/api/download/*', async (req, res) => {
   }
 });
 
-// View endpoint — disk first, then GridFS fallback, inline for browser rendering
+// View endpoint — disk first, then GridFS fallback, inline for browser rendering (Sanitized)
 app.get('/api/view/*', async (req, res) => {
-  const filename = req.params[0];
+  const rawParam = req.params[0] || '';
+  const filename = path.basename(rawParam);
   console.log('[view] requested filename:', filename);
   try {
     const resolved = await resolveFile(filename);
@@ -708,11 +717,7 @@ app.get('/api/ping', (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log(`\n=== LOGIN ATTEMPT ===`);
-    console.log(`Email received: "${email}" (length: ${email?.length})`);
-    console.log(`Password received: "${password}" (length: ${password?.length})`);
-    console.log(`Email chars: [${email?.split('').map(c => `'${c}'`).join(', ')}]`);
-    console.log(`Password chars: [${password?.split('').map(c => `'${c}'`).join(', ')}]`);
+    console.log(`[AUTH] Login attempt for email: ${email}`);
 
     const db = getDatabase();
     const users = db.collection(collections.users);
@@ -749,13 +754,6 @@ app.post('/api/auth/login', async (req, res) => {
       console.log(`User not found: ${email}`);
       return res.json({ success: false, error: 'Invalid email or password' });
     }
-
-    console.log(`\n=== PASSWORD COMPARISON ===`);
-    console.log(`Stored password: "${user.password}" (length: ${user.password.length})`);
-    console.log(`Provided password: "${password}" (length: ${password.length})`);
-    console.log(`Passwords match: ${user.password === password}`);
-    console.log(`Stored password chars: [${user.password.split('').map(c => `'${c}'`).join(', ')}]`);
-    console.log(`Provided password chars: [${password.split('').map(c => `'${c}'`).join(', ')}]`);
 
     if (user.password !== password) {
       console.log(`Password mismatch for: ${email}`);
@@ -937,7 +935,11 @@ app.get('/api/users', async (req, res) => {
     const db = getDatabase();
     const users = db.collection(collections.users);
     const userList = await users.find({}).toArray();
-    res.json(userList);
+    const sanitizedUsers = userList.map(u => {
+      const { password, ...safe } = u;
+      return safe;
+    });
+    res.json(sanitizedUsers);
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Server error' });

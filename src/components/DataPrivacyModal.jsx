@@ -15,46 +15,17 @@ const DataPrivacyModal = ({ isOpen, onAccept }) => {
   return (
     <div className="post-login-privacy-overlay">
       <div className="post-login-privacy-modal">
-        {/* Top Header Badge */}
-        <div className="post-login-privacy-badge">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          </svg>
-          <span>Official Notice • RA 10173</span>
-        </div>
-
         {/* Modal Title */}
-        <h2 className="post-login-privacy-title">Data Privacy & Protection Commitment</h2>
+        <h2 className="post-login-privacy-title">Data Privacy & Protection Notice</h2>
 
-        <p className="post-login-privacy-greeting">
-          Welcome to the <strong>Davao Oriental State University - UREB Portal</strong>.
-        </p>
-
-        {/* Message Content */}
+        {/* Message Content - 2 Sentences Only */}
         <div className="post-login-privacy-content">
-          <p>
-            We hold your academic work and privacy in highest regard. In strict compliance with 
-            the <strong>Data Privacy Act of 2012 (Republic Act No. 10173)</strong>, we are committed to 
-            protecting your personal credentials and research submissions.
+          <p style={{ fontSize: '0.9rem', color: '#334155', lineHeight: '1.6', margin: '0 0 0.75rem 0' }}>
+            In compliance with the Data Privacy Act of 2012 (RA 10173), the UREB portal processes your personal and research data strictly for official ethics review and administrative purposes.
           </p>
-
-          <div className="post-login-privacy-pillars">
-            <div className="privacy-pillar-item">
-              <div className="pillar-icon">🔒</div>
-              <div>
-                <strong>Confidentiality & Security</strong>
-                <p>Your data and research protocols are secured with encryption and restricted access controls.</p>
-              </div>
-            </div>
-
-            <div className="privacy-pillar-item">
-              <div className="pillar-icon">📋</div>
-              <div>
-                <strong>Legitimate Purpose</strong>
-                <p>Processed exclusively for official ethics reviews, application tracking, and board notifications.</p>
-              </div>
-            </div>
-          </div>
+          <p style={{ fontSize: '0.9rem', color: '#334155', lineHeight: '1.6', margin: 0 }}>
+            All submitted credentials and protocol details are protected under confidential safeguards and will never be shared with unauthorized third parties.
+          </p>
         </div>
 
         {/* Acceptance Checkbox */}

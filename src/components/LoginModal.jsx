@@ -840,49 +840,21 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Data Privacy & Protection Commitment White Modal Popup */}
+      </div>      {/* Data Privacy & Protection Commitment White Modal Popup */}
       {showPrivacyStep && (
         <div className="success-modal-overlay" style={{ zIndex: 3000 }}>
-          <div className="success-modal-container" style={{ maxWidth: '520px', width: '92%', padding: '2.25rem 2rem', textAlign: 'center', borderRadius: '20px', backgroundColor: '#ffffff' }}>
-            <div className="post-login-privacy-badge" style={{ marginBottom: '1rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: '#E8F5E9', color: '#2E7D32', fontSize: '0.8rem', fontWeight: 600, padding: '0.35rem 0.85rem', borderRadius: '20px', border: '1px solid #C8E6C9' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-              <span>Official Notice • RA 10173</span>
-            </div>
-
-            <h2 style={{ fontSize: '1.45rem', fontWeight: 700, color: '#1E293B', margin: '0 0 0.5rem 0' }}>
-              Data Privacy & Protection Commitment
+          <div className="success-modal-container" style={{ maxWidth: '500px', width: '92%', padding: '2.25rem 2rem', textAlign: 'center', borderRadius: '20px', backgroundColor: '#ffffff' }}>
+            <h2 style={{ fontSize: '1.45rem', fontWeight: 700, color: '#1E293B', margin: '0 0 0.75rem 0' }}>
+              Data Privacy & Protection Notice
             </h2>
 
-            <p style={{ fontSize: '0.925rem', color: '#475569', margin: '0 0 1.25rem 0', lineHeight: '1.4' }}>
-              Welcome, <strong>{pendingAuthResult?.user?.name || email}</strong>! We hold your trust in highest regard and are committed to protecting your personal data and research submissions.
-            </p>
-
-            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '1.1rem', marginBottom: '1.25rem', textAlign: 'left' }}>
-              <p style={{ fontSize: '0.85rem', color: '#334155', lineHeight: '1.55', margin: '0 0 0.85rem 0' }}>
-                In strict compliance with the <strong>Data Privacy Act of 2012 (Republic Act No. 10173)</strong>, all data collected within this portal is processed strictly for official ethics review and administrative purposes under confidential and secure safeguards.
+            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '1.25rem', marginBottom: '1.25rem', textAlign: 'left' }}>
+              <p style={{ fontSize: '0.9rem', color: '#334155', lineHeight: '1.6', margin: '0 0 0.75rem 0' }}>
+                In compliance with the Data Privacy Act of 2012 (RA 10173), the UREB portal processes your personal and research data strictly for official ethics review and administrative purposes.
               </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', background: '#ffffff', padding: '0.65rem 0.85rem', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
-                  <span style={{ fontSize: '1.15rem' }}>🔒</span>
-                  <div>
-                    <strong style={{ fontSize: '0.825rem', color: '#1E293B', display: 'block' }}>Confidentiality & Security</strong>
-                    <span style={{ fontSize: '0.775rem', color: '#64748B', lineHeight: '1.4', display: 'block' }}>Your credentials and research documents are protected with encryption and role-based access.</span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', background: '#ffffff', padding: '0.65rem 0.85rem', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
-                  <span style={{ fontSize: '1.15rem' }}>📋</span>
-                  <div>
-                    <strong style={{ fontSize: '0.825rem', color: '#1E293B', display: 'block' }}>Legitimate Purpose</strong>
-                    <span style={{ fontSize: '0.775rem', color: '#64748B', lineHeight: '1.4', display: 'block' }}>Processed exclusively for ethics protocol evaluation, tracking, and board notifications.</span>
-                  </div>
-                </div>
-              </div>
+              <p style={{ fontSize: '0.9rem', color: '#334155', lineHeight: '1.6', margin: 0 }}>
+                All submitted credentials and protocol details are protected under confidential safeguards and will never be shared with unauthorized third parties.
+              </p>
             </div>
 
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', cursor: 'pointer', background: '#F1F5F9', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid #E2E8F0', marginBottom: '1.25rem', textAlign: 'left' }}>
