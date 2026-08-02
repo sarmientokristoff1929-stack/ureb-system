@@ -3,7 +3,22 @@ import LandingPage from './components/LandingPage'
 import AdminDashboard from './components/admindashboard'
 import ReviewerDashboard from './components/reviewerdashboard'
 import StudentDashboard from './components/studentdashboard'
+import DataPrivacyModal from './components/DataPrivacyModal'
+import MaintenancePage from './components/MaintenancePage'
+import { IS_UNDER_MAINTENANCE } from './config/maintenance'
 import { authenticateUser, API_BASE_URL } from './services/api'
+
+// Helper function to check if running in local development environment
+const isLocalEnv = () => {
+  if (typeof window === 'undefined') return true;
+  const hostname = window.location.hostname;
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1' ||
+    hostname.endsWith('.local')
+  );
+};
 
 // Keep the Render free-tier server warm so OTP sending is always fast.
 // Fires immediately on page load, then every 10 minutes while the tab is open.
@@ -23,6 +38,10 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userRole, setUserRole] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [privacyAccepted, setPrivacyAccepted] = useState(false)
+
+  // Show maintenance page ONLY on deployed production, bypass for localhost
+  const shouldShowMaintenance = IS_UNDER_MAINTENANCE && !isLocalEnv();
 
   // Warm up server on page load and keep it alive every 10 minutes
   useEffect(() => {
@@ -36,10 +55,16 @@ function App() {
     const checkAuth = () => {
       const savedAuth = localStorage.getItem('ureb_auth');
       const savedRole = localStorage.getItem('ureb_role');
+      const savedPrivacyAccepted = sessionStorage.getItem('ureb_privacy_accepted');
       
       if (savedAuth === 'true' && savedRole) {
         setIsAuthenticated(true);
         setUserRole(savedRole);
+        if (savedPrivacyAccepted === 'true') {
+          setPrivacyAccepted(true);
+        } else {
+          setPrivacyAccepted(false);
+        }
       }
       setIsLoading(false);
     };
@@ -72,6 +97,7 @@ function App() {
 
         setIsAuthenticated(true);
         setUserRole(result.user.role);
+        setPrivacyAccepted(false); // Must Accept & Proceed before entering dashboard
 
         // Save to localStorage for persistence
         localStorage.setItem('ureb_auth', 'true');
@@ -127,16 +153,28 @@ function App() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setUserRole(null);
+    setPrivacyAccepted(false);
 
-    // Clear localStorage
+    // Clear localStorage & sessionStorage privacy key
     localStorage.removeItem('ureb_auth');
     localStorage.removeItem('ureb_role');
     localStorage.removeItem('ureb_user');
+    sessionStorage.removeItem('ureb_privacy_accepted');
 
     // Dispatch custom event to notify components of user change
     window.dispatchEvent(new CustomEvent('userChanged', { 
       detail: { action: 'logout' } 
     }));
+  }
+
+  const handleAcceptPrivacy = () => {
+    sessionStorage.setItem('ureb_privacy_accepted', 'true');
+    setPrivacyAccepted(true);
+  }
+
+  // If maintenance mode is active on deployed server, show MaintenancePage
+  if (shouldShowMaintenance) {
+    return <MaintenancePage />;
   }
 
   return (

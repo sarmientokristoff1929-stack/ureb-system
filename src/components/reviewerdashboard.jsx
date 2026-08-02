@@ -4487,7 +4487,7 @@ const ReviewerWelcomeModal = ({ firstName, onClose }) => {
           <h2>WELCOME BACK, REVIEWER!</h2>
           <p>We're excited to have you here. Review proposals, provide feedback, and help ensure research ethics compliance across the UREB system.</p>
           <button className="welcome-close-btn" onClick={onClose}>
-            Let's Get Started
+            Let's Start
           </button>
         </div>
       </div>

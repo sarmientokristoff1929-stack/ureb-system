@@ -13293,7 +13293,7 @@ function AdminWelcomeModal({ firstName, onClose }) {
 
           <button className="welcome-close-btn" onClick={onClose}>
 
-            Let's Get Started
+            Let's Start
 
           </button>
 
