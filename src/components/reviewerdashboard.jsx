@@ -3969,6 +3969,7 @@ const TrashIcon = () => (
 const MessagesContent = ({ onMessageRead, userInfo }) => {
 
   const [messages, setMessages] = useState([]);
+  const [viewingFile, setViewingFile] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [composeOpen, setComposeOpen] = useState(false);
@@ -4019,10 +4020,27 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
 
   };
 
-  const handleDeleteMessage = async (messageId) => {
-    const result = await deleteMessage(messageId);
-    if (result.success) {
-      setMessages(prev => prev.filter(m => (m._id || m.id) !== messageId));
+  const [deleteTargetMessage, setDeleteTargetMessage] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handlePromptDeleteMessage = (message) => {
+    setDeleteTargetMessage(message);
+  };
+
+  const confirmDeleteMessage = async () => {
+    if (!deleteTargetMessage) return;
+    const messageId = deleteTargetMessage._id || deleteTargetMessage.id;
+    setDeleting(true);
+    try {
+      const result = await deleteMessage(messageId);
+      if (result && result.success !== false) {
+        setMessages(prev => prev.filter(m => (m._id || m.id) !== messageId));
+      }
+    } catch (err) {
+      console.error('Error deleting message:', err);
+    } finally {
+      setDeleting(false);
+      setDeleteTargetMessage(null);
     }
   };
 
@@ -4163,7 +4181,7 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
                   {!message.read && <span className="unread-badge">New</span>}
                   <button
                     className="message-delete-btn"
-                    onClick={() => handleDeleteMessage(message._id || message.id)}
+                    onClick={() => handlePromptDeleteMessage(message)}
                     title="Delete message"
                   >
                     <TrashIcon />
@@ -4183,7 +4201,7 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
                     <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#374151', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}>
                       📎 Attachments ({message.files.length})
                     </span>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       {message.files.map((file, i) => {
                         const storedName = file.filename || (file.path ? (file.path.startsWith('uploads/') || file.path.startsWith('uploads\\') ? file.path.split(/[/\\]/).pop() : file.path) : null);
                         const displayName = file.originalname || file.filename || 'attachment';
@@ -4191,24 +4209,31 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
                         const downloadUrl = storedName ? `${apiBaseUrl}/api/download/${encodeURIComponent(storedName)}?name=${encodeURIComponent(displayName)}` : null;
                         const viewUrl = storedName ? `${apiBaseUrl}/api/view/${encodeURIComponent(storedName)}` : null;
                         return (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.4rem 0.75rem', borderRadius: '6px', fontSize: '0.85rem' }}>
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2">
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                              <polyline points="14 2 14 8 20 8" />
-                            </svg>
-                            <span style={{ fontWeight: 500, color: '#1e293b' }}>{displayName}</span>
-                            {file.size && <span style={{ color: '#64748b', fontSize: '0.75rem' }}>({(file.size / 1024).toFixed(1)} KB)</span>}
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.5rem 0.85rem', borderRadius: '6px', fontSize: '0.85rem', width: '100%' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0, overflow: 'hidden' }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" style={{ flexShrink: 0 }}>
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                              </svg>
+                              <span style={{ fontWeight: 500, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName}</span>
+                              {file.size && <span style={{ color: '#64748b', fontSize: '0.75rem', flexShrink: 0 }}>({(file.size / 1024).toFixed(1)} KB)</span>}
+                            </div>
                             {storedName && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '0.5rem' }}>
-                                {viewUrl && (
-                                  <a
-                                    href={viewUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{ background: '#3b82f6', color: '#ffffff', textDecoration: 'none', padding: '3px 9px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, marginLeft: '0.75rem' }}>
+                                {storedName && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setViewingFile({
+                                      filename: storedName,
+                                      originalname: displayName,
+                                      path: storedName,
+                                      size: file.size,
+                                      mimetype: file.mimetype
+                                    })}
+                                    style={{ background: '#3b82f6', color: '#ffffff', border: 'none', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
                                   >
                                     View
-                                  </a>
+                                  </button>
                                 )}
                                 {downloadUrl && (
                                   <a
@@ -4216,7 +4241,7 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     download={displayName}
-                                    style={{ background: '#10b981', color: '#ffffff', textDecoration: 'none', padding: '3px 9px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                    style={{ background: '#10b981', color: '#ffffff', textDecoration: 'none', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                                   >
                                     Download
                                   </a>
@@ -4341,6 +4366,56 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
             )}
           </div>
         </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTargetMessage && (
+        <div className="logout-modal-overlay" onClick={() => !deleting && setDeleteTargetMessage(null)}>
+          <div className="logout-modal-container" onClick={e => e.stopPropagation()}>
+            <div className="logout-modal-header">
+              <h2>Confirm Delete Message</h2>
+            </div>
+            <div className="logout-modal-body">
+              <p>Are you sure you want to delete this message from <strong>{deleteTargetMessage.senderName || (deleteTargetMessage.type === 'admin_to_reviewer' ? 'UREB Administrator' : deleteTargetMessage.senderEmail) || 'Admin'}</strong>?</p>
+              <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#6b7280' }}>This action cannot be undone.</p>
+            </div>
+            <div className="logout-modal-footer">
+              <button
+                className="logout-modal-btn-secondary"
+                onClick={() => setDeleteTargetMessage(null)}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                className="logout-modal-btn-primary"
+                style={{ backgroundColor: '#dc2626' }}
+                onClick={confirmDeleteMessage}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : 'Delete Message'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File Viewer Modal */}
+      {viewingFile && (
+        <FileViewerModal
+          viewingFile={viewingFile}
+          onClose={() => setViewingFile(null)}
+          onDownload={() => {
+            const apiBaseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+            const downloadUrl = `${apiBaseUrl}/api/download/${encodeURIComponent(viewingFile.filename)}?name=${encodeURIComponent(viewingFile.originalname || viewingFile.filename)}`;
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = viewingFile.originalname || viewingFile.filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }}
+        />
       )}
 
     </div>
