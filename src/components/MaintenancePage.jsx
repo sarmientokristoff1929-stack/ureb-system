@@ -21,7 +21,7 @@ const MaintenancePage = () => {
 
         {/* Respected Message */}
         <p className="maintenance-description">
-          The <strong>Davao Oriental State University - University Research Ethics Board (DORSU-UREB)</strong> portal 
+          The <strong>University Research Ethics Board (DORSU-UREB)</strong> portal
           is currently undergoing scheduled maintenance and system optimization to enhance performance, security, and user experience.
         </p>
 
