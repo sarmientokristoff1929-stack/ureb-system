@@ -1809,10 +1809,9 @@ function NotificationsContent({ userInfo }) {
     if (!userInfo?.email) return;
     try {
       const email = userInfo.email;
-      const [proposalsRes, notifsRes, msgsRes, hiddenRes] = await Promise.all([
+      const [proposalsRes, notifsRes, hiddenRes] = await Promise.all([
         fetch(`${API_BASE_URL}/proposals/student/${encodeURIComponent(email)}`).catch(() => null),
         fetch(`${API_BASE_URL}/notifications/${encodeURIComponent(email)}`).catch(() => null),
-        fetch(`${API_BASE_URL}/messages/${encodeURIComponent(email)}`).catch(() => null),
         fetch(`${API_BASE_URL}/user-hidden-items/${encodeURIComponent(email)}`).catch(() => null)
       ]);
 
@@ -1853,29 +1852,7 @@ function NotificationsContent({ userInfo }) {
         }
       }
 
-      // 2. Direct Messages to Researcher
-      if (msgsRes && msgsRes.ok) {
-        const msgs = await msgsRes.json();
-        if (Array.isArray(msgs)) {
-          msgs.filter(m => m.type === 'admin_to_student' || m.type === 'admin_to_researcher' || m.type === 'reviewer_to_student').forEach(m => {
-            const idStr = `msg-${m._id}`;
-            if (!hiddenIds.includes(idStr) && !hiddenIds.includes(String(m._id))) {
-              allNotifs.push({
-                id: idStr,
-                dbId: m._id,
-                isMessage: true,
-                type: 'info',
-                title: m.subject || `Message from ${m.senderName || 'Admin'}`,
-                message: m.message || m.content || '',
-                time: m.createdAt ? new Date(m.createdAt).toLocaleDateString() + ' ' + new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently',
-                read: Boolean(m.read)
-              });
-            }
-          });
-        }
-      }
-
-      // 3. Proposal Expiration Warnings
+      // 2. Proposal Expiration Warnings
       if (proposalsRes && proposalsRes.ok) {
         const proposals = await proposalsRes.json();
         if (Array.isArray(proposals)) {
