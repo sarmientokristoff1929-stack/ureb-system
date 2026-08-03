@@ -288,16 +288,135 @@
 }
 
 .admin-dashboard .sp-modal-overlay .sp-modal {
-  /* Wider details modal (about ~2× prior typical width), still responsive */
-  width: min(1400px, 98vw) !important;
-  max-height: 88vh;
-  overflow-y: auto;
+  /* Single stretched modal with side-by-side left & right panels */
+  width: 96vw !important;
+  max-width: 96vw !important;
+  height: 90vh !important;
+  max-height: 90vh !important;
+  display: flex !important;
+  flex-direction: column !important;
   background: #fff;
-  border: 1px solid #dbe7dd;
+  border: 1px solid #cbd5e1;
   border-radius: 16px;
-  box-shadow: 0 26px 60px rgba(15, 23, 42, 0.3);
-  padding: 1.1rem 1.35rem 1.35rem;
+  box-shadow: 0 26px 60px rgba(15, 23, 42, 0.35);
+  padding: 1.25rem 1.5rem !important;
   animation: spSlideUp 0.2s ease-out;
+  overflow: hidden !important;
+}
+
+.sp-modal-body-split {
+  display: flex;
+  gap: 1.25rem;
+  flex: 1;
+  min-height: 0;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 992px) {
+  .sp-modal-body-split {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+}
+
+.sp-modal-panel {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  padding: 1.15rem;
+  border-radius: 12px;
+}
+
+.sp-modal-panel::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.sp-modal-panel--left {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.sp-modal-panel--right {
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  display: flex;
+  flex-direction: column;
+}
+
+.sp-empty-panel-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #94a3b8;
+}
+
+.sp-empty-panel-icon {
+  font-size: 2.2rem;
+  margin-bottom: 0.5rem;
+  opacity: 0.7;
+}
+
+.sp-empty-panel-placeholder h5 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.sp-empty-panel-placeholder p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  max-width: 240px;
+}
+
+.sp-panel-scroll-indicator {
+  position: sticky;
+  bottom: 0.35rem;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 1rem auto 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #0f172a;
+  color: #ffffff;
+  border: 1px solid #334155;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.35);
+  z-index: 50;
+  animation: spPanelBounce 1.6s infinite ease-in-out;
+  transition: all 0.2s ease;
+}
+
+.sp-panel-scroll-indicator:hover {
+  background: #1e293b;
+  border-color: #3b82f6;
+  color: #60a5fa;
+}
+
+@keyframes spPanelBounce {
+  0%, 100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(5px);
+  }
 }
 
 .sp-modal-header {
@@ -385,9 +504,9 @@
 
 .sp-detail-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.65rem 0.85rem;
-  margin-bottom: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 0.85rem 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .sp-detail-item {
@@ -457,8 +576,8 @@
 
 .sp-files-list {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 0.75rem 1rem;
 }
 
 .sp-file-item {

@@ -3040,6 +3040,37 @@ function StudentProposalContent({ onNewCountChange }) {
   const [selectedProposalId, setSelectedProposalId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [feedback, setFeedback] = useState({ type: '', message: '' });
+  const leftPanelRef = useRef(null);
+  const rightPanelRef = useRef(null);
+  const [showLeftScrollIndicator, setShowLeftScrollIndicator] = useState(false);
+  const [showRightScrollIndicator, setShowRightScrollIndicator] = useState(false);
+
+  const checkLeftScroll = useCallback(() => {
+    if (leftPanelRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = leftPanelRef.current;
+      setShowLeftScrollIndicator(scrollHeight - scrollTop - clientHeight > 30);
+    }
+  }, []);
+
+  const checkRightScroll = useCallback(() => {
+    if (rightPanelRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = rightPanelRef.current;
+      setShowRightScrollIndicator(scrollHeight - scrollTop - clientHeight > 30);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedProposalId) {
+      const timer = setTimeout(() => {
+        checkLeftScroll();
+        checkRightScroll();
+      }, 100);
+      return () => clearTimeout(timer);
+    } else {
+      setShowLeftScrollIndicator(false);
+      setShowRightScrollIndicator(false);
+    }
+  }, [selectedProposalId, checkLeftScroll, checkRightScroll]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -3487,65 +3518,119 @@ function StudentProposalContent({ onNewCountChange }) {
                 ×
               </button>
             </div>
-            <div className="sp-modal-title-box">
-              <p className="sp-modal-title-label">Proposal Title</p>
-              <h4 className="sp-modal-title">{selectedProposal.researchTitle || 'Untitled Proposal'}</h4>
-            </div>
-            <div className="sp-detail-grid">
-              <div className="sp-detail-item">
-                <span className="sp-detail-label">Submitted By</span>
-                <span className="sp-detail-value">{selectedProposal.proponent || 'Unknown'}</span>
-              </div>
-              <div className="sp-detail-item">
-                <span className="sp-detail-label">Student Email</span>
-                <span className="sp-detail-value">{selectedProposal.studentEmail || 'N/A'}</span>
-              </div>
-              <div className="sp-detail-item">
-                <span className="sp-detail-label">Submitted Date</span>
-                <span className="sp-detail-value">{formatDate(selectedProposal.submissionDate || selectedProposal.createdAt)}</span>
-              </div>
-              <div className="sp-detail-item">
-                <span className="sp-detail-label">Department</span>
-                <span className="sp-detail-value">{selectedDraft?.department || 'Not selected'}</span>
-              </div>
-              <div className="sp-detail-item sp-detail-item--full">
-                <span className="sp-detail-label">Preliminary Reviewer</span>
-                <span className="sp-detail-value">{selectedReviewerName || selectedDraft?.preliminaryReviewer || 'Not selected'}</span>
-              </div>
-            </div>
-            <div className="sp-files-section">
-              <div className="sp-files-head">
-                <h4>Files Sent by Student</h4>
-                <span className="sp-files-count">{selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''}</span>
-              </div>
-              {selectedFiles.length === 0 ? (
-                <div className="sp-files-empty">No uploaded files found for this submission.</div>
-              ) : (
-                <div className="sp-files-list">
-                  {selectedFiles.map(({ key, label, file }) => (
-                    <div className="sp-file-item" key={key}>
-                      <div className="sp-file-meta">
-                        <div className="sp-file-label">{label}</div>
-                        <div className="sp-file-name" title={file?.originalname || file?.filename || key}>
-                          {file?.originalname || file?.filename || key}
-                        </div>
-                        <div className="sp-file-submeta">
-                          {file?.size ? `${(file.size / 1024).toFixed(1)} KB` : 'Unknown size'}
-                          {file?.mimetype ? ` • ${file.mimetype}` : ''}
-                        </div>
-                      </div>
-                      <div className="sp-file-actions">
-                        <button type="button" className="sp-file-btn sp-file-btn--view" onClick={() => handleViewStudentFile(file)}>
-                          View
-                        </button>
-                        <button type="button" className="sp-file-btn sp-file-btn--download" onClick={() => handleDownloadStudentFile(file)}>
-                          Download
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+            <div className="sp-modal-body-split">
+              {/* Left Panel: Proposal Overview, Details & Files */}
+              <div className="sp-modal-panel sp-modal-panel--left" ref={leftPanelRef} onScroll={checkLeftScroll}>
+                <div className="sp-modal-title-box">
+                  <p className="sp-modal-title-label">Proposal Title</p>
+                  <h4 className="sp-modal-title">{selectedProposal.researchTitle || 'Untitled Proposal'}</h4>
                 </div>
-              )}
+                <div className="sp-detail-grid">
+                  <div className="sp-detail-item">
+                    <span className="sp-detail-label">Submitted By</span>
+                    <span className="sp-detail-value">{selectedProposal.proponent || 'Unknown'}</span>
+                  </div>
+                  <div className="sp-detail-item">
+                    <span className="sp-detail-label">Student Email</span>
+                    <span className="sp-detail-value">{selectedProposal.studentEmail || 'N/A'}</span>
+                  </div>
+                  <div className="sp-detail-item">
+                    <span className="sp-detail-label">Submitted Date</span>
+                    <span className="sp-detail-value">{formatDate(selectedProposal.submissionDate || selectedProposal.createdAt)}</span>
+                  </div>
+                  <div className="sp-detail-item">
+                    <span className="sp-detail-label">Department</span>
+                    <span className="sp-detail-value">{selectedDraft?.department || 'Not selected'}</span>
+                  </div>
+                  <div className="sp-detail-item sp-detail-item--full">
+                    <span className="sp-detail-label">Reviewer</span>
+                    <span className="sp-detail-value">{selectedReviewerName || selectedDraft?.preliminaryReviewer || 'Not selected'}</span>
+                  </div>
+                </div>
+
+                {/* Files Sent by Student inside Left Panel */}
+                <div className="sp-files-section">
+                  <div className="sp-files-head">
+                    <h4>Files Sent by Student</h4>
+                    <span className="sp-files-count">{selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  {selectedFiles.length === 0 ? (
+                    <div className="sp-files-empty">No uploaded files found for this submission.</div>
+                  ) : (
+                    <div className="sp-files-list">
+                      {selectedFiles.map(({ key, label, file }) => (
+                        <div className="sp-file-item" key={key}>
+                          <div className="sp-file-meta">
+                            <div className="sp-file-label">{label}</div>
+                            <div className="sp-file-name" title={file?.originalname || file?.filename || key}>
+                              {file?.originalname || file?.filename || key}
+                            </div>
+                            <div className="sp-file-submeta">
+                              {file?.size ? `${(file.size / 1024).toFixed(1)} KB` : 'Unknown size'}
+                              {file?.mimetype ? ` • ${file.mimetype}` : ''}
+                            </div>
+                          </div>
+                          <div className="sp-file-actions">
+                            <button type="button" className="sp-file-btn sp-file-btn--view" onClick={() => handleViewStudentFile(file)}>
+                              View
+                            </button>
+                            <button type="button" className="sp-file-btn sp-file-btn--download" onClick={() => handleDownloadStudentFile(file)}>
+                              Download
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {showLeftScrollIndicator && (
+                  <button
+                    type="button"
+                    className="sp-panel-scroll-indicator"
+                    title="Scroll down to see more"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (leftPanelRef.current) {
+                        leftPanelRef.current.scrollBy({ top: 250, behavior: 'smooth' });
+                      }
+                    }}
+                  >
+                    <span>Scroll down</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 5v14M19 12l-7 7-7-7" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {/* Right Panel: Empty Panel ready for new content */}
+              <div className="sp-modal-panel sp-modal-panel--right" ref={rightPanelRef} onScroll={checkRightScroll}>
+                <div className="sp-empty-panel-placeholder">
+                  <div className="sp-empty-panel-icon">📋</div>
+                  <h5>Right Panel Canvas</h5>
+                  <p>Ready for additional details, actions, or notes to be added.</p>
+                </div>
+
+                {showRightScrollIndicator && (
+                  <button
+                    type="button"
+                    className="sp-panel-scroll-indicator"
+                    title="Scroll down to see more"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (rightPanelRef.current) {
+                        rightPanelRef.current.scrollBy({ top: 250, behavior: 'smooth' });
+                      }
+                    }}
+                  >
+                    <span>Scroll down</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 5v14M19 12l-7 7-7-7" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
