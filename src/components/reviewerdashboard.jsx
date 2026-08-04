@@ -2235,7 +2235,26 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
       sampleForm1: 'Sample Form 1',
       sampleForm2: 'Sample Form 2'
     };
-    return labels[key] || key;
+    if (labels[key]) return labels[key];
+    if (key.startsWith('attachment')) {
+      const parts = key.split('_');
+      const num = parts[parts.length - 1];
+      return !isNaN(num) ? `Admin Attachment ${parseInt(num, 10) + 1}` : 'Admin Attachment';
+    }
+    if (key.startsWith('adminAttachment')) return 'Admin Attachment';
+    return key;
+  };
+
+  const STUDENT_FILE_KEYS_SET = new Set([
+    'proposal', 'approvalSheet', 'urebForm2', 'applicationForm6',
+    'accomplishedForm8', 'accomplishedForm10A', 'instrumentTool', 'ethicsReviewFee',
+    'sampleForm1', 'sampleForm2'
+  ]);
+
+  const isStudentFileKey = (key) => {
+    if (STUDENT_FILE_KEYS_SET.has(key)) return true;
+    if (String(key).toLowerCase().startsWith('student')) return true;
+    return false;
   };
 
   if (loading) {
@@ -2284,6 +2303,8 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
         {assignments.map((assignment) => {
           const files = assignment.assignedFiles || {};
           const fileEntries = Object.entries(files);
+          const studentFileEntries = fileEntries.filter(([k]) => isStudentFileKey(k));
+          const adminFileEntries = fileEntries.filter(([k]) => !isStudentFileKey(k));
           const isExpanded = expandedId === String(assignment._id);
           const isAdminAssignment = assignment.assignmentSource === 'admin'
             || (assignment.assignmentSource !== 'student' && String(assignment.assignedBy || '').toLowerCase() === 'admin');
@@ -2436,35 +2457,108 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                   </button>
 
                   {isExpanded && (
-                    <div className="assigned-files-list">
-                      {fileEntries.map(([key, file]) => (
-                        <div key={key} className="assigned-file-item">
-                          <span className="assigned-file-label">{formatFileLabel(key)}</span>
-                          <span className="assigned-file-name">{file.originalname || file.filename}</span>
-                          {file?.filename && (
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                              <button
-                                className="btn-primary"
-                                style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
-                                onClick={() => handleDownload(file)}
-                              >
-                                Download
-                              </button>
-                              <button
-                                className="btn-secondary"
-                                style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem' }}
-                                onClick={() => setViewingFile(file)}
-                                title="View file"
-                              >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                                  <circle cx="12" cy="12" r="3" />
-                                </svg>
-                              </button>
-                            </div>
-                          )}
+                    <div className="assigned-files-list" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      {/* STUDENT SUBMITTED FILES */}
+                      {studentFileEntries.length > 0 && (
+                        <div className="assigned-file-group">
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              padding: '0.45rem 0.85rem',
+                              backgroundColor: '#f0fdf4',
+                              border: '1px solid #bbf7d0',
+                              borderRadius: '8px',
+                              marginBottom: '0.65rem',
+                            }}
+                          >
+                            <h4 style={{ fontSize: '0.8rem', fontWeight: '800', color: '#166534', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              Student Submitted Files ({studentFileEntries.length})
+                            </h4>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {studentFileEntries.map(([key, file]) => (
+                              <div key={key} className="assigned-file-item">
+                                <span className="assigned-file-label">{formatFileLabel(key)}</span>
+                                <span className="assigned-file-name">{file.originalname || file.filename}</span>
+                                {file?.filename && (
+                                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button
+                                      className="btn-primary"
+                                      style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
+                                      onClick={() => handleDownload(file)}
+                                    >
+                                      Download
+                                    </button>
+                                    <button
+                                      className="btn-secondary"
+                                      style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem' }}
+                                      onClick={() => setViewingFile(file)}
+                                      title="View file"
+                                    >
+                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                        <circle cx="12" cy="12" r="3" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      ))}
+                      )}
+
+                      {/* ADMIN ATTACHMENTS */}
+                      {adminFileEntries.length > 0 && (
+                        <div className="assigned-file-group">
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              padding: '0.45rem 0.85rem',
+                              backgroundColor: '#eff6ff',
+                              border: '1px solid #bfdbfe',
+                              borderRadius: '8px',
+                              marginBottom: '0.65rem',
+                            }}
+                          >
+                            <h4 style={{ fontSize: '0.8rem', fontWeight: '800', color: '#1e40af', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              Admin Attachments ({adminFileEntries.length})
+                            </h4>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {adminFileEntries.map(([key, file]) => (
+                              <div key={key} className="assigned-file-item">
+                                <span className="assigned-file-label">{formatFileLabel(key)}</span>
+                                <span className="assigned-file-name">{file.originalname || file.filename}</span>
+                                {file?.filename && (
+                                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button
+                                      className="btn-primary"
+                                      style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
+                                      onClick={() => handleDownload(file)}
+                                    >
+                                      Download
+                                    </button>
+                                    <button
+                                      className="btn-secondary"
+                                      style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem' }}
+                                      onClick={() => setViewingFile(file)}
+                                      title="View file"
+                                    >
+                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                        <circle cx="12" cy="12" r="3" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

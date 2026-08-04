@@ -4399,7 +4399,7 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
       const lockedStatuses = ['completed', 'approved', 'rejected'];
       const currentStatus = (existingProposal.status || '').toLowerCase();
       if (!lockedStatuses.includes(currentStatus)) {
-        proposalUpdate.status = existingProposal.status || 'Under Review';
+        proposalUpdate.status = 'Under Review';
       }
 
       await proposals.updateOne(

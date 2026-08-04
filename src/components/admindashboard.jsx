@@ -3213,6 +3213,8 @@ function StudentProposalContent({ onNewCountChange }) {
   const [attachmentSlots, setAttachmentSlots] = useState(['attachment_0']);
   const [rightCanvasSaving, setRightCanvasSaving] = useState(false);
   const [rightCanvasFeedback, setRightCanvasFeedback] = useState({ type: '', message: '' });
+  const [showAssignSuccessModal, setShowAssignSuccessModal] = useState(false);
+  const [assignSuccessDetails, setAssignSuccessDetails] = useState(null);
 
   const handleAddAttachmentSlot = () => {
     const nextKey = `attachment_${Date.now()}_${attachmentSlots.length}`;
@@ -3382,6 +3384,24 @@ function StudentProposalContent({ onNewCountChange }) {
 
       if (result.success) {
         setRightCanvasFeedback({ type: 'success', message: 'Reviewers & protocol metadata assigned successfully!' });
+
+        const rev1Obj = reviewers.find((r) => r.email === rightCanvasForm.secondaryReviewer1);
+        const rev2Obj = reviewers.find((r) => r.email === rightCanvasForm.secondaryReviewer2);
+        const rev1Name = rev1Obj ? getReviewerDisplayName(rev1Obj) : rightCanvasForm.secondaryReviewer1;
+        const rev2Name = rev2Obj ? getReviewerDisplayName(rev2Obj) : (rightCanvasForm.secondaryReviewer2 || 'None');
+
+        setAssignSuccessDetails({
+          protocolCode: rightCanvasForm.protocolCode.toUpperCase().replace(/\s+/g, ''),
+          researchTitle: selectedProposal?.researchTitle || 'Proposal',
+          proponent: selectedProposal?.proponent || selectedProposal?.studentName || 'Student',
+          chairName: rev1Name,
+          memberName: rev2Name,
+          initialDecision: rightCanvasForm.initialReviewDecision || 'Pending Decision',
+          startDate: rightCanvasForm.startDate,
+          endDate: rightCanvasForm.endDate,
+        });
+        setShowAssignSuccessModal(true);
+
         await loadData();
       } else {
         setRightCanvasFeedback({ type: 'error', message: result.error || 'Failed to assign reviewers.' });
@@ -3496,22 +3516,42 @@ function StudentProposalContent({ onNewCountChange }) {
             <tbody>
               {filteredProposals.map((proposal) => {
                 const id = toRecordId(proposal._id);
-                const isAssigned = Boolean(proposal.secondaryReviewer1 || proposal.preliminaryReviewer);
-                const isNew = isStudentProposalNew(proposal);
+                const isAssigned = Boolean(proposal.secondaryReviewer1 || proposal.secondaryReviewer2 || proposal.preliminaryReviewer || proposal.reviewers?.reviewer2);
+                const isUnderReview = isAssigned || (proposal.status || '').toLowerCase() === 'under review';
+                const isNew = !isUnderReview && isStudentProposalNew(proposal);
+                const statusLabel = isUnderReview ? 'Under Review' : (proposal.status || (isNew ? 'New' : 'Seen'));
 
                 return (
                   <tr
                     key={id}
-                    className={`${isAssigned ? 'sp-row--assigned' : ''} ${isNew ? 'sp-row--new' : ''} ${selectedProposalId === id ? 'sp-row--selected' : ''}`}
+                    className={`${isUnderReview ? 'sp-row--assigned' : ''} ${isNew ? 'sp-row--new' : ''} ${selectedProposalId === id ? 'sp-row--selected' : ''}`}
                     onClick={() => handleProposalRowClick(id)}
                     style={{ cursor: 'pointer' }}
                   >
                     <td className="sp-cell-indicator">
                       <span
-                        className={`sp-indicator-badge ${isNew ? 'sp-indicator-badge--new' : 'sp-indicator-badge--seen'}`}
-                        title={isNew ? 'New submission — click to view & assign' : 'Seen'}
+                        className={`sp-indicator-badge ${
+                          isUnderReview
+                            ? 'sp-indicator-badge--under-review'
+                            : (isNew ? 'sp-indicator-badge--new' : 'sp-indicator-badge--seen')
+                        }`}
+                        style={
+                          isUnderReview
+                            ? {
+                                backgroundColor: '#eff6ff',
+                                color: '#1e40af',
+                                border: '1px solid #bfdbfe',
+                                padding: '0.2rem 0.6rem',
+                                borderRadius: '12px',
+                                fontSize: '0.75rem',
+                                fontWeight: '700',
+                                whiteSpace: 'nowrap',
+                              }
+                            : {}
+                        }
+                        title={statusLabel}
                       >
-                        {isNew ? 'New' : 'Seen'}
+                        {statusLabel}
                       </span>
                     </td>
                     <td className="sp-td-title" title={proposal.researchTitle || 'Untitled Proposal'}>
@@ -3908,6 +3948,120 @@ function StudentProposalContent({ onNewCountChange }) {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* SUCCESS MESSAGE MODAL FOR REVIEWER ASSIGNMENT */}
+      {showAssignSuccessModal && assignSuccessDetails && (
+        <div className="sp-modal-overlay" style={{ zIndex: 10000 }}>
+          <div
+            className="sp-modal-card"
+            style={{
+              maxWidth: '500px',
+              width: '92%',
+              borderRadius: '16px',
+              padding: '2rem',
+              textAlign: 'center',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            <div
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                backgroundColor: '#dcfce7',
+                color: '#16a34a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1.25rem auto',
+                boxShadow: '0 0 0 8px #f0fdf4',
+              }}
+            >
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+
+            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.4rem' }}>
+              Reviewers Assigned Successfully!
+            </h3>
+            <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1.4rem', lineHeight: '1.4' }}>
+              The research protocol metadata has been updated and sent to the assigned reviewers.
+            </p>
+
+            <div
+              style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '1.1rem',
+                textAlign: 'left',
+                marginBottom: '1.6rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.6rem',
+                fontSize: '0.85rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #e2e8f0', paddingBottom: '0.4rem' }}>
+                <span style={{ color: '#64748b', fontWeight: '600' }}>Protocol Code:</span>
+                <span style={{ color: '#1e40af', fontWeight: '800', fontFamily: 'monospace', backgroundColor: '#eff6ff', padding: '2px 8px', borderRadius: '4px', border: '1px solid #dbeafe' }}>
+                  {assignSuccessDetails.protocolCode}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #e2e8f0', paddingBottom: '0.4rem' }}>
+                <span style={{ color: '#64748b', fontWeight: '600' }}>Reviewer 1 (Chair):</span>
+                <span style={{ color: '#0f172a', fontWeight: '700' }}>
+                  {assignSuccessDetails.chairName}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #e2e8f0', paddingBottom: '0.4rem' }}>
+                <span style={{ color: '#64748b', fontWeight: '600' }}>Reviewer 2 (Member):</span>
+                <span style={{ color: '#0f172a', fontWeight: '700' }}>
+                  {assignSuccessDetails.memberName}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #e2e8f0', paddingBottom: '0.4rem' }}>
+                <span style={{ color: '#64748b', fontWeight: '600' }}>Initial Decision:</span>
+                <span style={{ color: '#15803d', fontWeight: '700', backgroundColor: '#f0fdf4', padding: '1px 7px', borderRadius: '4px' }}>
+                  {assignSuccessDetails.initialDecision}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#64748b', fontWeight: '600' }}>Review Period:</span>
+                <span style={{ color: '#334155', fontWeight: '600' }}>
+                  {assignSuccessDetails.startDate} to {assignSuccessDetails.endDate}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => {
+                setShowAssignSuccessModal(false);
+                setAssignSuccessDetails(null);
+              }}
+              style={{
+                width: '100%',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '10px',
+                fontSize: '0.95rem',
+                fontWeight: '700',
+                backgroundColor: '#2563eb',
+                color: '#ffffff',
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              OK, Got it
+            </button>
           </div>
         </div>
       )}
