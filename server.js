@@ -660,16 +660,17 @@ const ensureReviewerAssignmentsForProposal = async (db, proposal) => {
         { $or: proposalMatchers },
       ],
     });
+    const allFiles = {
+      ...pickStudentAssignmentFiles(proposal.studentFiles || proposal.files || {}),
+      ...pickAdminAssignmentFiles(proposal.adminFiles || proposal.files || {}),
+      ...(proposal.files || {}),
+    };
     if (!existingSec1) {
       const reviewer = await reviewers.findOne({ email: emailRegexFilter(sec1Email) });
       const resolvedEmail = reviewer?.email || String(sec1Email).trim();
       const resolvedName = reviewer?.name
         || `${reviewer?.firstName || ''} ${reviewer?.lastName || ''}`.trim()
         || resolvedEmail;
-      const allFiles = {
-        ...pickStudentAssignmentFiles(proposal.studentFiles || proposal.files || {}),
-        ...pickAdminAssignmentFiles(proposal.adminFiles || proposal.files || {}),
-      };
       const startDate = proposal.reviewPeriod?.startDate || proposal.startDate || proposal.createdAt || new Date();
       const endDate = proposal.reviewPeriod?.endDate || proposal.endDate || new Date(new Date(startDate).getTime() + 14 * 24 * 60 * 60 * 1000);
 
@@ -692,6 +693,14 @@ const ensureReviewerAssignmentsForProposal = async (db, proposal) => {
         updatedAt: new Date(),
       });
       console.log(`[repair] Auto-created assignment for Chair ${sec1Email} on proposal ${proposal._id}`);
+    } else {
+      const mergedFiles = { ...allFiles, ...(existingSec1.assignedFiles || {}) };
+      if (Object.keys(mergedFiles).length !== Object.keys(existingSec1.assignedFiles || {}).length) {
+        await assignments.updateOne(
+          { _id: existingSec1._id },
+          { $set: { assignedFiles: mergedFiles, protocolCode: proposal.protocolCode || existingSec1.protocolCode, updatedAt: new Date() } }
+        );
+      }
     }
   }
 
@@ -704,16 +713,17 @@ const ensureReviewerAssignmentsForProposal = async (db, proposal) => {
         { $or: proposalMatchers },
       ],
     });
+    const allFiles = {
+      ...pickStudentAssignmentFiles(proposal.studentFiles || proposal.files || {}),
+      ...pickAdminAssignmentFiles(proposal.adminFiles || proposal.files || {}),
+      ...(proposal.files || {}),
+    };
     if (!existingSec2) {
       const reviewer = await reviewers.findOne({ email: emailRegexFilter(sec2Email) });
       const resolvedEmail = reviewer?.email || String(sec2Email).trim();
       const resolvedName = reviewer?.name
         || `${reviewer?.firstName || ''} ${reviewer?.lastName || ''}`.trim()
         || resolvedEmail;
-      const allFiles = {
-        ...pickStudentAssignmentFiles(proposal.studentFiles || proposal.files || {}),
-        ...pickAdminAssignmentFiles(proposal.adminFiles || proposal.files || {}),
-      };
       const startDate = proposal.reviewPeriod?.startDate || proposal.startDate || proposal.createdAt || new Date();
       const endDate = proposal.reviewPeriod?.endDate || proposal.endDate || new Date(new Date(startDate).getTime() + 14 * 24 * 60 * 60 * 1000);
 
@@ -736,6 +746,14 @@ const ensureReviewerAssignmentsForProposal = async (db, proposal) => {
         updatedAt: new Date(),
       });
       console.log(`[repair] Auto-created assignment for Member ${sec2Email} on proposal ${proposal._id}`);
+    } else {
+      const mergedFiles = { ...allFiles, ...(existingSec2.assignedFiles || {}) };
+      if (Object.keys(mergedFiles).length !== Object.keys(existingSec2.assignedFiles || {}).length) {
+        await assignments.updateOne(
+          { _id: existingSec2._id },
+          { $set: { assignedFiles: mergedFiles, protocolCode: proposal.protocolCode || existingSec2.protocolCode, updatedAt: new Date() } }
+        );
+      }
     }
   }
 };
@@ -4462,10 +4480,15 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
         ],
       });
 
-      const existingAdminFiles = pickAdminAssignmentFiles(existingAdminAssignment?.assignedFiles || {});
-      const adminAssignedFiles = existingAdminAssignment
-        ? { ...existingAdminFiles, ...uploadedFiles }
-        : uploadedFiles;
+      const studentFiles = existingProposal
+        ? pickStudentAssignmentFiles(existingProposal.studentFiles || existingProposal.files || {})
+        : {};
+      const existingAdminFiles = pickAdminAssignmentFiles(existingAdminAssignment?.assignedFiles || existingProposal?.adminFiles || {});
+      const allAssignedFiles = {
+        ...studentFiles,
+        ...existingAdminFiles,
+        ...uploadedFiles,
+      };
 
       const assignmentData = {
         proposalId: resolvedProposalId,
@@ -4477,7 +4500,7 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
         proponent: proponent,
         studentEmail: studentEmail,
         initialReviewDecision: req.body.initialReviewDecision || existingProposal?.initialReviewDecision || null,
-        assignedFiles: adminAssignedFiles,
+        assignedFiles: allAssignedFiles,
         reviewPeriod: {
           startDate: new Date(startDate),
           endDate: new Date(endDate)
@@ -4512,7 +4535,7 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
         recipientEmail: reviewer.email,
         recipientName: reviewer.email,
         title: 'New Files Assigned for Review',
-        message: `You have been assigned ${Object.keys(adminAssignedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
+        message: `You have been assigned ${Object.keys(allAssignedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
         type: 'assignment',
         protocolCode: protocolCode,
         proposalId: resolvedProposalId,
@@ -4520,7 +4543,7 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
           startDate: new Date(startDate),
           endDate: new Date(endDate)
         },
-        assignedFiles: Object.keys(adminAssignedFiles),
+        assignedFiles: Object.keys(allAssignedFiles),
         read: false,
         createdAt: new Date()
       });
