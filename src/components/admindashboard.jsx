@@ -3518,6 +3518,7 @@ function StudentProposalContent({ onNewCountChange }) {
               <col className="sp-col-title" />
               <col className="sp-col-student" />
               <col className="sp-col-date" />
+              <col className="sp-col-assign-status" />
             </colgroup>
             <thead>
               <tr>
@@ -3525,6 +3526,7 @@ function StudentProposalContent({ onNewCountChange }) {
                 <th>Proposal Title</th>
                 <th>Submitted By</th>
                 <th>Submitted</th>
+                <th>Assignment</th>
               </tr>
             </thead>
             <tbody>
@@ -3532,6 +3534,15 @@ function StudentProposalContent({ onNewCountChange }) {
                 const id = toRecordId(proposal._id);
                 const isNew = isStudentProposalNew(proposal);
                 const statusLabel = isNew ? 'New' : 'Seen';
+
+                // Determine if this proposal has been assigned to a reviewer
+                const propIdStr = toRecordId(proposal._id);
+                const isAssigned = assignments.some((a) => {
+                  const aPropId = toRecordId(a.proposalId);
+                  if (aPropId && propIdStr && aPropId === propIdStr) return true;
+                  if (a.protocolCode && proposal.protocolCode && a.protocolCode === proposal.protocolCode) return true;
+                  return false;
+                });
 
                 return (
                   <tr
@@ -3560,6 +3571,11 @@ function StudentProposalContent({ onNewCountChange }) {
                       </div>
                     </td>
                     <td className="sp-cell-date">{formatDate(proposal.submissionDate || proposal.createdAt)}</td>
+                    <td className="sp-cell-assign-status">
+                      <span className={`sp-assign-status-badge ${isAssigned ? 'sp-assign-status-badge--assigned' : 'sp-assign-status-badge--not-assigned'}`}>
+                        {isAssigned ? 'Assigned' : 'Not Assigned'}
+                      </span>
+                    </td>
                   </tr>
                 );
               })}

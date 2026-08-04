@@ -152,10 +152,41 @@
   overflow: hidden;
 }
 
-.sp-col-indicator { width: 10%; }
-.sp-col-title { width: 45%; }
-.sp-col-student { width: 30%; }
-.sp-col-date { width: 15%; }
+.sp-col-indicator { width: 9%; }
+.sp-col-title { width: 38%; }
+.sp-col-student { width: 26%; }
+.sp-col-date { width: 13%; }
+.sp-col-assign-status { width: 14%; }
+
+.sp-cell-assign-status {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.sp-assign-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sp-assign-status-badge--assigned {
+  background: #dcfce7;
+  color: #15803d;
+  box-shadow: 0 0 0 1px rgba(21, 128, 61, 0.2);
+}
+
+.sp-assign-status-badge--not-assigned {
+  background: #f1f5f9;
+  color: #64748b;
+  box-shadow: 0 0 0 1px rgba(100, 116, 139, 0.2);
+}
 
 .sp-indicator-badge {
   display: inline-flex;

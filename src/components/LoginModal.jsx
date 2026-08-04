@@ -319,8 +319,20 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
           }
         }
 
-        setPendingAuthResult(result);
-        setShowPrivacyStep(true);
+        const isAdmin = ['admin', 'superadmin', 'super-admin', 'root', 'administrator'].includes(result.user?.role?.toLowerCase());
+        if (isAdmin) {
+          // Exclude admin from data and privacy act modal - proceed directly to login
+          const loginResult = await onLogin(email, password);
+          if (loginResult.success) {
+            resetForm();
+            onClose();
+          } else {
+            setError(loginResult.error || 'Login failed');
+          }
+        } else {
+          setPendingAuthResult(result);
+          setShowPrivacyStep(true);
+        }
       } else if (result.error === 'disabled') {
         setShowDisabledModal(true);
       } else {

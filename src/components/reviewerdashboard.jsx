@@ -10,6 +10,8 @@ const formatAssignmentStatus = (status) => {
   if (normalized === 'completed') return 'Completed';
   if (normalized === 'pending') return 'Under Review';
   if (normalized === 'under review') return 'Under Review';
+  if (normalized === 'review submitted') return 'Review Submitted';
+  if (normalized === 'submitted to admin') return 'Review Submitted';
   return status;
 };
 
@@ -2170,6 +2172,25 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
     }
   }, []);
 
+  // Listen for reviewSubmitted events dispatched after a reviewer submits a review
+  // and update the matching assignment's status locally so the sidebar reflects it instantly
+  useEffect(() => {
+    const handleReviewSubmitted = (e) => {
+      const { proposalId, protocolCode } = e.detail || {};
+      setAssignments(prev => prev.map(a => {
+        const matchById = proposalId && (String(a._id) === String(proposalId) || String(a.proposalId) === String(proposalId));
+        const matchByCode = protocolCode && a.protocolCode && a.protocolCode === protocolCode;
+        if (matchById || matchByCode) {
+          return { ...a, status: 'Review Submitted' };
+        }
+        return a;
+      }));
+    };
+
+    window.addEventListener('reviewSubmitted', handleReviewSubmitted);
+    return () => window.removeEventListener('reviewSubmitted', handleReviewSubmitted);
+  }, []);
+
   const fetchAssignments = async (userEmail) => {
     if (!userEmail) return;
     setLoading(true);
@@ -3251,6 +3272,29 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
         throw new Error(result.error || 'Failed to submit review');
       }
 
+      // Update assignment status to 'Review Submitted' after successful submission
+      if (selectedProposal?._id && user?.email) {
+        try {
+          await fetch(`${import.meta.env.VITE_API_URL}/api/assignments/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              proposalId: selectedProposal._id,
+              protocolCode: selectedProposal.protocolCode || undefined,
+              reviewerEmail: user.email,
+              status: 'Review Submitted'
+            })
+          });
+        } catch (statusErr) {
+          console.error('Failed to update assignment status to Review Submitted:', statusErr);
+        }
+
+        // Notify AssignedProposalsContent to update its local state instantly
+        window.dispatchEvent(new CustomEvent('reviewSubmitted', {
+          detail: { proposalId: selectedProposal._id, protocolCode: selectedProposal.protocolCode }
+        }));
+      }
+
       // Show success modal
       onShowSuccessModal();
 
@@ -3762,6 +3806,29 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to submit secondary files');
+      }
+
+      // Update assignment status to 'Review Submitted' after successful secondary submission
+      if (selectedProposal?._id && user?.email) {
+        try {
+          await fetch(`${import.meta.env.VITE_API_URL}/api/assignments/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              proposalId: selectedProposal._id,
+              protocolCode: secondaryFileData.protocolCode || undefined,
+              reviewerEmail: user.email,
+              status: 'Review Submitted'
+            })
+          });
+        } catch (statusErr) {
+          console.error('Failed to update assignment status to Review Submitted:', statusErr);
+        }
+
+        // Notify AssignedProposalsContent to update its local state instantly
+        window.dispatchEvent(new CustomEvent('reviewSubmitted', {
+          detail: { proposalId: selectedProposal._id, protocolCode: secondaryFileData.protocolCode }
+        }));
       }
 
       // Show success modal

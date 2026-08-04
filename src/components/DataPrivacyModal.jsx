@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import './DataPrivacyModal.css';
 
-const DataPrivacyModal = ({ isOpen, onAccept }) => {
+const DataPrivacyModal = ({ isOpen, onAccept, userRole }) => {
   const [isChecked, setIsChecked] = useState(false);
 
-  if (!isOpen) return null;
+  const isAdmin = ['admin', 'superadmin', 'super-admin', 'root', 'administrator'].includes(userRole?.toLowerCase());
+
+  if (!isOpen || isAdmin) return null;
 
   const handleProceed = () => {
     if (isChecked) {
