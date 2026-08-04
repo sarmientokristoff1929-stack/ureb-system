@@ -974,8 +974,6 @@ const AdminDashboard = ({ onLogout }) => {
 
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
 
-    { id: 'assign-file', label: 'Submit File', icon: <AssignIcon /> },
-
     { id: 'student-proposals', label: 'Researcher Proposal', icon: <FileCheckIcon />, badge: studentProposalNewCount > 0 ? studentProposalNewCount : null },
 
     { id: 'messages-inbox', label: 'Files And Messages Submitted', icon: <MessageIcon />, badge: messageCount > 0 ? messageCount : null },
@@ -1203,12 +1201,6 @@ const AdminDashboard = ({ onLogout }) => {
       case 'mark-completed-review':
 
         return <MarkCompletedReviewContent />;
-
-      case 'assign-file':
-
-
-
-        return <AssignFileContent />;
 
       case 'student-proposals':
 
@@ -3030,13 +3022,12 @@ const getReviewerDisplayName = (reviewer) => {
     || '';
 };
 
-// ── Student Proposal (admin assigns department + preliminary reviewer) ─────
+// ── Student Proposal (admin assigns reviewers) ─────
 function StudentProposalContent({ onNewCountChange }) {
   const [proposals, setProposals] = useState([]);
   const [reviewers, setReviewers] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [rowDraft, setRowDraft] = useState({});
-  const [savingId, setSavingId] = useState('');
   const [selectedProposalId, setSelectedProposalId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [feedback, setFeedback] = useState({ type: '', message: '' });
@@ -3076,26 +3067,18 @@ function StudentProposalContent({ onNewCountChange }) {
     setLoading(true);
     try {
       const { getAllProposals, getAllReviewers } = await import('../services/api.js');
-      const [proposalsData, reviewersData] = await Promise.all([
+      const API = import.meta.env.VITE_API_URL || '';
+      const [proposalsData, reviewersData, assignmentsRes] = await Promise.all([
         getAllProposals(),
         getAllReviewers(),
+        fetch(`${API}/api/assignments`).then((r) => (r.ok ? r.json() : [])).catch(() => []),
       ]);
       const list = Array.isArray(proposalsData) ? proposalsData : [];
       const studentOnly = list.filter(isStudentSubmissionProposal);
       setProposals(studentOnly);
       onNewCountChange?.(studentOnly.filter(isStudentProposalNew).length);
       setReviewers(Array.isArray(reviewersData) ? reviewersData : []);
-
-      const draft = {};
-      studentOnly.forEach((p) => {
-        const id = toRecordId(p._id);
-        if (!id) return;
-        draft[id] = {
-          department: p.department || '',
-          preliminaryReviewer: p.preliminaryReviewer || '',
-        };
-      });
-      setRowDraft(draft);
+      setAssignments(Array.isArray(assignmentsRes) ? assignmentsRes : []);
     } catch (err) {
       console.error('Error loading student proposals:', err);
       setProposals([]);
@@ -3204,51 +3187,12 @@ function StudentProposalContent({ onNewCountChange }) {
     if (!stillVisible) setSelectedProposalId('');
   }, [filteredProposals, selectedProposalId]);
 
-  const updateRowDraft = (proposalId, field, value) => {
-    setRowDraft((prev) => {
-      const current = prev[proposalId] || { department: '', preliminaryReviewer: '' };
-      if (field === 'department') {
-        return { ...prev, [proposalId]: { department: value, preliminaryReviewer: '' } };
-      }
-      return { ...prev, [proposalId]: { ...current, preliminaryReviewer: value } };
-    });
-  };
-
-  const handleAssign = async (proposalId) => {
-    const draft = rowDraft[proposalId];
-    if (!draft?.department || !draft?.preliminaryReviewer) {
-      setFeedback({ type: 'error', message: 'Select both department and reviewer before assigning.' });
-      return;
-    }
-
-    setSavingId(proposalId);
-    setFeedback({ type: '', message: '' });
-    try {
-      const { assignStudentProposalReviewer } = await import('../services/api.js');
-      const result = await assignStudentProposalReviewer(proposalId, draft);
-      if (!result.success) {
-        throw new Error(result.error || 'Assignment failed');
-      }
-      setFeedback({ type: 'success', message: 'Department and reviewer assigned successfully.' });
-      await loadData();
-    } catch (err) {
-      setFeedback({ type: 'error', message: err.message || 'Failed to assign reviewer.' });
-    } finally {
-      setSavingId('');
-    }
-  };
-
   const formatDate = (d) => (d
     ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
     : '—');
 
-  const pendingCount = proposals.filter((p) => !p.preliminaryReviewer).length;
   const newCount = proposals.filter(isStudentProposalNew).length;
   const selectedProposal = filteredProposals.find((p) => toRecordId(p._id) === selectedProposalId) || null;
-  const selectedDraft = selectedProposal ? (rowDraft[toRecordId(selectedProposal._id)] || { department: '', preliminaryReviewer: '' }) : null;
-  const selectedReviewerName = selectedDraft?.preliminaryReviewer
-    ? getReviewerDisplayName(reviewers.find((r) => r.email === selectedDraft.preliminaryReviewer))
-    : '';
   const selectedFiles = selectedProposal
     ? Object.entries(getProposalStudentFiles(selectedProposal)).map(([key, file]) => ({
       key,
@@ -3256,6 +3200,199 @@ function StudentProposalContent({ onNewCountChange }) {
       file,
     }))
     : [];
+
+  const [rightCanvasForm, setRightCanvasForm] = useState({
+    protocolCode: '',
+    secondaryReviewer1: '',
+    secondaryReviewer2: '',
+    initialReviewDecision: '',
+    startDate: '',
+    endDate: '',
+  });
+  const [rightCanvasFiles, setRightCanvasFiles] = useState({});
+  const [attachmentSlots, setAttachmentSlots] = useState(['attachment_0']);
+  const [rightCanvasSaving, setRightCanvasSaving] = useState(false);
+  const [rightCanvasFeedback, setRightCanvasFeedback] = useState({ type: '', message: '' });
+
+  const handleAddAttachmentSlot = () => {
+    const nextKey = `attachment_${Date.now()}_${attachmentSlots.length}`;
+    setAttachmentSlots((prev) => [...prev, nextKey]);
+  };
+
+  const handleRemoveAttachmentSlot = (slotKey) => {
+    setAttachmentSlots((prev) => (prev.length > 1 ? prev.filter((key) => key !== slotKey) : prev));
+    setRightCanvasFiles((prev) => {
+      const next = { ...prev };
+      delete next[slotKey];
+      return next;
+    });
+  };
+
+  const selectedProposalIdStr = selectedProposal ? toRecordId(selectedProposal._id) : '';
+  const proposalAssignments = useMemo(() => {
+    if (!selectedProposal) return [];
+    return assignments.filter((a) => {
+      const aPropId = toRecordId(a.proposalId);
+      if (aPropId && selectedProposalIdStr && aPropId === selectedProposalIdStr) return true;
+      if (a.protocolCode && selectedProposal.protocolCode && a.protocolCode === selectedProposal.protocolCode) return true;
+      return false;
+    });
+  }, [selectedProposal, selectedProposalIdStr, assignments]);
+
+  const adminAssignments = useMemo(() => {
+    return proposalAssignments.filter((a) => a.assignedBy === 'admin' || a.assignmentSource === 'admin');
+  }, [proposalAssignments]);
+
+  useEffect(() => {
+    if (selectedProposal) {
+      const propId = toRecordId(selectedProposal._id);
+      const pAss = assignments.filter((a) => {
+        const aPropId = toRecordId(a.proposalId);
+        if (aPropId && propId && aPropId === propId) return true;
+        if (a.protocolCode && selectedProposal.protocolCode && a.protocolCode === selectedProposal.protocolCode) return true;
+        return false;
+      });
+      const adminAss = pAss.filter((a) => a.assignedBy === 'admin' || a.assignmentSource === 'admin');
+
+      const code = selectedProposal.protocolCode || pAss.find((a) => a.protocolCode)?.protocolCode || '';
+
+      const rawRev1 = selectedProposal.secondaryReviewer1
+        || selectedProposal.reviewers?.reviewer2
+        || selectedProposal.reviewer1
+        || adminAss[0]?.reviewerEmail
+        || '';
+
+      const rawRev2 = selectedProposal.secondaryReviewer2
+        || selectedProposal.reviewers?.reviewer3
+        || selectedProposal.reviewer2
+        || adminAss[1]?.reviewerEmail
+        || '';
+
+      const decision = selectedProposal.initialReviewDecision
+        || pAss.find((a) => a.initialReviewDecision)?.initialReviewDecision
+        || '';
+
+      const rawStart = selectedProposal.reviewPeriod?.startDate
+        || selectedProposal.startDate
+        || pAss.find((a) => a.reviewPeriod?.startDate || a.startDate)?.reviewPeriod?.startDate
+        || pAss.find((a) => a.reviewPeriod?.startDate || a.startDate)?.startDate;
+
+      const rawEnd = selectedProposal.reviewPeriod?.endDate
+        || selectedProposal.endDate
+        || pAss.find((a) => a.reviewPeriod?.endDate || a.endDate)?.reviewPeriod?.endDate
+        || pAss.find((a) => a.reviewPeriod?.endDate || a.endDate)?.endDate;
+
+      const formatISOToInputDate = (d) => {
+        if (!d) return '';
+        try {
+          const dateObj = new Date(d);
+          if (isNaN(dateObj.getTime())) return '';
+          const year = dateObj.getFullYear();
+          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+          const day = String(dateObj.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        } catch (e) {
+          return '';
+        }
+      };
+
+      setRightCanvasForm({
+        protocolCode: code,
+        secondaryReviewer1: rawRev1,
+        secondaryReviewer2: rawRev2,
+        initialReviewDecision: decision,
+        startDate: formatISOToInputDate(rawStart),
+        endDate: formatISOToInputDate(rawEnd),
+      });
+      setRightCanvasFiles({});
+      setAttachmentSlots(['attachment_0']);
+      setRightCanvasFeedback({ type: '', message: '' });
+    }
+  }, [selectedProposalId, selectedProposal, assignments]);
+
+  const handleRightCanvasInputChange = (e) => {
+    const { name, value } = e.target;
+    setRightCanvasForm((prev) => {
+      const next = { ...prev, [name]: value };
+      if (name === 'secondaryReviewer1' && next.secondaryReviewer2 === value) {
+        next.secondaryReviewer2 = '';
+      }
+      return next;
+    });
+  };
+
+  const handleRightCanvasFileChange = (fieldName, file) => {
+    setRightCanvasFiles((prev) => ({ ...prev, [fieldName]: file }));
+  };
+
+  const handleSaveRightCanvasDetails = async (e) => {
+    e.preventDefault();
+    if (!selectedProposal) return;
+
+    if (!rightCanvasForm.protocolCode.trim()) {
+      setRightCanvasFeedback({ type: 'error', message: 'Protocol Code is required.' });
+      return;
+    }
+    if (!rightCanvasForm.secondaryReviewer1.trim()) {
+      setRightCanvasFeedback({ type: 'error', message: 'Reviewer 1 (Chair) is required.' });
+      return;
+    }
+    if (!rightCanvasForm.secondaryReviewer2.trim()) {
+      setRightCanvasFeedback({ type: 'error', message: 'Reviewer 2 (Member) is required.' });
+      return;
+    }
+    if (rightCanvasForm.secondaryReviewer1.trim() === rightCanvasForm.secondaryReviewer2.trim()) {
+      setRightCanvasFeedback({ type: 'error', message: 'Reviewer 2 (Member) must be different from Reviewer 1 (Chair).' });
+      return;
+    }
+    if (!rightCanvasForm.startDate) {
+      setRightCanvasFeedback({ type: 'error', message: 'Start Date is required.' });
+      return;
+    }
+    if (!rightCanvasForm.endDate) {
+      setRightCanvasFeedback({ type: 'error', message: 'End Date is required.' });
+      return;
+    }
+
+    setRightCanvasSaving(true);
+    setRightCanvasFeedback({ type: '', message: '' });
+
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('proposalId', toRecordId(selectedProposal._id));
+      formDataToSend.append('protocolCode', rightCanvasForm.protocolCode.toUpperCase().replace(/\s+/g, ''));
+      formDataToSend.append('secondaryReviewer1', rightCanvasForm.secondaryReviewer1);
+      if (rightCanvasForm.secondaryReviewer2.trim()) {
+        formDataToSend.append('secondaryReviewer2', rightCanvasForm.secondaryReviewer2);
+      }
+      if (rightCanvasForm.initialReviewDecision) {
+        formDataToSend.append('initialReviewDecision', rightCanvasForm.initialReviewDecision);
+      }
+      formDataToSend.append('startDate', rightCanvasForm.startDate);
+      formDataToSend.append('endDate', rightCanvasForm.endDate);
+
+      Object.entries(rightCanvasFiles).forEach(([key, file]) => {
+        if (file instanceof File) {
+          formDataToSend.append(key, file);
+        }
+      });
+
+      const { assignFileToReviewer } = await import('../services/api.js');
+      const result = await assignFileToReviewer(formDataToSend);
+
+      if (result.success) {
+        setRightCanvasFeedback({ type: 'success', message: 'Reviewers & protocol metadata assigned successfully!' });
+        await loadData();
+      } else {
+        setRightCanvasFeedback({ type: 'error', message: result.error || 'Failed to assign reviewers.' });
+      }
+    } catch (err) {
+      console.error('Error assigning reviewers:', err);
+      setRightCanvasFeedback({ type: 'error', message: err.message || 'Failed to assign reviewers.' });
+    } finally {
+      setRightCanvasSaving(false);
+    }
+  };
 
   const handleViewStudentFile = (file) => {
     if (!file?.filename) return;
@@ -3294,68 +3431,7 @@ function StudentProposalContent({ onNewCountChange }) {
         </div>
       )}
 
-      {/* Professional Submission Category Filter */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#475569', marginRight: '0.25rem' }}>
-          Filter Submissions:
-        </span>
-        <button
-          type="button"
-          onClick={() => setSubmissionTypeFilter('all')}
-          style={{
-            padding: '0.4rem 0.9rem',
-            borderRadius: '20px',
-            border: submissionTypeFilter === 'all' ? '1px solid #1e293b' : '1px solid #cbd5e1',
-            backgroundColor: submissionTypeFilter === 'all' ? '#1e293b' : '#ffffff',
-            color: submissionTypeFilter === 'all' ? '#ffffff' : '#475569',
-            fontWeight: '600',
-            fontSize: '0.825rem',
-            cursor: 'pointer',
-            boxShadow: submissionTypeFilter === 'all' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          All Submissions ({proposals.length})
-        </button>
 
-        <button
-          type="button"
-          onClick={() => setSubmissionTypeFilter('first')}
-          style={{
-            padding: '0.4rem 0.9rem',
-            borderRadius: '20px',
-            border: submissionTypeFilter === 'first' ? '1px solid #2563eb' : '1px solid #cbd5e1',
-            backgroundColor: submissionTypeFilter === 'first' ? '#2563eb' : '#ffffff',
-            color: submissionTypeFilter === 'first' ? '#ffffff' : '#475569',
-            fontWeight: '600',
-            fontSize: '0.825rem',
-            cursor: 'pointer',
-            boxShadow: submissionTypeFilter === 'first' ? '0 2px 4px rgba(37,99,235,0.2)' : 'none',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          First Submissions ({firstSubmissionsCount})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setSubmissionTypeFilter('resubmission')}
-          style={{
-            padding: '0.4rem 0.9rem',
-            borderRadius: '20px',
-            border: submissionTypeFilter === 'resubmission' ? '1px solid #7c3aed' : '1px solid #cbd5e1',
-            backgroundColor: submissionTypeFilter === 'resubmission' ? '#7c3aed' : '#ffffff',
-            color: submissionTypeFilter === 'resubmission' ? '#ffffff' : '#475569',
-            fontWeight: '600',
-            fontSize: '0.825rem',
-            cursor: 'pointer',
-            boxShadow: submissionTypeFilter === 'resubmission' ? '0 2px 4px rgba(124,58,237,0.2)' : 'none',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          Resubmissions ({resubmissionsCount})
-        </button>
-      </div>
 
       <div className="sp-toolbar">
         <input
@@ -3367,9 +3443,6 @@ function StudentProposalContent({ onNewCountChange }) {
         />
         <span className="sp-stat">
           <strong>{proposals.length}</strong> submission{proposals.length !== 1 ? 's' : ''}
-        </span>
-        <span className="sp-stat sp-stat--pending">
-          <strong>{pendingCount}</strong> awaiting assignment
         </span>
         {newCount > 0 && (
           <span className="sp-stat sp-stat--new">
@@ -3390,9 +3463,6 @@ function StudentProposalContent({ onNewCountChange }) {
               <col className="sp-col-title" />
               <col className="sp-col-student" />
               <col className="sp-col-date" />
-              <col className="sp-col-department" />
-              <col className="sp-col-reviewer" />
-              <col className="sp-col-action" />
             </colgroup>
             <thead>
               <tr>
@@ -3400,18 +3470,12 @@ function StudentProposalContent({ onNewCountChange }) {
                 <th>Proposal Title</th>
                 <th>Submitted By</th>
                 <th>Submitted</th>
-                <th>Department</th>
-                <th>Preliminary Reviewer</th>
-                <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {filteredProposals.map((proposal) => {
                 const id = toRecordId(proposal._id);
-                const draft = rowDraft[id] || { department: '', preliminaryReviewer: '' };
-                const deptReviewers = getReviewersForDepartment(draft.department);
-                const isAssigned = Boolean(proposal.preliminaryReviewer);
-                const isSaving = savingId === id;
+                const isAssigned = Boolean(proposal.secondaryReviewer1 || proposal.preliminaryReviewer);
                 const isNew = isStudentProposalNew(proposal);
 
                 return (
@@ -3419,11 +3483,12 @@ function StudentProposalContent({ onNewCountChange }) {
                     key={id}
                     className={`${isAssigned ? 'sp-row--assigned' : ''} ${isNew ? 'sp-row--new' : ''} ${selectedProposalId === id ? 'sp-row--selected' : ''}`}
                     onClick={() => handleProposalRowClick(id)}
+                    style={{ cursor: 'pointer' }}
                   >
                     <td className="sp-cell-indicator">
                       <span
                         className={`sp-indicator-badge ${isNew ? 'sp-indicator-badge--new' : 'sp-indicator-badge--seen'}`}
-                        title={isNew ? 'New submission — open to mark as seen' : 'Seen'}
+                        title={isNew ? 'New submission — click to view & assign' : 'Seen'}
                       >
                         {isNew ? 'New' : 'Seen'}
                       </span>
@@ -3440,53 +3505,6 @@ function StudentProposalContent({ onNewCountChange }) {
                       </div>
                     </td>
                     <td className="sp-cell-date">{formatDate(proposal.submissionDate || proposal.createdAt)}</td>
-                    <td className="sp-cell-select" onClick={(e) => e.stopPropagation()}>
-                      <select
-                        className="sp-select"
-                        value={draft.department}
-                        onChange={(e) => updateRowDraft(id, 'department', e.target.value)}
-                        disabled={isSaving}
-                      >
-                        <option value="">Select department</option>
-                        {STUDENT_PROPOSAL_DEPARTMENTS.map((d) => (
-                          <option key={d.value} value={d.value}>{d.label}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="sp-cell-select" onClick={(e) => e.stopPropagation()}>
-                      <select
-                        className="sp-select"
-                        value={draft.preliminaryReviewer}
-                        onChange={(e) => updateRowDraft(id, 'preliminaryReviewer', e.target.value)}
-                        disabled={isSaving || !draft.department}
-                      >
-                        <option value="">
-                          {!draft.department
-                            ? 'Select department first'
-                            : deptReviewers.length === 0
-                              ? 'No reviewers for this department'
-                              : 'Select preliminary reviewer'}
-                        </option>
-                        {deptReviewers.map((r) => (
-                          <option key={r.email} value={r.email}>
-                            {getReviewerDisplayName(r)}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="sp-cell-action" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        className="btn-primary sp-assign-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAssign(id);
-                        }}
-                        disabled={isSaving || !draft.department || !draft.preliminaryReviewer}
-                      >
-                        {isSaving ? 'Assigning…' : isAssigned ? 'Reassign' : 'Assign'}
-                      </button>
-                    </td>
                   </tr>
                 );
               })}
@@ -3500,7 +3518,7 @@ function StudentProposalContent({ onNewCountChange }) {
           <div className="sp-modal" onClick={(e) => e.stopPropagation()}>
             <div className="sp-modal-header">
               <div className="sp-modal-header-title">
-                <h3>Student Proposal Details</h3>
+                <h3>Researcher Proposal</h3>
                 {selectedProposal && (
                   <span
                     className={`sp-indicator-badge ${isStudentProposalNew(selectedProposal) ? 'sp-indicator-badge--new' : 'sp-indicator-badge--seen'}`}
@@ -3534,17 +3552,9 @@ function StudentProposalContent({ onNewCountChange }) {
                     <span className="sp-detail-label">Student Email</span>
                     <span className="sp-detail-value">{selectedProposal.studentEmail || 'N/A'}</span>
                   </div>
-                  <div className="sp-detail-item">
+                  <div className="sp-detail-item sp-detail-item--full">
                     <span className="sp-detail-label">Submitted Date</span>
                     <span className="sp-detail-value">{formatDate(selectedProposal.submissionDate || selectedProposal.createdAt)}</span>
-                  </div>
-                  <div className="sp-detail-item">
-                    <span className="sp-detail-label">Department</span>
-                    <span className="sp-detail-value">{selectedDraft?.department || 'Not selected'}</span>
-                  </div>
-                  <div className="sp-detail-item sp-detail-item--full">
-                    <span className="sp-detail-label">Reviewer</span>
-                    <span className="sp-detail-value">{selectedReviewerName || selectedDraft?.preliminaryReviewer || 'Not selected'}</span>
                   </div>
                 </div>
 
@@ -3604,12 +3614,257 @@ function StudentProposalContent({ onNewCountChange }) {
                 )}
               </div>
 
-              {/* Right Panel: Empty Panel ready for new content */}
+              {/* Right Panel Canvas: Interactive Form Inputs for Protocol Code, Reviewer 1 & 2, Initial Review Decision, Review Period (PHT) */}
               <div className="sp-modal-panel sp-modal-panel--right" ref={rightPanelRef} onScroll={checkRightScroll}>
-                <div className="sp-empty-panel-placeholder">
-                  <div className="sp-empty-panel-icon">📋</div>
-                  <h5>Right Panel Canvas</h5>
-                  <p>Ready for additional details, actions, or notes to be added.</p>
+                <div className="sp-right-canvas-container">
+                  <div className="sp-canvas-header">
+                    <div className="sp-canvas-title-group">
+                      <h4 className="sp-canvas-heading">Assign Reviewer</h4>
+                    </div>
+                  </div>
+
+                  {rightCanvasFeedback.message && (
+                    <div className={`sp-canvas-feedback sp-canvas-feedback--${rightCanvasFeedback.type}`}>
+                      {rightCanvasFeedback.message}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleSaveRightCanvasDetails} className="sp-canvas-form">
+                    {/* 1. Protocol Code */}
+                    <div className="sp-canvas-field-group">
+                      <label className="sp-canvas-input-label" htmlFor="sp-right-protocolCode">
+                        Protocol Code <span className="sp-required-star">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        id="sp-right-protocolCode"
+                        name="protocolCode"
+                        className="sp-canvas-input"
+                        placeholder="e.g., UREB-2026-001"
+                        value={rightCanvasForm.protocolCode}
+                        onChange={handleRightCanvasInputChange}
+                        required
+                      />
+                    </div>
+
+                    {/* 2. Reviewer 1 (Chair) & Reviewer 2 (Member) */}
+                    <div className="sp-canvas-field-group">
+                      <label className="sp-canvas-input-label" htmlFor="sp-right-reviewer1">
+                        Reviewer 1 (Chair) <span className="sp-required-star">*</span>
+                      </label>
+                      <select
+                        id="sp-right-reviewer1"
+                        name="secondaryReviewer1"
+                        className="sp-canvas-select"
+                        value={rightCanvasForm.secondaryReviewer1}
+                        onChange={handleRightCanvasInputChange}
+                        required
+                      >
+                        <option value="">-- Select Reviewer 1 (Chair) --</option>
+                        {reviewers
+                          .filter((r) => r.email)
+                          .map((r, idx) => (
+                            <option key={r._id || idx} value={r.email}>
+                              {getReviewerDisplayName(r)} ({r.email})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+
+                    <div className="sp-canvas-field-group">
+                      <label className="sp-canvas-input-label" htmlFor="sp-right-reviewer2">
+                        Reviewer 2 (Member) <span className="sp-required-star">*</span>
+                      </label>
+                      <select
+                        id="sp-right-reviewer2"
+                        name="secondaryReviewer2"
+                        className="sp-canvas-select"
+                        value={rightCanvasForm.secondaryReviewer2}
+                        onChange={handleRightCanvasInputChange}
+                        required
+                      >
+                        <option value="">-- Select Reviewer 2 (Member) --</option>
+                        {reviewers
+                          .filter((r) => r.email && r.email !== rightCanvasForm.secondaryReviewer1)
+                          .map((r, idx) => (
+                            <option key={r._id || idx} value={r.email}>
+                              {getReviewerDisplayName(r)} ({r.email})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+
+                    {/* 3. Initial Review Decision */}
+                    <div className="sp-canvas-field-group">
+                      <label className="sp-canvas-input-label" htmlFor="sp-right-decision">
+                        Initial Review Decision
+                      </label>
+                      <select
+                        id="sp-right-decision"
+                        name="initialReviewDecision"
+                        className="sp-canvas-select"
+                        value={rightCanvasForm.initialReviewDecision}
+                        onChange={handleRightCanvasInputChange}
+                      >
+                        <option value="">-- Select Decision --</option>
+                        <option value="Exempted">Exempted</option>
+                        <option value="Expedited">Expedited</option>
+                        <option value="Full Review">Full Review</option>
+                        <option value="No Human Involvement">No Human Involvement</option>
+                      </select>
+                    </div>
+
+                    {/* 4. Review Period */}
+                    <div className="sp-canvas-field-group">
+                      <div className="sp-canvas-period-header">
+                        <label className="sp-canvas-input-label">Review Period (Philippine Time)</label>
+                      </div>
+                      <div className="sp-canvas-dates-row">
+                        <div className="sp-canvas-date-col">
+                          <span className="sp-canvas-sublabel">Start Date *</span>
+                          <input
+                            type="date"
+                            name="startDate"
+                            className="sp-canvas-input"
+                            value={rightCanvasForm.startDate}
+                            onChange={handleRightCanvasInputChange}
+                            required
+                          />
+                        </div>
+                        <div className="sp-canvas-date-col">
+                          <span className="sp-canvas-sublabel">End Date *</span>
+                          <input
+                            type="date"
+                            name="endDate"
+                            className="sp-canvas-input"
+                            value={rightCanvasForm.endDate}
+                            onChange={handleRightCanvasInputChange}
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 5. Add Attachment Section */}
+                    <div className="sp-canvas-field-group">
+                      <div className="sp-canvas-period-header">
+                        <div className="sp-canvas-doc-header-title">
+                          <span className="sp-canvas-icon">📎</span>
+                          <label className="sp-canvas-input-label">Attachments</label>
+                        </div>
+                        <span className="sp-canvas-tz-badge">
+                          {attachmentSlots.length} Attachment{attachmentSlots.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+
+                      <div className="sp-canvas-attachments-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                        {attachmentSlots.map((slotKey, index) => {
+                          const selectedFile = rightCanvasFiles[slotKey];
+                          return (
+                            <div key={slotKey} className="sp-canvas-file-upload-box">
+                              <input
+                                type="file"
+                                id={`sp-right-attachment-${slotKey}`}
+                                accept=".pdf,.doc,.docx,.txt"
+                                onChange={(e) => handleRightCanvasFileChange(slotKey, e.target.files[0])}
+                                className="sp-canvas-file-input-hidden"
+                              />
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <label htmlFor={`sp-right-attachment-${slotKey}`} className="sp-canvas-upload-dropzone" style={{ flex: 1 }}>
+                                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                                  </svg>
+                                  <div className="sp-upload-text-group">
+                                    <span className="sp-upload-primary-text">
+                                      {selectedFile ? selectedFile.name : `Choose file for Attachment ${index + 1}`}
+                                    </span>
+                                    <span className="sp-upload-subtext">PDF, DOC, DOCX, TXT (MAX. 10MB)</span>
+                                  </div>
+                                </label>
+                                {attachmentSlots.length > 1 && (
+                                  <button
+                                    type="button"
+                                    className="sp-slot-delete-btn"
+                                    onClick={() => handleRemoveAttachmentSlot(slotKey)}
+                                    title="Remove attachment slot"
+                                    style={{
+                                      background: '#fef2f2',
+                                      border: '1px solid #fecaca',
+                                      color: '#ef4444',
+                                      borderRadius: '6px',
+                                      padding: '0.55rem 0.65rem',
+                                      cursor: 'pointer',
+                                      fontSize: '0.85rem',
+                                      fontWeight: '700',
+                                      lineHeight: 1,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                    }}
+                                  >
+                                    🗑
+                                  </button>
+                                )}
+                              </div>
+
+                              {selectedFile && (
+                                <div className="sp-canvas-selected-chip">
+                                  <span className="sp-chip-icon">✓</span>
+                                  <span className="sp-chip-filename">{selectedFile.name}</span>
+                                  <button
+                                    type="button"
+                                    className="sp-chip-remove-btn"
+                                    onClick={() => handleRightCanvasFileChange(slotKey, null)}
+                                    title="Remove file"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div style={{ marginTop: '0.35rem' }}>
+                        <button
+                          type="button"
+                          className="sp-add-attachment-btn"
+                          onClick={handleAddAttachmentSlot}
+                          style={{
+                            background: '#f8fafc',
+                            border: '1px dashed #2563eb',
+                            color: '#2563eb',
+                            padding: '0.45rem 0.85rem',
+                            borderRadius: '6px',
+                            fontSize: '0.8rem',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M12 5v14M5 12h14" />
+                          </svg>
+                          <span>+ Add Attachment</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Submit Action */}
+                    <div className="sp-canvas-actions">
+                      <button
+                        type="submit"
+                        className="btn-primary sp-canvas-submit-btn"
+                        disabled={rightCanvasSaving}
+                      >
+                        {rightCanvasSaving ? 'Assigning…' : 'Assign'}
+                      </button>
+                    </div>
+                  </form>
                 </div>
 
                 {showRightScrollIndicator && (
@@ -4127,992 +4382,7 @@ const MarkCompletedReviewContent = () => {
   );
 };
 
-const AssignFileContent = () => {
-
-  // Initialize state with localStorage data if available
-
-  const getInitialFormData = () => {
-
-    const savedFormData = localStorage.getItem('assignFileForm');
-
-    if (savedFormData) {
-
-      try {
-
-        return JSON.parse(savedFormData);
-
-      } catch (error) {
-
-        console.error('Error parsing saved form data:', error);
-
-        localStorage.removeItem('assignFileForm');
-
-      }
-
-    }
-
-    return {
-
-      protocolCode: '',
-
-      secondaryReviewer1: '',
-
-      secondaryReviewer2: '',
-
-      initialReviewDecision: '',
-
-      startDate: '',
-
-      endDate: '',
-
-      urebForm16: null,
-
-      urebForm10B: null,
-
-      urebForm11: null,
-
-      urebForm2: null,
-
-      urebForm6: null,
-
-      urebForm7: null,
-
-      urebForm8A: null,
-
-      urebForm10A: null,
-
-      approvedProposal: null,
-
-      questionnaire: null
-
-    };
-
-  };
-
-
-
-  const [formData, setFormData] = useState(getInitialFormData());
-
-  const [files, setFiles] = useState([]);
-
-  const [loading, setLoading] = useState(false);
-
-  const [reviewers, setReviewers] = useState([]);
-
-  const [loadingReviewers, setLoadingReviewers] = useState(true);
-
-  const [proposals, setProposals] = useState([]);
-
-  const [loadingProposals, setLoadingProposals] = useState(true);
-
-  const [selectedProposalId, setSelectedProposalId] = useState('');
-
-
-
-  // Fetch reviewers and proposals from database on component mount and keep student proposals updated in real-time
-
-  useEffect(() => {
-
-    let isMounted = true;
-    let intervalId;
-
-    const fetchData = async () => {
-
-      try {
-
-        const { getAllReviewers, getAllProposals } = await import('../services/api.js');
-
-        const [reviewersData, proposalsData] = await Promise.all([
-          getAllReviewers(),
-          getAllProposals()
-        ]);
-
-        if (isMounted) {
-          console.log('All reviewers from database:', reviewersData);
-          setReviewers(reviewersData);
-          console.log('All student proposals from database:', proposalsData);
-          setProposals(proposalsData);
-        }
-
-      } catch (error) {
-
-        console.error('Error fetching data:', error);
-
-        if (isMounted) {
-          setReviewers([]);
-          setProposals([]);
-        }
-
-      } finally {
-
-        if (isMounted) {
-          setLoadingReviewers(false);
-          setLoadingProposals(false);
-        }
-
-      }
-
-    };
-
-    fetchData();
-
-    // Set up a 5-second interval to fetch the latest student proposals in real-time
-    intervalId = setInterval(async () => {
-      try {
-        const { getAllProposals } = await import('../services/api.js');
-        const proposalsData = await getAllProposals();
-        if (isMounted) {
-          setProposals(proposalsData);
-        }
-      } catch (err) {
-        console.error('Error in real-time proposals fetch:', err);
-      }
-    }, 5000);
-
-    return () => {
-      isMounted = false;
-      if (intervalId) clearInterval(intervalId);
-    };
-
-  }, []);
-
-
-
-  // Show all reviewers (both Preliminary and Secondary) in the dropdown
-
-  // This allows Preliminary Reviewers to be selected as Secondary Reviewers when needed
-
-  const filteredReviewers = formData.department
-    ? reviewers.filter(r => String(r.department || '').trim().toUpperCase() === String(formData.department || '').trim().toUpperCase())
-    : reviewers;
-
-
-
-  const documentTypes = [
-
-    { key: 'urebForm16', label: 'UREB Form 16' },
-
-    { key: 'urebForm10B', label: 'UREB Form 10-B' },
-
-    { key: 'urebForm11', label: 'UREB Form 11' },
-
-    { key: 'urebForm2', label: 'UREB Form 2' },
-
-    { key: 'urebForm6', label: 'UREB Form 6' },
-
-    { key: 'urebForm8A', label: 'UREB Form 8(A)' },
-
-    { key: 'urebForm10A', label: 'UREB Form 10(A)' },
-
-    { key: 'approvedProposal', label: 'Approved Proposal' },
-
-    { key: 'questionnaire', label: 'Questionnaire' }
-
-  ];
-
-
-
-  const [reviewersLoading, setReviewersLoading] = useState(false);
-
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-
-  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
-
-  const [errorMessage, setErrorMessage] = useState('');
-
-  const [validationErrors, setValidationErrors] = useState({});
-
-
-
-  // Save form data to localStorage whenever it changes
-
-  useEffect(() => {
-
-    localStorage.setItem('assignFileForm', JSON.stringify(formData));
-
-  }, [formData]);
-
-
-
-  const handleInputChange = (e) => {
-
-    const { name, value } = e.target;
-
-    setFormData(prev => {
-
-      const next = { ...prev, [name]: value };
-
-      if (name === 'secondaryReviewer1' && next.secondaryReviewer2 === value) {
-        next.secondaryReviewer2 = '';
-      }
-
-      return next;
-
-    });
-
-  };
-
-
-
-  const handleFileChange = (fieldName, file) => {
-
-    setFormData(prev => ({
-
-      ...prev,
-
-      [fieldName]: file
-
-    }));
-
-  };
-
-
-
-  const handleRemoveFile = (fieldName) => {
-
-    setFormData(prev => ({
-
-      ...prev,
-
-      [fieldName]: null
-
-    }));
-
-  };
-
-
-
-  const renderFileInput = (fieldName, label) => (
-
-    <div className="form-group">
-
-      <label htmlFor={fieldName}>{label}</label>
-
-      <div className="file-upload-area">
-
-        <input
-
-          type="file"
-
-          id={fieldName}
-
-          onChange={(e) => handleFileChange(fieldName, e.target.files[0])}
-
-          accept=".pdf,.doc,.docx,.txt"
-
-        />
-
-        <div className="file-upload-label">
-
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-
-          </svg>
-
-          <p>{formData[fieldName] ? formData[fieldName].name : 'Click to upload file'}</p>
-
-          <span>PDF, DOC, DOCX, TXT (MAX. 10MB)</span>
-
-        </div>
-
-      </div>
-
-    </div>
-
-  );
-
-
-
-  const handleSubmit = async (e) => {
-
-    e.preventDefault();
-
-
-
-    // Validation
-
-    const errors = {};
-
-    if (!formData.protocolCode.trim()) errors.protocolCode = 'Protocol Code is required';
-
-    if (!formData.secondaryReviewer1.trim()) errors.secondaryReviewer1 = 'Reviewer 1 is required';
-
-    if (
-      formData.secondaryReviewer2.trim() &&
-      formData.secondaryReviewer1.trim() === formData.secondaryReviewer2.trim()
-    ) {
-      errors.secondaryReviewer2 = 'Reviewer 2 must be different from Reviewer 1';
-    }
-
-    if (!formData.startDate) errors.startDate = 'Start Date is required';
-
-    if (!formData.endDate) errors.endDate = 'End Date is required';
-
-
-
-    // Check if at least one file is uploaded
-
-    const hasFiles = documentTypes.some(docType => formData[docType.key] instanceof File);
-
-    if (!selectedProposalId && !hasFiles) {
-
-      errors.files = 'At least one document must be uploaded';
-
-    }
-
-
-
-    if (Object.keys(errors).length > 0) {
-
-      setValidationErrors(errors);
-
-      return;
-
-    }
-
-
-
-    // Check Protocol Code Uniqueness
-
-    const inputCode = formData.protocolCode.toUpperCase().replace(/\s+/g, '');
-
-    const duplicateProposal = proposals.find(p =>
-
-      p.protocolCode &&
-
-      p.protocolCode.toUpperCase().replace(/\s+/g, '') === inputCode &&
-
-      (!selectedProposalId || String(p._id) !== String(selectedProposalId))
-    );
-
-    if (duplicateProposal) {
-
-      setValidationErrors({});
-
-      setErrorMessage('Protocol Code is already in use by another proposal');
-
-      setIsErrorModalOpen(true);
-
-      return;
-
-    }
-
-
-
-    setValidationErrors({});
-
-    setLoading(true);
-
-
-
-    try {
-
-      // Create FormData for file upload
-
-      const formDataToSend = new FormData();
-
-
-
-      // Add form fields
-
-      formDataToSend.append('protocolCode', formData.protocolCode.toUpperCase().replace(/\s+/g, ''));
-
-      formDataToSend.append('secondaryReviewer1', formData.secondaryReviewer1);
-
-      if (formData.secondaryReviewer2.trim()) {
-        formDataToSend.append('secondaryReviewer2', formData.secondaryReviewer2);
-      }
-
-      if (formData.initialReviewDecision) {
-        formDataToSend.append('initialReviewDecision', formData.initialReviewDecision);
-      }
-
-      formDataToSend.append('startDate', formData.startDate);
-
-      formDataToSend.append('endDate', formData.endDate);
-
-      if (selectedProposalId) {
-        formDataToSend.append('proposalId', selectedProposalId);
-      }
-
-
-
-      // Add document files
-
-      documentTypes.forEach(docType => {
-
-        if (formData[docType.key] instanceof File) {
-
-          formDataToSend.append(docType.key, formData[docType.key]);
-
-        }
-
-      });
-
-
-
-      // Import and call API
-
-      const { assignFileToReviewer } = await import('../services/api.js');
-
-      const result = await assignFileToReviewer(formDataToSend);
-
-
-
-      if (result.success) {
-
-        setIsSuccessModalOpen(true);
-
-        setSelectedProposalId('');
-
-        // Reset form
-
-        setFormData({
-
-          protocolCode: '',
-
-          secondaryReviewer1: '',
-
-          secondaryReviewer2: '',
-
-          startDate: '',
-
-          endDate: '',
-
-          urebForm16: null,
-
-          urebForm10B: null,
-
-          urebForm11: null,
-
-          urebForm2: null,
-
-          urebForm6: null,
-
-          urebForm7: null,
-
-          urebForm8A: null,
-
-          urebForm10A: null,
-
-          approvedProposal: null,
-
-          questionnaire: null
-
-        });
-
-        setFiles([]);
-
-        localStorage.removeItem('assignFileForm');
-
-      } else {
-
-        setErrorMessage(result.error || 'Failed to assign files to reviewers.');
-
-        setIsErrorModalOpen(true);
-
-      }
-
-    } catch (error) {
-
-      console.error('Error assigning file:', error);
-
-      setErrorMessage('An unexpected error occurred. Please try again.');
-
-      setIsErrorModalOpen(true);
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
-  };
-
-
-
-  const handleCancel = () => {
-
-    // Clear form and localStorage
-
-    setFormData({
-
-      protocolCode: '',
-
-      secondaryReviewer1: '',
-
-      secondaryReviewer2: '',
-
-      startDate: '',
-
-      endDate: '',
-
-      urebForm16: null,
-
-      urebForm10B: null,
-
-      urebForm11: null,
-
-      urebForm2: null,
-
-      urebForm6: null,
-
-      urebForm7: null,
-
-      urebForm8A: null,
-
-      urebForm10A: null,
-
-      approvedProposal: null,
-
-      questionnaire: null
-
-    });
-
-    setFiles([]);
-
-    setSelectedProposalId('');
-
-    localStorage.removeItem('assignFileForm');
-
-  };
-
-
-
-  return (
-
-    <div className="form-content full-width">
-
-      <div className="form-card">
-
-        <h2>Assign Files to Reviewer</h2>
-
-        <form className="assign-form" onSubmit={handleSubmit}>
-
-          <div className="form-group">
-
-            <label>Protocol Code</label>
-
-            <input
-
-              type="text"
-
-              name="protocolCode"
-
-              placeholder="e.g., UREB-2026-001"
-
-              value={formData.protocolCode}
-
-              onChange={handleInputChange}
-
-              required
-
-            />
-
-            {validationErrors.protocolCode && <span className="error-text">{validationErrors.protocolCode}</span>}
-
-          </div>
-
-          <div className="form-group">
-
-            <label>Select Student Proposal</label>
-
-            <select
-
-              value={selectedProposalId}
-
-              onChange={(e) => {
-
-                const val = e.target.value;
-
-                setSelectedProposalId(val);
-
-                if (val) {
-
-                  const found = proposals.find(p => p._id === val || String(p._id) === val);
-
-                  if (found) {
-
-                    setFormData(prev => ({
-
-                      ...prev,
-
-                      protocolCode: found.protocolCode || ''
-
-                    }));
-
-                  }
-
-                }
-
-              }}
-
-            >
-
-              <option value="">-- Select a student proposal to autofill --</option>
-
-              {loadingProposals ? (
-
-                <option value="" disabled>Loading proposals...</option>
-
-              ) : proposals.filter(p => p.studentEmail && String(p.studentEmail).trim() !== '').length > 0 ? (
-
-                proposals
-
-                  .filter(p => p.studentEmail && String(p.studentEmail).trim() !== '')
-
-                  .map((proposal, index) => {
-
-                    const displayTitle = proposal.researchTitle || 'Untitled Proposal';
-
-                    const displayAuthor = proposal.proponent || proposal.studentEmail || '';
-
-                    const isSubmitted = proposal.reviewers && (proposal.reviewers.reviewer1 || proposal.reviewers.reviewer2);
-
-                    return (
-
-                      <option key={proposal._id || index} value={proposal._id}>
-
-                        {displayTitle.length > 60 ? displayTitle.substring(0, 60) + '...' : displayTitle} ({displayAuthor}){isSubmitted ? '   —  ✅ SUBMITTED' : ''}
-
-                      </option>
-
-                    );
-
-                  })
-
-              ) : (
-
-                <option value="" disabled>No student proposals available</option>
-
-              )}
-
-            </select>
-
-          </div>
-
-          <div className="form-group">
-
-            <label>Reviewer 1</label>
-
-            <select
-
-              name="secondaryReviewer1"
-
-              value={formData.secondaryReviewer1}
-
-              onChange={handleInputChange}
-
-            >
-
-              <option value="">Select Reviewer</option>
-
-              {loadingReviewers ? (
-
-                <option value="" disabled>Loading reviewers...</option>
-
-              ) : filteredReviewers.length > 0 ? (
-
-                filteredReviewers.filter(r => r.email).map((reviewer, index) => {
-
-                  const reviewerName = reviewer.name ||
-
-                    `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim() ||
-
-                    reviewer.email;
-
-
-
-                  return (
-
-                    <option key={reviewer._id || index} value={reviewer.email}>
-
-                      {reviewerName}
-
-                    </option>
-
-                  );
-
-                })
-
-              ) : (
-
-                <option value="" disabled>No reviewers available</option>
-
-              )}
-
-            </select>
-
-            {validationErrors.secondaryReviewer1 && <span className="error-text">{validationErrors.secondaryReviewer1}</span>}
-
-          </div>
-
-          <div className="form-group">
-
-            <label>Reviewer 2</label>
-
-            <select
-
-              name="secondaryReviewer2"
-
-              value={formData.secondaryReviewer2}
-
-              onChange={handleInputChange}
-
-            >
-
-              <option value="">Select Reviewer</option>
-
-              {loadingReviewers ? (
-
-                <option value="" disabled>Loading reviewers...</option>
-
-              ) : filteredReviewers.length > 0 ? (
-
-                filteredReviewers.filter(r => r.email && r.email !== formData.secondaryReviewer1).map((reviewer, index) => {
-
-                  const reviewerName = reviewer.name ||
-
-                    `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim() ||
-
-                    reviewer.email;
-
-
-
-                  return (
-
-                    <option key={reviewer._id || index} value={reviewer.email}>
-
-                      {reviewerName}
-
-                    </option>
-
-                  );
-
-                })
-
-              ) : (
-
-                <option value="" disabled>No reviewers available</option>
-
-              )}
-
-            </select>
-
-            {validationErrors.secondaryReviewer2 && <span className="error-text">{validationErrors.secondaryReviewer2}</span>}
-
-          </div>
-
-          <div className="form-group">
-
-            <label>Initial Review Decision</label>
-
-            <select
-
-              name="initialReviewDecision"
-
-              value={formData.initialReviewDecision || ''}
-
-              onChange={handleInputChange}
-
-            >
-
-              <option value="">Select Initial Review Decision</option>
-
-              <option value="Exempted">Exempted</option>
-
-              <option value="Expedited">Expedited</option>
-
-              <option value="Full Review">Full Review</option>
-
-              <option value="No Human Involvement">No Human Involvement</option>
-
-            </select>
-
-          </div>
-
-          <div className="form-group">
-
-            <label>Review Period (Philippine Time) </label>
-
-            <div className="form-row">
-
-              <div className="form-group">
-
-                <label>Start Date</label>
-
-                <input
-
-                  type="date"
-
-                  name="startDate"
-
-                  value={formData.startDate}
-
-                  onChange={handleInputChange}
-
-                  required
-
-                />
-
-                {validationErrors.startDate && <span className="error-text">{validationErrors.startDate}</span>}
-
-              </div>
-
-              <div className="form-group">
-
-                <label>End Date</label>
-
-                <input
-
-                  type="date"
-
-                  name="endDate"
-
-                  value={formData.endDate}
-
-                  onChange={handleInputChange}
-
-                  required
-
-                />
-
-                {validationErrors.endDate && <span className="error-text">{validationErrors.endDate}</span>}
-
-              </div>
-
-            </div>
-
-          </div>
-
-
-
-          {/* Individual Document Upload Areas */}
-
-          <div className="documents-section">
-
-            <h3>Upload Documents</h3>
-
-            {documentTypes.map(docType => (
-
-              <div key={docType.key}>
-
-                {renderFileInput(docType.key, docType.label)}
-
-              </div>
-
-            ))}
-
-            {validationErrors.files && <span className="error-text">{validationErrors.files}</span>}
-
-          </div>
-
-
-
-          <div className="form-actions">
-
-            <button type="submit" className="btn-primary" disabled={loading}>
-
-              {loading ? 'Submitting...' : 'Submit File'}
-
-            </button>
-
-            <button type="button" className="btn-secondary" onClick={handleCancel}>Cancel</button>
-
-          </div>
-
-        </form>
-
-      </div>
-
-
-
-      {/* Success Modal */}
-
-      {isSuccessModalOpen && (
-
-        <div className="success-modal-overlay">
-
-          <div className="success-modal-container minimal">
-
-            <div className="success-content minimal">
-
-              <div className="success-icon-minimal">
-
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-
-                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-
-                  <polyline points="22 4 12 14.01 9 11.01" />
-
-                </svg>
-
-              </div>
-
-              <h2>Files Assigned Successfully</h2>
-
-              <p>Documents have been assigned to reviewers. They will receive notifications shortly.</p>
-
-              <div className="success-actions minimal">
-
-                <button
-
-                  className="success-btn-done"
-
-                  onClick={() => setIsSuccessModalOpen(false)}
-
-                >
-
-                  Done
-
-                </button>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      )}
-
-      {/* Error Modal */}
-
-      {isErrorModalOpen && (
-
-        <div className="error-modal-overlay">
-
-          <div className="error-modal-container">
-
-            <div className="error-content">
-
-              <div className="error-icon">✕</div>
-
-              <h3>Assignment Failed</h3>
-
-              <p>{errorMessage}</p>
-
-              <button className="error-close-btn" onClick={() => setIsErrorModalOpen(false)}>
-
-                OK
-
-              </button>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      )}
-
-    </div>
-
-  );
-
-};
+const AssignFileContent = () => null;
 
 
 

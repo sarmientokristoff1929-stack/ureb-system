@@ -344,7 +344,7 @@ const STUDENT_ASSIGNMENT_FILE_KEYS = [
 const ADMIN_ASSIGNMENT_FILE_KEYS = [
   'urebForm16', 'urebForm10B', 'urebForm11', 'urebForm2', 'urebForm6',
   'urebForm7', 'urebForm8A', 'urebForm10A', 'approvedProposal',
-  'questionnaire',
+  'questionnaire', 'attachment', 'adminAttachment',
 ];
 
 const pickFilesByKeys = (filesObj, keys) => {
@@ -4131,7 +4131,9 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
   { name: 'urebForm8A', maxCount: 1 },
   { name: 'urebForm10A', maxCount: 1 },
   { name: 'approvedProposal', maxCount: 1 },
-  { name: 'questionnaire', maxCount: 1 }
+  { name: 'questionnaire', maxCount: 1 },
+  { name: 'attachment', maxCount: 10 },
+  { name: 'adminAttachment', maxCount: 10 }
 ]), async (req, res) => {
   try {
     let {
@@ -4152,13 +4154,44 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
     for (const key of ADMIN_ASSIGNMENT_FILE_KEYS) {
       const files = req.files && req.files[key];
       if (files && files.length > 0) {
-        const gfsFilename = await uploadToGridFS(files[0]);
-        uploadedFiles[key] = {
-          filename: gfsFilename,
-          originalname: files[0].originalname,
-          size: files[0].size,
-          mimetype: files[0].mimetype
-        };
+        if (files.length === 1) {
+          const gfsFilename = await uploadToGridFS(files[0]);
+          uploadedFiles[key] = {
+            filename: gfsFilename,
+            originalname: files[0].originalname,
+            size: files[0].size,
+            mimetype: files[0].mimetype
+          };
+        } else {
+          for (let i = 0; i < files.length; i++) {
+            const fileItem = files[i];
+            const gfsFilename = await uploadToGridFS(fileItem);
+            const subKey = i === 0 ? key : `${key}_${i}`;
+            uploadedFiles[subKey] = {
+              filename: gfsFilename,
+              originalname: fileItem.originalname,
+              size: fileItem.size,
+              mimetype: fileItem.mimetype
+            };
+          }
+        }
+      }
+    }
+
+    if (req.files) {
+      for (const fieldName in req.files) {
+        if (!ADMIN_ASSIGNMENT_FILE_KEYS.includes(fieldName)) {
+          const files = req.files[fieldName];
+          if (files && files.length > 0) {
+            const gfsFilename = await uploadToGridFS(files[0]);
+            uploadedFiles[fieldName] = {
+              filename: gfsFilename,
+              originalname: files[0].originalname,
+              size: files[0].size,
+              mimetype: files[0].mimetype
+            };
+          }
+        }
       }
     }
 
@@ -4248,6 +4281,14 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         researchTitle: existingProposal.researchTitle,
         proponent: existingProposal.proponent || existingProposal.studentName,
         initialReviewDecision: req.body.initialReviewDecision || existingProposal.initialReviewDecision || null,
+        secondaryReviewer1,
+        secondaryReviewer2: reviewer2Value,
+        reviewPeriod: {
+          startDate: new Date(startDate),
+          endDate: new Date(endDate),
+        },
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
         updatedAt: new Date(),
       };
       const lockedStatuses = ['completed', 'approved', 'rejected'];
@@ -4269,6 +4310,8 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
         initialReviewDecision: req.body.initialReviewDecision || null,
         dateOfApplication: new Date(),
         status: 'Under Review',
+        secondaryReviewer1,
+        secondaryReviewer2: reviewer2Value,
         reviewers: {
           reviewer1: secondaryReviewer1,
           reviewer2: reviewer2Value,
@@ -4278,6 +4321,8 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
           startDate: new Date(startDate),
           endDate: new Date(endDate)
         },
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
         files: uploadedFiles,
         createdAt: new Date(),
         updatedAt: new Date()
