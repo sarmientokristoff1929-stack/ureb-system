@@ -2355,54 +2355,6 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                   }}>
                     {isRead ? 'Done' : 'New'}
                   </span>
-                  {(() => {
-                    const savedUserStr = localStorage.getItem('ureb_user');
-                    const curEmail = savedUserStr ? JSON.parse(savedUserStr).email : '';
-                    const role = getReviewerRole(assignment, curEmail);
-                    if (role === 'Chair') {
-                      return (
-                        <span
-                          style={{
-                            padding: '0.2rem 0.65rem',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            fontWeight: '700',
-                            backgroundColor: '#fef3c7',
-                            color: '#92400e',
-                            border: '1px solid #fde68a',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                          title="Assigned as Chair Reviewer"
-                        >
-                          ★ Chair Reviewer
-                        </span>
-                      );
-                    }
-                    if (role === 'Member') {
-                      return (
-                        <span
-                          style={{
-                            padding: '0.2rem 0.65rem',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            fontWeight: '700',
-                            backgroundColor: '#e0e7ff',
-                            color: '#3730a3',
-                            border: '1px solid #c7d2fe',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                          title="Assigned as Member Reviewer"
-                        >
-                          👤 Member Reviewer
-                        </span>
-                      );
-                    }
-                    return null;
-                  })()}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <span
@@ -2436,28 +2388,28 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                   </button>
                 </div>
               </div>
-
               <div className="proposal-content">
-                <p>
-                  <strong>{isStudentSubmission ? 'Submitted by:' : 'Assigned by:'}</strong>{' '}
-                  {isStudentSubmission ? submitterName : (assignment.assignedBy || 'Admin')}
-                  <span
-                    style={{
-                      marginLeft: '8px',
-                      padding: '2px 10px',
-                      borderRadius: '12px',
-                      fontSize: '0.65rem',
-                      fontWeight: '700',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.02em',
-                      backgroundColor: isAdminAssignment ? 'rgba(59, 130, 246, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                      color: isAdminAssignment ? '#1e40af' : '#065f46',
-                      border: `1px solid ${isAdminAssignment ? 'rgba(59, 130, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`
-                    }}
-                  >
-                    {isAdminAssignment ? 'Admin Assigned' : 'Student Submitted'}
-                  </span>
-                </p>
+                {isStudentSubmission && (
+                  <p>
+                    <strong>Submitted by:</strong> {submitterName}
+                    <span
+                      style={{
+                        marginLeft: '8px',
+                        padding: '2px 10px',
+                        borderRadius: '12px',
+                        fontSize: '0.65rem',
+                        fontWeight: '700',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.02em',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        color: '#065f46',
+                        border: '1px solid rgba(16, 185, 129, 0.2)'
+                      }}
+                    >
+                      Student Submitted
+                    </span>
+                  </p>
+                )}
                 {isAdminAssignment && assignment.protocolCode && (
                   <p style={{ margin: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#374151' }}>Protocol Code:</span>
@@ -2496,7 +2448,7 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                         alignItems: 'center',
                         gap: '4px'
                       }}>
-                        {isChair ? '★ Chair Reviewer (Reviewer 1)' : '👤 Member Reviewer (Reviewer 2)'}
+                        {isChair ? 'Chair Reviewer' : 'Member Reviewer'}
                       </span>
                     </p>
                   );
