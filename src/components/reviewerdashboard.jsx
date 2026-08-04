@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 import './reviewerdashboard.css';
 
@@ -231,6 +231,36 @@ const getReadAssignmentIds = () => {
   } catch { return []; }
 };
 
+const deduplicateAssignments = (rawList) => {
+  if (!Array.isArray(rawList)) return [];
+  const uniqueMap = new Map();
+  rawList.forEach((item) => {
+    const pId = item.proposalId ? String(item.proposalId).trim() : '';
+    const pTitle = item.researchTitle ? String(item.researchTitle).trim().toLowerCase() : '';
+    const pCode = item.protocolCode ? String(item.protocolCode).trim().toUpperCase() : '';
+    const key = pId || pTitle || pCode || String(item._id);
+
+    if (!uniqueMap.has(key)) {
+      uniqueMap.set(key, item);
+    } else {
+      const existing = uniqueMap.get(key);
+      const itemFiles = Object.keys(item.assignedFiles || {}).length;
+      const existingFiles = Object.keys(existing.assignedFiles || {}).length;
+      const itemIsAdmin = item.assignmentSource === 'admin' || String(item.assignedBy || '').toLowerCase() === 'admin';
+      const existingIsAdmin = existing.assignmentSource === 'admin' || String(existing.assignedBy || '').toLowerCase() === 'admin';
+
+      if (itemIsAdmin && !existingIsAdmin) {
+        uniqueMap.set(key, item);
+      } else if (!itemIsAdmin && existingIsAdmin) {
+        // Keep existing admin assignment
+      } else if (itemFiles > existingFiles) {
+        uniqueMap.set(key, item);
+      }
+    }
+  });
+  return Array.from(uniqueMap.values());
+};
+
 // Helper to get full URL for profile pictures
 const getProfilePicUrl = (path) => {
   if (!path) return null;
@@ -351,48 +381,42 @@ const ReviewerDashboard = ({ onLogout }) => {
     { id: 'profile-settings', label: 'Profile Settings', icon: <ProfileIcon /> }
   ];
 
-  useEffect(() => {
-
+  const refreshBadgeCounts = useCallback(async () => {
     const savedUser = localStorage.getItem('ureb_user');
-
-    if (savedUser) {
-
+    if (!savedUser) return;
+    try {
       const user = JSON.parse(savedUser);
-      setUserInfo(user);
+      const { getReviewerAssignments, getUserNotifications, getMessagesByUser } = await import('../services/api');
 
-      // Fetch assignments, notifications, and messages for badges
-      import('../services/api').then(({ getReviewerAssignments, getUserNotifications, getMessagesByUser }) => {
-        getReviewerAssignments(user.email).then((assignments) => {
-          const deletedIds = getDeletedAssignmentIds();
-          const readIds = getReadAssignmentIds();
-          const activeAssignments = assignments.filter((a) => !deletedIds.includes(String(a._id)) && !readIds.includes(String(a._id)));
-          setAssignedCount(activeAssignments.length);
-        }).catch(() => { });
+      const assignments = await getReviewerAssignments(user.email);
+      const deletedIds = getDeletedAssignmentIds();
+      const readIds = getReadAssignmentIds();
+      const uniqueAssignments = deduplicateAssignments(assignments);
+      const activeAssignments = uniqueAssignments.filter((a) => !deletedIds.includes(String(a._id)) && !readIds.includes(String(a._id)));
+      setAssignedCount(activeAssignments.length);
 
-        // Fetch unread notifications count (including deadline notifications)
-        getUserNotifications(user.email).then((notifications) => {
-          const unreadCount = notifications.filter(n => !n.read).length;
-          setNotifCount(unreadCount);
-        }).catch(() => { });
+      const notifications = await getUserNotifications(user.email);
+      setNotifCount((notifications || []).filter(n => !n.read).length);
 
-        // Fetch unread messages from admin
-        getMessagesByUser(user.email).then((messages) => {
-          const adminUnreadCount = messages.filter(m => m.type === 'admin_to_reviewer' && !m.read).length;
-          setMessageCount(adminUnreadCount);
-        }).catch(() => { });
-      });
+      const messages = await getMessagesByUser(user.email);
+      setMessageCount((messages || []).filter(m => m.type === 'admin_to_reviewer' && !m.read).length);
+    } catch (error) {
+      console.error('Error refreshing reviewer badge counts:', error);
     }
+  }, []);
 
+  useEffect(() => {
+    refreshBadgeCounts();
+    const interval = setInterval(refreshBadgeCounts, 10000);
+    return () => clearInterval(interval);
+  }, [refreshBadgeCounts, activeTab]);
+
+  useEffect(() => {
     // Check if welcome modal has been shown in this login session
-
     const welcomeShown = sessionStorage.getItem('reviewer_welcome_shown');
-
     if (welcomeShown) {
-
       setShowWelcomeModal(false);
-
     }
-
   }, []);
 
   // Refresh message count for badge
@@ -1484,7 +1508,8 @@ const DashboardContent = () => {
 
 
       const deletedIds = getDeletedAssignmentIds();
-      const activeAssignments = assignments.filter(a => !deletedIds.includes(String(a._id)));
+      const uniqueAssignments = deduplicateAssignments(assignments);
+      const activeAssignments = uniqueAssignments.filter(a => !deletedIds.includes(String(a._id)));
 
       const pendingReviewsCount = reviews.filter(r => r.status === 'pending').length;
       const pendingAssignmentsCount = activeAssignments.filter(a => {
@@ -2113,6 +2138,16 @@ const ReviewModal = ({ isOpen, onClose, proposal }) => {
   );
 };
 
+const getReviewerRole = (assignment, userEmail) => {
+  if (assignment?.reviewerRole) return assignment.reviewerRole;
+  const user = (userEmail || '').toLowerCase().trim();
+  const sec1 = (assignment?.secondaryReviewer1 || assignment?.proposal?.secondaryReviewer1 || assignment?.reviewers?.reviewer2 || '').toLowerCase().trim();
+  const sec2 = (assignment?.secondaryReviewer2 || assignment?.proposal?.secondaryReviewer2 || assignment?.reviewers?.reviewer3 || '').toLowerCase().trim();
+  if (user && sec1 && user === sec1) return 'Chair';
+  if (user && sec2 && user === sec2) return 'Member';
+  return null;
+};
+
 const AssignedProposalsContent = ({ setAssignedCount }) => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2144,21 +2179,7 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
       const rawList = (Array.isArray(data) ? data : []).filter(a => !deletedIds.includes(String(a._id)));
 
       // Deduplicate by proposalId / protocolCode / researchTitle to prevent duplicate entries
-      const uniqueMap = new Map();
-      rawList.forEach((item) => {
-        const key = String(item.proposalId || item._id || item.protocolCode || item.researchTitle || '').toLowerCase();
-        if (!uniqueMap.has(key)) {
-          uniqueMap.set(key, item);
-        } else {
-          const existing = uniqueMap.get(key);
-          const itemFiles = Object.keys(item.assignedFiles || {}).length;
-          const existingFiles = Object.keys(existing.assignedFiles || {}).length;
-          if (itemFiles > existingFiles) {
-            uniqueMap.set(key, item);
-          }
-        }
-      });
-      const active = Array.from(uniqueMap.values());
+      const active = deduplicateAssignments(rawList);
       // Student submissions first, then admin assignments; newest first within each group
       active.sort((a, b) => {
         const aStudent = a.assignmentSource === 'student' || String(a.assignedBy || '').toLowerCase() !== 'admin';
@@ -2334,6 +2355,54 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                   }}>
                     {isRead ? 'Done' : 'New'}
                   </span>
+                  {(() => {
+                    const savedUserStr = localStorage.getItem('ureb_user');
+                    const curEmail = savedUserStr ? JSON.parse(savedUserStr).email : '';
+                    const role = getReviewerRole(assignment, curEmail);
+                    if (role === 'Chair') {
+                      return (
+                        <span
+                          style={{
+                            padding: '0.2rem 0.65rem',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem',
+                            fontWeight: '700',
+                            backgroundColor: '#fef3c7',
+                            color: '#92400e',
+                            border: '1px solid #fde68a',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                          title="Assigned as Chair Reviewer"
+                        >
+                          ★ Chair Reviewer
+                        </span>
+                      );
+                    }
+                    if (role === 'Member') {
+                      return (
+                        <span
+                          style={{
+                            padding: '0.2rem 0.65rem',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem',
+                            fontWeight: '700',
+                            backgroundColor: '#e0e7ff',
+                            color: '#3730a3',
+                            border: '1px solid #c7d2fe',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                          title="Assigned as Member Reviewer"
+                        >
+                          👤 Member Reviewer
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <span
@@ -2406,6 +2475,32 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                     </span>
                   </p>
                 )}
+                {(() => {
+                  const savedUserStr = localStorage.getItem('ureb_user');
+                  const curEmail = savedUserStr ? JSON.parse(savedUserStr).email : '';
+                  const role = getReviewerRole(assignment, curEmail);
+                  if (!role) return null;
+                  const isChair = role === 'Chair';
+                  return (
+                    <p style={{ margin: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#374151' }}>Assigned Reviewer Role:</span>
+                      <span style={{
+                        backgroundColor: isChair ? '#fef3c7' : '#e0e7ff',
+                        color: isChair ? '#92400e' : '#3730a3',
+                        padding: '2px 10px',
+                        borderRadius: '12px',
+                        fontSize: '0.8rem',
+                        fontWeight: '700',
+                        border: `1px solid ${isChair ? '#fde68a' : '#c7d2fe'}`,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                        {isChair ? '★ Chair Reviewer (Reviewer 1)' : '👤 Member Reviewer (Reviewer 2)'}
+                      </span>
+                    </p>
+                  );
+                })()}
                 {(assignment.initialReviewDecision || assignment.proposal?.initialReviewDecision) && (
                   <p style={{ margin: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#374151' }}>Initial Review Decision:</span>

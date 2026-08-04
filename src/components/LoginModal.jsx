@@ -393,8 +393,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       gender,
       researcherType,
       affiliationType,
-      department: (affiliationType === 'Institution' || affiliationType === 'Agency') ? customAffiliation : department,
-      program: (affiliationType === 'Institution' || affiliationType === 'Agency') ? 'N/A' : program,
+      department: (affiliationType === 'Institution/Agency' || affiliationType === 'Institution' || affiliationType === 'Agency') ? 'Institution/Agency' : department,
+      program: (affiliationType === 'Institution/Agency' || affiliationType === 'Institution' || affiliationType === 'Agency') ? 'N/A' : program,
       email: regGmail,  // Changed from gmail to email
       password: regPassword,
       role: 'student'
@@ -589,25 +589,23 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                       onChange={handleAffiliationTypeChange}
                       required
                     >
-                      <option value="">Select Category (Faculty, Institution, Agency, College)</option>
+                      <option value="">Select Category</option>
                       <option value="Faculty">Faculty</option>
-                      <option value="College">College</option>
-                      <option value="Institution">Institution</option>
-                      <option value="Agency">Agency</option>
+                      <option value="Institution/Agency">Institution/Agency</option>
                     </select>
                   </div>
 
-                  {(affiliationType === 'Faculty' || affiliationType === 'College') && (
+                  {affiliationType === 'Faculty' && (
                     <>
                       <div className="login-form-group">
-                        <label htmlFor="department">{affiliationType === 'College' ? 'College' : 'Faculty'} </label>
+                        <label htmlFor="department">Faculty </label>
                         <select
                           id="department"
                           value={department}
                           onChange={handleDepartmentChange}
                           required
                         >
-                          <option value="">Select your {affiliationType === 'College' ? 'college' : 'faculty'}</option>
+                          <option value="">Select your faculty</option>
                           <option value="FAIS">FAIS - Faculty of Advanced and International Studies</option>
                           <option value="FNAHS">FNAHS - Faculty of Nursing and Allied Health Sciences</option>
                           <option value="FTED">FTED - Faculty of Teacher Education</option>
@@ -639,7 +637,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                           disabled={!department}
                         >
                           <option value="">
-                            {department ? 'Select your program' : 'Select faculty/college first'}
+                            {department ? 'Select your program' : 'Select faculty first'}
                           </option>
                           {department && departmentPrograms[department]?.map((prog, index) => (
                             <option key={index} value={prog}>
@@ -649,20 +647,6 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                         </select>
                       </div>
                     </>
-                  )}
-
-                  {(affiliationType === 'Institution' || affiliationType === 'Agency') && (
-                    <div className="login-form-group">
-                      <label htmlFor="customAffiliation">{affiliationType === 'Institution' ? 'Institution Name' : 'Agency Name'} </label>
-                      <input
-                        type="text"
-                        id="customAffiliation"
-                        value={customAffiliation}
-                        onChange={(e) => setCustomAffiliation(e.target.value)}
-                        placeholder={affiliationType === 'Institution' ? 'Enter your institution name' : 'Enter your agency name'}
-                        required
-                      />
-                    </div>
                   )}
 
                   <div className="login-form-group">

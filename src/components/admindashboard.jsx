@@ -949,6 +949,12 @@ const AdminDashboard = ({ onLogout }) => {
     refreshMessageCount();
     refreshNotifCount();
     refreshStudentProposalNewCount();
+    const interval = setInterval(() => {
+      refreshMessageCount();
+      refreshNotifCount();
+      refreshStudentProposalNewCount();
+    }, 10000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userInfo]);
 
@@ -2795,7 +2801,7 @@ const AddReviewerContent = () => {
 
             <div className="form-group">
 
-              <label>Faculty / Insti / Agency / College</label>
+              <label>Faculty</label>
 
               <select
 
@@ -2807,7 +2813,7 @@ const AddReviewerContent = () => {
 
               >
 
-                <option value="">Select Faculty / Insti / Agency / College</option>
+                <option value="">Select Faculty</option>
 
                 <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
 
@@ -3125,23 +3131,21 @@ function StudentProposalContent({ onNewCountChange }) {
         onNewCountChange?.(next.filter(isStudentProposalNew).length);
         return next;
       });
-    }
 
-    if (!wasNew) return;
-
-    try {
-      const { markStudentProposalSeen } = await import('../services/api.js');
-      const result = await markStudentProposalSeen(proposalId);
-      if (!result.success) {
+      try {
+        const { markStudentProposalSeen } = await import('../services/api.js');
+        const result = await markStudentProposalSeen(proposalId);
+        if (!result.success) {
+          await loadData();
+          onNewCountChange?.();
+          return;
+        }
+        applyProposalSeen(proposalId, result.adminSeenAt);
+      } catch (err) {
+        console.error('Error marking proposal as seen:', err);
         await loadData();
         onNewCountChange?.();
-        return;
       }
-      applyProposalSeen(proposalId, result.adminSeenAt);
-    } catch (err) {
-      console.error('Error marking proposal as seen:', err);
-      await loadData();
-      onNewCountChange?.();
     }
   }, [proposals, applyProposalSeen, loadData, onNewCountChange]);
 
@@ -3192,6 +3196,7 @@ function StudentProposalContent({ onNewCountChange }) {
     : '—');
 
   const newCount = proposals.filter(isStudentProposalNew).length;
+
   const selectedProposal = filteredProposals.find((p) => toRecordId(p._id) === selectedProposalId) || null;
   const selectedFiles = selectedProposal
     ? Object.entries(getProposalStudentFiles(selectedProposal)).map(([key, file]) => ({
@@ -3215,6 +3220,7 @@ function StudentProposalContent({ onNewCountChange }) {
   const [rightCanvasFeedback, setRightCanvasFeedback] = useState({ type: '', message: '' });
   const [showAssignSuccessModal, setShowAssignSuccessModal] = useState(false);
   const [assignSuccessDetails, setAssignSuccessDetails] = useState(null);
+  const [protocolCodeErrorModal, setProtocolCodeErrorModal] = useState('');
 
   const handleAddAttachmentSlot = () => {
     const nextKey = `attachment_${Date.now()}_${attachmentSlots.length}`;
@@ -3404,11 +3410,19 @@ function StudentProposalContent({ onNewCountChange }) {
 
         await loadData();
       } else {
-        setRightCanvasFeedback({ type: 'error', message: result.error || 'Failed to assign reviewers.' });
+        const errMsg = result.error || 'Failed to assign reviewers.';
+        setRightCanvasFeedback({ type: 'error', message: errMsg });
+        if (errMsg.toLowerCase().includes('protocol code')) {
+          setProtocolCodeErrorModal(errMsg);
+        }
       }
     } catch (err) {
       console.error('Error assigning reviewers:', err);
-      setRightCanvasFeedback({ type: 'error', message: err.message || 'Failed to assign reviewers.' });
+      const errMsg = err.message || 'Failed to assign reviewers.';
+      setRightCanvasFeedback({ type: 'error', message: errMsg });
+      if (errMsg.toLowerCase().includes('protocol code')) {
+        setProtocolCodeErrorModal(errMsg);
+      }
     } finally {
       setRightCanvasSaving(false);
     }
@@ -3516,39 +3530,19 @@ function StudentProposalContent({ onNewCountChange }) {
             <tbody>
               {filteredProposals.map((proposal) => {
                 const id = toRecordId(proposal._id);
-                const isAssigned = Boolean(proposal.secondaryReviewer1 || proposal.secondaryReviewer2 || proposal.preliminaryReviewer || proposal.reviewers?.reviewer2);
-                const isUnderReview = isAssigned || (proposal.status || '').toLowerCase() === 'under review';
-                const isNew = !isUnderReview && isStudentProposalNew(proposal);
-                const statusLabel = isUnderReview ? 'Under Review' : (proposal.status || (isNew ? 'New' : 'Seen'));
+                const isNew = isStudentProposalNew(proposal);
+                const statusLabel = isNew ? 'New' : 'Seen';
 
                 return (
                   <tr
                     key={id}
-                    className={`${isUnderReview ? 'sp-row--assigned' : ''} ${isNew ? 'sp-row--new' : ''} ${selectedProposalId === id ? 'sp-row--selected' : ''}`}
+                    className={`${isNew ? 'sp-row--new' : ''} ${selectedProposalId === id ? 'sp-row--selected' : ''}`}
                     onClick={() => handleProposalRowClick(id)}
                     style={{ cursor: 'pointer' }}
                   >
                     <td className="sp-cell-indicator">
                       <span
-                        className={`sp-indicator-badge ${
-                          isUnderReview
-                            ? 'sp-indicator-badge--under-review'
-                            : (isNew ? 'sp-indicator-badge--new' : 'sp-indicator-badge--seen')
-                        }`}
-                        style={
-                          isUnderReview
-                            ? {
-                                backgroundColor: '#eff6ff',
-                                color: '#1e40af',
-                                border: '1px solid #bfdbfe',
-                                padding: '0.2rem 0.6rem',
-                                borderRadius: '12px',
-                                fontSize: '0.75rem',
-                                fontWeight: '700',
-                                whiteSpace: 'nowrap',
-                              }
-                            : {}
-                        }
+                        className={`sp-indicator-badge ${isNew ? 'sp-indicator-badge--new' : 'sp-indicator-badge--seen'}`}
                         title={statusLabel}
                       >
                         {statusLabel}
@@ -4061,6 +4055,78 @@ function StudentProposalContent({ onNewCountChange }) {
               }}
             >
               OK, Got it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ERROR MODAL FOR PROTOCOL CODE */}
+      {Boolean(protocolCodeErrorModal) && (
+        <div className="sp-modal-overlay" style={{ zIndex: 10001 }} onClick={() => setProtocolCodeErrorModal('')}>
+          <div
+            className="sp-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '460px',
+              width: '92%',
+              borderRadius: '16px',
+              padding: '2rem',
+              textAlign: 'center',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              background: '#ffffff',
+              border: '1px solid #fee2e2',
+            }}
+          >
+            <div
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                backgroundColor: '#fee2e2',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1.25rem auto',
+                boxShadow: '0 0 0 8px #fef2f2',
+              }}
+            >
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#991b1b', marginBottom: '0.5rem' }}>
+              Protocol Code Conflict
+            </h3>
+
+            <p style={{ fontSize: '0.925rem', color: '#1e293b', fontWeight: '600', marginBottom: '0.5rem', lineHeight: '1.4' }}>
+              {protocolCodeErrorModal}
+            </p>
+
+            <p style={{ fontSize: '0.825rem', color: '#64748b', marginBottom: '1.5rem', lineHeight: '1.4' }}>
+              Please enter a different, unique Protocol Code for this proposal before saving.
+            </p>
+
+            <button
+              type="button"
+              className="btn-primary"
+              style={{
+                width: '100%',
+                padding: '0.75rem 1.2rem',
+                backgroundColor: '#dc2626',
+                borderColor: '#dc2626',
+                color: '#ffffff',
+                fontWeight: '700',
+                borderRadius: '10px',
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+              }}
+              onClick={() => setProtocolCodeErrorModal('')}
+            >
+              Understand & Close
             </button>
           </div>
         </div>
@@ -6738,11 +6804,11 @@ const ManageUsersContent = () => {
 
                     onClick={() => handleSort('department')}
 
-                    title="Sort by Faculty / Insti / Agency / College"
+                    title="Sort by Faculty"
 
                   >
 
-                    Faculty / Insti / Agency / College {sortBy === 'department' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    Faculty {sortBy === 'department' && (sortOrder === 'asc' ? '↑' : '↓')}
 
                   </button>
 
@@ -6772,7 +6838,7 @@ const ManageUsersContent = () => {
 
                   <th>Sex</th>
 
-                  <th>Faculty / Insti / Agency / College</th>
+                  <th>Faculty</th>
 
                   <th>Created Date</th>
 
@@ -6950,11 +7016,11 @@ const ManageUsersContent = () => {
 
                     onClick={() => handleSort('department')}
 
-                    title="Sort by Faculty / Insti / Agency / College"
+                    title="Sort by Faculty"
 
                   >
 
-                    Faculty / Insti / Agency / College {sortBy === 'department' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    Faculty {sortBy === 'department' && (sortOrder === 'asc' ? '↑' : '↓')}
 
                   </button>
 
@@ -6984,7 +7050,7 @@ const ManageUsersContent = () => {
 
                   <th>Email</th>
 
-                  <th>Faculty / Insti / Agency / College</th>
+                  <th>Faculty</th>
 
                   <th>Program</th>
 
@@ -7476,7 +7542,11 @@ const ManageUsersContent = () => {
 
               <div className="form-group">
 
-                <label>Faculty / Insti / Agency / College</label>
+                <label>
+                  {(editFormData.affiliationType === 'Institution/Agency' || editFormData.affiliationType === 'Institution' || editFormData.affiliationType === 'Agency' || editFormData.department === 'Institution/Agency')
+                    ? 'Institution / Agency'
+                    : 'Faculty'}
+                </label>
 
                 <select
 
@@ -7490,7 +7560,7 @@ const ManageUsersContent = () => {
 
                 >
 
-                  <option value="">Select Faculty / Insti / Agency / College</option>
+                  <option value="">Select Faculty</option>
 
                   <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
 

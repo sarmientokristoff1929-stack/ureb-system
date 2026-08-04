@@ -679,6 +679,9 @@ const ensureReviewerAssignmentsForProposal = async (db, proposal) => {
         reviewerId: reviewer?._id || null,
         reviewerEmail: resolvedEmail,
         reviewerName: resolvedName,
+        reviewerRole: 'Chair',
+        secondaryReviewer1: sec1Email,
+        secondaryReviewer2: sec2Email,
         protocolCode: proposal.protocolCode || null,
         researchTitle: proposal.researchTitle || 'Untitled Proposal',
         proponent: proposal.proponent || proposal.studentName || 'Unknown',
@@ -732,6 +735,9 @@ const ensureReviewerAssignmentsForProposal = async (db, proposal) => {
         reviewerId: reviewer?._id || null,
         reviewerEmail: resolvedEmail,
         reviewerName: resolvedName,
+        reviewerRole: 'Member',
+        secondaryReviewer1: sec1Email,
+        secondaryReviewer2: sec2Email,
         protocolCode: proposal.protocolCode || null,
         researchTitle: proposal.researchTitle || 'Untitled Proposal',
         proponent: proposal.proponent || proposal.studentName || 'Unknown',
@@ -768,7 +774,11 @@ const cleanDuplicateAssignments = async (db, reviewerEmail) => {
 
     const seen = new Set();
     for (const item of list) {
-      const key = String(item.proposalId || item.protocolCode || item.researchTitle || '').toLowerCase();
+      const pId = item.proposalId ? String(item.proposalId).trim() : '';
+      const pTitle = item.researchTitle ? String(item.researchTitle).trim().toLowerCase() : '';
+      const pCode = item.protocolCode ? String(item.protocolCode).trim().toUpperCase() : '';
+      const key = pId || pTitle || pCode || String(item._id);
+
       if (seen.has(key)) {
         await assignments.deleteOne({ _id: item._id });
         console.log(`[cleanup] Deleted duplicate assignment ${item._id} for reviewer ${reviewerEmail}`);
@@ -3460,9 +3470,23 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
           { $unset: { protocolCode: '' }, $set: { updatedAt: new Date() } }
         ).catch(() => {});
       }
+      const sec1 = a.secondaryReviewer1 || a.proposal?.secondaryReviewer1 || a.reviewers?.reviewer2;
+      const sec2 = a.secondaryReviewer2 || a.proposal?.secondaryReviewer2 || a.reviewers?.reviewer3;
+      let reviewerRole = a.reviewerRole || null;
+      if (!reviewerRole) {
+        const curEmail = (reviewerEmail || '').toLowerCase().trim();
+        if (sec1 && String(sec1).toLowerCase().trim() === curEmail) {
+          reviewerRole = 'Chair';
+        } else if (sec2 && String(sec2).toLowerCase().trim() === curEmail) {
+          reviewerRole = 'Member';
+        }
+      }
       return {
         ...a,
         assignmentSource,
+        reviewerRole,
+        secondaryReviewer1: sec1,
+        secondaryReviewer2: sec2,
         assignedFiles: sanitizedFiles,
         ...(isStudent ? { protocolCode: null } : {}),
       };
@@ -4490,6 +4514,10 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
         ...uploadedFiles,
       };
 
+      const reviewerRole = (reviewerEmail.toLowerCase() === secondaryReviewer1.toLowerCase())
+        ? 'Chair'
+        : ((secondaryReviewer2 && reviewerEmail.toLowerCase() === secondaryReviewer2.toLowerCase()) ? 'Member' : 'Reviewer');
+
       const assignmentData = {
         proposalId: resolvedProposalId,
         reviewerId: reviewer._id,
@@ -4499,6 +4527,9 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
         researchTitle: researchTitle,
         proponent: proponent,
         studentEmail: studentEmail,
+        reviewerRole: reviewerRole,
+        secondaryReviewer1: secondaryReviewer1,
+        secondaryReviewer2: reviewer2Value,
         initialReviewDecision: req.body.initialReviewDecision || existingProposal?.initialReviewDecision || null,
         assignedFiles: allAssignedFiles,
         reviewPeriod: {

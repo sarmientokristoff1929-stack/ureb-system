@@ -907,15 +907,28 @@ function ProfileContent({ userInfo, setUserInfo, onLogout }) {
 
         {!isEditing ? (
           <div className="sp-info-list">
-            {[
-              { label: 'Full Name', value: fullName },
-              { label: 'Sex', value: studentData?.sex || studentData?.gender },
-              { label: 'Researcher Type', value: studentData?.researcherType },
-              { label: 'Faculty / Insti / Agency / College', value: studentData?.department },
-              { label: 'Program', value: studentData?.program },
-              { label: 'Email Address', value: studentData?.gmail || studentData?.email },
-              { label: 'Facebook', value: studentData?.facebookLink, isLink: true },
-            ].map(({ label, value, isLink }) => (
+            {(() => {
+              const isAgencyInsti = studentData?.affiliationType === 'Institution/Agency' ||
+                                    studentData?.affiliationType === 'Institution' ||
+                                    studentData?.affiliationType === 'Agency' ||
+                                    studentData?.department === 'Institution/Agency';
+              const departmentLabel = isAgencyInsti ? 'Institution / Agency' : 'Faculty';
+              const isExternal = String(studentData?.researcherType || '').toLowerCase().includes('external');
+              const items = [
+                { label: 'Full Name', value: fullName },
+                { label: 'Sex', value: studentData?.sex || studentData?.gender },
+                { label: 'Researcher Type', value: studentData?.researcherType },
+                { label: departmentLabel, value: studentData?.department },
+              ];
+              if (!isExternal) {
+                items.push({ label: 'Program', value: studentData?.program });
+              }
+              items.push(
+                { label: 'Email Address', value: studentData?.gmail || studentData?.email },
+                { label: 'Facebook', value: studentData?.facebookLink, isLink: true }
+              );
+              return items;
+            })().map(({ label, value, isLink }) => (
               <div className="sp-info-row" key={label}>
                 <span className="sp-info-label">{label}</span>
                 <span className="sp-info-value">
@@ -1015,13 +1028,17 @@ function ProfileContent({ userInfo, setUserInfo, onLogout }) {
                   autoComplete="off" />
               </div>
               <div className="sp-field">
-                <label htmlFor="sp-dept">Faculty / Insti / Agency / College</label>
+                <label htmlFor="sp-dept">
+                  {(studentData?.affiliationType === 'Institution/Agency' || studentData?.affiliationType === 'Institution' || studentData?.affiliationType === 'Agency' || editedInfo.department === 'Institution/Agency')
+                    ? 'Institution / Agency'
+                    : 'Faculty'}
+                </label>
                 <select
                   id="sp-dept"
                   value={editedInfo.department}
                   onChange={e => setEditedInfo(p => ({ ...p, department: e.target.value }))}
                 >
-                  <option value="">Select Faculty / Insti / Agency / College</option>
+                  <option value="">Select Faculty</option>
                   <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
                   <option value="FTED">FTED- Faculty of Teacher Education</option>
                   <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
@@ -1044,12 +1061,14 @@ function ProfileContent({ userInfo, setUserInfo, onLogout }) {
             </div>
 
             <div className="sp-field-row sp-field-row--2">
-              <div className="sp-field">
-                <label htmlFor="sp-prog">Program</label>
-                <input id="sp-prog" type="text" value={editedInfo.program}
-                  onChange={e => setEditedInfo(p => ({ ...p, program: e.target.value }))}
-                  placeholder="e.g. BS Computer Science" />
-              </div>
+              {!String(studentData?.researcherType || editedInfo?.researcherType || '').toLowerCase().includes('external') && (
+                <div className="sp-field">
+                  <label htmlFor="sp-prog">Program</label>
+                  <input id="sp-prog" type="text" value={editedInfo.program}
+                    onChange={e => setEditedInfo(p => ({ ...p, program: e.target.value }))}
+                    placeholder="e.g. BS Computer Science" />
+                </div>
+              )}
               <div className="sp-field">
                 <label htmlFor="sp-fb">Facebook URL</label>
                 <input id="sp-fb" type="url" value={editedInfo.facebookLink}
