@@ -3431,13 +3431,34 @@ function StudentProposalContent({ onNewCountChange }) {
         </div>
       )}
 
-
+      {/* Informational Note for Admin */}
+      <div className="sp-instruction-note" style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.6rem',
+        backgroundColor: '#f0f7ff',
+        border: '1px solid #bae6fd',
+        color: '#0369a1',
+        padding: '0.65rem 1rem',
+        borderRadius: '8px',
+        fontSize: '0.85rem',
+        fontWeight: '500',
+        marginBottom: '1rem',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+      }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, color: '#0284c7' }}>
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="16" x2="12" y2="12" />
+          <line x1="12" y1="8" x2="12.01" y2="8" />
+        </svg>
+        <span><strong>Note:</strong> Select a researcher proposal from the list below to assign reviewers and update protocol details.</span>
+      </div>
 
       <div className="sp-toolbar">
         <input
           type="search"
           className="sp-search"
-          placeholder="Search by title, student, department, or reviewer…"
+          placeholder="Search by title or researcher…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />

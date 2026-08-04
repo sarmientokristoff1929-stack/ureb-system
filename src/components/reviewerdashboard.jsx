@@ -3023,16 +3023,14 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
       const assignments = await getReviewerAssignments(userEmail);
       const safeAssignments = Array.isArray(assignments) ? assignments : [];
 
-      // Only consider student-submitted assignments (not admin secondary assignments)
-      const studentAssignments = safeAssignments.filter((a) => {
-        const source = a.assignmentSource
-          || (String(a.assignedBy || '').toLowerCase() === 'admin' ? 'admin' : 'student');
-        return source === 'student' && a.studentEmail && a.studentEmail.trim() !== '';
+      // Include all active assignments for this reviewer (both student-submitted and admin-assigned)
+      const validAssignments = safeAssignments.filter((a) => {
+        return (a.proposalId || a._id) && (a.researchTitle || a.protocolCode);
       });
 
       // Deduplicate by proposalId or protocolCode + title to avoid duplicates
       const proposalMap = new Map();
-      studentAssignments.forEach((a) => {
+      validAssignments.forEach((a) => {
         const key =
           String(a.proposalId || a._id || a.protocolCode || a.researchTitle || '').toLowerCase();
         if (!proposalMap.has(key)) {

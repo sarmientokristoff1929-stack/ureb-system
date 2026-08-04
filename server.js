@@ -631,6 +631,115 @@ const ensureStudentAssignmentForProposal = async (db, proposal) => {
   return doc;
 };
 
+const ensureReviewerAssignmentsForProposal = async (db, proposal) => {
+  if (!proposal || !proposal._id) return;
+  const assignments = db.collection(collections.assignments);
+  const reviewers = db.collection(collections.reviewers);
+  const proposalMatchers = buildProposalIdMatchers(proposal._id);
+
+  // 1. Preliminary Reviewer
+  const prelimEmail = proposal.preliminaryReviewer || proposal.reviewers?.reviewer1;
+  if (prelimEmail) {
+    const existingStudent = await assignments.findOne({
+      $and: [
+        { reviewerEmail: emailRegexFilter(prelimEmail) },
+        { $or: proposalMatchers },
+      ],
+    });
+    if (!existingStudent) {
+      await ensureStudentAssignmentForProposal(db, proposal);
+    }
+  }
+
+  // 2. Secondary Reviewer 1 (Chair)
+  const sec1Email = proposal.secondaryReviewer1 || proposal.reviewers?.reviewer2;
+  if (sec1Email) {
+    const existingSec1 = await assignments.findOne({
+      $and: [
+        { reviewerEmail: emailRegexFilter(sec1Email) },
+        { $or: proposalMatchers },
+      ],
+    });
+    if (!existingSec1) {
+      const reviewer = await reviewers.findOne({ email: emailRegexFilter(sec1Email) });
+      const resolvedEmail = reviewer?.email || String(sec1Email).trim();
+      const resolvedName = reviewer?.name
+        || `${reviewer?.firstName || ''} ${reviewer?.lastName || ''}`.trim()
+        || resolvedEmail;
+      const allFiles = {
+        ...pickStudentAssignmentFiles(proposal.studentFiles || proposal.files || {}),
+        ...pickAdminAssignmentFiles(proposal.adminFiles || proposal.files || {}),
+      };
+      const startDate = proposal.reviewPeriod?.startDate || proposal.startDate || proposal.createdAt || new Date();
+      const endDate = proposal.reviewPeriod?.endDate || proposal.endDate || new Date(new Date(startDate).getTime() + 14 * 24 * 60 * 60 * 1000);
+
+      await assignments.insertOne({
+        proposalId: proposal._id,
+        reviewerId: reviewer?._id || null,
+        reviewerEmail: resolvedEmail,
+        reviewerName: resolvedName,
+        protocolCode: proposal.protocolCode || null,
+        researchTitle: proposal.researchTitle || 'Untitled Proposal',
+        proponent: proposal.proponent || proposal.studentName || 'Unknown',
+        studentEmail: proposal.studentEmail || '',
+        initialReviewDecision: proposal.initialReviewDecision || null,
+        assignedFiles: allFiles,
+        reviewPeriod: { startDate: new Date(startDate), endDate: new Date(endDate) },
+        status: 'Pending',
+        assignedBy: 'admin',
+        assignmentSource: 'admin',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      console.log(`[repair] Auto-created assignment for Chair ${sec1Email} on proposal ${proposal._id}`);
+    }
+  }
+
+  // 3. Secondary Reviewer 2 (Member)
+  const sec2Email = proposal.secondaryReviewer2 || proposal.reviewers?.reviewer3;
+  if (sec2Email && sec2Email !== sec1Email) {
+    const existingSec2 = await assignments.findOne({
+      $and: [
+        { reviewerEmail: emailRegexFilter(sec2Email) },
+        { $or: proposalMatchers },
+      ],
+    });
+    if (!existingSec2) {
+      const reviewer = await reviewers.findOne({ email: emailRegexFilter(sec2Email) });
+      const resolvedEmail = reviewer?.email || String(sec2Email).trim();
+      const resolvedName = reviewer?.name
+        || `${reviewer?.firstName || ''} ${reviewer?.lastName || ''}`.trim()
+        || resolvedEmail;
+      const allFiles = {
+        ...pickStudentAssignmentFiles(proposal.studentFiles || proposal.files || {}),
+        ...pickAdminAssignmentFiles(proposal.adminFiles || proposal.files || {}),
+      };
+      const startDate = proposal.reviewPeriod?.startDate || proposal.startDate || proposal.createdAt || new Date();
+      const endDate = proposal.reviewPeriod?.endDate || proposal.endDate || new Date(new Date(startDate).getTime() + 14 * 24 * 60 * 60 * 1000);
+
+      await assignments.insertOne({
+        proposalId: proposal._id,
+        reviewerId: reviewer?._id || null,
+        reviewerEmail: resolvedEmail,
+        reviewerName: resolvedName,
+        protocolCode: proposal.protocolCode || null,
+        researchTitle: proposal.researchTitle || 'Untitled Proposal',
+        proponent: proposal.proponent || proposal.studentName || 'Unknown',
+        studentEmail: proposal.studentEmail || '',
+        initialReviewDecision: proposal.initialReviewDecision || null,
+        assignedFiles: allFiles,
+        reviewPeriod: { startDate: new Date(startDate), endDate: new Date(endDate) },
+        status: 'Pending',
+        assignedBy: 'admin',
+        assignmentSource: 'admin',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      console.log(`[repair] Auto-created assignment for Member ${sec2Email} on proposal ${proposal._id}`);
+    }
+  }
+};
+
 const assignPreliminaryToStudentProposal = async (db, proposalId, department, preliminaryReviewerEmail) => {
   if (!ObjectId.isValid(String(proposalId))) {
     throw new Error('Invalid proposal ID');
@@ -2228,13 +2337,16 @@ app.get('/api/proposals/reviewer/:reviewerEmail', async (req, res) => {
     const { reviewerEmail } = req.params;
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
-    // Find proposals where the reviewer is assigned as reviewer1, reviewer2, or reviewer3
+    const emailFilter = emailRegexFilter(reviewerEmail);
+    // Find proposals where the reviewer is assigned as reviewer1, reviewer2, reviewer3, preliminaryReviewer, secondaryReviewer1, or secondaryReviewer2
     const proposalList = await proposals.find({
       $or: [
-        { 'reviewers.reviewer1': reviewerEmail },
-        { 'reviewers.reviewer2': reviewerEmail },
-        { 'reviewers.reviewer3': reviewerEmail },
-        { preliminaryReviewer: reviewerEmail }
+        { 'reviewers.reviewer1': emailFilter },
+        { 'reviewers.reviewer2': emailFilter },
+        { 'reviewers.reviewer3': emailFilter },
+        { preliminaryReviewer: emailFilter },
+        { secondaryReviewer1: emailFilter },
+        { secondaryReviewer2: emailFilter }
       ]
     }).toArray();
     res.json(proposalList);
@@ -3272,11 +3384,18 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
     const notifications = db.collection(collections.notifications);
 
     const proposals = db.collection(collections.proposals);
-    const preliminaryProposals = await proposals.find({
-      preliminaryReviewer: emailRegexFilter(reviewerEmail),
+    const relevantProposals = await proposals.find({
+      $or: [
+        { preliminaryReviewer: emailRegexFilter(reviewerEmail) },
+        { secondaryReviewer1: emailRegexFilter(reviewerEmail) },
+        { secondaryReviewer2: emailRegexFilter(reviewerEmail) },
+        { 'reviewers.reviewer1': emailRegexFilter(reviewerEmail) },
+        { 'reviewers.reviewer2': emailRegexFilter(reviewerEmail) },
+        { 'reviewers.reviewer3': emailRegexFilter(reviewerEmail) },
+      ]
     }).toArray();
-    for (const proposal of preliminaryProposals) {
-      await ensureStudentAssignmentForProposal(db, proposal);
+    for (const proposal of relevantProposals) {
+      await ensureReviewerAssignmentsForProposal(db, proposal);
     }
 
     let assignmentList = await assignments.find({
@@ -3287,16 +3406,11 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
       const assignmentSource = inferAssignmentSource(a);
       const isStudent = assignmentSource === 'student';
       const rawFiles = a.assignedFiles || {};
-      const sanitizedFiles = isStudent
-        ? pickStudentAssignmentFiles(rawFiles)
-        : pickAdminAssignmentFiles(rawFiles);
-
-      if (Object.keys(sanitizedFiles).length !== Object.keys(rawFiles).length) {
-        assignments.updateOne(
-          { _id: a._id },
-          { $set: { assignedFiles: sanitizedFiles, updatedAt: new Date() } }
-        ).catch(() => {});
-      }
+      const sanitizedFiles = {
+        ...pickStudentAssignmentFiles(rawFiles),
+        ...pickAdminAssignmentFiles(rawFiles),
+        ...rawFiles,
+      };
 
       if (isStudent && a.protocolCode) {
         assignments.updateOne(
