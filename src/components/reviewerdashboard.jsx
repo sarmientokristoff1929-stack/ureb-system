@@ -2141,7 +2141,24 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
     try {
       const data = await getReviewerAssignments(userEmail);
       const deletedIds = getDeletedAssignmentIds();
-      const active = (Array.isArray(data) ? data : []).filter(a => !deletedIds.includes(String(a._id)));
+      const rawList = (Array.isArray(data) ? data : []).filter(a => !deletedIds.includes(String(a._id)));
+
+      // Deduplicate by proposalId / protocolCode / researchTitle to prevent duplicate entries
+      const uniqueMap = new Map();
+      rawList.forEach((item) => {
+        const key = String(item.proposalId || item._id || item.protocolCode || item.researchTitle || '').toLowerCase();
+        if (!uniqueMap.has(key)) {
+          uniqueMap.set(key, item);
+        } else {
+          const existing = uniqueMap.get(key);
+          const itemFiles = Object.keys(item.assignedFiles || {}).length;
+          const existingFiles = Object.keys(existing.assignedFiles || {}).length;
+          if (itemFiles > existingFiles) {
+            uniqueMap.set(key, item);
+          }
+        }
+      });
+      const active = Array.from(uniqueMap.values());
       // Student submissions first, then admin assignments; newest first within each group
       active.sort((a, b) => {
         const aStudent = a.assignmentSource === 'student' || String(a.assignedBy || '').toLowerCase() !== 'admin';

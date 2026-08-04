@@ -740,6 +740,29 @@ const ensureReviewerAssignmentsForProposal = async (db, proposal) => {
   }
 };
 
+const cleanDuplicateAssignments = async (db, reviewerEmail) => {
+  if (!reviewerEmail) return;
+  try {
+    const assignments = db.collection(collections.assignments);
+    const list = await assignments.find({
+      reviewerEmail: emailRegexFilter(reviewerEmail),
+    }).sort({ updatedAt: -1, createdAt: -1 }).toArray();
+
+    const seen = new Set();
+    for (const item of list) {
+      const key = String(item.proposalId || item.protocolCode || item.researchTitle || '').toLowerCase();
+      if (seen.has(key)) {
+        await assignments.deleteOne({ _id: item._id });
+        console.log(`[cleanup] Deleted duplicate assignment ${item._id} for reviewer ${reviewerEmail}`);
+      } else {
+        seen.add(key);
+      }
+    }
+  } catch (err) {
+    console.error('Error cleaning duplicate assignments:', err);
+  }
+};
+
 const assignPreliminaryToStudentProposal = async (db, proposalId, department, preliminaryReviewerEmail) => {
   if (!ObjectId.isValid(String(proposalId))) {
     throw new Error('Invalid proposal ID');
@@ -3397,6 +3420,7 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
     for (const proposal of relevantProposals) {
       await ensureReviewerAssignmentsForProposal(db, proposal);
     }
+    await cleanDuplicateAssignments(db, reviewerEmail);
 
     let assignmentList = await assignments.find({
       reviewerEmail: emailRegexFilter(reviewerEmail),
