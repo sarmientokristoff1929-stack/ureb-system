@@ -4254,25 +4254,7 @@ app.put('/api/messages/read-all', async (req, res) => {
 });
 
 // Assign file to reviewer
-app.post('/api/assign-file-to-reviewer', upload.fields([
-  { name: 'protocolCode', maxCount: 1 },
-  { name: 'secondaryReviewer1', maxCount: 1 },
-  { name: 'secondaryReviewer2', maxCount: 1 },
-  { name: 'startDate', maxCount: 1 },
-  { name: 'endDate', maxCount: 1 },
-  { name: 'urebForm16', maxCount: 1 },
-  { name: 'urebForm10B', maxCount: 1 },
-  { name: 'urebForm11', maxCount: 1 },
-  { name: 'urebForm2', maxCount: 1 },
-  { name: 'urebForm6', maxCount: 1 },
-  { name: 'urebForm7', maxCount: 1 },
-  { name: 'urebForm8A', maxCount: 1 },
-  { name: 'urebForm10A', maxCount: 1 },
-  { name: 'approvedProposal', maxCount: 1 },
-  { name: 'questionnaire', maxCount: 1 },
-  { name: 'attachment', maxCount: 10 },
-  { name: 'adminAttachment', maxCount: 10 }
-]), async (req, res) => {
+app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
   try {
     let {
       protocolCode,
@@ -4286,50 +4268,17 @@ app.post('/api/assign-file-to-reviewer', upload.fields([
     // Trim protocolCode to avoid uniqueness issues with white space
     if (protocolCode) protocolCode = protocolCode.toUpperCase().replace(/\s+/g, '');
 
-    // Collect all uploaded files (admin documents only)
+    // Collect all uploaded files dynamically (accepts any field name)
     const uploadedFiles = {};
-
-    for (const key of ADMIN_ASSIGNMENT_FILE_KEYS) {
-      const files = req.files && req.files[key];
-      if (files && files.length > 0) {
-        if (files.length === 1) {
-          const gfsFilename = await uploadToGridFS(files[0]);
-          uploadedFiles[key] = {
-            filename: gfsFilename,
-            originalname: files[0].originalname,
-            size: files[0].size,
-            mimetype: files[0].mimetype
-          };
-        } else {
-          for (let i = 0; i < files.length; i++) {
-            const fileItem = files[i];
-            const gfsFilename = await uploadToGridFS(fileItem);
-            const subKey = i === 0 ? key : `${key}_${i}`;
-            uploadedFiles[subKey] = {
-              filename: gfsFilename,
-              originalname: fileItem.originalname,
-              size: fileItem.size,
-              mimetype: fileItem.mimetype
-            };
-          }
-        }
-      }
-    }
-
-    if (req.files) {
-      for (const fieldName in req.files) {
-        if (!ADMIN_ASSIGNMENT_FILE_KEYS.includes(fieldName)) {
-          const files = req.files[fieldName];
-          if (files && files.length > 0) {
-            const gfsFilename = await uploadToGridFS(files[0]);
-            uploadedFiles[fieldName] = {
-              filename: gfsFilename,
-              originalname: files[0].originalname,
-              size: files[0].size,
-              mimetype: files[0].mimetype
-            };
-          }
-        }
+    if (Array.isArray(req.files) && req.files.length > 0) {
+      for (const fileItem of req.files) {
+        const gfsFilename = await uploadToGridFS(fileItem);
+        uploadedFiles[fileItem.fieldname] = {
+          filename: gfsFilename,
+          originalname: fileItem.originalname,
+          size: fileItem.size,
+          mimetype: fileItem.mimetype
+        };
       }
     }
 

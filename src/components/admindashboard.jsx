@@ -3686,7 +3686,7 @@ function StudentProposalContent({ onNewCountChange }) {
                           .filter((r) => r.email)
                           .map((r, idx) => (
                             <option key={r._id || idx} value={r.email}>
-                              {getReviewerDisplayName(r)} ({r.email})
+                              {getReviewerDisplayName(r)}
                             </option>
                           ))}
                       </select>
@@ -3709,7 +3709,7 @@ function StudentProposalContent({ onNewCountChange }) {
                           .filter((r) => r.email && r.email !== rightCanvasForm.secondaryReviewer1)
                           .map((r, idx) => (
                             <option key={r._id || idx} value={r.email}>
-                              {getReviewerDisplayName(r)} ({r.email})
+                              {getReviewerDisplayName(r)}
                             </option>
                           ))}
                       </select>
