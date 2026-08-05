@@ -3162,7 +3162,7 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
     const notification = {
       type: 'review_submitted',
       title: `${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle}`,
-      message: `You submitted a review for ${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle}. The decision is ${decision || overallRating}.`,
+      message: `You submitted a review for ${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle}. ${isSecondarySubmission ? 'Your submission has been sent to the Admin.' : 'The decision is ' + (decision || overallRating) + '.'}`,
       reviewId: result.insertedId.toString(),
       proposalId,
       reviewerEmail,

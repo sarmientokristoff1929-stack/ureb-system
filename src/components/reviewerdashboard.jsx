@@ -759,6 +759,10 @@ const ReviewerDashboard = ({ onLogout }) => {
 const ReviewerNotificationsContent = ({ userInfo, onNotifDeleted }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [notifToDelete, setNotifToDelete] = useState(null);
+  const [deleteAllConfirmOpen, setDeleteAllConfirmOpen] = useState(false);
+  const [deletingSingle, setDeletingSingle] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL
     ? import.meta.env.VITE_API_URL.replace(/\/$/, '') + '/api'
@@ -860,8 +864,9 @@ const ReviewerNotificationsContent = ({ userInfo, onNotifDeleted }) => {
     }
   };
 
-  const handleDelete = async (id) => {
+  const performDelete = async (id) => {
     try {
+      setDeletingSingle(true);
       const idStr = String(id);
       const deletePromises = [];
 
@@ -888,11 +893,15 @@ const ReviewerNotificationsContent = ({ userInfo, onNotifDeleted }) => {
       if (onNotifDeleted) onNotifDeleted(); // Refresh sidebar badge count
     } catch (err) {
       console.error('Error deleting notification:', err);
+    } finally {
+      setDeletingSingle(false);
+      setNotifToDelete(null);
     }
   };
 
-  const handleDeleteAll = async () => {
+  const performDeleteAll = async () => {
     try {
+      setDeletingAll(true);
       const toDelete = [...notifications];
       const deletePromises = [];
 
@@ -922,6 +931,9 @@ const ReviewerNotificationsContent = ({ userInfo, onNotifDeleted }) => {
       if (onNotifDeleted) onNotifDeleted(); // Refresh sidebar badge count
     } catch (err) {
       console.error('Error deleting all notifications:', err);
+    } finally {
+      setDeletingAll(false);
+      setDeleteAllConfirmOpen(false);
     }
   };
 
@@ -945,7 +957,7 @@ const ReviewerNotificationsContent = ({ userInfo, onNotifDeleted }) => {
           <button
             className="hist-delete-all-btn"
             title="Delete all notifications"
-            onClick={handleDeleteAll}
+            onClick={() => setDeleteAllConfirmOpen(true)}
           >
             <TrashIcon />
             <span>Delete All</span>
@@ -970,55 +982,99 @@ const ReviewerNotificationsContent = ({ userInfo, onNotifDeleted }) => {
                 {notif.type === 'info' && <span>i</span>}
                 {notif.type === 'success' && <span>✓</span>}
               </div>
-              <div className="notification-content" style={{ position: 'relative', paddingRight: '30px' }}>
-                {/* Delete icon at top right */}
-                <button
-                  onClick={() => handleDelete(notif.id)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = '#ef4444';
-                    e.currentTarget.style.transform = 'scale(1.15)';
-                    e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = '#999';
-                    e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
-                  style={{
-                    position: 'absolute',
-                    top: '0',
-                    right: '0',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: '#999',
-                    padding: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: '50%',
-                    transition: 'all 0.2s ease',
-                    transform: 'scale(1)'
-                  }}
-                  title="Delete notification"
-                >
-                  <TrashIcon />
-                </button>
+              <div className="notification-content" style={{ position: 'relative', paddingRight: notif.read ? '46px' : '170px' }}>
+                <div className="notif-action-bar">
+                  {!notif.read && (
+                    <button
+                      type="button"
+                      className="notif-action-btn notif-action-btn--read notif-action-btn--text"
+                      onClick={() => markAsRead(notif.id)}
+                      title="Mark this notification as read"
+                    >
+                      Mark as Read
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="notif-action-btn notif-action-btn--delete"
+                    onClick={() => setNotifToDelete(notif)}
+                    title="Delete notification"
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
                 <h4>{notif.title}</h4>
                 <p>{notif.message}</p>
                 <span className="notification-time">{notif.time}</span>
-              </div>
-              <div className="notification-actions">
-                {!notif.read && (
-                  <button className="btn-secondary" onClick={() => markAsRead(notif.id)}>
-                    Mark as Read
-                  </button>
-                )}
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* Delete Single Notification Confirmation Modal */}
+      {notifToDelete && (
+        <div className="logout-modal-overlay" onClick={() => !deletingSingle && setNotifToDelete(null)}>
+          <div className="logout-modal-container" onClick={e => e.stopPropagation()}>
+            <div className="logout-modal-header">
+              <h2>Delete Notification</h2>
+            </div>
+            <div className="logout-modal-body">
+              <p>Are you sure you want to delete <strong>{notifToDelete.title}</strong>?</p>
+              <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#6b7280' }}>This action cannot be undone.</p>
+            </div>
+            <div className="logout-modal-footer">
+              <button
+                className="logout-modal-btn-secondary"
+                onClick={() => setNotifToDelete(null)}
+                disabled={deletingSingle}
+              >
+                Cancel
+              </button>
+              <button
+                className="logout-modal-btn-primary"
+                style={{ backgroundColor: '#dc2626' }}
+                onClick={() => performDelete(notifToDelete.id)}
+                disabled={deletingSingle}
+              >
+                {deletingSingle ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Notifications Confirmation Modal */}
+      {deleteAllConfirmOpen && (
+        <div className="logout-modal-overlay" onClick={() => !deletingAll && setDeleteAllConfirmOpen(false)}>
+          <div className="logout-modal-container" onClick={e => e.stopPropagation()}>
+            <div className="logout-modal-header">
+              <h2>Delete All Notifications</h2>
+            </div>
+            <div className="logout-modal-body">
+              <p>Are you sure you want to delete <strong>all {notifications.length} notification{notifications.length === 1 ? '' : 's'}</strong>?</p>
+              <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#6b7280' }}>This action cannot be undone.</p>
+            </div>
+            <div className="logout-modal-footer">
+              <button
+                className="logout-modal-btn-secondary"
+                onClick={() => setDeleteAllConfirmOpen(false)}
+                disabled={deletingAll}
+              >
+                Cancel
+              </button>
+              <button
+                className="logout-modal-btn-primary"
+                style={{ backgroundColor: '#dc2626' }}
+                onClick={performDeleteAll}
+                disabled={deletingAll}
+              >
+                {deletingAll ? 'Deleting...' : 'Delete All'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
