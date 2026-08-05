@@ -840,16 +840,13 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       {showPrivacyStep && (
         <div className="success-modal-overlay" style={{ zIndex: 3000 }}>
           <div className="success-modal-container" style={{ maxWidth: '500px', width: '92%', padding: '2.25rem 2rem', textAlign: 'center', borderRadius: '20px', backgroundColor: '#ffffff' }}>
-            <h2 style={{ fontSize: '1.45rem', fontWeight: 700, color: '#1E293B', margin: '0 0 0.75rem 0' }}>
-              Data Privacy & Protection Notice
-            </h2>
+             <h2 style={{ fontSize: '1.45rem', fontWeight: 700, color: '#1E293B', margin: '0 0 0.75rem 0' }}>
+               Data Privacy Disclaimer
+             </h2>
 
             <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '1.25rem', marginBottom: '1.25rem', textAlign: 'left' }}>
               <p style={{ fontSize: '0.9rem', color: '#334155', lineHeight: '1.6', margin: '0 0 0.75rem 0' }}>
-                In compliance with the Data Privacy Act of 2012 (RA 10173), the UREB portal processes your personal and research data strictly for official ethics review and administrative purposes.
-              </p>
-              <p style={{ fontSize: '0.9rem', color: '#334155', lineHeight: '1.6', margin: 0 }}>
-                All submitted credentials and protocol details are protected under confidential safeguards and will never be shared with unauthorized third parties.
+                All information and protocol documents submitted through this online application system will be processed strictly for research ethics review, monitoring, and administrative record-keeping. In compliance with the Data Privacy Act of 2012 (Republic Act No. 10173) and the Philippine Health Research Ethics Board (PHREB) standards, all submitted data will be handled with strict confidentiality and stored securely. The Davao Oriental State University – Research Ethics Board (DOrSU-REB) functions as an independent ethics body responsible for evaluating research protocols to ensure the safety, welfare, and protection of research participants.
               </p>
             </div>
 
@@ -866,26 +863,57 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
               </span>
             </label>
 
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
                 type="button"
-                className="login-btn-secondary"
-                style={{ flex: 1, padding: '0.875rem 1rem' }}
+                style={{
+                  flex: 1,
+                  padding: '0.35rem 0.8rem',
+                  borderRadius: '6px',
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  border: '2px solid #E2E8F0',
+                  background: '#ffffff',
+                  color: '#475569',
+                  cursor: 'pointer',
+                  transition: 'all 0.25s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.25rem',
+                }}
                 onClick={() => {
                   setShowPrivacyStep(false);
                   setPendingAuthResult(null);
                 }}
               >
-                Go Back
+                 Back
               </button>
               <button
                 type="button"
-                className="login-btn-primary"
-                style={{ flex: 2, padding: '0.875rem 1rem', background: '#388E3C' }}
+                style={{
+                  flex: 2,
+                  padding: '0.35rem 0.8rem',
+                  borderRadius: '6px',
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  border: privacyChecked ? '2px solid transparent' : '2px solid #CBD5E1',
+                  background: loginLoading ? '#2E7D32' : (privacyChecked ? '#388E3C' : '#F1F5F9'),
+                  color: privacyChecked ? '#ffffff' : '#94A3B8',
+                  cursor: privacyChecked ? 'pointer' : 'not-allowed',
+                  opacity: loginLoading ? 0.85 : 1,
+                  transform: loginLoading ? 'scale(0.98)' : 'scale(1)',
+                  transition: 'all 0.2s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.25rem',
+                  boxShadow: loginLoading ? '0 2px 8px rgba(46, 125, 50, 0.35)' : (privacyChecked ? '0 1px 4px rgba(56, 142, 60, 0.18)' : 'none'),
+                }}
                 disabled={!privacyChecked || loginLoading}
                 onClick={handleAcceptAndProceedLogin}
               >
-                {loginLoading ? 'Signing in...' : 'Accept & Proceed'}
+                ✓ I Accept & Proceed
               </button>
             </div>
           </div>
