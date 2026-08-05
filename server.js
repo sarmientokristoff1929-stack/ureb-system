@@ -388,6 +388,22 @@ const getAdminInboxRecipientEmails = (adminEmail) => {
   return Array.from(recipients).filter(Boolean);
 };
 
+// Auto-generated "review submitted" notices are addressed to admin only — the reviewer already
+// sees their own copy in Notifications, so exclude these from matching via senderEmail here.
+const excludeAutoReviewSubmissionNotice = { type: 'reviewer_to_admin', reviewId: { $exists: true, $ne: null } };
+
+const buildUserInboxQuery = (userEmail) => ({
+  $and: [
+    {
+      $or: [
+        { recipientEmail: emailRegexFilter(userEmail) },
+        { senderEmail: emailRegexFilter(userEmail) },
+      ],
+    },
+    { $nor: [excludeAutoReviewSubmissionNotice] },
+  ],
+});
+
 const buildAdminInboxQuery = (adminEmail) => {
   const recipients = getAdminInboxRecipientEmails(adminEmail);
   return {
@@ -4188,12 +4204,7 @@ app.get('/api/messages/:userId', async (req, res) => {
 
     const query = isAdmin
       ? buildAdminInboxQuery(userId)
-      : {
-        $or: [
-          { recipientEmail: emailRegexFilter(userId) },
-          { senderEmail: emailRegexFilter(userId) },
-        ],
-      };
+      : buildUserInboxQuery(userId);
 
     const messageList = await messages.find(query).sort({ createdAt: -1, sentAt: -1, _id: -1 }).toArray();
 
@@ -4310,17 +4321,7 @@ app.put('/api/messages/read-all', async (req, res) => {
 
     const query = isAdmin
       ? { $and: [buildAdminInboxQuery(email), { read: { $ne: true } }] }
-      : {
-        $and: [
-          {
-            $or: [
-              { recipientEmail: emailRegexFilter(email) },
-              { senderEmail: emailRegexFilter(email) },
-            ],
-          },
-          { read: { $ne: true } },
-        ],
-      };
+      : { $and: [buildUserInboxQuery(email), { read: { $ne: true } }] };
 
     const result = await messages.updateMany(
       query,
