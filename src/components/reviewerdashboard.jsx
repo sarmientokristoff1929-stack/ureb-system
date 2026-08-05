@@ -318,11 +318,12 @@ const ReviewerDashboard = ({ onLogout }) => {
     'Dr. Sharmaine Anne C. Argawanon'
   ];
 
-  // Check if current user is a Secondary Reviewer
+  // Load the logged-in reviewer's info from localStorage (name/email/department for Profile Settings, etc.)
   useEffect(() => {
     const savedUser = localStorage.getItem('ureb_user');
     if (savedUser) {
       const user = JSON.parse(savedUser);
+      setUserInfo(user);
       const userIsSecondary = secondaryReviewers.includes(user.name);
       setIsSecondaryReviewer(userIsSecondary);
     }

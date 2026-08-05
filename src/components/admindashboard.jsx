@@ -11558,10 +11558,11 @@ function GenerateReportModal({ isOpen, onClose }) {
 
     try {
 
-      // Fetch reviews and proposals in parallel
-      const [reviewsRes, proposalsRes] = await Promise.all([
+      // Fetch reviews, proposals, AND reviewers in parallel
+      const [reviewsRes, proposalsRes, reviewersRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_URL}/api/reviews`),
         fetch(`${import.meta.env.VITE_API_URL}/api/proposals`),
+        fetch(`${import.meta.env.VITE_API_URL}/api/reviewers`),
       ]);
 
       if (!reviewsRes.ok) {
@@ -11572,12 +11573,26 @@ function GenerateReportModal({ isOpen, onClose }) {
 
       const allReviews = await reviewsRes.json();
       const allProposals = proposalsRes.ok ? await proposalsRes.json() : [];
+      const allReviewerAccounts = reviewersRes.ok ? await reviewersRes.json() : [];
 
       if (!Array.isArray(allReviews)) {
         console.error('Unexpected reviews format:', allReviews);
         setReviews([]);
         setReviewerGroups([]);
         return;
+      }
+
+      // Build reviewer email → actual profile name lookup
+      const reviewerNameMap = {};
+      if (Array.isArray(allReviewerAccounts)) {
+        allReviewerAccounts.forEach(acc => {
+          const email = (acc.email || '').trim().toLowerCase();
+          if (!email) return;
+          const fullName = acc.name
+            || [acc.firstName, acc.middleName, acc.lastName].filter(Boolean).join(' ')
+            || '';
+          if (fullName) reviewerNameMap[email] = fullName;
+        });
       }
 
       // Build reviewer-type map from proposals:
@@ -11599,12 +11614,14 @@ function GenerateReportModal({ isOpen, onClose }) {
         });
       }
 
-      // Enrich each review with reviewerType
+      // Enrich each review with reviewerType AND resolved reviewer name
       const enrichedReviews = allReviews.map(review => {
         const emailKey = (review.reviewerEmail || '').trim().toLowerCase();
         const nameKey = (review.reviewerName || '').trim().toLowerCase();
         const reviewerType = reviewerTypeMap[emailKey] || reviewerTypeMap[nameKey] || 'preliminary';
-        return { ...review, reviewerType };
+        // Resolve name from reviewer profile (authoritative), fall back to stored name
+        const resolvedName = reviewerNameMap[emailKey] || review.reviewerName || review.reviewerEmail;
+        return { ...review, reviewerType, reviewerName: resolvedName };
       });
 
       setReviews(enrichedReviews);

@@ -968,7 +968,7 @@ app.post('/api/auth/login', async (req, res) => {
     // Build user response with profile picture for students
     const userResponse = {
       email: user.email || user.gmail || email,
-      name: user.name || `${user.firstName} ${user.lastName}`,
+      name: user.name || [user.firstName, user.middleName, user.lastName].filter(Boolean).join(' ') || user.email || email,
       role: role,
       originalRole: user.role || role,
       userType: userType,
@@ -2952,8 +2952,34 @@ app.get('/api/reviews', async (req, res) => {
   try {
     const db = getDatabase();
     const reviews = db.collection(collections.reviews);
+    const reviewersCol = db.collection(collections.reviewers);
     const reviewList = await reviews.find({}).sort({ createdAt: -1 }).toArray();
-    res.json(reviewList);
+
+    // Build a lookup of reviewer emails → actual profile names
+    const allReviewerAccounts = await reviewersCol.find({}, {
+      projection: { email: 1, name: 1, firstName: 1, middleName: 1, lastName: 1, title: 1 }
+    }).toArray();
+    const reviewerNameMap = {};
+    allReviewerAccounts.forEach(acc => {
+      const email = (acc.email || '').trim().toLowerCase();
+      if (!email) return;
+      const fullName = acc.name
+        || [acc.firstName, acc.middleName, acc.lastName].filter(Boolean).join(' ')
+        || '';
+      if (fullName) reviewerNameMap[email] = fullName;
+    });
+
+    // Enrich each review with the correct reviewer name from their profile
+    const enrichedReviews = reviewList.map(review => {
+      const email = (review.reviewerEmail || '').trim().toLowerCase();
+      const resolvedName = reviewerNameMap[email];
+      if (resolvedName && resolvedName !== review.reviewerName) {
+        return { ...review, reviewerName: resolvedName };
+      }
+      return review;
+    });
+
+    res.json(enrichedReviews);
   } catch (error) {
     console.error('Error fetching all reviews:', error);
     res.status(500).json({ error: 'Server error' });
@@ -3132,33 +3158,20 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
 
     await notifications.insertOne(notification);
 
-    // Create message for admin about submitted review files
+    // Create a short message for admin noting the review was submitted (full detail lives in the notification above; no file attachments here)
     const messages = db.collection(collections.messages);
-    // Professional phrases for review submission status
-    const statusPhrases = [
-      "The associated documents have been successfully uploaded for your administrative evaluation.",
-      "All necessary files have been formally submitted and are now available for your final assessment.",
-      "The comprehensive review package, including all required documentation, is now ready for administrative processing.",
-      "Supporting documents have been securely uploaded to the system for official records and administrative review.",
-      "The full set of review files has been submitted and is awaiting your final administrative verification."
-    ];
-    const statusMsg = statusPhrases[Math.floor(Math.random() * statusPhrases.length)];
 
     const messageRecord = {
       senderEmail: reviewerEmail,
       recipientEmail: process.env.GMAIL_EMAIL || 'admin',
       subject: `Review Submitted: ${protocolCode ? 'Protocol ' + protocolCode : proposalTitle}`,
-      message: `${reviewerName || reviewerEmail} submitted a review for "${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle}" with decision: ${decision || overallRating}.\n\n` +
-        (comment || comments ? `Reviewer's Comments: ${comment || comments}\n\n` : '') +
-        `${statusMsg}`,
+      message: `${reviewerName || reviewerEmail} submitted a review for "${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle}".`,
       senderName: reviewerName || reviewerEmail,
       type: 'reviewer_to_admin',
       reviewId: result.insertedId.toString(),
       proposalId,
       reviewerEmail,
       decision: decision || overallRating,
-      comment: comment || comments || '',
-      files: files, // Include uploaded files information
       read: false,
       createdAt: new Date()
     };
@@ -3182,8 +3195,23 @@ app.get('/api/reviews/all', async (req, res) => {
     const db = getDatabase();
     const reviews = db.collection(collections.reviews);
     const proposals = db.collection(collections.proposals);
+    const reviewersCol = db.collection(collections.reviewers);
 
     const allReviews = await reviews.find({ status: 'completed' }).sort({ completedDate: -1 }).toArray();
+
+    // Build a lookup of reviewer emails → actual profile names
+    const allReviewerAccounts = await reviewersCol.find({}, {
+      projection: { email: 1, name: 1, firstName: 1, middleName: 1, lastName: 1 }
+    }).toArray();
+    const reviewerNameMap = {};
+    allReviewerAccounts.forEach(acc => {
+      const email = (acc.email || '').trim().toLowerCase();
+      if (!email) return;
+      const fullName = acc.name
+        || [acc.firstName, acc.middleName, acc.lastName].filter(Boolean).join(' ')
+        || '';
+      if (fullName) reviewerNameMap[email] = fullName;
+    });
 
     const enrichedReviews = await Promise.all(
       allReviews.map(async (review) => {
@@ -3191,8 +3219,11 @@ app.get('/api/reviews/all', async (req, res) => {
         try {
           proposal = await proposals.findOne({ _id: new ObjectId(review.proposalId) });
         } catch (e) { /* ignore */ }
+        const email = (review.reviewerEmail || '').trim().toLowerCase();
+        const resolvedName = reviewerNameMap[email] || review.reviewerName || review.reviewerEmail;
         return {
           ...review,
+          reviewerName: resolvedName,
           proposalTitle: proposal?.researchTitle || 'Untitled Proposal',
           protocolCode: proposal?.protocolCode || '',
           proponent: proposal?.proponent || 'N/A'
@@ -3214,13 +3245,23 @@ app.get('/api/reviews/completed/:reviewerEmail', async (req, res) => {
     const db = getDatabase();
     const reviews = db.collection(collections.reviews);
     const proposals = db.collection(collections.proposals);
+    const reviewersCol = db.collection(collections.reviewers);
 
     const completedReviews = await reviews.find({
       reviewerEmail,
       status: 'completed'
     }).sort({ completedDate: -1 }).toArray();
 
-    // Enrich with proposal details
+    // Resolve the actual reviewer name from their profile
+    const reviewerAccount = await reviewersCol.findOne(
+      { email: emailRegexFilter(reviewerEmail) },
+      { projection: { name: 1, firstName: 1, middleName: 1, lastName: 1 } }
+    );
+    const resolvedName = reviewerAccount?.name
+      || [reviewerAccount?.firstName, reviewerAccount?.middleName, reviewerAccount?.lastName].filter(Boolean).join(' ')
+      || '';
+
+    // Enrich with proposal details and correct reviewer name
     const enrichedReviews = await Promise.all(
       completedReviews.map(async (review) => {
         let proposal = null;
@@ -3229,6 +3270,7 @@ app.get('/api/reviews/completed/:reviewerEmail', async (req, res) => {
         } catch (e) { /* ignore */ }
         return {
           ...review,
+          reviewerName: resolvedName || review.reviewerName || review.reviewerEmail,
           proposalTitle: proposal?.researchTitle || review.researchTitle || 'Untitled Proposal',
           protocolCode: proposal?.protocolCode || review.protocolCode || '',
           proponent: proposal?.proponent || review.proponent || 'N/A'
