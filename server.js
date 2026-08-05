@@ -3392,8 +3392,10 @@ app.get('/api/notifications/:email', async (req, res) => {
     const db = getDatabase();
     const notifications = db.collection(collections.notifications);
 
+    // Case-insensitive match to handle email case mismatches between stored and queried values
+    const emailRegex = new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
     const notificationList = await notifications.find({
-      recipientEmail: email
+      recipientEmail: emailRegex
     }).sort({ createdAt: -1 }).toArray();
 
     res.json(notificationList);

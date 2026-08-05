@@ -1571,7 +1571,10 @@ function DashboardContent({ userInfo, onTabChange }) {
                             type="button"
                             className="up-action-btn up-action-btn--edit"
                             onClick={() => {
-                              const hasReviewer = Boolean(proposal.preliminaryReviewer || proposal.preliminaryReviewerName);
+                              const hasReviewer = Boolean(
+                                proposal.preliminaryReviewer || proposal.preliminaryReviewerName ||
+                                proposal.secondaryReviewer1 || proposal.reviewers?.reviewer2
+                              );
                               const s = (proposal.status || 'Pending').toLowerCase();
                               if (hasReviewer || s === 'under review' || s === 'submitted to admin' || s === 'review submitted') {
                                 setRestrictedActionType('edit');
@@ -1589,7 +1592,10 @@ function DashboardContent({ userInfo, onTabChange }) {
                             type="button"
                             className="up-action-btn up-action-btn--delete"
                             onClick={() => { 
-                              const hasReviewer = Boolean(proposal.preliminaryReviewer || proposal.preliminaryReviewerName);
+                              const hasReviewer = Boolean(
+                                proposal.preliminaryReviewer || proposal.preliminaryReviewerName ||
+                                proposal.secondaryReviewer1 || proposal.reviewers?.reviewer2
+                              );
                               const s = (proposal.status || 'Pending').toLowerCase();
                               if (hasReviewer || s === 'under review' || s === 'submitted to admin' || s === 'review submitted') {
                                 setRestrictedActionType('delete');
@@ -1613,8 +1619,16 @@ function DashboardContent({ userInfo, onTabChange }) {
                         </div>
                         <div className="up-meta-item">
                           <span className="up-meta-label">Reviewer</span>
-                          <span className="up-meta-value" style={{ fontWeight: '600', color: (proposal.preliminaryReviewer || proposal.preliminaryReviewerName) ? '#16a34a' : '#64748b' }}>
-                            {(proposal.preliminaryReviewer || proposal.preliminaryReviewerName) ? 'Assigned' : 'Not assigned'}
+                          <span className="up-meta-value" style={{ fontWeight: '600', color: (
+                            proposal.preliminaryReviewer || proposal.preliminaryReviewerName ||
+                            proposal.secondaryReviewer1 || proposal.reviewers?.reviewer2 || 
+                            (proposal.status || '').toLowerCase() === 'under review'
+                          ) ? '#16a34a' : '#64748b' }}>
+                            {(
+                              proposal.preliminaryReviewer || proposal.preliminaryReviewerName ||
+                              proposal.secondaryReviewer1 || proposal.reviewers?.reviewer2 ||
+                              (proposal.status || '').toLowerCase() === 'under review'
+                            ) ? 'Assigned' : 'Not assigned'}
                           </span>
                         </div>
                         <div className="up-meta-item">
@@ -1935,29 +1949,46 @@ function NotificationsContent({ userInfo }) {
     if (dbId) saveHiddenNotifId(dbId);
     setNotifications(prev => prev.filter(n => String(n.id) !== String(id)));
 
-    // 2. Realtime Database Deletion
+    // 2. Realtime Database Deletion — awaited for true real-time persistence
     try {
+      const deletePromises = [];
+
       if (isDbNotif && dbId) {
-        fetch(`${API_BASE_URL}/notifications/${dbId}/delete`, { method: 'POST' }).catch(() => null);
-        fetch(`${API_BASE_URL}/notifications/${dbId}`, { method: 'DELETE' }).catch(() => null);
+        // Delete actual notification document from DB
+        deletePromises.push(
+          fetch(`${API_BASE_URL}/notifications/${dbId}/delete`, { method: 'POST' }).catch(err => console.error('Notif post-delete failed:', err))
+        );
+        deletePromises.push(
+          fetch(`${API_BASE_URL}/notifications/${dbId}`, { method: 'DELETE' }).catch(err => console.error('Notif delete failed:', err))
+        );
       } else if (isMessage && dbId) {
-        fetch(`${API_BASE_URL}/messages/${dbId}`, { method: 'DELETE' }).catch(() => null);
+        // Delete actual message document from DB
+        deletePromises.push(
+          fetch(`${API_BASE_URL}/messages/${dbId}`, { method: 'DELETE' }).catch(err => console.error('Message delete failed:', err))
+        );
       }
 
+      // Always save to user-hidden-items for cross-device persistence
       if (userInfo?.email) {
-        fetch(`${API_BASE_URL}/user-hidden-items`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: userInfo.email, itemId: String(id), itemType: 'notification' })
-        }).catch(() => null);
-        if (dbId) {
+        deletePromises.push(
           fetch(`${API_BASE_URL}/user-hidden-items`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: userInfo.email, itemId: String(dbId), itemType: 'notification' })
-          }).catch(() => null);
+            body: JSON.stringify({ email: userInfo.email, itemId: String(id), itemType: 'notification' })
+          }).catch(err => console.error('Hidden item save failed:', err))
+        );
+        if (dbId && String(dbId) !== String(id)) {
+          deletePromises.push(
+            fetch(`${API_BASE_URL}/user-hidden-items`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: userInfo.email, itemId: String(dbId), itemType: 'notification' })
+            }).catch(err => console.error('Hidden dbId save failed:', err))
+          );
         }
       }
+
+      await Promise.all(deletePromises);
     } catch (err) {
       console.error('Realtime DB notification deletion failed:', err);
     }
@@ -1972,23 +2003,42 @@ function NotificationsContent({ userInfo }) {
     setNotifications([]);
 
     try {
+      const deletePromises = [];
+
       for (const n of notifsToDelete) {
         if (n.isDbNotif && n.dbId) {
-          fetch(`${API_BASE_URL}/notifications/${n.dbId}/delete`, { method: 'POST' }).catch(() => null);
-          fetch(`${API_BASE_URL}/notifications/${n.dbId}`, { method: 'DELETE' }).catch(() => null);
+          // Delete each notification document from DB
+          deletePromises.push(
+            fetch(`${API_BASE_URL}/notifications/${n.dbId}/delete`, { method: 'POST' }).catch(err => console.error('Notif post-delete failed:', err))
+          );
+          deletePromises.push(
+            fetch(`${API_BASE_URL}/notifications/${n.dbId}`, { method: 'DELETE' }).catch(err => console.error('Notif delete failed:', err))
+          );
         } else if (n.isMessage && n.dbId) {
-          fetch(`${API_BASE_URL}/messages/${n.dbId}`, { method: 'DELETE' }).catch(() => null);
+          // Delete each message document from DB
+          deletePromises.push(
+            fetch(`${API_BASE_URL}/messages/${n.dbId}`, { method: 'DELETE' }).catch(err => console.error('Message delete failed:', err))
+          );
         }
       }
 
+      // Bulk-save all hidden IDs to DB for cross-device persistence
       if (userInfo?.email && notifsToDelete.length > 0) {
-        const itemIds = notifsToDelete.map(n => String(n.id));
-        fetch(`${API_BASE_URL}/user-hidden-items/clear-all`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: userInfo.email, itemIds, itemType: 'notification' })
-        }).catch(() => null);
+        const allItemIds = [];
+        notifsToDelete.forEach(n => {
+          allItemIds.push(String(n.id));
+          if (n.dbId && String(n.dbId) !== String(n.id)) allItemIds.push(String(n.dbId));
+        });
+        deletePromises.push(
+          fetch(`${API_BASE_URL}/user-hidden-items/clear-all`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: userInfo.email, itemIds: allItemIds, itemType: 'notification' })
+          }).catch(err => console.error('Hidden items bulk save failed:', err))
+        );
       }
+
+      await Promise.all(deletePromises);
     } catch (err) {
       console.error('Realtime DB clear all notifications failed:', err);
     }

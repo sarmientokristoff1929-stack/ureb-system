@@ -397,8 +397,24 @@ const ReviewerDashboard = ({ onLogout }) => {
       const activeAssignments = uniqueAssignments.filter((a) => !deletedIds.includes(String(a._id)) && !readIds.includes(String(a._id)));
       setAssignedCount(activeAssignments.length);
 
+      // Fetch hidden IDs from DB so badge count matches what's actually visible
+      let hiddenIds = [];
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL
+          ? import.meta.env.VITE_API_URL.replace(/\/$/, '') + '/api'
+          : '/api';
+        const hiddenRes = await fetch(`${apiUrl}/user-hidden-items/${encodeURIComponent(user.email)}`);
+        if (hiddenRes.ok) {
+          const hiddenData = await hiddenRes.json();
+          if (Array.isArray(hiddenData.hiddenIds)) hiddenIds = hiddenData.hiddenIds.map(String);
+        }
+      } catch { /* non-fatal */ }
+
       const notifications = await getUserNotifications(user.email);
-      setNotifCount((notifications || []).filter(n => !n.read).length);
+      const visibleUnread = (notifications || [])
+        .filter(n => !n.read && !hiddenIds.includes(String(n._id)))
+        .length;
+      setNotifCount(visibleUnread);
 
       const messages = await getMessagesByUser(user.email);
       setMessageCount((messages || []).filter(m => m.type === 'admin_to_reviewer' && !m.read).length);
@@ -566,7 +582,7 @@ const ReviewerDashboard = ({ onLogout }) => {
 
       case 'notifications':
 
-        return <ReviewerNotificationsContent userInfo={userInfo} />;
+        return <ReviewerNotificationsContent userInfo={userInfo} onNotifDeleted={refreshBadgeCounts} />;
 
       case 'profile-settings':
 
@@ -739,9 +755,13 @@ const ReviewerDashboard = ({ onLogout }) => {
 
 
 
-const ReviewerNotificationsContent = ({ userInfo }) => {
+const ReviewerNotificationsContent = ({ userInfo, onNotifDeleted }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const API_URL = import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL.replace(/\/$/, '') + '/api'
+    : '/api';
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -749,15 +769,29 @@ const ReviewerNotificationsContent = ({ userInfo }) => {
       try {
         // Fetch DB notifications (including deadline notifications)
         const dbNotifs = await getUserNotifications(userInfo.email);
-        const notifs = dbNotifs.map(n => ({
-          id: n._id,
-          type: n.type === 'review_deadline' ? 'warning' : (n.type === 'assignment' ? 'info' : 'warning'),
-          title: n.title,
-          message: n.message,
-          time: new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          read: n.read,
-          _raw: n
-        }));
+
+        // Fetch user-hidden-items from DB for cross-device persistence
+        let hiddenIds = [];
+        try {
+          const hiddenRes = await fetch(`${API_URL}/user-hidden-items/${encodeURIComponent(userInfo.email)}`);
+          if (hiddenRes.ok) {
+            const hiddenData = await hiddenRes.json();
+            if (Array.isArray(hiddenData.hiddenIds)) hiddenIds = hiddenData.hiddenIds.map(String);
+          }
+        } catch { /* non-fatal */ }
+
+        const notifs = dbNotifs
+          .filter(n => !hiddenIds.includes(String(n._id)))
+          .map(n => ({
+            id: String(n._id),   // Always store as string to avoid ObjectId comparison bugs
+            type: n.type === 'review_deadline' ? 'warning' : (n.type === 'assignment' ? 'info' : (n.type || 'info')),
+            title: n.title,
+            message: n.message,
+            time: new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            read: n.read,
+            isDbNotif: true,
+            _raw: n
+          }));
 
         // Also check for expiring proposals (1-year validity)
         const assignments = await getReviewerAssignments(userInfo.email);
@@ -768,30 +802,35 @@ const ReviewerNotificationsContent = ({ userInfo }) => {
           const deadlineDate = new Date(submittedDate);
           deadlineDate.setFullYear(deadlineDate.getFullYear() + 1);
           const daysRemaining = Math.ceil((deadlineDate - today) / (1000 * 3600 * 24));
+          const expId = `exp-${proposal._id}`;
 
-          if (daysRemaining <= 3 && daysRemaining > 0) {
+          if (hiddenIds.includes(expId)) return; // Hidden by user
+
+          if (daysRemaining <= 14 && daysRemaining > 0) {
             // Avoid duplicate if DB notification already covers this
             const exists = notifs.some(n => n._raw?.proposalId?.toString() === (proposal.proposalId?.toString?.() || proposal.proposalId));
             if (!exists) {
               notifs.push({
-                id: `exp-${proposal._id}`,
+                id: expId,
                 type: 'warning',
                 title: 'Proposal Expiring Soon',
                 message: `"${proposal.researchTitle || 'Untitled'}" is expiring in ${daysRemaining} day(s). The 1-year review period ends on ${deadlineDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`,
                 time: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
                 read: false,
+                isDbNotif: false,
               });
             }
           } else if (daysRemaining <= 0) {
             const exists = notifs.some(n => n._raw?.proposalId?.toString() === (proposal.proposalId?.toString?.() || proposal.proposalId));
             if (!exists) {
               notifs.push({
-                id: `exp-${proposal._id}`,
+                id: expId,
                 type: 'danger',
                 title: 'Proposal Expired',
                 message: `"${proposal.researchTitle || 'Untitled'}" has exceeded the 1-year review validity period (expired ${deadlineDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}).`,
                 time: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
                 read: false,
+                isDbNotif: false,
               });
             }
           }
@@ -809,11 +848,12 @@ const ReviewerNotificationsContent = ({ userInfo }) => {
 
   const markAsRead = async (id) => {
     try {
-      // If it's a DB notification (ObjectId format), mark via API
-      if (typeof id === 'string' && id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id)) {
-        await markNotificationAsRead(id);
+      const idStr = String(id);
+      // Only call API for real DB notifications (24-char hex ObjectId)
+      if (/^[0-9a-fA-F]{24}$/.test(idStr)) {
+        await markNotificationAsRead(idStr);
       }
-      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+      setNotifications((prev) => prev.map((n) => String(n.id) === idStr ? { ...n, read: true } : n));
     } catch (err) {
       console.error('Error marking notification as read:', err);
     }
@@ -821,13 +861,66 @@ const ReviewerNotificationsContent = ({ userInfo }) => {
 
   const handleDelete = async (id) => {
     try {
-      // If it's a DB notification (ObjectId format), delete via API
-      if (typeof id === 'string' && id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id)) {
-        await deleteNotification(id);
+      const idStr = String(id);
+      const deletePromises = [];
+
+      // Delete from DB if it's a real DB notification (24-char hex ObjectId)
+      if (/^[0-9a-fA-F]{24}$/.test(idStr)) {
+        deletePromises.push(
+          deleteNotification(idStr).catch(err => console.error('DB notif delete failed:', err))
+        );
       }
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
+
+      // Always persist hide to user-hidden-items for cross-device persistence
+      if (userInfo?.email) {
+        deletePromises.push(
+          fetch(`${API_URL}/user-hidden-items`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: userInfo.email, itemId: idStr, itemType: 'notification' })
+          }).catch(err => console.error('Hidden item save failed:', err))
+        );
+      }
+
+      await Promise.all(deletePromises);
+      setNotifications((prev) => prev.filter((n) => String(n.id) !== idStr));
+      if (onNotifDeleted) onNotifDeleted(); // Refresh sidebar badge count
     } catch (err) {
       console.error('Error deleting notification:', err);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    try {
+      const toDelete = [...notifications];
+      const deletePromises = [];
+
+      for (const n of toDelete) {
+        const idStr = String(n.id);
+        if (/^[0-9a-fA-F]{24}$/.test(idStr)) {
+          deletePromises.push(
+            deleteNotification(idStr).catch(err => console.error('DB notif delete failed:', err))
+          );
+        }
+      }
+
+      // Bulk-save all hidden IDs to DB for cross-device persistence
+      if (userInfo?.email && toDelete.length > 0) {
+        const allIds = toDelete.map(n => String(n.id));
+        deletePromises.push(
+          fetch(`${API_URL}/user-hidden-items/clear-all`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: userInfo.email, itemIds: allIds, itemType: 'notification' })
+          }).catch(err => console.error('Hidden items bulk save failed:', err))
+        );
+      }
+
+      await Promise.all(deletePromises);
+      setNotifications([]);
+      if (onNotifDeleted) onNotifDeleted(); // Refresh sidebar badge count
+    } catch (err) {
+      console.error('Error deleting all notifications:', err);
     }
   };
 
@@ -843,7 +936,21 @@ const ReviewerNotificationsContent = ({ userInfo }) => {
 
   return (
     <div className="content-section">
-      <h2>Notifications</h2>
+      <div className="sm-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div>
+          <h2>Notifications</h2>
+        </div>
+        {notifications.length > 0 && (
+          <button
+            className="hist-delete-all-btn"
+            title="Delete all notifications"
+            onClick={handleDeleteAll}
+          >
+            <TrashIcon />
+            <span>Delete All</span>
+          </button>
+        )}
+      </div>
       <div className="notifications-list">
         {loading ? (
           <div className="loading-state">Loading notifications...</div>
@@ -852,13 +959,15 @@ const ReviewerNotificationsContent = ({ userInfo }) => {
         ) : (
           notifications.map((notif) => (
             <div
-              key={notif.id}
+              key={String(notif.id)}
               className={`notification-item ${!notif.read ? 'unread' : ''} ${notif.type}`}
               style={{ position: 'relative' }}
             >
               <div className="notification-icon">
                 {notif.type === 'warning' && <span>!</span>}
                 {notif.type === 'danger' && <span>✕</span>}
+                {notif.type === 'info' && <span>i</span>}
+                {notif.type === 'success' && <span>✓</span>}
               </div>
               <div className="notification-content" style={{ position: 'relative', paddingRight: '30px' }}>
                 {/* Delete icon at top right */}
