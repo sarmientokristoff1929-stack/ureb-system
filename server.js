@@ -388,9 +388,10 @@ const getAdminInboxRecipientEmails = (adminEmail) => {
   return Array.from(recipients).filter(Boolean);
 };
 
-// Auto-generated "review submitted" notices are addressed to admin only — the reviewer already
-// sees their own copy in Notifications, so exclude these from matching via senderEmail here.
-const excludeAutoReviewSubmissionNotice = { type: 'reviewer_to_admin', reviewId: { $exists: true, $ne: null } };
+// "reviewer_to_admin" messages (both the auto-generated "review submitted" notice and the
+// manual "Message Admin" compose) are addressed to admin only — they must never echo back into
+// the reviewer's own Messages inbox, which is meant to show admin's replies to them.
+const excludeReviewerToAdminEcho = { type: 'reviewer_to_admin' };
 
 const buildUserInboxQuery = (userEmail) => ({
   $and: [
@@ -400,7 +401,7 @@ const buildUserInboxQuery = (userEmail) => ({
         { senderEmail: emailRegexFilter(userEmail) },
       ],
     },
-    { $nor: [excludeAutoReviewSubmissionNotice] },
+    { $nor: [excludeReviewerToAdminEcho] },
   ],
 });
 
