@@ -3142,15 +3142,15 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
       if (match) protocolCode = match[1];
     }
 
-    // Create notification for admin
+    // Create notification for the reviewer (shows in their own Reviewer Portal Notifications)
     const notification = {
       type: 'review_submitted',
       title: `${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle}`,
-      message: `A new review has been submitted for ${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle} by ${reviewerName || reviewerEmail}. The decision is ${decision || overallRating}.${(comment || comments) ? '\n\nReviewer\'s Comments: ' + (comment || comments) : ''}`,
+      message: `You submitted a review for ${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle}. The decision is ${decision || overallRating}.`,
       reviewId: result.insertedId.toString(),
       proposalId,
       reviewerEmail,
-      recipientEmail: 'admin',
+      recipientEmail: reviewerEmail,
       decision: decision || overallRating,
       read: false,
       createdAt: new Date()
@@ -3158,9 +3158,8 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
 
     await notifications.insertOne(notification);
 
-    // Create a short message for admin noting the review was submitted (full detail lives in the notification above; no file attachments here)
+    // Notify admin that a review (with any submitted files) came in — shows in Files And Messages Submitted
     const messages = db.collection(collections.messages);
-
     const messageRecord = {
       senderEmail: reviewerEmail,
       recipientEmail: process.env.GMAIL_EMAIL || 'admin',
@@ -3172,6 +3171,7 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
       proposalId,
       reviewerEmail,
       decision: decision || overallRating,
+      files,
       read: false,
       createdAt: new Date()
     };
