@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import LoginModal from './LoginModal';
+import TermsModal from './TermsModal';
+import PrivacyModal from './PrivacyModal';
+import FeedbackModal from './FeedbackModal';
+import HelpModal from './HelpModal';
 import { sendMessage } from '../services/api.js';
 import './LandingPage.css';
 
@@ -485,7 +489,7 @@ const Contact = ({ onMessageClick }) => (
   </section>
 );
 
-const Footer = () => (
+const Footer = ({ onTermsClick, onPrivacyClick, onFeedbackClick, onHelpClick }) => (
   <footer className="footer">
     <div className="footer-container">
       <div className="footer-main">
@@ -509,11 +513,11 @@ const Footer = () => (
         </div>
 
         <div className="footer-column">
-          <h4>Resources</h4>
-          <a href="#">Guidelines</a>
-          <a href="#">Forms</a>
-          <a href="#">FAQ</a>
-          <a href="#">Policies</a>
+          <h4>Help & Legal</h4>
+          <a href="#" onClick={(e) => { e.preventDefault(); onHelpClick(); }}>Help</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); onFeedbackClick(); }}>Send Feedback</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); onTermsClick(); }}>Terms</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); onPrivacyClick(); }}>Privacy</a>
         </div>
 
         <div className="footer-column">
@@ -688,6 +692,10 @@ const LandingPage = ({ onLogin, onRegister }) => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
 
   const openLoginModal = () => setIsLoginModalOpen(true);
   const closeLoginModal = () => setIsLoginModalOpen(false);
@@ -695,6 +703,18 @@ const LandingPage = ({ onLogin, onRegister }) => {
   const openMessageModal = () => setIsMessageModalOpen(true);
   const closeMessageModal = () => setIsMessageModalOpen(false);
   const closeThankYouModal = () => setIsSuccessModalOpen(false);
+
+  const openTermsModal = () => setIsTermsModalOpen(true);
+  const closeTermsModal = () => setIsTermsModalOpen(false);
+
+  const openPrivacyModal = () => setIsPrivacyModalOpen(true);
+  const closePrivacyModal = () => setIsPrivacyModalOpen(false);
+
+  const openFeedbackModal = () => setIsFeedbackModalOpen(true);
+  const closeFeedbackModal = () => setIsFeedbackModalOpen(false);
+
+  const openHelpModal = () => setIsHelpModalOpen(true);
+  const closeHelpModal = () => setIsHelpModalOpen(false);
 
   return (
     <div className="landing-page">
@@ -706,10 +726,14 @@ const LandingPage = ({ onLogin, onRegister }) => {
         <Process />
         <Contact onMessageClick={openMessageModal} />
       </main>
-      <Footer />
+      <Footer onTermsClick={openTermsModal} onPrivacyClick={openPrivacyModal} onFeedbackClick={openFeedbackModal} onHelpClick={openHelpModal} />
       <LoginModal isOpen={isLoginModalOpen} onClose={closeLoginModal} onLogin={onLogin} onRegister={onRegister} />
       <MessageModal isOpen={isMessageModalOpen} onClose={closeMessageModal} setIsSuccessModalOpen={setIsSuccessModalOpen} />
       <ThankYouModal isOpen={isSuccessModalOpen} onClose={closeThankYouModal} />
+      <TermsModal isOpen={isTermsModalOpen} onClose={closeTermsModal} />
+      <PrivacyModal isOpen={isPrivacyModalOpen} onClose={closePrivacyModal} />
+      <FeedbackModal isOpen={isFeedbackModalOpen} onClose={closeFeedbackModal} />
+      <HelpModal isOpen={isHelpModalOpen} onClose={closeHelpModal} />
     </div>
   );
 };
