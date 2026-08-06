@@ -214,6 +214,46 @@ export const submitReview = async (reviewData) => {
   }
 };
 
+// Resubmit an updated file for an already-submitted review (Reviewer -> Admin)
+export const resubmitReview = async (reviewId, resubmitData) => {
+  try {
+    const formData = new FormData();
+    formData.append('reviewerEmail', resubmitData.reviewerEmail || '');
+    formData.append('reviewerName', resubmitData.reviewerName || '');
+    formData.append('resubmissionReason', resubmitData.resubmissionReason || '');
+
+    // files: { [documentFieldKey]: File } — keeps each replacement under its original document slot
+    if (resubmitData.files && typeof resubmitData.files === 'object') {
+      Object.entries(resubmitData.files).forEach(([fieldKey, file]) => {
+        if (file instanceof File) {
+          formData.append(fieldKey, file);
+        }
+      });
+    }
+
+    const response = await fetch(`${API_BASE_URL}/reviews/${reviewId}/resubmit`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      let errorMessage = 'Failed to resubmit review';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch (jsonError) {
+        errorMessage = `Failed to resubmit review: ${response.statusText} (${response.status})`;
+      }
+      return { success: false, error: errorMessage };
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error resubmitting review:', error);
+    return { success: false, error: 'Failed to resubmit review' };
+  }
+};
+
 // Get completed reviews by reviewer email
 export const getCompletedReviews = async (email) => {
   try {

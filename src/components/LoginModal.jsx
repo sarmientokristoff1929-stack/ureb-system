@@ -320,8 +320,9 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
         }
 
         const isAdmin = ['admin', 'superadmin', 'super-admin', 'root', 'administrator'].includes(result.user?.role?.toLowerCase());
-        if (isAdmin) {
-          // Exclude admin from data and privacy act modal - proceed directly to login
+        const isReviewer = result.user?.role?.toLowerCase() === 'reviewer';
+        if (isAdmin || isReviewer) {
+          // Exclude admin and reviewer from data and privacy act modal - proceed directly to login
           const loginResult = await onLogin(email, password);
           if (loginResult.success) {
             resetForm();

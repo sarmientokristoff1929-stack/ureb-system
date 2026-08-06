@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 import './reviewerdashboard.css';
 
-import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, getReviewerAssignments, downloadReviewerFile, deleteMessage, markMessageAsRead, changeReviewerPassword, getReviewerProfile, getUserNotifications, markNotificationAsRead, deleteNotification } from '../services/api';
+import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, resubmitReview, getCompletedReviews, getReviewerAssignments, downloadReviewerFile, deleteMessage, markMessageAsRead, changeReviewerPassword, getReviewerProfile, getUserNotifications, markNotificationAsRead, deleteNotification } from '../services/api';
 
 const formatAssignmentStatus = (status) => {
   if (!status) return 'Under Review';
@@ -200,6 +200,24 @@ const SubmitSecondaryFileIcon = () => (
 
 
 
+const ResubmissionIcon = () => (
+
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+
+    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+
+    <path d="M3 3v5h5" />
+
+    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+
+    <path d="M16 21h5v-5" />
+
+  </svg>
+
+);
+
+
+
 const FileTemplatesIcon = () => (
 
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -378,6 +396,7 @@ const ReviewerDashboard = ({ onLogout }) => {
     { id: 'assigned-proposals', label: 'Assigned Proposals', icon: <FileCheckIcon />, badge: assignedCount > 0 ? assignedCount : null },
     { id: 'submit-secondary-file', label: 'Submit Review', icon: <SubmitSecondaryFileIcon /> },
     { id: 'submitted-reviews', label: 'Submitted Reviews', icon: <CheckIcon /> },
+    { id: 'resubmission', label: 'Resubmission', icon: <ResubmissionIcon /> },
     { id: 'file-templates', label: 'File Templates', icon: <FileTemplatesIcon /> },
     { id: 'messages', label: 'Messages', icon: <MessageIcon />, badge: messageCount > 0 ? messageCount : null },
     { id: 'notifications', label: 'Notifications', icon: <BellIcon />, badge: notifCount > 0 ? notifCount : null },
@@ -580,6 +599,10 @@ const ReviewerDashboard = ({ onLogout }) => {
       case 'submitted-reviews':
 
         return <SubmittedReviewsContent />;
+
+      case 'resubmission':
+
+        return <ResubmissionContent userInfo={userInfo} />;
 
       case 'notifications':
 
@@ -2325,6 +2348,7 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [readIds, setReadIds] = useState([]);
   const [viewingFile, setViewingFile] = useState(null);
+  const [submittedProtocolCodes, setSubmittedProtocolCodes] = useState(new Set());
 
   useEffect(() => {
     setReadIds(getReadAssignmentIds());
@@ -2335,8 +2359,27 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
     if (savedUser) {
       const user = JSON.parse(savedUser);
       fetchAssignments(user.email);
+      fetchSubmittedProtocolCodes(user.email);
     }
   }, []);
+
+  const normalizeProtocolCode = (code) => String(code || '').toUpperCase().replace(/\s+/g, '');
+
+  const fetchSubmittedProtocolCodes = async (userEmail) => {
+    if (!userEmail) return;
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reviews/completed/${encodeURIComponent(userEmail)}`);
+      const data = await response.json();
+      const codes = new Set(
+        (Array.isArray(data) ? data : [])
+          .map((r) => normalizeProtocolCode(r.protocolCode))
+          .filter(Boolean)
+      );
+      setSubmittedProtocolCodes(codes);
+    } catch (error) {
+      console.error('Error fetching submitted protocol codes:', error);
+    }
+  };
 
   // Listen for reviewSubmitted events dispatched after a reviewer submits a review
   // and update the matching assignment's status locally so the sidebar reflects it instantly
@@ -2525,6 +2568,11 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
             || 'Student';
 
           const isRead = readIds.includes(String(assignment._id));
+          const isProtocolAlreadySubmitted = assignment.protocolCode
+            && submittedProtocolCodes.has(normalizeProtocolCode(assignment.protocolCode));
+          const displayStatus = isProtocolAlreadySubmitted
+            ? 'Submitted to Admin'
+            : formatAssignmentStatus(assignment.status);
 
           return (
             <div className={`proposal-card ${!isRead ? 'unread' : ''}`} key={String(assignment._id)}>
@@ -2545,9 +2593,9 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <span
-                    className={`status-badge ${formatAssignmentStatus(assignment.status).toLowerCase().replace(/\s+/g, '-')}`}
+                    className={`status-badge ${displayStatus.toLowerCase().replace(/\s+/g, '-')}`}
                   >
-                    {formatAssignmentStatus(assignment.status)}
+                    {displayStatus}
                   </span>
                   <button
                     title="Delete assignment"
@@ -3836,6 +3884,7 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
   const [proposals, setProposals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProposal, setSelectedProposal] = useState(null);
+  const [submittedProtocolCodes, setSubmittedProtocolCodes] = useState(new Set());
 
   // Load saved data from localStorage on component mount
   const [secondaryFileData, setSecondaryFileData] = useState(() => {
@@ -3880,8 +3929,27 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
     if (savedUser) {
       const user = JSON.parse(savedUser);
       fetchProposals(user.email);
+      fetchSubmittedProtocolCodes(user.email);
     }
   }, []);
+
+  const normalizeProtocolCode = (code) => String(code || '').toUpperCase().replace(/\s+/g, '');
+
+  const fetchSubmittedProtocolCodes = async (userEmail) => {
+    if (!userEmail) return;
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reviews/completed/${encodeURIComponent(userEmail)}`);
+      const data = await response.json();
+      const codes = new Set(
+        (Array.isArray(data) ? data : [])
+          .map((r) => normalizeProtocolCode(r.protocolCode))
+          .filter(Boolean)
+      );
+      setSubmittedProtocolCodes(codes);
+    } catch (error) {
+      console.error('Error fetching submitted protocol codes:', error);
+    }
+  };
 
   const fetchProposals = async (userEmail) => {
     if (!userEmail) return;
@@ -4251,7 +4319,7 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
             <option value="">{loading ? 'Loading...' : '-- Select Protocol Code --'}</option>
             {proposals.filter(p => p.protocolCode).map((proposal, index) => (
               <option key={index} value={proposal.protocolCode}>
-                {proposal.protocolCode}
+                {proposal.protocolCode}{submittedProtocolCodes.has(normalizeProtocolCode(proposal.protocolCode)) ? ' — Already Submitted to Admin ✓' : ''}
               </option>
             ))}
           </select>
@@ -4259,6 +4327,24 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
             <p style={{ color: '#dc2626', fontSize: '0.85rem', marginTop: '0.5rem' }}>
               No protocol codes found. Please check your assignments.
             </p>
+          )}
+          {secondaryFileData.protocolCode && submittedProtocolCodes.has(normalizeProtocolCode(secondaryFileData.protocolCode)) && (
+            <div style={{
+              marginTop: '0.6rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.65rem 0.9rem',
+              borderRadius: '8px',
+              background: '#fffbeb',
+              border: '1px solid #fde68a',
+              color: '#92400e',
+              fontSize: '0.85rem',
+              fontWeight: 500
+            }}>
+              <span>You already submitted this Protocol Code to the Admin.</span>
+              <span style={{ fontSize: '1rem', lineHeight: 1 }}>✅</span>
+            </div>
           )}
         </div>
 
@@ -5027,14 +5113,7 @@ const SubmittedReviewsContent = () => {
   };
 
   const stats = {
-    total: submittedReviews.length,
-    approved: submittedReviews.filter(r =>
-      r.decision === 'approved_no_revision' ||
-      r.decision === 'approved_minor_revision' ||
-      r.decision === 'approved_major_revision'
-    ).length,
-    revision: submittedReviews.filter(r => r.decision === 'revision').length,
-    rejected: submittedReviews.filter(r => r.decision === 'reject').length
+    total: submittedReviews.length
   };
 
   if (loading) {
@@ -5055,21 +5134,6 @@ const SubmittedReviewsContent = () => {
         <div className="sr-stat-item">
           <span className="sr-stat-number">{stats.total}</span>
           <span className="sr-stat-label">Total</span>
-        </div>
-        <div className="sr-stat-divider"></div>
-        <div className="sr-stat-item sr-stat--approved">
-          <span className="sr-stat-number">{stats.approved}</span>
-          <span className="sr-stat-label">Approved</span>
-        </div>
-        <div className="sr-stat-divider"></div>
-        <div className="sr-stat-item sr-stat--revision">
-          <span className="sr-stat-number">{stats.revision}</span>
-          <span className="sr-stat-label">Revision</span>
-        </div>
-        <div className="sr-stat-divider"></div>
-        <div className="sr-stat-item sr-stat--rejected">
-          <span className="sr-stat-number">{stats.rejected}</span>
-          <span className="sr-stat-label">Rejected</span>
         </div>
       </div>
 
@@ -5156,6 +5220,406 @@ const SubmittedReviewsContent = () => {
   );
 };
 
+
+// ── Reviewer Resubmission Content (mirrors the Researcher Resubmission Portal) ──
+const RESUBMISSION_FILE_LABELS = {
+  proposal: 'Proposal',
+  approvalSheet: 'Approval Sheet',
+  urebForm2: 'UREB Form 2',
+  urebForm10B: 'UREB Form 10B',
+  urebForm11: 'UREB Form 11',
+  applicationForm6: 'Application for Research Ethics Review Form 6',
+  accomplishedForm8: 'Accomplished Form 8',
+  accomplishForm10A: 'Accomplish Form 10 A',
+  copyOfInstrument: 'Copy of Instrument/Tool',
+  ethicsReviewFee: 'Ethics Review Fee (Receipt)',
+  form7: 'Form 7',
+};
+
+const getResubmissionFileLabel = (key) => {
+  if (RESUBMISSION_FILE_LABELS[key]) return RESUBMISSION_FILE_LABELS[key];
+  return String(key || 'Document').replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase());
+};
+
+const ResubmissionContent = ({ userInfo }) => {
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedReviewId, setSelectedReviewId] = useState('');
+  const [formFiles, setFormFiles] = useState({});
+  const [resubmissionReason, setResubmissionReason] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const [viewingFile, setViewingFile] = useState(null);
+
+  useEffect(() => {
+    fetchReviews();
+  }, [userInfo?.email]);
+
+  const fetchReviews = async () => {
+    if (!userInfo?.email) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await getCompletedReviews(userInfo.email);
+      const list = Array.isArray(data) ? data : [];
+      setReviews(list);
+      setSelectedReviewId((prev) => (prev && list.some((r) => String(r._id) === String(prev)) ? prev : (list[0]?._id || '')));
+    } catch (err) {
+      console.error('Error fetching reviews for resubmission:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectedReview = reviews.find((r) => String(r._id) === String(selectedReviewId)) || null;
+  const history = Array.isArray(selectedReview?.resubmissionHistory) ? selectedReview.resubmissionHistory : [];
+  const fileFieldKeys = selectedReview ? Object.keys(selectedReview.files || {}) : [];
+
+  const handleReviewChange = (id) => {
+    setSelectedReviewId(id);
+    setFormFiles({});
+    setResubmissionReason('');
+    setError('');
+  };
+
+  const handleFileChange = (key, file) => {
+    setFormFiles((prev) => ({ ...prev, [key]: file }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedReview) return;
+
+    const hasFiles = Object.values(formFiles).some((f) => f instanceof File);
+    if (!hasFiles) {
+      setError('Please attach at least one updated file before resubmitting.');
+      return;
+    }
+
+    setUploading(true);
+    setError('');
+    try {
+      const result = await resubmitReview(selectedReview._id, {
+        reviewerEmail: userInfo?.email,
+        reviewerName: userInfo?.name,
+        resubmissionReason: resubmissionReason || 'Resubmitted updated review file',
+        files: formFiles,
+      });
+
+      if (result.success) {
+        setFormFiles({});
+        setResubmissionReason('');
+        await fetchReviews();
+      } else {
+        setError(result.error || 'Failed to resubmit review.');
+      }
+    } catch (err) {
+      console.error('Error resubmitting review:', err);
+      setError('Failed to resubmit review. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const UploadIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  );
+
+  const FileIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+    </svg>
+  );
+
+  const DownloadIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+
+  const renderFileInput = (key) => {
+    const existingFile = selectedReview?.files?.[key];
+    const label = getResubmissionFileLabel(key);
+
+    return (
+      <div className="form-group" key={key}>
+        <label htmlFor={`resub-${key}`} className="form-label">{label}</label>
+        {existingFile && !formFiles[key] && (
+          <p className="rs-current-file">
+            Current File: <strong>{existingFile.originalname || existingFile.filename}</strong>
+          </p>
+        )}
+        <div className="rs-upload-area">
+          <input
+            type="file"
+            id={`resub-${key}`}
+            onChange={(e) => handleFileChange(key, e.target.files[0])}
+            accept=".pdf,.doc,.docx,.txt"
+          />
+          <div className="rs-upload-label">
+            <UploadIcon />
+            <p>{formFiles[key] ? formFiles[key].name : 'Click to select replacement file'}</p>
+            <span>PDF, DOC, DOCX, TXT (MAX. 10MB)</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="content-section">
+        <h2>Resubmission</h2>
+        <p>Loading your submitted reviews...</p>
+      </div>
+    );
+  }
+
+  if (reviews.length === 0) {
+    return (
+      <div className="content-section">
+        <div className="rs-empty-state">
+          <div className="rs-empty-icon"><ResubmissionIcon /></div>
+          <h3>No Reviews Available for Resubmission</h3>
+          <p>You haven't submitted any reviews yet. Once you submit a review under "Submit Review", you can manage resubmissions here anytime.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="content-section">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div>
+          <h2 style={{ margin: 0 }}>Resubmission Portal</h2>
+          <p style={{ margin: '0.25rem 0 0 0', color: '#64748b', fontSize: '0.875rem' }}>
+            Resubmit updated review documents to the Admin cleanly.
+          </p>
+        </div>
+      </div>
+
+      <div style={{
+        backgroundColor: '#eff6ff',
+        border: '1px solid #bfdbfe',
+        borderRadius: '8px',
+        padding: '0.9rem 1.25rem',
+        marginBottom: '1.5rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.45rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span style={{ fontSize: '1.1rem' }}>ℹ️</span>
+          <p style={{ margin: 0, fontSize: '0.875rem', color: '#1e40af', fontWeight: '600' }}>
+            Important Resubmission Guidelines:
+          </p>
+        </div>
+        <div style={{ marginLeft: '1.6rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#1e40af', fontWeight: '500' }}>
+            • Select the submitted review you want to update below.
+          </p>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#1e40af', fontWeight: '500' }}>
+            • You may select only the specific files that require resubmission. Unchanged files can be left blank.
+          </p>
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="rs-review-select" className="form-label">Select Submitted Review</label>
+        <select
+          id="rs-review-select"
+          className="rs-review-select"
+          value={selectedReviewId}
+          onChange={(e) => handleReviewChange(e.target.value)}
+        >
+          {reviews.map((r) => (
+            <option key={r._id} value={r._id}>
+              {(r.protocolCode ? `[${r.protocolCode}] ` : '') + (r.proposalTitle || 'Untitled Proposal')}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {selectedReview && (
+        <form className="add-files-form" onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="resubmissionReason" className="form-label">Reason</label>
+            <textarea
+              id="resubmissionReason"
+              value={resubmissionReason}
+              onChange={(e) => setResubmissionReason(e.target.value)}
+              placeholder="State the reason for this resubmission (e.g. corrected review comments, replaced wrong document)"
+              rows={2}
+              style={{ width: '100%', padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.875rem' }}
+            />
+          </div>
+
+          {fileFieldKeys.length > 0 ? (
+            fileFieldKeys.map((key) => renderFileInput(key))
+          ) : (
+            renderFileInput('resubmissionFile')
+          )}
+
+          {error && <div className="rs-banner rs-banner--error">{error}</div>}
+
+          <div className="form-actions" style={{ marginTop: '1.5rem' }}>
+            <button
+              type="submit"
+              className="btn-primary"
+              style={{ backgroundColor: '#7c3aed', color: '#fff' }}
+              disabled={uploading}
+            >
+              {uploading ? 'Resubmitting...' : 'Resubmit'}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setFormFiles({});
+                setResubmissionReason('');
+                setError('');
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        </form>
+      )}
+
+      <div className="resub-history-container">
+        <div className="resub-history-header">
+          <div className="resub-history-title-group">
+            <h3 className="resub-history-title">Resubmission History Log</h3>
+            <span className="resub-history-count-badge">
+              {history.length} {history.length === 1 ? 'Entry' : 'Entries'}
+            </span>
+          </div>
+        </div>
+
+        {history.length === 0 ? (
+          <div className="resub-empty-state">
+            <p style={{ margin: 0, fontWeight: '600', color: '#475569' }}>No resubmission history logged yet for this review.</p>
+            <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.825rem', color: '#94a3b8' }}>
+              When you resubmit updated documents above, your submission history log and uploaded files table will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="resub-history-table-wrapper">
+            <table className="resub-history-table">
+              <thead>
+                <tr>
+                  <th>Round / Version</th>
+                  <th>Date &amp; Time</th>
+                  <th>Reason / Remarks</th>
+                  <th>Uploaded Documents</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((h, i) => {
+                  const itemFiles = Object.entries(h.files || {}).map(([key, f]) => ({
+                    key,
+                    label: getResubmissionFileLabel(key),
+                    filename: f.filename,
+                    originalname: f.originalname || f.filename,
+                  }));
+                  return (
+                    <tr key={i}>
+                      <td>
+                        <span className="resub-badge resub-badge--purple">
+                          {h.label || (h.resubmissionNumber ? `Resubmission ${h.resubmissionNumber}` : `Resubmission ${i + 1}`)}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '0.8rem', color: '#475569', whiteSpace: 'nowrap' }}>
+                          {h.date ? new Date(h.date).toLocaleString() : 'N/A'}
+                        </span>
+                      </td>
+                      <td style={{ maxWidth: '240px' }}>
+                        <span style={{ fontSize: '0.825rem', color: '#334155', display: 'block', wordBreak: 'break-word' }}>
+                          {h.reason || 'Updated review file resubmitted'}
+                        </span>
+                      </td>
+                      <td>
+                        {itemFiles.length === 0 ? (
+                          <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                            No specific file records attached
+                          </span>
+                        ) : (
+                          <div className="resub-file-list">
+                            {itemFiles.map((file, fIdx) => (
+                              <div key={fIdx} className="resub-file-item">
+                                <div className="resub-file-info">
+                                  <div className="resub-file-icon">
+                                    <FileIcon />
+                                  </div>
+                                  <div className="resub-file-details">
+                                    <span className="resub-file-label">{file.label}</span>
+                                    <span className="resub-file-name" title={file.originalname}>
+                                      {file.originalname}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="resub-file-actions">
+                                  {file.filename && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        className="resub-action-btn resub-action-btn--view"
+                                        title="View Document"
+                                        onClick={() => setViewingFile({ filename: file.filename, originalname: file.originalname })}
+                                      >
+                                        <EyeIcon /> View
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="resub-action-btn resub-action-btn--download"
+                                        title="Download Document"
+                                        onClick={() => downloadReviewerFile(file.filename, file.originalname || file.filename)}
+                                      >
+                                        <DownloadIcon /> Download
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <span className="resub-badge resub-badge--green">
+                          ✓ Sent to Admin
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {viewingFile && (
+        <FileViewerModal
+          viewingFile={viewingFile}
+          onClose={() => setViewingFile(null)}
+          onDownload={() => downloadReviewerFile(viewingFile.filename, viewingFile.originalname || viewingFile.filename)}
+        />
+      )}
+    </div>
+  );
+};
 
 const FileTemplatesContent = () => {
   const [viewingFile, setViewingFile] = useState(null);

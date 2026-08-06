@@ -3206,6 +3206,127 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
   }
 });
 
+// Reviewer resubmits an updated review file to Admin
+app.post('/api/reviews/:id/resubmit', upload.any(), async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, error: 'Invalid review ID' });
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, error: 'Please attach at least one updated file' });
+    }
+
+    const db = getDatabase();
+    const reviews = db.collection(collections.reviews);
+    const proposals = db.collection(collections.proposals);
+    const messages = db.collection(collections.messages);
+    const notifications = db.collection(collections.notifications);
+
+    const existingReview = await reviews.findOne({ _id: new ObjectId(id) });
+    if (!existingReview) {
+      return res.status(404).json({ success: false, error: 'Review not found' });
+    }
+
+    const { resubmissionReason, reviewerEmail, reviewerName } = req.body;
+
+    // Upload updated files to GridFS
+    const newFiles = {};
+    for (const file of req.files) {
+      try {
+        const gfsFilename = await uploadToGridFS(file);
+        newFiles[file.fieldname] = {
+          filename: gfsFilename,
+          originalname: file.originalname,
+          size: file.size,
+          mimetype: file.mimetype
+        };
+      } catch (fileError) {
+        console.error('Error uploading resubmission file to GridFS:', fileError);
+      }
+    }
+
+    const prevCount = typeof existingReview.resubmissionCount === 'number' ? existingReview.resubmissionCount : 0;
+    const nextCount = prevCount + 1;
+    const resubLabel = `Resubmission ${nextCount}`;
+
+    const historyEntry = {
+      resubmissionNumber: nextCount,
+      label: resubLabel,
+      reason: resubmissionReason || 'Updated review file resubmitted',
+      files: newFiles,
+      date: new Date()
+    };
+
+    const existingHistory = Array.isArray(existingReview.resubmissionHistory) ? existingReview.resubmissionHistory : [];
+
+    await reviews.updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          files: { ...existingReview.files, ...newFiles },
+          resubmissionCount: nextCount,
+          resubmissionLabel: resubLabel,
+          resubmissionHistory: [...existingHistory, historyEntry],
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    // Resolve proposal details for messaging/notification context
+    let proposalTitle = existingReview.proposalTitle || 'Untitled Proposal';
+    let protocolCode = existingReview.protocolCode || '';
+    try {
+      const proposal = await proposals.findOne({ _id: new ObjectId(existingReview.proposalId) });
+      if (proposal) {
+        proposalTitle = proposal.researchTitle || proposalTitle;
+        protocolCode = proposal.protocolCode || protocolCode;
+      }
+    } catch (e) { /* ignore */ }
+
+    const senderEmail = reviewerEmail || existingReview.reviewerEmail;
+    const senderName = reviewerName || existingReview.reviewerName || senderEmail;
+
+    // Notify admin that an updated review file came in
+    await messages.insertOne({
+      senderEmail,
+      recipientEmail: process.env.GMAIL_EMAIL || 'admin',
+      subject: `Review Resubmitted (${resubLabel}): ${protocolCode ? 'Protocol ' + protocolCode : proposalTitle}`,
+      message: `${senderName} resubmitted review file(s) for "${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle}". Reason: ${resubmissionReason || 'Updated review file'}`,
+      senderName,
+      type: 'reviewer_to_admin',
+      reviewId: id,
+      proposalId: existingReview.proposalId,
+      reviewerEmail: senderEmail,
+      submissionType: 'resubmission',
+      resubmissionLabel: resubLabel,
+      files: newFiles,
+      read: false,
+      createdAt: new Date()
+    });
+
+    // Confirmation notification for the reviewer
+    await notifications.insertOne({
+      type: 'review_resubmitted',
+      title: `${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle}`,
+      message: `Your ${resubLabel.toLowerCase()} for ${protocolCode ? 'Protocol Code: ' + protocolCode : proposalTitle} has been sent to the Admin.`,
+      reviewId: id,
+      proposalId: existingReview.proposalId,
+      reviewerEmail: senderEmail,
+      recipientEmail: senderEmail,
+      read: false,
+      createdAt: new Date()
+    });
+
+    const updatedReview = await reviews.findOne({ _id: new ObjectId(id) });
+    res.json({ success: true, review: updatedReview });
+  } catch (error) {
+    console.error('Error resubmitting review:', error);
+    res.status(500).json({ success: false, error: 'Server error: ' + error.message });
+  }
+});
+
 // Get all completed reviews (for admin)
 app.get('/api/reviews/all', async (req, res) => {
   try {
