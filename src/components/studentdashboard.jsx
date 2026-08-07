@@ -1292,10 +1292,11 @@ function DashboardContent({ userInfo, onTabChange }) {
 
       try {
         // Fetch real data from APIs
-        const [proposalsResponse, reviewsResponse, notificationsResponse] = await Promise.all([
+        const [proposalsResponse, reviewsResponse, notificationsResponse, hiddenResponse] = await Promise.all([
           fetch(`${API_BASE_URL}/proposals/student/${encodeURIComponent(userInfo.email)}`),
           fetch(`${API_BASE_URL}/reviews/student/${encodeURIComponent(userInfo.email)}`),
-          fetch(`${API_BASE_URL}/messages/${encodeURIComponent(userInfo.email)}`)
+          fetch(`${API_BASE_URL}/notifications/${encodeURIComponent(userInfo.email)}`),
+          fetch(`${API_BASE_URL}/user-hidden-items/${encodeURIComponent(userInfo.email)}`).catch(() => null)
         ]);
 
         // Check responses are OK before parsing
@@ -1307,6 +1308,17 @@ function DashboardContent({ userInfo, onTabChange }) {
         const reviewsData = await reviewsResponse.json();
         const notificationsData = await notificationsResponse.json();
 
+        let dbHiddenIds = [];
+        if (hiddenResponse && hiddenResponse.ok) {
+          try {
+            const hiddenData = await hiddenResponse.json();
+            if (hiddenData && Array.isArray(hiddenData.hiddenIds)) {
+              dbHiddenIds = hiddenData.hiddenIds.map(String);
+            }
+          } catch {}
+        }
+        const hiddenNotifIds = Array.from(new Set([...getHiddenNotifIds(), ...dbHiddenIds]));
+
         const deletedIds = getDeletedProposalIds();
         const activeProposals = proposalsData.filter(p => !deletedIds.includes(String(p._id)));
         const originalProposals = activeProposals.filter(p => !p.isResubmissionProposal && p.submissionType !== 'resubmission');
@@ -1317,7 +1329,24 @@ function DashboardContent({ userInfo, onTabChange }) {
           return s === 'under review';
         }).length;
         const completedProposals = originalProposals.filter(proposal => (proposal.status || '').toLowerCase() === 'completed').length;
-        const notificationsCount = notificationsData.filter(msg => msg.type === 'admin_to_student').length;
+
+        // Mirror the same filtering the Notifications sidebar uses (DB notifications + expiration
+        // warnings, minus anything the user has hidden/deleted) so the stat card matches the list.
+        const dbNotifCount = Array.isArray(notificationsData)
+          ? notificationsData.filter(n => !hiddenNotifIds.includes(String(n._id))).length
+          : 0;
+        const expirationCount = proposalsData.filter((proposal) => {
+          const status = (proposal.status || 'Pending').toLowerCase();
+          if (status === 'approved') return false;
+          const expId = `exp-${proposal._id}`;
+          if (hiddenNotifIds.includes(expId)) return false;
+          const submittedDate = new Date(proposal.createdAt || proposal.uploadDate || Date.now());
+          const deadlineDate = new Date(submittedDate);
+          deadlineDate.setFullYear(deadlineDate.getFullYear() + 1);
+          const daysRemaining = Math.ceil((deadlineDate - new Date()) / (1000 * 3600 * 24));
+          return daysRemaining <= 14;
+        }).length;
+        const notificationsCount = dbNotifCount + expirationCount;
 
         setStats({
           totalProposals: originalProposals.length,
@@ -3690,14 +3719,6 @@ function MessagesContent({ userInfo, onMessageRead }) {
                       Read
                     </button>
                   )}
-                  <button
-                    className="sm-action-btn sm-reply-btn"
-                    onClick={() => handleReply(msg)}
-                    title="Reply to message"
-                  >
-                    <ReplyIcon />
-                    Reply
-                  </button>
                   <button
                     className="sm-action-btn sm-trash-btn"
                     onClick={() => openDeleteModal(msg._id)}

@@ -281,6 +281,68 @@ const deduplicateAssignments = (rawList) => {
   return Array.from(uniqueMap.values());
 };
 
+// Stale-while-revalidate cache: lets tabs that share the same underlying data
+// (Assigned Proposals / Submit Review) show cached results instantly when switching
+// back and forth, instead of re-showing a full "Loading..." state on every mount,
+// while still refreshing the data silently in the background.
+const createSwrCache = (fetcher) => {
+  const cache = new Map();
+  return {
+    get: (key) => cache.get(key),
+    has: (key) => cache.has(key),
+    set: (key, value) => cache.set(key, value),
+    async load(key, { onBackgroundUpdate } = {}) {
+      const hasCached = cache.has(key);
+      const cached = cache.get(key);
+      if (hasCached) {
+        fetcher(key).then((fresh) => {
+          cache.set(key, fresh);
+          if (onBackgroundUpdate) onBackgroundUpdate(fresh);
+        }).catch(() => {});
+        return { data: cached, fromCache: true };
+      }
+      const fresh = await fetcher(key);
+      cache.set(key, fresh);
+      return { data: fresh, fromCache: false };
+    }
+  };
+};
+
+const reviewerAssignmentsSwr = createSwrCache((email) => getReviewerAssignments(email));
+const reviewerCompletedReviewsSwr = createSwrCache(async (email) => {
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reviews/completed/${encodeURIComponent(email)}`);
+  return response.json();
+});
+const reviewerMessagesSwr = createSwrCache((email) => getMessagesByUser(email));
+const reviewerProfileSwr = createSwrCache((email) => getReviewerProfile(email));
+const reviewerReviewsSwr = createSwrCache((email) => getReviewsByReviewer(email));
+const reviewerDbNotificationsSwr = createSwrCache((email) => getUserNotifications(email));
+const reviewerHiddenItemsSwr = createSwrCache(async (email) => {
+  const API_URL = import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL.replace(/\/$/, '') + '/api'
+    : '/api';
+  const res = await fetch(`${API_URL}/user-hidden-items/${encodeURIComponent(email)}`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data?.hiddenIds) ? data.hiddenIds.map(String) : [];
+});
+
+// Keeps the notification caches in sync immediately after a delete so a cached
+// re-render (switching tabs away and back) doesn't briefly resurrect items the
+// user just removed, before the background refresh has a chance to catch up.
+const markNotificationsHiddenInCache = (email, ids) => {
+  if (!email) return;
+  const idSet = new Set(ids.map(String));
+
+  const cachedHidden = reviewerHiddenItemsSwr.get(email) || [];
+  reviewerHiddenItemsSwr.set(email, Array.from(new Set([...cachedHidden, ...idSet])));
+
+  const cachedRaw = reviewerDbNotificationsSwr.get(email);
+  if (Array.isArray(cachedRaw)) {
+    reviewerDbNotificationsSwr.set(email, cachedRaw.filter(n => !idSet.has(String(n._id))));
+  }
+};
+
 // Helper to get full URL for profile pictures
 const getProfilePicUrl = (path) => {
   if (!path) return null;
@@ -791,80 +853,98 @@ const ReviewerNotificationsContent = ({ userInfo, onNotifDeleted }) => {
     ? import.meta.env.VITE_API_URL.replace(/\/$/, '') + '/api'
     : '/api';
 
+  const buildNotifs = (dbNotifs, hiddenIds, assignments) => {
+    const safeDbNotifs = Array.isArray(dbNotifs) ? dbNotifs : [];
+    const safeAssignments = Array.isArray(assignments) ? assignments : [];
+
+    const notifs = safeDbNotifs
+      .filter(n => !hiddenIds.includes(String(n._id)))
+      .map(n => ({
+        id: String(n._id),   // Always store as string to avoid ObjectId comparison bugs
+        type: n.type === 'review_deadline' ? 'warning' : (n.type === 'assignment' ? 'info' : (n.type || 'info')),
+        title: n.title,
+        message: n.message,
+        time: new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        read: n.read,
+        isDbNotif: true,
+        _raw: n
+      }));
+
+    // Also check for expiring proposals (1-year validity)
+    const today = new Date();
+
+    safeAssignments.forEach((proposal) => {
+      const submittedDate = new Date(proposal.submissionDate || proposal.createdAt || Date.now());
+      const deadlineDate = new Date(submittedDate);
+      deadlineDate.setFullYear(deadlineDate.getFullYear() + 1);
+      const daysRemaining = Math.ceil((deadlineDate - today) / (1000 * 3600 * 24));
+      const expId = `exp-${proposal._id}`;
+
+      if (hiddenIds.includes(expId)) return; // Hidden by user
+
+      if (daysRemaining <= 14 && daysRemaining > 0) {
+        // Avoid duplicate if DB notification already covers this
+        const exists = notifs.some(n => n._raw?.proposalId?.toString() === (proposal.proposalId?.toString?.() || proposal.proposalId));
+        if (!exists) {
+          notifs.push({
+            id: expId,
+            type: 'warning',
+            title: 'Proposal Expiring Soon',
+            message: `"${proposal.researchTitle || 'Untitled'}" is expiring in ${daysRemaining} day(s). The 1-year review period ends on ${deadlineDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`,
+            time: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            read: false,
+            isDbNotif: false,
+          });
+        }
+      } else if (daysRemaining <= 0) {
+        const exists = notifs.some(n => n._raw?.proposalId?.toString() === (proposal.proposalId?.toString?.() || proposal.proposalId));
+        if (!exists) {
+          notifs.push({
+            id: expId,
+            type: 'danger',
+            title: 'Proposal Expired',
+            message: `"${proposal.researchTitle || 'Untitled'}" has exceeded the 1-year review validity period (expired ${deadlineDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}).`,
+            time: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            read: false,
+            isDbNotif: false,
+          });
+        }
+      }
+    });
+
+    setNotifications(notifs);
+  };
+
   useEffect(() => {
     const fetchNotifications = async () => {
       if (!userInfo?.email) return;
+      const email = userInfo.email;
+
+      // These three sources are each cached, so a repeat visit to this tab (or a switch
+      // from Dashboard/Assigned Proposals, which share the assignments cache) can render
+      // immediately instead of showing "Loading notifications..." again.
+      const allCached = reviewerDbNotificationsSwr.has(email)
+        && reviewerHiddenItemsSwr.has(email)
+        && reviewerAssignmentsSwr.has(email);
+
+      if (allCached) {
+        buildNotifs(
+          reviewerDbNotificationsSwr.get(email),
+          reviewerHiddenItemsSwr.get(email),
+          reviewerAssignmentsSwr.get(email)
+        );
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+
       try {
-        // Fetch DB notifications (including deadline notifications)
-        const dbNotifs = await getUserNotifications(userInfo.email);
-
-        // Fetch user-hidden-items from DB for cross-device persistence
-        let hiddenIds = [];
-        try {
-          const hiddenRes = await fetch(`${API_URL}/user-hidden-items/${encodeURIComponent(userInfo.email)}`);
-          if (hiddenRes.ok) {
-            const hiddenData = await hiddenRes.json();
-            if (Array.isArray(hiddenData.hiddenIds)) hiddenIds = hiddenData.hiddenIds.map(String);
-          }
-        } catch { /* non-fatal */ }
-
-        const notifs = dbNotifs
-          .filter(n => !hiddenIds.includes(String(n._id)))
-          .map(n => ({
-            id: String(n._id),   // Always store as string to avoid ObjectId comparison bugs
-            type: n.type === 'review_deadline' ? 'warning' : (n.type === 'assignment' ? 'info' : (n.type || 'info')),
-            title: n.title,
-            message: n.message,
-            time: new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-            read: n.read,
-            isDbNotif: true,
-            _raw: n
-          }));
-
-        // Also check for expiring proposals (1-year validity)
-        const assignments = await getReviewerAssignments(userInfo.email);
-        const today = new Date();
-
-        assignments.forEach((proposal) => {
-          const submittedDate = new Date(proposal.submissionDate || proposal.createdAt || Date.now());
-          const deadlineDate = new Date(submittedDate);
-          deadlineDate.setFullYear(deadlineDate.getFullYear() + 1);
-          const daysRemaining = Math.ceil((deadlineDate - today) / (1000 * 3600 * 24));
-          const expId = `exp-${proposal._id}`;
-
-          if (hiddenIds.includes(expId)) return; // Hidden by user
-
-          if (daysRemaining <= 14 && daysRemaining > 0) {
-            // Avoid duplicate if DB notification already covers this
-            const exists = notifs.some(n => n._raw?.proposalId?.toString() === (proposal.proposalId?.toString?.() || proposal.proposalId));
-            if (!exists) {
-              notifs.push({
-                id: expId,
-                type: 'warning',
-                title: 'Proposal Expiring Soon',
-                message: `"${proposal.researchTitle || 'Untitled'}" is expiring in ${daysRemaining} day(s). The 1-year review period ends on ${deadlineDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`,
-                time: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                read: false,
-                isDbNotif: false,
-              });
-            }
-          } else if (daysRemaining <= 0) {
-            const exists = notifs.some(n => n._raw?.proposalId?.toString() === (proposal.proposalId?.toString?.() || proposal.proposalId));
-            if (!exists) {
-              notifs.push({
-                id: expId,
-                type: 'danger',
-                title: 'Proposal Expired',
-                message: `"${proposal.researchTitle || 'Untitled'}" has exceeded the 1-year review validity period (expired ${deadlineDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}).`,
-                time: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                read: false,
-                isDbNotif: false,
-              });
-            }
-          }
-        });
-
-        setNotifications(notifs);
+        const [dbResult, hiddenResult, assignResult] = await Promise.all([
+          reviewerDbNotificationsSwr.load(email),
+          reviewerHiddenItemsSwr.load(email),
+          reviewerAssignmentsSwr.load(email)
+        ]);
+        buildNotifs(dbResult.data, hiddenResult.data, assignResult.data);
       } catch (err) {
         console.error('Error loading reviewer notifications:', err);
       } finally {
@@ -882,6 +962,11 @@ const ReviewerNotificationsContent = ({ userInfo, onNotifDeleted }) => {
         await markNotificationAsRead(idStr);
       }
       setNotifications((prev) => prev.map((n) => String(n.id) === idStr ? { ...n, read: true } : n));
+
+      const cachedRaw = reviewerDbNotificationsSwr.get(userInfo?.email);
+      if (Array.isArray(cachedRaw)) {
+        reviewerDbNotificationsSwr.set(userInfo.email, cachedRaw.map(n => String(n._id) === idStr ? { ...n, read: true } : n));
+      }
     } catch (err) {
       console.error('Error marking notification as read:', err);
     }
@@ -913,6 +998,7 @@ const ReviewerNotificationsContent = ({ userInfo, onNotifDeleted }) => {
 
       await Promise.all(deletePromises);
       setNotifications((prev) => prev.filter((n) => String(n.id) !== idStr));
+      markNotificationsHiddenInCache(userInfo?.email, [idStr]);
       if (onNotifDeleted) onNotifDeleted(); // Refresh sidebar badge count
     } catch (err) {
       console.error('Error deleting notification:', err);
@@ -951,6 +1037,7 @@ const ReviewerNotificationsContent = ({ userInfo, onNotifDeleted }) => {
 
       await Promise.all(deletePromises);
       setNotifications([]);
+      markNotificationsHiddenInCache(userInfo?.email, toDelete.map(n => String(n.id)));
       if (onNotifDeleted) onNotifDeleted(); // Refresh sidebar badge count
     } catch (err) {
       console.error('Error deleting all notifications:', err);
@@ -1676,70 +1763,70 @@ const DashboardContent = () => {
 
 
 
-  const fetchDashboardData = async (userEmail) => {
+  const applyDashboardData = (assignments, reviews, messages, reviewerProfile) => {
+    const deletedIds = getDeletedAssignmentIds();
+    const uniqueAssignments = deduplicateAssignments(assignments);
+    const activeAssignments = uniqueAssignments.filter(a => !deletedIds.includes(String(a._id)));
 
+    const pendingReviewsCount = reviews.filter(r => r.status === 'pending').length;
+    const pendingAssignmentsCount = activeAssignments.filter(a => {
+      const s = (a.status || '').toLowerCase();
+      return !s || s === 'pending';
+    }).length;
+
+    // If admin has marked this reviewer as completed, count all their assignments as done
+    const isMarkedComplete = (reviewerProfile?.status || '').toLowerCase() === 'completed';
+    const completedReviews = isMarkedComplete
+      ? activeAssignments.length
+      : activeAssignments.filter(a => isAssignmentCompleted(a.status)).length;
+
+    const unreadMessages = messages.filter(m => !m.read).length;
+
+    const activities = generateRecentActivity(activeAssignments, reviews, messages);
+
+    setStats({
+      assignedProposals: activeAssignments.length,
+      pendingReviews: pendingReviewsCount + pendingAssignmentsCount,
+      completedReviews,
+      unreadMessages
+    });
+    setRecentActivity(activities);
+  };
+
+  const fetchDashboardData = async (userEmail) => {
     if (!userEmail) return;
 
-    setLoading(true);
+    // Assignments/reviews/messages/profile are each cached, so if we've already loaded
+    // them once this session (e.g. visited Assigned Proposals or came back to Dashboard)
+    // render instantly instead of showing "Loading..." again while refreshing quietly.
+    const allCached = reviewerAssignmentsSwr.has(userEmail)
+      && reviewerReviewsSwr.has(userEmail)
+      && reviewerMessagesSwr.has(userEmail)
+      && reviewerProfileSwr.has(userEmail);
+
+    if (allCached) {
+      applyDashboardData(
+        reviewerAssignmentsSwr.get(userEmail),
+        reviewerReviewsSwr.get(userEmail),
+        reviewerMessagesSwr.get(userEmail),
+        reviewerProfileSwr.get(userEmail)
+      );
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
 
     try {
-
-      const [assignments, reviews, messages, reviewerProfile] = await Promise.all([
-
-        getReviewerAssignments(userEmail),
-
-        getReviewsByReviewer(userEmail),
-
-        getMessagesByUser(userEmail),
-
-        getReviewerProfile(userEmail)
-
+      const [assignmentsResult, reviewsResult, messagesResult, profileResult] = await Promise.all([
+        reviewerAssignmentsSwr.load(userEmail),
+        reviewerReviewsSwr.load(userEmail),
+        reviewerMessagesSwr.load(userEmail),
+        reviewerProfileSwr.load(userEmail)
       ]);
 
-
-
-      const deletedIds = getDeletedAssignmentIds();
-      const uniqueAssignments = deduplicateAssignments(assignments);
-      const activeAssignments = uniqueAssignments.filter(a => !deletedIds.includes(String(a._id)));
-
-      const pendingReviewsCount = reviews.filter(r => r.status === 'pending').length;
-      const pendingAssignmentsCount = activeAssignments.filter(a => {
-        const s = (a.status || '').toLowerCase();
-        return !s || s === 'pending';
-      }).length;
-
-      // If admin has marked this reviewer as completed, count all their assignments as done
-      const isMarkedComplete = (reviewerProfile?.status || '').toLowerCase() === 'completed';
-      const completedReviews = isMarkedComplete
-        ? activeAssignments.length
-        : activeAssignments.filter(a => isAssignmentCompleted(a.status)).length;
-
-      const unreadMessages = messages.filter(m => !m.read).length;
-
-
-
-      const activities = generateRecentActivity(activeAssignments, reviews, messages);
-
-
-
-      setStats({
-
-        assignedProposals: activeAssignments.length,
-
-        pendingReviews: pendingReviewsCount + pendingAssignmentsCount,
-
-        completedReviews,
-
-        unreadMessages
-
-      });
-
-      setRecentActivity(activities);
-
+      applyDashboardData(assignmentsResult.data, reviewsResult.data, messagesResult.data, profileResult.data);
     } catch (error) {
-
       console.error('Error fetching dashboard data:', error);
-
     } finally {
       setLoading(false);
     }
@@ -2367,15 +2454,17 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
 
   const fetchSubmittedProtocolCodes = async (userEmail) => {
     if (!userEmail) return;
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reviews/completed/${encodeURIComponent(userEmail)}`);
-      const data = await response.json();
+    const applyCodes = (data) => {
       const codes = new Set(
         (Array.isArray(data) ? data : [])
           .map((r) => normalizeProtocolCode(r.protocolCode))
           .filter(Boolean)
       );
       setSubmittedProtocolCodes(codes);
+    };
+    try {
+      const { data } = await reviewerCompletedReviewsSwr.load(userEmail, { onBackgroundUpdate: applyCodes });
+      applyCodes(data);
     } catch (error) {
       console.error('Error fetching submitted protocol codes:', error);
     }
@@ -2402,9 +2491,8 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
 
   const fetchAssignments = async (userEmail) => {
     if (!userEmail) return;
-    setLoading(true);
-    try {
-      const data = await getReviewerAssignments(userEmail);
+
+    const applyData = (data) => {
       const deletedIds = getDeletedAssignmentIds();
       const rawList = (Array.isArray(data) ? data : []).filter(a => !deletedIds.includes(String(a._id)));
 
@@ -2418,6 +2506,22 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
         return new Date(b.createdAt || b.updatedAt || 0) - new Date(a.createdAt || a.updatedAt || 0);
       });
       setAssignments(active);
+    };
+
+    // Show cached data instantly (if we have it from a prior visit to this tab or
+    // Submit Review, which shares the same assignments data) instead of blanking
+    // the screen with a loading spinner every time the tab is switched to.
+    const cached = reviewerAssignmentsSwr.get(userEmail);
+    if (cached) {
+      applyData(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      const { data } = await reviewerAssignmentsSwr.load(userEmail, { onBackgroundUpdate: applyData });
+      applyData(data);
     } catch (error) {
       console.error('Error fetching assignments:', error);
     } finally {
@@ -3937,15 +4041,17 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
 
   const fetchSubmittedProtocolCodes = async (userEmail) => {
     if (!userEmail) return;
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reviews/completed/${encodeURIComponent(userEmail)}`);
-      const data = await response.json();
+    const applyCodes = (data) => {
       const codes = new Set(
         (Array.isArray(data) ? data : [])
           .map((r) => normalizeProtocolCode(r.protocolCode))
           .filter(Boolean)
       );
       setSubmittedProtocolCodes(codes);
+    };
+    try {
+      const { data } = await reviewerCompletedReviewsSwr.load(userEmail, { onBackgroundUpdate: applyCodes });
+      applyCodes(data);
     } catch (error) {
       console.error('Error fetching submitted protocol codes:', error);
     }
@@ -3953,9 +4059,8 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
 
   const fetchProposals = async (userEmail) => {
     if (!userEmail) return;
-    setLoading(true);
-    try {
-      const assignments = await getReviewerAssignments(userEmail);
+
+    const applyData = (assignments) => {
       const safeAssignments = Array.isArray(assignments) ? assignments : [];
       const mappedProposals = safeAssignments
         // Secondary submission should only show admin/secondary assignments that have protocol codes
@@ -3979,6 +4084,21 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
       });
 
       setProposals(Array.from(byProtocol.values()));
+    };
+
+    // Assigned Proposals and Submit Review both read from the same assignments data,
+    // so reuse whatever's cached instead of showing "Loading proposals..." on every switch.
+    const cached = reviewerAssignmentsSwr.get(userEmail);
+    if (cached) {
+      applyData(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      const { data } = await reviewerAssignmentsSwr.load(userEmail, { onBackgroundUpdate: applyData });
+      applyData(data);
     } catch (error) {
       console.error('Error fetching assignments:', error);
     } finally {
@@ -5248,8 +5368,8 @@ const ResubmissionContent = ({ userInfo }) => {
   const [formFiles, setFormFiles] = useState({});
   const [resubmissionReason, setResubmissionReason] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
   const [viewingFile, setViewingFile] = useState(null);
+  const [feedbackModal, setFeedbackModal] = useState(null); // { type: 'success' | 'error', message }
 
   useEffect(() => {
     fetchReviews();
@@ -5273,15 +5393,36 @@ const ResubmissionContent = ({ userInfo }) => {
     }
   };
 
+  const normalizeProtocolCode = (code) => String(code || '').toUpperCase().replace(/\s+/g, '');
+
   const selectedReview = reviews.find((r) => String(r._id) === String(selectedReviewId)) || null;
-  const history = Array.isArray(selectedReview?.resubmissionHistory) ? selectedReview.resubmissionHistory : [];
-  const fileFieldKeys = selectedReview ? Object.keys(selectedReview.files || {}) : [];
+
+  // A reviewer may submit a proposal review and later submit additional/secondary
+  // files (e.g. via "Add Another File") as their own separate record. Gather every
+  // record that shares the same Protocol Code so all of their files show up together.
+  const groupKeyFor = (r) => (r?.protocolCode ? normalizeProtocolCode(r.protocolCode) : `id-${r?._id}`);
+  const groupRecords = selectedReview
+    ? reviews.filter((r) => groupKeyFor(r) === groupKeyFor(selectedReview))
+    : [];
+
+  const history = groupRecords
+    .flatMap((r) => (Array.isArray(r.resubmissionHistory) ? r.resubmissionHistory : []))
+    .sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+
+  // Map each file field key to its file info + the specific record that owns it,
+  // so a resubmitted replacement is written back to the correct original record.
+  const fileKeyOwners = {};
+  groupRecords.forEach((r) => {
+    Object.entries(r.files || {}).forEach(([key, fileInfo]) => {
+      fileKeyOwners[key] = { file: fileInfo, reviewId: r._id };
+    });
+  });
+  const fileFieldKeys = Object.keys(fileKeyOwners);
 
   const handleReviewChange = (id) => {
     setSelectedReviewId(id);
     setFormFiles({});
     setResubmissionReason('');
-    setError('');
   };
 
   const handleFileChange = (key, file) => {
@@ -5292,32 +5433,47 @@ const ResubmissionContent = ({ userInfo }) => {
     e.preventDefault();
     if (!selectedReview) return;
 
-    const hasFiles = Object.values(formFiles).some((f) => f instanceof File);
-    if (!hasFiles) {
-      setError('Please attach at least one updated file before resubmitting.');
+    const changedEntries = Object.entries(formFiles).filter(([, f]) => f instanceof File);
+    if (changedEntries.length === 0) {
+      setFeedbackModal({ type: 'error', message: 'Please attach at least one updated file before resubmitting.' });
       return;
     }
 
     setUploading(true);
-    setError('');
     try {
-      const result = await resubmitReview(selectedReview._id, {
-        reviewerEmail: userInfo?.email,
-        reviewerName: userInfo?.name,
-        resubmissionReason: resubmissionReason || 'Resubmitted updated review file',
-        files: formFiles,
+      // Files shown together for this Protocol Code may originally belong to different
+      // underlying records (e.g. a later "Add Another File" secondary submission), so
+      // send each file back to the specific record that actually owns that slot.
+      const filesByReviewId = new Map();
+      changedEntries.forEach(([key, file]) => {
+        const ownerId = String(fileKeyOwners[key]?.reviewId || selectedReview._id);
+        if (!filesByReviewId.has(ownerId)) filesByReviewId.set(ownerId, {});
+        filesByReviewId.get(ownerId)[key] = file;
       });
 
-      if (result.success) {
+      const results = await Promise.all(
+        Array.from(filesByReviewId.entries()).map(([reviewId, files]) =>
+          resubmitReview(reviewId, {
+            reviewerEmail: userInfo?.email,
+            reviewerName: userInfo?.name,
+            resubmissionReason: resubmissionReason || 'Resubmitted updated review file',
+            files,
+          })
+        )
+      );
+      const failed = results.find((r) => !r.success);
+
+      if (!failed) {
         setFormFiles({});
         setResubmissionReason('');
         await fetchReviews();
+        setFeedbackModal({ type: 'success', message: 'Your updated review has been resubmitted to the Admin.' });
       } else {
-        setError(result.error || 'Failed to resubmit review.');
+        setFeedbackModal({ type: 'error', message: failed.error || 'Failed to resubmit review.' });
       }
     } catch (err) {
       console.error('Error resubmitting review:', err);
-      setError('Failed to resubmit review. Please try again.');
+      setFeedbackModal({ type: 'error', message: 'Failed to resubmit review. Please try again.' });
     } finally {
       setUploading(false);
     }
@@ -5347,7 +5503,7 @@ const ResubmissionContent = ({ userInfo }) => {
   );
 
   const renderFileInput = (key) => {
-    const existingFile = selectedReview?.files?.[key];
+    const existingFile = fileKeyOwners[key]?.file;
     const label = getResubmissionFileLabel(key);
 
     return (
@@ -5441,11 +5597,13 @@ const ResubmissionContent = ({ userInfo }) => {
           value={selectedReviewId}
           onChange={(e) => handleReviewChange(e.target.value)}
         >
-          {reviews.map((r) => (
-            <option key={r._id} value={r._id}>
-              {(r.protocolCode ? `[${r.protocolCode}] ` : '') + (r.proposalTitle || 'Untitled Proposal')}
-            </option>
-          ))}
+          {reviews
+            .filter((r, index) => index === reviews.findIndex((other) => groupKeyFor(other) === groupKeyFor(r)))
+            .map((r) => (
+              <option key={r._id} value={r._id}>
+                {(r.protocolCode ? `[${r.protocolCode}] ` : '') + (r.proposalTitle || 'Untitled Proposal')}
+              </option>
+            ))}
         </select>
       </div>
 
@@ -5469,8 +5627,6 @@ const ResubmissionContent = ({ userInfo }) => {
             renderFileInput('resubmissionFile')
           )}
 
-          {error && <div className="rs-banner rs-banner--error">{error}</div>}
-
           <div className="form-actions" style={{ marginTop: '1.5rem' }}>
             <button
               type="submit"
@@ -5486,7 +5642,6 @@ const ResubmissionContent = ({ userInfo }) => {
               onClick={() => {
                 setFormFiles({});
                 setResubmissionReason('');
-                setError('');
               }}
             >
               Clear
@@ -5616,6 +5771,28 @@ const ResubmissionContent = ({ userInfo }) => {
           onClose={() => setViewingFile(null)}
           onDownload={() => downloadReviewerFile(viewingFile.filename, viewingFile.originalname || viewingFile.filename)}
         />
+      )}
+
+      {feedbackModal && (
+        <div className="logout-modal-overlay" onClick={() => setFeedbackModal(null)}>
+          <div className="logout-modal-container" onClick={(e) => e.stopPropagation()}>
+            <div className="logout-modal-header">
+              <h2>{feedbackModal.type === 'success' ? 'Resubmission Successful' : 'Resubmission Failed'}</h2>
+            </div>
+            <div className="logout-modal-body">
+              <p>{feedbackModal.message}</p>
+            </div>
+            <div className="logout-modal-footer">
+              <button
+                className="logout-modal-btn-primary"
+                style={feedbackModal.type === 'error' ? { backgroundColor: '#dc2626' } : undefined}
+                onClick={() => setFeedbackModal(null)}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
