@@ -2336,7 +2336,8 @@ function EditProposalModal({ proposal, onClose, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const hasFiles = ALL_ADD_FILES_FILE_FIELDS.some((field) => formData[field] instanceof File);
-    if (!hasFiles) {
+    const titleChanged = formData.proposalTitle.trim() !== (proposal?.researchTitle || '').trim();
+    if (!hasFiles && !titleChanged) {
       setNoFileModalOpen(true);
       return;
     }

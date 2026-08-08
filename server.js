@@ -2820,25 +2820,9 @@ app.put('/api/student/proposals/:id', upload.fields([
 
     await proposals.updateOne({ _id: new ObjectId(id) }, { $set: updatedData });
 
-
-
-    // Send resubmission notification message to admin
-    const messages = db.collection(collections.messages);
-    await messages.insertOne({
-      senderEmail: studentEmail || existingProposal.studentEmail || 'student',
-      recipientEmail: 'admin',
-      subject: `Proposal ${resubLabel}`,
-      message: `${existingProposal.proponent || 'Student'} has submitted ${resubLabel} for proposal "${proposalTitle || existingProposal.researchTitle}". Reason: ${reasonText}`,
-      senderName: existingProposal.proponent || 'Student',
-      type: 'student_to_admin',
-      submissionType: 'resubmission',
-      resubmissionLabel: resubLabel,
-      resubmissionReason: reasonText,
-      relatedProposalId: id.toString(),
-      files: studentFiles,
-      read: false,
-      createdAt: new Date()
-    }).catch(err => console.error('Failed to create resubmission message:', err));
+    // Note: editing a proposal only updates the researcher's own proposal record
+    // (title/files/resubmission history) — it intentionally does NOT post a message
+    // to the admin's "Files And Messages Submitted" inbox.
 
     const finalProposal = await proposals.findOne({ _id: new ObjectId(id) });
 
