@@ -2836,8 +2836,22 @@ app.put('/api/student/proposals/:id', upload.fields([
   }
 });
 
-// Student file resubmission
-app.post('/api/student/resubmit-files', upload.array('files'), async (req, res) => {
+// Student file resubmission — distinct from Edit Proposal: this reports the resubmitted
+// files to the admin's "Files And Messages Submitted" inbox and logs them in the
+// resubmission history, but intentionally does NOT overwrite the researcher's live
+// Research Proposal files/title (that's what Edit Proposal, PUT /student/proposals/:id, does).
+app.post('/api/student/resubmit-files', upload.fields([
+  { name: 'proposal', maxCount: 1 },
+  { name: 'approvalSheet', maxCount: 1 },
+  { name: 'urebForm2', maxCount: 1 },
+  { name: 'applicationForm6', maxCount: 1 },
+  { name: 'accomplishedForm8', maxCount: 1 },
+  { name: 'accomplishedForm10A', maxCount: 1 },
+  { name: 'instrumentTool', maxCount: 1 },
+  { name: 'ethicsReviewFee', maxCount: 1 },
+  { name: 'sampleForm1', maxCount: 1 },
+  { name: 'sampleForm2', maxCount: 1 }
+]), async (req, res) => {
   try {
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
@@ -2846,18 +2860,21 @@ app.post('/api/student/resubmit-files', upload.array('files'), async (req, res) 
     const { resubmissionReason, studentEmail, studentName, submissionType, proposalId, relatedProposalId } = req.body;
     const targetProposalId = proposalId || relatedProposalId;
 
-    // Process uploaded files → GridFS
+    // Process uploaded files → GridFS, keyed by document type
     const files = {};
-    if (req.files && req.files.length > 0) {
-      for (let index = 0; index < req.files.length; index++) {
-        const file = req.files[index];
-        const gfsFilename = await uploadToGridFS(file);
-        files[`file${index + 1}`] = {
-          filename: gfsFilename,
-          originalname: file.originalname,
-          size: file.size,
-          mimetype: file.mimetype
-        };
+    if (req.files) {
+      for (const fieldname of Object.keys(req.files)) {
+        const fileArray = req.files[fieldname];
+        if (fileArray && fileArray.length > 0) {
+          const file = fileArray[0];
+          const gfsFilename = await uploadToGridFS(file);
+          files[fieldname] = {
+            filename: gfsFilename,
+            originalname: file.originalname,
+            size: file.size,
+            mimetype: file.mimetype
+          };
+        }
       }
     }
 
@@ -2886,9 +2903,6 @@ app.post('/api/student/resubmit-files', upload.array('files'), async (req, res) 
         studentName: studentName || targetProp.proponent
       });
 
-      const updatedStudentFiles = { ...targetProp.studentFiles, ...files };
-      const updatedFiles = { ...targetProp.files, ...files };
-
       await proposals.updateOne(
         { _id: targetProp._id },
         {
@@ -2903,8 +2917,6 @@ app.post('/api/student/resubmit-files', upload.array('files'), async (req, res) 
           }
         }
       );
-
-
     }
 
     // Send message to admin about resubmission

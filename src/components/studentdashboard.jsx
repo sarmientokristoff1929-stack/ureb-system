@@ -2705,9 +2705,13 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
 
     setUploading(true);
     try {
+      // Resubmission is separate from Edit Proposal: it reports the updated files to the
+      // admin's "Files And Messages Submitted" inbox and logs them in the resubmission
+      // history, but it does NOT overwrite the researcher's live Research Proposal files.
       const submitData = new FormData();
-      submitData.append('proposalTitle', formData.proposalTitle);
+      submitData.append('proposalId', selectedProposalId);
       submitData.append('studentEmail', userInfo?.email || '');
+      submitData.append('studentName', userInfo?.name || '');
       submitData.append('resubmissionReason', resubmissionReason || 'Resubmitted updated files');
 
       activeFields.forEach((field) => {
@@ -2716,8 +2720,8 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
         }
       });
 
-      const response = await fetch(`${API_BASE_URL}/student/proposals/${selectedProposalId}`, {
-        method: 'PUT',
+      const response = await fetch(`${API_BASE_URL}/student/resubmit-files`, {
+        method: 'POST',
         body: submitData
       });
 
