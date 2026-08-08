@@ -2806,6 +2806,9 @@ app.put('/api/student/proposals/:id', upload.fields([
 
     const updatedData = {
       researchTitle: proposalTitle || existingProposal.researchTitle,
+      files: newFiles,
+      studentFiles,
+      adminFiles,
       resubmissionCount: nextResubCount,
       resubmissionLabel: resubLabel,
       resubmissionHistory: resubHistory,

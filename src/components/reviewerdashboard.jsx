@@ -1796,6 +1796,14 @@ const DashboardContent = () => {
   const fetchDashboardData = async (userEmail) => {
     if (!userEmail) return;
 
+    // Warm the caches used by Assigned Proposals / Submit Review / Notifications in the
+    // background as soon as the dashboard (the first screen after login) loads, so
+    // switching to those tabs right away finds data already cached instead of kicking
+    // off a fresh fetch and showing "Loading..." for the first time.
+    reviewerCompletedReviewsSwr.load(userEmail).catch(() => {});
+    reviewerDbNotificationsSwr.load(userEmail).catch(() => {});
+    reviewerHiddenItemsSwr.load(userEmail).catch(() => {});
+
     // Assignments/reviews/messages/profile are each cached, so if we've already loaded
     // them once this session (e.g. visited Assigned Proposals or came back to Dashboard)
     // render instantly instead of showing "Loading..." again while refreshing quietly.
@@ -5601,7 +5609,7 @@ const ResubmissionContent = ({ userInfo }) => {
             .filter((r, index) => index === reviews.findIndex((other) => groupKeyFor(other) === groupKeyFor(r)))
             .map((r) => (
               <option key={r._id} value={r._id}>
-                {(r.protocolCode ? `[${r.protocolCode}] ` : '') + (r.proposalTitle || 'Untitled Proposal')}
+                {r.protocolCode ? `[${r.protocolCode}]` : (r.proposalTitle || 'Untitled')}
               </option>
             ))}
         </select>
