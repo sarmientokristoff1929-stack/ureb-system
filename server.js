@@ -2887,12 +2887,18 @@ app.post('/api/student/resubmit-files', upload.fields([
 
     let finalPropId = targetProp?._id?.toString() || '';
 
+    // Resubmission tracks its own counter/history — researcherResubmission* — which is
+    // never read by the admin's Research Proposal view (that only reads resubmissionCount /
+    // resubmissionLabel / resubmissionHistory / isResubmissionProposal / adminSeen, all of
+    // which Edit Proposal owns). This keeps Resubmission from ever surfacing there; it only
+    // reaches admin via the message below (Files And Messages Submitted).
+    let resubLabel = 'Resubmission';
     if (targetProp) {
-      const prevCount = typeof targetProp.resubmissionCount === 'number' ? targetProp.resubmissionCount : 0;
+      const prevCount = typeof targetProp.researcherResubmissionCount === 'number' ? targetProp.researcherResubmissionCount : 0;
       const nextResubCount = prevCount + 1;
-      const resubLabel = `Resubmission ${nextResubCount}`;
+      resubLabel = `Resubmission ${nextResubCount}`;
 
-      let resubHistory = Array.isArray(targetProp.resubmissionHistory) ? [...targetProp.resubmissionHistory] : [];
+      let resubHistory = Array.isArray(targetProp.researcherResubmissionHistory) ? [...targetProp.researcherResubmissionHistory] : [];
       resubHistory.push({
         resubmissionNumber: nextResubCount,
         label: resubLabel,
@@ -2907,13 +2913,9 @@ app.post('/api/student/resubmit-files', upload.fields([
         { _id: targetProp._id },
         {
           $set: {
-            resubmissionCount: nextResubCount,
-            resubmissionLabel: resubLabel,
-            resubmissionHistory: resubHistory,
-            submissionType: 'initial',
-            isResubmissionProposal: false,
-            adminSeen: false,
-            updatedAt: new Date()
+            researcherResubmissionCount: nextResubCount,
+            researcherResubmissionLabel: resubLabel,
+            researcherResubmissionHistory: resubHistory
           }
         }
       );
@@ -2923,12 +2925,12 @@ app.post('/api/student/resubmit-files', upload.fields([
     const messageRecord = {
       senderEmail: studentEmail || 'student',
       recipientEmail: process.env.GMAIL_EMAIL || 'admin',
-      subject: `Files Resubmitted (${targetProp?.resubmissionLabel || 'Resubmission'})`,
+      subject: `Files Resubmitted (${resubLabel})`,
       message: `${studentName || 'Student'} has resubmitted files: ${resubmissionReason || 'Updated files'}`,
       senderName: studentName || 'Student',
       type: 'student_to_admin',
       submissionType: 'resubmission',
-      resubmissionLabel: targetProp?.resubmissionLabel || 'Resubmission',
+      resubmissionLabel: resubLabel,
       resubmissionReason: resubmissionReason || '',
       relatedProposalId: finalPropId,
       files,

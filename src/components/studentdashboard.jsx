@@ -2166,8 +2166,14 @@ function ViewFilesModal({ proposal, onClose }) {
 
   if (!proposal) return null;
 
-  const history = Array.isArray(proposal.resubmissionHistory) ? proposal.resubmissionHistory : [];
-  
+  // Combine Edit Proposal history (resubmissionHistory) with Resubmission history
+  // (researcherResubmissionHistory, kept separate so it doesn't touch the admin-visible
+  // Research Proposal fields) so the researcher sees every version in one timeline.
+  const history = [
+    ...(Array.isArray(proposal.resubmissionHistory) ? proposal.resubmissionHistory : []),
+    ...(Array.isArray(proposal.researcherResubmissionHistory) ? proposal.researcherResubmissionHistory : [])
+  ].sort((a, b) => new Date(a.submittedAt || 0) - new Date(b.submittedAt || 0));
+
   const activeFilesObj = (selectedVersionIndex !== null && history[selectedVersionIndex]?.files)
     ? history[selectedVersionIndex].files
     : (proposal.studentFiles || proposal.files || {});
@@ -2661,13 +2667,16 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
   }, [userInfo?.email]);
 
   const selectedProposal = proposals.find(p => String(p._id) === String(selectedProposalId)) || null;
-  const nextResubNumber = selectedProposal ? (selectedProposal.resubmissionCount || 0) + 1 : 1;
+  // Resubmission keeps its own counter/history (researcherResubmission*), separate from
+  // resubmissionCount/resubmissionHistory which Edit Proposal owns — that keeps this action
+  // from ever surfacing as a Research Proposal change on the admin side.
+  const nextResubNumber = selectedProposal ? (selectedProposal.researcherResubmissionCount || 0) + 1 : 1;
   const nextResubLabel = `Resubmission ${nextResubNumber}`;
 
   const unifiedHistory = useMemo(() => {
     if (!selectedProposal) return [];
-    const history = Array.isArray(selectedProposal.resubmissionHistory)
-      ? selectedProposal.resubmissionHistory
+    const history = Array.isArray(selectedProposal.researcherResubmissionHistory)
+      ? selectedProposal.researcherResubmissionHistory
       : [];
 
     return history.filter(h => h && h.resubmissionNumber > 0 && h.label !== 'Original Submission');
@@ -3977,21 +3986,28 @@ const HistoryContent = () => {
         const hiddenIds = Array.from(new Set([...localHiddenIds, ...dbHiddenIds]));
 
         proposals.filter(p => !deletedProposalIds.includes(String(p._id)) && !hiddenIds.includes(String(p._id))).forEach(proposal => {
-          const resubHistory = Array.isArray(proposal.resubmissionHistory) ? proposal.resubmissionHistory : [];
+          // Combine Edit Proposal history with Resubmission history (kept in a separate
+          // field so Resubmission never touches the admin-visible Research Proposal data)
+          // so the researcher's own activity log still reflects both.
+          const resubHistory = [
+            ...(Array.isArray(proposal.resubmissionHistory) ? proposal.resubmissionHistory : []),
+            ...(Array.isArray(proposal.researcherResubmissionHistory) ? proposal.researcherResubmissionHistory : [])
+          ].sort((a, b) => new Date(a.submittedAt || 0) - new Date(b.submittedAt || 0));
           if (resubHistory.length > 0) {
             resubHistory.forEach((h, idx) => {
+              const isOriginal = h.label === 'Original Submission' || h.resubmissionNumber === 0;
               const actId = `${proposal._id}-resub-${idx}`;
               if (!hiddenIds.includes(actId)) {
                 activities.push({
                   id: actId,
-                  type: idx === 0 ? 'proposal' : 'resubmission',
+                  type: isOriginal ? 'proposal' : 'resubmission',
                   title: proposal.researchTitle || 'Untitled Proposal',
-                  action: idx === 0 ? 'Submitted initial research proposal' : `Resubmitted files (${h.label || `Resubmission ${idx}`})`,
+                  action: isOriginal ? 'Submitted initial research proposal' : `Resubmitted files (${h.label || `Resubmission ${idx}`})`,
                   date: h.submittedAt || proposal.createdAt || new Date(),
-                  status: h.label || (idx === 0 ? 'Original Submission' : `Resubmission ${idx}`),
+                  status: h.label || (isOriginal ? 'Original Submission' : `Resubmission ${idx}`),
                   details: {
                     department: proposal.department || 'Unknown',
-                    abstract: h.resubmissionReason || (idx === 0 ? 'Initial submission' : 'Resubmitted updated proposal files')
+                    abstract: h.resubmissionReason || (isOriginal ? 'Initial submission' : 'Resubmitted updated proposal files')
                   }
                 });
               }
