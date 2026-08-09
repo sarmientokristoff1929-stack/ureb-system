@@ -4830,8 +4830,25 @@ app.get('/api/stats', async (req, res) => {
     const assignments = db.collection(collections.assignments);
 
     const proposalCount = await proposals.countDocuments();
-    const pendingReviewCount = await assignments.countDocuments({ status: { $in: ['Pending', 'Under Review'] } });
-    const approvedCount = await proposals.countDocuments({ status: 'approved' });
+
+    // Under Review count: mirrors the Mark Completed Review page, where an
+    // assignment is "done" once either the assignment itself or its linked
+    // proposal is marked completed — anything else counts as under review
+    // (that page has no separate "Pending" state).
+    const assignmentDocs = await assignments.find({}, { projection: { status: 1, proposalId: 1 } }).toArray();
+    const proposalStatusById = new Map(
+      (await proposals.find({}, { projection: { status: 1 } }).toArray())
+        .map(p => [String(p._id), String(p.status || '').toLowerCase()])
+    );
+    const isAssignmentDone = (a) => {
+      const assignmentCompleted = String(a.status || '').toLowerCase() === 'completed';
+      const proposalCompleted = proposalStatusById.get(String(a.proposalId)) === 'completed';
+      return assignmentCompleted || proposalCompleted;
+    };
+    const pendingReviewCount = assignmentDocs.filter(a => !isAssignmentDone(a)).length;
+
+    // Completed count: same Mark Completed Review definition as above, just the other side of it.
+    const approvedCount = assignmentDocs.filter(isAssignmentDone).length;
     const reviewers = db.collection(collections.reviewers);
     const activeReviewersCount = await reviewers.countDocuments();
 

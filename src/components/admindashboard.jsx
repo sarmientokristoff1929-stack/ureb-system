@@ -1681,10 +1681,10 @@ const DashboardContent = () => {
           getAllProposals()
         ]);
 
-        // Count student-submitted proposals client-side (most reliable)
-        const studentProposalCount = allProposals.filter(
-          p => p.studentEmail && p.studentEmail.trim() !== ''
-        ).length;
+        // Count student-submitted proposals client-side (most reliable).
+        // Uses the same filter as the Researcher Proposal sidebar (StudentProposalContent)
+        // so this stat card matches the actual list of submissions shown there.
+        const studentProposalCount = allProposals.filter(isStudentSubmissionProposal).length;
 
         // Count reviewer submissions from /api/reviews count
         let reviewerSubmissionCount = 0;
@@ -1981,7 +1981,7 @@ const DashboardContent = () => {
 
 
 
-            <p>Pending Review</p>
+            <p>Under Review</p>
 
 
 
@@ -2017,7 +2017,7 @@ const DashboardContent = () => {
 
 
 
-            <p>Approved</p>
+            <p>Completed</p>
 
 
 
