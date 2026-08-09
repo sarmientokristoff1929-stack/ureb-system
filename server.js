@@ -357,7 +357,19 @@ const pickFilesByKeys = (filesObj, keys) => {
 };
 
 const pickStudentAssignmentFiles = (filesObj) => pickFilesByKeys(filesObj, STUDENT_ASSIGNMENT_FILE_KEYS);
-const pickAdminAssignmentFiles = (filesObj) => pickFilesByKeys(filesObj, ADMIN_ASSIGNMENT_FILE_KEYS);
+const pickAdminAssignmentFiles = (filesObj) => {
+  const picked = pickFilesByKeys(filesObj, ADMIN_ASSIGNMENT_FILE_KEYS);
+  // The admin UI lets admins add any number of attachment slots, submitted under
+  // dynamically-generated field names (attachment_0, attachment_<timestamp>_<n>, ...)
+  // that don't match the fixed whitelist above. Without this, those files would be
+  // silently dropped on the next reassignment since they'd never be "preserved".
+  if (filesObj && typeof filesObj === 'object') {
+    for (const key of Object.keys(filesObj)) {
+      if (/^attachment(_|$)/.test(key) && filesObj[key]) picked[key] = filesObj[key];
+    }
+  }
+  return picked;
+};
 
 const normalizeProposalFileFields = (proposal) => {
   if (!proposal) return proposal;

@@ -3042,6 +3042,18 @@ const getProposalStudentFiles = (proposal) => {
   );
 };
 
+// Admin-uploaded attachments use dynamically-generated field names
+// (attachment_0, attachment_<timestamp>_<n>, ...) rather than a fixed key list.
+const getProposalAdminAttachments = (proposal) => {
+  if (!proposal) return {};
+  const source = proposal.adminFiles && typeof proposal.adminFiles === 'object'
+    ? proposal.adminFiles
+    : proposal.files || {};
+  return Object.fromEntries(
+    Object.entries(source).filter(([key, file]) => /^attachment(_|$)/.test(key) && file?.filename)
+  );
+};
+
 const isPreliminaryReviewerRole = (reviewer) => {
   const type = String(reviewer.reviewerType || '').toLowerCase();
   return !type || type === 'preliminary' || type === 'both';
@@ -3240,6 +3252,13 @@ function StudentProposalContent({ onNewCountChange }) {
     ? Object.entries(getProposalStudentFiles(selectedProposal)).map(([key, file]) => ({
       key,
       label: STUDENT_SUBMISSION_FILE_LABELS[key] || key,
+      file,
+    }))
+    : [];
+  const existingAdminAttachments = selectedProposal
+    ? Object.entries(getProposalAdminAttachments(selectedProposal)).map(([key, file], index) => ({
+      key,
+      label: `Attachment ${index + 1}`,
       file,
     }))
     : [];
@@ -3864,6 +3883,44 @@ function StudentProposalContent({ onNewCountChange }) {
                           {attachmentSlots.length} Attachment{attachmentSlots.length !== 1 ? 's' : ''}
                         </span>
                       </div>
+
+                      {existingAdminAttachments.length > 0 && (
+                        <div className="sp-files-section" style={{ marginBottom: '0.85rem' }}>
+                          <div className="sp-files-head">
+                            <h4>Already Uploaded</h4>
+                            <span className="sp-files-count">
+                              {existingAdminAttachments.length} file{existingAdminAttachments.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0.2rem 0 0.6rem' }}>
+                            These attachments are already saved to this proposal. Leave the slots below empty to keep them, or add more attachments.
+                          </p>
+                          <div className="sp-files-list">
+                            {existingAdminAttachments.map(({ key, label, file }) => (
+                              <div className="sp-file-item" key={key}>
+                                <div className="sp-file-meta">
+                                  <div className="sp-file-label">{label}</div>
+                                  <div className="sp-file-name" title={file?.originalname || file?.filename || key}>
+                                    {file?.originalname || file?.filename || key}
+                                  </div>
+                                  <div className="sp-file-submeta">
+                                    {file?.size ? `${(file.size / 1024).toFixed(1)} KB` : 'Unknown size'}
+                                    {file?.mimetype ? ` • ${file.mimetype}` : ''}
+                                  </div>
+                                </div>
+                                <div className="sp-file-actions">
+                                  <button type="button" className="sp-file-btn sp-file-btn--view" onClick={() => handleViewStudentFile(file)}>
+                                    View
+                                  </button>
+                                  <button type="button" className="sp-file-btn sp-file-btn--download" onClick={() => handleDownloadStudentFile(file)}>
+                                    Download
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       <div className="sp-canvas-attachments-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                         {attachmentSlots.map((slotKey, index) => {
