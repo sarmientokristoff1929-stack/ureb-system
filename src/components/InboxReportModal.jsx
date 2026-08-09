@@ -24,10 +24,11 @@ const buildFilterChips = (filterSummary) => {
   const chips = [];
   if (filterSummary.department) chips.push({ label: 'Department', value: filterSummary.department });
   if (filterSummary.senderType && filterSummary.senderType !== 'All') {
-    chips.push({ label: 'Sender', value: filterSummary.senderType });
+    const senderTypeLabel = filterSummary.senderType === 'Student' ? 'Researcher' : filterSummary.senderType;
+    chips.push({ label: 'Sender', value: senderTypeLabel });
   }
   if (filterSummary.reviewer) chips.push({ label: 'Reviewer', value: filterSummary.reviewer });
-  if (filterSummary.student) chips.push({ label: 'Student', value: filterSummary.student });
+  if (filterSummary.student) chips.push({ label: 'Researcher', value: filterSummary.student });
   if (filterSummary.search) chips.push({ label: 'Search', value: `"${filterSummary.search}"` });
   return chips;
 };
@@ -222,7 +223,7 @@ const SubmissionTable = ({ rows, variant }) => {
   if (rows.length === 0) {
     return (
       <p className="imr-empty-section">
-        No {variant === 'student' ? 'student' : 'reviewer'} submissions in this report.
+        No {variant === 'student' ? 'researcher' : 'reviewer'} submissions in this report.
       </p>
     );
   }
@@ -346,7 +347,7 @@ const InboxReportModal = ({
             </div>
             <div className="imr-header-text">
               <h2 className="imr-title">Submissions Report</h2>
-              <p className="imr-subtitle">Clear summary of student and reviewer submissions</p>
+              <p className="imr-subtitle">Clear summary of researcher and reviewer submissions</p>
             </div>
           </div>
           <div className="imr-header-actions">
@@ -388,7 +389,7 @@ const InboxReportModal = ({
                     <span className="imr-table-count">{analytics.unknownCount} records</span>
                   </div>
                   <p className="imr-unknown-note">
-                    These could not be matched to a student or reviewer account. Check sender email or message type in the system.
+                    These could not be matched to a researcher or reviewer account. Check sender email or message type in the system.
                   </p>
                   <SubmissionTable rows={analytics.unknownRows} variant="student" />
                 </section>
@@ -397,7 +398,7 @@ const InboxReportModal = ({
               <section className="imr-section imr-section--table">
                 <div className="imr-section-head">
                   <h3 className="imr-section-title imr-section-title--student">
-                    Student submissions
+                    Researcher submissions
                   </h3>
                   <span className="imr-table-count">{analytics.students.count} records</span>
                 </div>
@@ -419,7 +420,7 @@ const InboxReportModal = ({
 
         <footer className="imr-footer">
           <p className="imr-footer-note">
-            Student = messages/files from students. Reviewer = review results and files from reviewers.
+            Researcher = messages/files from researchers. Reviewer = review results and files from reviewers.
           </p>
           <div className="imr-export-btns">
             <button type="button" className="imr-btn imr-btn--ghost" onClick={onClose}>

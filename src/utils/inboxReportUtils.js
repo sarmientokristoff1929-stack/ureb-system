@@ -89,14 +89,14 @@ export function getSubmissionKind(message) {
     return 'Reviewer Review Submission';
   }
   if (message?.submissionType === 'resubmission') {
-    return 'Student Proposal Resubmission';
+    return 'Researcher Proposal Resubmission';
   }
   if (message?.type === 'student_to_admin') {
     const files = getMessageFileList(message);
     const hasMessage = Boolean((message.message || '').trim());
-    if (files.length > 0 && !hasMessage) return 'Student File Upload';
-    if (files.length > 0) return 'Student Message with Files';
-    return 'Student Message';
+    if (files.length > 0 && !hasMessage) return 'Researcher File Upload';
+    if (files.length > 0) return 'Researcher Message with Files';
+    return 'Researcher Message';
   }
   return 'Other';
 }
@@ -123,8 +123,8 @@ export function buildInboxReportRows(messages, getMessageMetadata, departmentNam
         : 'N/A',
       senderName: meta.name || 'Unknown',
       senderEmail: msg.senderEmail || 'N/A',
-      senderGroup: isReviewer ? 'Reviewer' : isStudent ? 'Student' : 'Unclassified',
-      role: isReviewer ? 'Reviewer' : isStudent ? 'Student' : 'Unknown',
+      senderGroup: isReviewer ? 'Reviewer' : isStudent ? 'Researcher' : 'Unclassified',
+      role: isReviewer ? 'Reviewer' : isStudent ? 'Researcher' : 'Unknown',
       departmentCode: meta.department || 'N/A',
       departmentName: departmentNames?.[meta.department] || meta.department || 'N/A',
       submissionKind: getSubmissionKind(msg),
@@ -150,7 +150,7 @@ export function buildInboxReportRows(messages, getMessageMetadata, departmentNam
 }
 
 export function buildInboxAnalytics(rows) {
-  const studentRows = rows.filter((r) => r.role === 'Student');
+  const studentRows = rows.filter((r) => r.role === 'Researcher');
   const reviewerRows = rows.filter((r) => r.role === 'Reviewer');
   const unknownRows = rows.filter((r) => r.role === 'Unknown');
 
@@ -291,9 +291,9 @@ export function exportInboxToExcel(rows, filterLabel, analytics) {
     `"Filters: ${(filterLabel || 'All').replace(/"/g, '""')}"`,
     '',
     '"SUMMARY"',
-    `"Student submissions",${analytics.students.count}`,
+    `"Researcher submissions",${analytics.students.count}`,
     `"Reviewer submissions",${analytics.reviewers.count}`,
-    `"Student files attached",${analytics.students.totalFiles}`,
+    `"Researcher files attached",${analytics.students.totalFiles}`,
     `"Reviewer files attached",${analytics.reviewers.totalFiles}`,
     `"Unread",${analytics.byRead.Unread || 0}`,
     '',
@@ -398,7 +398,7 @@ export function exportInboxToPDF(rows, analytics, filterLabel) {
   </header>
   <div class="summary">
     <div class="box student">
-      <h2>Student Submissions (${analytics.students.count})</h2>
+      <h2>Researcher Submissions (${analytics.students.count})</h2>
       <ul>
         <li>With files: ${analytics.students.withFiles}</li>
         <li>Total files: ${analytics.students.totalFiles}</li>
@@ -412,7 +412,7 @@ export function exportInboxToPDF(rows, analytics, filterLabel) {
       </ul>
     </div>
   </div>
-  <h3>Student Submissions</h3>
+  <h3>Researcher Submissions</h3>
   <table>
     <thead><tr><th>#</th><th>Date</th><th>Sender</th><th>Type</th><th>Protocol</th><th>Subject</th><th>Attached files</th></tr></thead>
     <tbody>${renderPdfTableRows(analytics.studentRows) || '<tr><td colspan="7">None</td></tr>'}</tbody>

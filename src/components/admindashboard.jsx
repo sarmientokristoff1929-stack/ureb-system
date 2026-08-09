@@ -1701,6 +1701,7 @@ const DashboardContent = () => {
 
         setStats({
           ...statsData,
+          totalProposals: studentProposalCount + reviewerSubmissionCount,
           studentProposals: studentProposalCount,
           reviewerProposals: reviewerSubmissionCount
         });
@@ -2074,7 +2075,7 @@ const DashboardContent = () => {
           </div>
           <div className="stat-info">
             <h3>{stats.studentProposals}</h3>
-            <p>Student Proposals</p>
+            <p>Researcher Proposals</p>
           </div>
         </div>
 
@@ -2964,8 +2965,7 @@ const toRecordId = (value) => {
 const normalizeMcrStatus = (status) => {
   const s = String(status || '').toLowerCase().trim();
   if (s === 'completed') return 'completed';
-  if (s === 'under review') return 'under review';
-  return 'pending';
+  return 'under review';
 };
 
 const getMcrRowKey = (row) => row.assignmentId || row.proposalId || row.protocolCode;
@@ -2989,6 +2989,33 @@ const STUDENT_PROPOSAL_DEPARTMENTS = [
   { value: 'Community Representatives', label: 'Community Representatives' },
   { value: 'UREB Board', label: 'UREB Board — University Research Ethics Board' },
 ];
+
+const DEPARTMENT_ORDER = STUDENT_PROPOSAL_DEPARTMENTS.reduce((acc, d, idx) => {
+  acc[d.value] = idx;
+  return acc;
+}, {});
+const DEPARTMENT_LABELS = STUDENT_PROPOSAL_DEPARTMENTS.reduce((acc, d) => {
+  acc[d.value] = d.label;
+  return acc;
+}, {});
+
+const UNASSIGNED_FACULTY_KEY = '__unassigned__';
+const UNASSIGNED_FACULTY_LABEL = 'No Faculty Assigned';
+
+// Resolves a raw reviewer department value (which may be blank, mis-cased,
+// or padded with whitespace) to the canonical faculty code so reviewers
+// group under the correct faculty instead of stray one-off buckets.
+const normalizeFacultyKey = (dept) => {
+  const raw = String(dept || '').trim();
+  if (!raw) return UNASSIGNED_FACULTY_KEY;
+  const match = STUDENT_PROPOSAL_DEPARTMENTS.find(d => d.value.toUpperCase() === raw.toUpperCase());
+  return match ? match.value : raw;
+};
+
+const getFacultyLabel = (key) => {
+  if (key === UNASSIGNED_FACULTY_KEY) return UNASSIGNED_FACULTY_LABEL;
+  return DEPARTMENT_LABELS[key] || key;
+};
 
 const STUDENT_SUBMISSION_FILE_LABELS = {
   proposal: 'Research Proposal',
@@ -4159,6 +4186,7 @@ const MarkCompletedReviewContent = () => {
   const [proposalStatus, setProposalStatus] = useState({});
   const [reviewerTypeFilter, setReviewerTypeFilter] = useState('');
   const [selectedReviewerKey, setSelectedReviewerKey] = useState('');
+  const [selectedFaculty, setSelectedFaculty] = useState('all');
 
   const fetchMcrData = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -4190,13 +4218,26 @@ const MarkCompletedReviewContent = () => {
 
         const byKey = {};
         const accountMap = {};
+        const accountByName = {};
 
         if (Array.isArray(allAccounts)) {
           allAccounts.forEach(acc => {
             const email = (acc.email || '').trim().toLowerCase();
             if (email) accountMap[email] = acc;
+            const accName = (acc.name || `${acc.firstName || ''} ${acc.lastName || ''}`).trim().toLowerCase();
+            if (accName) accountByName[accName] = acc;
           });
         }
+
+        // Falls back to a name match when the email on the assignment/review
+        // doesn't line up with the reviewer's account email, so the reviewer's
+        // real faculty is still found instead of being marked unassigned.
+        const resolveAccount = (email, name) => {
+          if (email && accountMap[email]) return accountMap[email];
+          const nameKey = (name || '').trim().toLowerCase();
+          if (nameKey && accountByName[nameKey]) return accountByName[nameKey];
+          return {};
+        };
 
         // Group reviewers based on assignments first (so they appear even if they haven't submitted a review)
         if (Array.isArray(allAssignments)) {
@@ -4207,7 +4248,7 @@ const MarkCompletedReviewContent = () => {
             const pId = toRecordId(assignment.proposalId);
             const proposal = proposalsMap[pId] || {};
 
-            const acc = accountMap[email] || {};
+            const acc = resolveAccount(email, assignment.reviewerName || assignment.name);
             // Admin assignments (secondary) always have assignedBy: 'admin'
             let rType = (assignment.assignedBy === 'admin') ? 'secondary' : 'preliminary';
 
@@ -4229,7 +4270,7 @@ const MarkCompletedReviewContent = () => {
                 reviewerEmail,
                 name: assignment.reviewerName || assignment.name || acc.name || `${acc.firstName || ''} ${acc.lastName || ''}`.trim() || email,
                 reviewerType: rType,
-                department: acc.department || '—',
+                department: normalizeFacultyKey(acc.department),
                 proposals: [],
               };
             }
@@ -4282,7 +4323,7 @@ const MarkCompletedReviewContent = () => {
             const pId = toRecordId(review.proposalId || (review.proposal && review.proposal._id));
             const proposal = proposalsMap[pId] || review.proposal || {};
 
-            const acc = accountMap[email] || {};
+            const acc = resolveAccount(email, review.reviewerName || review.reviewer);
             // Determine role purely based on the review submission type (user request)
             const isSecondarySubmission = review.decision === 'secondary_file' || review.urebForm10B || review.urebForm11;
             let rType = isSecondarySubmission ? 'secondary' : 'preliminary';
@@ -4309,7 +4350,7 @@ const MarkCompletedReviewContent = () => {
                 reviewerEmail,
                 name: review.reviewerName || review.reviewer || acc.name || `${acc.firstName || ''} ${acc.lastName || ''}`.trim() || email,
                 reviewerType: rType,
-                department: acc.department || '—',
+                department: normalizeFacultyKey(acc.department),
                 proposals: [],
               };
             }
@@ -4348,7 +4389,7 @@ const MarkCompletedReviewContent = () => {
             if (!key) return;
             initStatus[key] = p.assignmentStatus
               ? normalizeMcrStatus(p.assignmentStatus)
-              : (p.completed ? 'completed' : 'pending');
+              : (p.completed ? 'completed' : 'under review');
           });
         });
         setProposalStatus(initStatus);
@@ -4432,14 +4473,13 @@ const MarkCompletedReviewContent = () => {
     const rowKey = getMcrRowKey(p);
     if (proposalStatus[rowKey] !== undefined) return proposalStatus[rowKey];
     if (p.assignmentStatus) return normalizeMcrStatus(p.assignmentStatus);
-    return p.completed ? 'completed' : 'pending';
+    return p.completed ? 'completed' : 'under review';
   };
 
+  // Submitted reviews only ever show as "Under Review" until the admin marks
+  // them done — there is no separate "Pending" state in this panel.
   const getMcrStatusLabel = (status) => {
-    const s = String(status || '').toLowerCase();
-    if (s === 'completed') return '✓ Done';
-    if (s === 'under review') return 'Under Review';
-    return 'Pending';
+    return isMcrCompleted(status) ? '✓ Done' : 'Under Review';
   };
 
   const proposalMatchesFilter = (p) => {
@@ -4452,26 +4492,55 @@ const MarkCompletedReviewContent = () => {
       assignmentCount: (r.proposals || []).filter(proposalMatchesFilter).length,
     }))
     .filter(r => r.assignmentCount > 0)
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => {
+      const deptCmp = (DEPARTMENT_ORDER[a.department] ?? 999) - (DEPARTMENT_ORDER[b.department] ?? 999);
+      if (deptCmp !== 0) return deptCmp;
+      return a.name.localeCompare(b.name);
+    });
+
+  const reviewerGroups = [];
+  reviewerOptions.forEach(r => {
+    const deptKey = r.department || UNASSIGNED_FACULTY_KEY;
+    const lastGroup = reviewerGroups[reviewerGroups.length - 1];
+    if (!lastGroup || lastGroup.department !== deptKey) {
+      reviewerGroups.push({ department: deptKey, label: getFacultyLabel(deptKey), reviewers: [r] });
+    } else {
+      lastGroup.reviewers.push(r);
+    }
+  });
+
+  // Full canonical faculty list, so every faculty is selectable even if it
+  // currently has no reviewer assignments to show.
+  const facultyOptions = STUDENT_PROPOSAL_DEPARTMENTS.map(d => ({ value: d.value, label: d.label }));
+
+  const reviewerOptionsForFaculty = selectedFaculty === 'all'
+    ? reviewerOptions
+    : reviewerOptions.filter(r => (r.department || UNASSIGNED_FACULTY_KEY) === selectedFaculty);
 
   const allTableRows = reviewerOptions
     .flatMap(reviewer => (reviewer.proposals || []).filter(proposalMatchesFilter).map(p => ({ ...p, reviewer })))
     .sort((a, b) => {
+      const deptCmp = (DEPARTMENT_ORDER[a.reviewer.department] ?? 999) - (DEPARTMENT_ORDER[b.reviewer.department] ?? 999);
+      if (deptCmp !== 0) return deptCmp;
       const nameCmp = a.reviewer.name.localeCompare(b.reviewer.name);
       if (nameCmp !== 0) return nameCmp;
       return (a.title || a.researchTitle || '').localeCompare(b.title || b.researchTitle || '');
     });
 
-  const hasReviewerSelected = selectedReviewerKey === 'all' || reviewerOptions.some(r => r.key === selectedReviewerKey);
+  const facultyFilteredTableRows = selectedFaculty === 'all'
+    ? allTableRows
+    : allTableRows.filter(row => (row.reviewer.department || UNASSIGNED_FACULTY_KEY) === selectedFaculty);
+
+  const hasReviewerSelected = selectedReviewerKey === 'all' || reviewerOptionsForFaculty.some(r => r.key === selectedReviewerKey);
 
   const tableRows = !hasReviewerSelected
     ? []
     : selectedReviewerKey === 'all'
-      ? allTableRows
-      : allTableRows.filter(row => row.reviewer.key === selectedReviewerKey);
+      ? facultyFilteredTableRows
+      : facultyFilteredTableRows.filter(row => row.reviewer.key === selectedReviewerKey);
 
   const selectedReviewer = selectedReviewerKey && selectedReviewerKey !== 'all'
-    ? reviewerOptions.find(r => r.key === selectedReviewerKey) || null
+    ? reviewerOptionsForFaculty.find(r => r.key === selectedReviewerKey) || null
     : null;
 
   useEffect(() => {
@@ -4479,6 +4548,10 @@ const MarkCompletedReviewContent = () => {
       setSelectedReviewerKey('all');
     }
   }, [selectedReviewerKey]);
+
+  useEffect(() => {
+    setSelectedReviewerKey('all');
+  }, [selectedFaculty]);
 
   const completedCount = tableRows.filter(row => isMcrCompleted(getRowStatus(row))).length;
   const totalCount = tableRows.length;
@@ -4502,6 +4575,28 @@ const MarkCompletedReviewContent = () => {
           <div className="mcr-toolbar">
             <div className="mcr-toolbar-filters">
               <div className="mcr-dd-select-group mcr-toolbar-filter">
+                <label className="mcr-dd-label" htmlFor="mcr-faculty-select">
+                  Select Faculty
+                </label>
+                <div className="mcr-dd-select-wrapper">
+                  <select
+                    id="mcr-faculty-select"
+                    className="mcr-dd-select"
+                    value={selectedFaculty}
+                    onChange={e => setSelectedFaculty(e.target.value)}
+                  >
+                    <option value="all">All Faculties</option>
+                    {facultyOptions.map(f => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                  </select>
+                  <svg className="mcr-dd-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
+              </div>
+
+              <div className="mcr-dd-select-group mcr-toolbar-filter">
                 <label className="mcr-dd-label" htmlFor="mcr-reviewer-select">
                   Select Reviewer
                 </label>
@@ -4513,11 +4608,21 @@ const MarkCompletedReviewContent = () => {
                     onChange={e => setSelectedReviewerKey(e.target.value)}
                   >
                     <option value="all">All Reviewers</option>
-                    {reviewerOptions.map(r => (
-                      <option key={r.key} value={r.key}>
-                        {r.name} ({r.assignmentCount} assignment{r.assignmentCount !== 1 ? 's' : ''})
-                      </option>
-                    ))}
+                    {selectedFaculty === 'all'
+                      ? reviewerGroups.map(group => (
+                        <optgroup key={group.department} label={group.label}>
+                          {group.reviewers.map(r => (
+                            <option key={r.key} value={r.key}>
+                              {r.name} ({r.assignmentCount} assignment{r.assignmentCount !== 1 ? 's' : ''})
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))
+                      : reviewerOptionsForFaculty.map(r => (
+                        <option key={r.key} value={r.key}>
+                          {r.name} ({r.assignmentCount} assignment{r.assignmentCount !== 1 ? 's' : ''})
+                        </option>
+                      ))}
                   </select>
                   <svg className="mcr-dd-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="6 9 12 15 18 9" />
@@ -4542,7 +4647,9 @@ const MarkCompletedReviewContent = () => {
                 {selectedReviewer
                   ? selectedReviewer.name
                   : selectedReviewerKey === 'all'
-                    ? 'All Reviewers'
+                    ? (selectedFaculty === 'all'
+                      ? 'All Reviewers'
+                      : `All Reviewers — ${getFacultyLabel(selectedFaculty)}`)
                     : 'Reviewer Assignments'}
               </h3>
               <span className="mcr-section-badge" style={{ background: '#dbeafe', color: '#1d4ed8' }}>
@@ -4554,7 +4661,9 @@ const MarkCompletedReviewContent = () => {
               <p className="mcr-no-data">
                 {selectedReviewer
                   ? `No assignments found for ${selectedReviewer.name}.`
-                  : 'No reviewer assignments found.'}
+                  : selectedFaculty !== 'all'
+                    ? `No reviewer assignments found for ${getFacultyLabel(selectedFaculty)}.`
+                    : 'No reviewer assignments found.'}
               </p>
             ) : (
               <div className="mcr-table-wrap">
@@ -4605,7 +4714,7 @@ const MarkCompletedReviewContent = () => {
                             <span className="mcr-td-title" title={row.title}>{row.title}</span>
                           </td>
                           <td className="mcr-td-status">
-                            <span className={`mcr-status ${isDone ? 'mcr-status--completed' : (pStatus === 'under review' ? 'mcr-status--review' : 'mcr-status--pending')}`}>
+                            <span className={`mcr-status ${isDone ? 'mcr-status--completed' : 'mcr-status--review'}`}>
                               {getMcrStatusLabel(pStatus)}
                             </span>
                           </td>
@@ -10261,7 +10370,7 @@ function MessagesInboxContent({ onMessageRead }) {
             return s?.name || `${s?.firstName || ''} ${s?.lastName || ''}`.trim() || selectedStudent;
           })()
         : selectedStudent === 'All'
-          ? 'All Students'
+          ? 'All Researchers'
           : '';
 
     return {
@@ -10438,7 +10547,7 @@ function MessagesInboxContent({ onMessageRead }) {
               <option value="">Select...</option>
               <option value="All">All Senders</option>
               <option value="Reviewer">Reviewers</option>
-              <option value="Student">Students</option>
+              <option value="Student">Researchers</option>
             </select>
           </div>
 
@@ -10461,9 +10570,9 @@ function MessagesInboxContent({ onMessageRead }) {
             </select>
           </div>
 
-          {/* Students Dropdown */}
+          {/* Researchers Dropdown */}
           <div className="inbox-filter-group">
-            <label className="inbox-filter-label">Select Student</label>
+            <label className="inbox-filter-label">Select Researcher</label>
             <select
               value={selectedStudent}
               onChange={(e) => handleStudentChange(e.target.value)}
@@ -10471,7 +10580,7 @@ function MessagesInboxContent({ onMessageRead }) {
               disabled={!selectedDepartment || selectedSenderType === 'Reviewer'}
             >
               <option value="">Select...</option>
-              <option value="All">All Students</option>
+              <option value="All">All Researchers</option>
               {studentsDropdownOptions.map(stud => {
                 const studentName = stud.name || `${stud.firstName} ${stud.lastName}`.trim();
                 return (
@@ -10559,7 +10668,7 @@ function MessagesInboxContent({ onMessageRead }) {
                         </td>
                         <td>
                           <span className={`inbox-table-badge ${type}`}>
-                            {type === 'reviewer' ? 'Reviewer' : 'Student'}
+                            {type === 'reviewer' ? 'Reviewer' : 'Researcher'}
                           </span>
                         </td>
                         <td>
@@ -11001,7 +11110,7 @@ function MessageViewModal({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
             <div className="msg-modal-files">
 
-              <p className="msg-modal-files-label">Attached Files from Student</p>
+              <p className="msg-modal-files-label">Attached Files from Researcher</p>
 
               <div className="msg-modal-files-list">
 

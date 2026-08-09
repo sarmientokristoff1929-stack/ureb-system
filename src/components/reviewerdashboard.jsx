@@ -2682,9 +2682,11 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
           const isRead = readIds.includes(String(assignment._id));
           const isProtocolAlreadySubmitted = assignment.protocolCode
             && submittedProtocolCodes.has(normalizeProtocolCode(assignment.protocolCode));
-          const displayStatus = isProtocolAlreadySubmitted
-            ? 'Submitted to Admin'
-            : formatAssignmentStatus(assignment.status);
+          const displayStatus = isAssignmentCompleted(assignment.status)
+            ? 'Completed'
+            : isProtocolAlreadySubmitted
+              ? 'Submitted to Admin'
+              : formatAssignmentStatus(assignment.status);
 
           return (
             <div className={`proposal-card ${!isRead ? 'unread' : ''}`} key={String(assignment._id)}>

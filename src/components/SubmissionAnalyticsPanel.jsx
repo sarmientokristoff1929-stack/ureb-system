@@ -23,7 +23,7 @@ const SubmissionAnalyticsPanel = ({ analytics }) => {
           </div>
           <div className="sap-donut-labels">
             <span className="sap-tag sap-tag--student">
-              Students {students.count} ({studentPct}%)
+              Researchers {students.count} ({studentPct}%)
             </span>
             <span className="sap-tag sap-tag--reviewer">
               Reviewers {reviewers.count} ({reviewerPct}%)
@@ -32,7 +32,7 @@ const SubmissionAnalyticsPanel = ({ analytics }) => {
         </div>
 
         <div className="sap-compare-col sap-compare-col--student">
-          <h4>Students</h4>
+          <h4>Researchers</h4>
           <dl className="sap-stat-list">
             <div>
               <dt>Submissions</dt>
