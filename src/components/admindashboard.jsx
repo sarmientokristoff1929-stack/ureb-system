@@ -3273,6 +3273,7 @@ function StudentProposalContent({ onNewCountChange }) {
   });
   const [rightCanvasFiles, setRightCanvasFiles] = useState({});
   const [attachmentSlots, setAttachmentSlots] = useState(['attachment_0']);
+  const [removedAttachmentKeys, setRemovedAttachmentKeys] = useState([]);
   const [rightCanvasSaving, setRightCanvasSaving] = useState(false);
   const [rightCanvasFeedback, setRightCanvasFeedback] = useState({ type: '', message: '' });
   const [showAssignSuccessModal, setShowAssignSuccessModal] = useState(false);
@@ -3291,6 +3292,20 @@ function StudentProposalContent({ onNewCountChange }) {
       delete next[slotKey];
       return next;
     });
+  };
+
+  const handleRemoveExistingAttachment = (key) => {
+    setRemovedAttachmentKeys((prev) => (prev.includes(key) ? prev : [...prev, key]));
+    // Discard any replacement file staged for this attachment — it's being removed, not replaced.
+    setRightCanvasFiles((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const handleUndoRemoveExistingAttachment = (key) => {
+    setRemovedAttachmentKeys((prev) => prev.filter((k) => k !== key));
   };
 
   const selectedProposalIdStr = selectedProposal ? toRecordId(selectedProposal._id) : '';
@@ -3371,6 +3386,7 @@ function StudentProposalContent({ onNewCountChange }) {
       });
       setRightCanvasFiles({});
       setAttachmentSlots(['attachment_0']);
+      setRemovedAttachmentKeys([]);
       setRightCanvasFeedback({ type: '', message: '' });
     }
   }, [selectedProposalId, selectedProposal, assignments]);
@@ -3436,6 +3452,9 @@ function StudentProposalContent({ onNewCountChange }) {
       }
       formDataToSend.append('startDate', rightCanvasForm.startDate);
       formDataToSend.append('endDate', rightCanvasForm.endDate);
+      if (removedAttachmentKeys.length > 0) {
+        formDataToSend.append('removedAttachmentKeys', JSON.stringify(removedAttachmentKeys));
+      }
 
       Object.entries(rightCanvasFiles).forEach(([key, file]) => {
         if (file instanceof File) {
@@ -3893,31 +3912,84 @@ function StudentProposalContent({ onNewCountChange }) {
                             </span>
                           </div>
                           <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0.2rem 0 0.6rem' }}>
-                            These attachments are already saved to this proposal. Leave the slots below empty to keep them, or add more attachments.
+                            Replace or remove a saved attachment below, or leave it as-is to keep it unchanged.
                           </p>
                           <div className="sp-files-list">
-                            {existingAdminAttachments.map(({ key, label, file }) => (
-                              <div className="sp-file-item" key={key}>
-                                <div className="sp-file-meta">
-                                  <div className="sp-file-label">{label}</div>
-                                  <div className="sp-file-name" title={file?.originalname || file?.filename || key}>
-                                    {file?.originalname || file?.filename || key}
+                            {existingAdminAttachments.map(({ key, label, file }) => {
+                              const isRemoved = removedAttachmentKeys.includes(key);
+                              const replacementFile = rightCanvasFiles[key];
+                              return (
+                                <div className="sp-file-item" key={key} style={isRemoved ? { opacity: 0.55 } : undefined}>
+                                  <div className="sp-file-meta">
+                                    <div className="sp-file-label">{label}</div>
+                                    <div
+                                      className="sp-file-name"
+                                      title={file?.originalname || file?.filename || key}
+                                      style={isRemoved ? { textDecoration: 'line-through' } : undefined}
+                                    >
+                                      {file?.originalname || file?.filename || key}
+                                    </div>
+                                    <div className="sp-file-submeta">
+                                      {isRemoved
+                                        ? 'Will be removed on save'
+                                        : replacementFile
+                                          ? (
+                                            <>
+                                              {`Replacing with: ${replacementFile.name}`}
+                                              {' '}
+                                              <button
+                                                type="button"
+                                                className="sp-chip-remove-btn"
+                                                title="Cancel replacement"
+                                                onClick={() => handleRightCanvasFileChange(key, null)}
+                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontWeight: 700 }}
+                                              >
+                                                ×
+                                              </button>
+                                            </>
+                                          )
+                                          : (
+                                            <>
+                                              {file?.size ? `${(file.size / 1024).toFixed(1)} KB` : 'Unknown size'}
+                                              {file?.mimetype ? ` • ${file.mimetype}` : ''}
+                                            </>
+                                          )}
+                                    </div>
                                   </div>
-                                  <div className="sp-file-submeta">
-                                    {file?.size ? `${(file.size / 1024).toFixed(1)} KB` : 'Unknown size'}
-                                    {file?.mimetype ? ` • ${file.mimetype}` : ''}
+                                  <div className="sp-file-actions">
+                                    {isRemoved ? (
+                                      <button type="button" className="sp-file-btn" onClick={() => handleUndoRemoveExistingAttachment(key)}>
+                                        Undo
+                                      </button>
+                                    ) : (
+                                      <>
+                                        <button type="button" className="sp-file-btn sp-file-btn--view" onClick={() => handleViewStudentFile(file)}>
+                                          View
+                                        </button>
+                                        <input
+                                          type="file"
+                                          id={`sp-right-attachment-replace-${key}`}
+                                          accept=".pdf,.doc,.docx,.txt"
+                                          onChange={(e) => handleRightCanvasFileChange(key, e.target.files[0])}
+                                          className="sp-canvas-file-input-hidden"
+                                        />
+                                        <label htmlFor={`sp-right-attachment-replace-${key}`} className="sp-file-btn" style={{ cursor: 'pointer' }}>
+                                          {replacementFile ? 'Change' : 'Replace'}
+                                        </label>
+                                        <button
+                                          type="button"
+                                          className="sp-file-btn"
+                                          style={{ color: '#ef4444' }}
+                                          onClick={() => handleRemoveExistingAttachment(key)}
+                                        >
+                                          Remove
+                                        </button>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
-                                <div className="sp-file-actions">
-                                  <button type="button" className="sp-file-btn sp-file-btn--view" onClick={() => handleViewStudentFile(file)}>
-                                    View
-                                  </button>
-                                  <button type="button" className="sp-file-btn sp-file-btn--download" onClick={() => handleDownloadStudentFile(file)}>
-                                    Download
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}

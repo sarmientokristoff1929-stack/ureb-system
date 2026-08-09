@@ -4484,11 +4484,20 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
       secondaryReviewer2,
       startDate,
       endDate,
-      proposalId
+      proposalId,
+      removedAttachmentKeys
     } = req.body;
 
     // Trim protocolCode to avoid uniqueness issues with white space
     if (protocolCode) protocolCode = protocolCode.toUpperCase().replace(/\s+/g, '');
+
+    let removedKeys = [];
+    if (removedAttachmentKeys) {
+      try {
+        const parsed = JSON.parse(removedAttachmentKeys);
+        if (Array.isArray(parsed)) removedKeys = parsed.map(String);
+      } catch (_) { /* ignore malformed input */ }
+    }
 
     // Collect all uploaded files dynamically (accepts any field name)
     const uploadedFiles = {};
@@ -4564,8 +4573,27 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
       preservedStudentFiles = pickStudentAssignmentFiles(
         existingProposal.studentFiles || existingProposal.files || {}
       );
+      const preservedAdminFiles = pickAdminAssignmentFiles(existingProposal.adminFiles || {});
+
+      // Explicit removals (admin cleared an existing attachment without replacing it)
+      removedKeys.forEach((key) => {
+        const removedFile = preservedAdminFiles[key];
+        if (removedFile?.filename) {
+          deleteFromGridFS(removedFile.filename).catch((e) => console.error('Error deleting removed attachment:', e));
+        }
+        delete preservedAdminFiles[key];
+      });
+
+      // Replacements (a new file uploaded under a key that already had one) — drop the old blob
+      Object.keys(uploadedFiles).forEach((key) => {
+        const oldFile = preservedAdminFiles[key];
+        if (oldFile?.filename) {
+          deleteFromGridFS(oldFile.filename).catch((e) => console.error('Error deleting replaced attachment:', e));
+        }
+      });
+
       const adminFiles = {
-        ...pickAdminAssignmentFiles(existingProposal.adminFiles || {}),
+        ...preservedAdminFiles,
         ...uploadedFiles,
       };
       const mergedFiles = { ...preservedStudentFiles, ...adminFiles };
