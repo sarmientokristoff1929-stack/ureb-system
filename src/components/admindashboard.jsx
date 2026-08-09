@@ -3224,7 +3224,18 @@ function StudentProposalContent({ onNewCountChange }) {
 
   const newCount = proposals.filter(isStudentProposalNew).length;
 
+  const isProposalAssigned = useCallback((proposal) => {
+    const propIdStr = toRecordId(proposal?._id);
+    return assignments.some((a) => {
+      const aPropId = toRecordId(a.proposalId);
+      if (aPropId && propIdStr && aPropId === propIdStr) return true;
+      if (a.protocolCode && proposal?.protocolCode && a.protocolCode === proposal.protocolCode) return true;
+      return false;
+    });
+  }, [assignments]);
+
   const selectedProposal = filteredProposals.find((p) => toRecordId(p._id) === selectedProposalId) || null;
+  const isSelectedProposalAssigned = selectedProposal ? isProposalAssigned(selectedProposal) : false;
   const selectedFiles = selectedProposal
     ? Object.entries(getProposalStudentFiles(selectedProposal)).map(([key, file]) => ({
       key,
@@ -3363,6 +3374,7 @@ function StudentProposalContent({ onNewCountChange }) {
   const handleSaveRightCanvasDetails = async (e) => {
     e.preventDefault();
     if (!selectedProposal) return;
+    const wasEdit = isSelectedProposalAssigned;
 
     if (!rightCanvasForm.protocolCode.trim()) {
       setRightCanvasFeedback({ type: 'error', message: 'Protocol Code is required.' });
@@ -3416,7 +3428,10 @@ function StudentProposalContent({ onNewCountChange }) {
       const result = await assignFileToReviewer(formDataToSend);
 
       if (result.success) {
-        setRightCanvasFeedback({ type: 'success', message: 'Reviewers & protocol metadata assigned successfully!' });
+        setRightCanvasFeedback({
+          type: 'success',
+          message: wasEdit ? 'Reviewers reassigned successfully!' : 'Reviewers & protocol metadata assigned successfully!',
+        });
 
         const rev1Obj = reviewers.find((r) => r.email === rightCanvasForm.secondaryReviewer1);
         const rev2Obj = reviewers.find((r) => r.email === rightCanvasForm.secondaryReviewer2);
@@ -3424,6 +3439,7 @@ function StudentProposalContent({ onNewCountChange }) {
         const rev2Name = rev2Obj ? getReviewerDisplayName(rev2Obj) : (rightCanvasForm.secondaryReviewer2 || 'None');
 
         setAssignSuccessDetails({
+          mode: wasEdit ? 'edit' : 'assign',
           protocolCode: rightCanvasForm.protocolCode.toUpperCase().replace(/\s+/g, ''),
           researchTitle: selectedProposal?.researchTitle || 'Proposal',
           proponent: selectedProposal?.proponent || selectedProposal?.studentName || 'Student',
@@ -3563,13 +3579,7 @@ function StudentProposalContent({ onNewCountChange }) {
                 const statusLabel = isNew ? 'New' : 'Seen';
 
                 // Determine if this proposal has been assigned to a reviewer
-                const propIdStr = toRecordId(proposal._id);
-                const isAssigned = assignments.some((a) => {
-                  const aPropId = toRecordId(a.proposalId);
-                  if (aPropId && propIdStr && aPropId === propIdStr) return true;
-                  if (a.protocolCode && proposal.protocolCode && a.protocolCode === proposal.protocolCode) return true;
-                  return false;
-                });
+                const isAssigned = isProposalAssigned(proposal);
 
                 return (
                   <tr
@@ -3717,7 +3727,7 @@ function StudentProposalContent({ onNewCountChange }) {
                 <div className="sp-right-canvas-container">
                   <div className="sp-canvas-header">
                     <div className="sp-canvas-title-group">
-                      <h4 className="sp-canvas-heading">Assign Reviewer</h4>
+                      <h4 className="sp-canvas-heading">{isSelectedProposalAssigned ? 'Reassign Reviewer' : 'Assign Reviewer'}</h4>
                     </div>
                   </div>
 
@@ -3959,7 +3969,9 @@ function StudentProposalContent({ onNewCountChange }) {
                         className="btn-primary sp-canvas-submit-btn"
                         disabled={rightCanvasSaving}
                       >
-                        {rightCanvasSaving ? 'Assigning…' : 'Assign'}
+                        {rightCanvasSaving
+                          ? (isSelectedProposalAssigned ? 'Reassigning…' : 'Assigning…')
+                          : (isSelectedProposalAssigned ? 'Reassign' : 'Assign')}
                       </button>
                     </div>
                   </form>
@@ -4024,10 +4036,12 @@ function StudentProposalContent({ onNewCountChange }) {
             </div>
 
             <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.4rem' }}>
-              Reviewers Assigned Successfully!
+              {assignSuccessDetails.mode === 'edit' ? 'Reviewers Reassigned Successfully!' : 'Reviewers Assigned Successfully!'}
             </h3>
             <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1.4rem', lineHeight: '1.4' }}>
-              The research protocol metadata has been updated and sent to the assigned reviewers.
+              {assignSuccessDetails.mode === 'edit'
+                ? 'The research protocol metadata has been updated and the newly assigned reviewers have been notified.'
+                : 'The research protocol metadata has been updated and sent to the assigned reviewers.'}
             </p>
 
             <div
