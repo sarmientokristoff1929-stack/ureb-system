@@ -1278,6 +1278,8 @@ function DashboardContent({ userInfo, onTabChange }) {
   const [loading, setLoading] = useState(true);
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [isDeletingProposal, setIsDeletingProposal] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [restrictedModalOpen, setRestrictedModalOpen] = useState(false);
   const [restrictedActionType, setRestrictedActionType] = useState('edit');
   const [dueReminders, setDueReminders] = useState([]);
@@ -1422,17 +1424,28 @@ function DashboardContent({ userInfo, onTabChange }) {
     checkDueReminders();
   }, [userInfo]);
 
-  const confirmDeleteProposal = () => {
+  const confirmDeleteProposal = async () => {
     const idToDelete = deleteTargetId;
-    // Optimistic: update UI and persist deletion immediately
-    saveDeletedProposalId(idToDelete);
-    setProposals(prev => prev.filter(p => p._id !== idToDelete));
-    setStats(prev => ({ ...prev, totalProposals: Math.max(0, prev.totalProposals - 1) }));
-    setDeleteTargetId(null);
-    setDeleteModalOpen(false);
-    // Try server in background
-    fetch(`${API_BASE_URL}/proposals/${idToDelete}`, { method: 'DELETE' })
-      .catch(err => console.error('Background proposal delete failed:', err));
+    setDeleteError('');
+    setIsDeletingProposal(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/proposals/${idToDelete}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.success === false) {
+        throw new Error(data.error || 'Failed to delete proposal');
+      }
+      // Deleted from the database — now safe to reflect the removal in the UI.
+      saveDeletedProposalId(idToDelete);
+      setProposals(prev => prev.filter(p => p._id !== idToDelete));
+      setStats(prev => ({ ...prev, totalProposals: Math.max(0, prev.totalProposals - 1) }));
+      setDeleteTargetId(null);
+      setDeleteModalOpen(false);
+    } catch (err) {
+      console.error('Proposal delete failed:', err);
+      setDeleteError('Could not delete this proposal. Please try again.');
+    } finally {
+      setIsDeletingProposal(false);
+    }
   };
 
   const displayedProposals = useMemo(() => {
@@ -1782,14 +1795,23 @@ function DashboardContent({ userInfo, onTabChange }) {
       </div>
 
       {deleteModalOpen && (
-        <div className="mini-modal-overlay" onClick={() => { setDeleteModalOpen(false); setDeleteTargetId(null); }}>
+        <div className="mini-modal-overlay" onClick={() => { if (isDeletingProposal) return; setDeleteModalOpen(false); setDeleteTargetId(null); setDeleteError(''); }}>
           <div className="mini-modal" onClick={e => e.stopPropagation()}>
             <div className="mini-modal-icon mini-modal-icon--danger"><TrashIcon /></div>
             <h4 className="mini-modal-title">Delete Proposal?</h4>
             <p className="mini-modal-text">This proposal will be permanently removed and cannot be undone.</p>
+            {deleteError && <p className="mini-modal-text" style={{ color: '#dc2626' }}>{deleteError}</p>}
             <div className="mini-modal-actions">
-              <button className="mini-modal-btn mini-modal-btn--ghost" onClick={() => { setDeleteModalOpen(false); setDeleteTargetId(null); }}>Cancel</button>
-              <button className="mini-modal-btn mini-modal-btn--danger" onClick={confirmDeleteProposal}>Delete</button>
+              <button
+                className="mini-modal-btn mini-modal-btn--ghost"
+                disabled={isDeletingProposal}
+                onClick={() => { setDeleteModalOpen(false); setDeleteTargetId(null); setDeleteError(''); }}
+              >
+                Cancel
+              </button>
+              <button className="mini-modal-btn mini-modal-btn--danger" disabled={isDeletingProposal} onClick={confirmDeleteProposal}>
+                {isDeletingProposal ? 'Deleting…' : 'Delete'}
+              </button>
             </div>
           </div>
         </div>
@@ -3542,6 +3564,8 @@ function MessagesContent({ userInfo, onMessageRead }) {
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState(null);
+  const [isDeletingMessage, setIsDeletingMessage] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -3584,20 +3608,30 @@ function MessagesContent({ userInfo, onMessageRead }) {
   };
 
   const closeDeleteModal = () => {
+    if (isDeletingMessage) return;
     setDeleteTargetId(null);
     setDeleteModalOpen(false);
+    setDeleteError('');
   };
 
   const confirmDelete = async () => {
+    setDeleteError('');
+    setIsDeletingMessage(true);
     try {
       const response = await fetch(`${API_BASE_URL}/messages/${deleteTargetId}`, { method: 'DELETE' });
-      if (response.ok) {
-        setMessages(prev => prev.filter(msg => msg._id !== deleteTargetId));
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || 'Failed to delete message');
       }
+      // Deleted from the database — now safe to reflect the removal in the UI.
+      setMessages(prev => prev.filter(msg => msg._id !== deleteTargetId));
+      setDeleteTargetId(null);
+      setDeleteModalOpen(false);
     } catch (error) {
       console.error('Error deleting message:', error);
+      setDeleteError('Could not delete this message. Please try again.');
     } finally {
-      closeDeleteModal();
+      setIsDeletingMessage(false);
     }
   };
 
@@ -3912,9 +3946,12 @@ function MessagesContent({ userInfo, onMessageRead }) {
             </div>
             <h4 className="mini-modal-title">Delete Message?</h4>
             <p className="mini-modal-text">This message will be permanently removed.</p>
+            {deleteError && <p className="mini-modal-text" style={{ color: '#dc2626' }}>{deleteError}</p>}
             <div className="mini-modal-actions">
-              <button className="mini-modal-btn mini-modal-btn--ghost" onClick={closeDeleteModal}>Cancel</button>
-              <button className="mini-modal-btn mini-modal-btn--danger" onClick={confirmDelete}>Delete</button>
+              <button className="mini-modal-btn mini-modal-btn--ghost" disabled={isDeletingMessage} onClick={closeDeleteModal}>Cancel</button>
+              <button className="mini-modal-btn mini-modal-btn--danger" disabled={isDeletingMessage} onClick={confirmDelete}>
+                {isDeletingMessage ? 'Deleting…' : 'Delete'}
+              </button>
             </div>
           </div>
         </div>
@@ -3941,6 +3978,8 @@ const HistoryContent = () => {
   const [loading, setLoading] = useState(true);
   const [userInfo, setUserInfo] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ open: false, mode: null, id: null });
+  const [isDeletingHistory, setIsDeletingHistory] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('ureb_user') || '{}');
@@ -4058,39 +4097,58 @@ const HistoryContent = () => {
 
   const handleDeleteOne = async () => {
     const { id } = confirmModal;
-    saveHiddenHistoryId(id);
-    setHistory(prev => prev.filter(a => String(a.id) !== String(id)));
-    setConfirmModal({ open: false, mode: null, id: null });
-
-    if (userInfo?.email) {
-      try {
-        await fetch(`${API_BASE_URL}/user-hidden-items`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: userInfo.email, itemId: String(id), itemType: 'history' })
-        });
-      } catch (err) {
-        console.error('Realtime DB history item deletion failed:', err);
+    if (!userInfo?.email) return;
+    setDeleteError('');
+    setIsDeletingHistory(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/user-hidden-items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userInfo.email, itemId: String(id), itemType: 'history' })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.success === false) {
+        throw new Error(data.error || 'Failed to delete history entry');
       }
+      // Persisted to the database — now safe to reflect the removal in the UI.
+      saveHiddenHistoryId(id);
+      setHistory(prev => prev.filter(a => String(a.id) !== String(id)));
+      setConfirmModal({ open: false, mode: null, id: null });
+    } catch (err) {
+      console.error('Realtime DB history item deletion failed:', err);
+      setDeleteError('Could not delete this entry. Please try again.');
+    } finally {
+      setIsDeletingHistory(false);
     }
   };
 
   const handleDeleteAll = async () => {
     const currentIds = history.map(a => a.id);
-    currentIds.forEach(id => saveHiddenHistoryId(id));
-    setHistory([]);
-    setConfirmModal({ open: false, mode: null, id: null });
-
-    if (userInfo?.email && currentIds.length > 0) {
-      try {
-        await fetch(`${API_BASE_URL}/user-hidden-items/clear-all`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: userInfo.email, itemIds: currentIds.map(String), itemType: 'history' })
-        });
-      } catch (err) {
-        console.error('Realtime DB clear all history failed:', err);
+    if (!userInfo?.email || currentIds.length === 0) {
+      setConfirmModal({ open: false, mode: null, id: null });
+      return;
+    }
+    setDeleteError('');
+    setIsDeletingHistory(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/user-hidden-items/clear-all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userInfo.email, itemIds: currentIds.map(String), itemType: 'history' })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.success === false) {
+        throw new Error(data.error || 'Failed to clear history');
       }
+      // Persisted to the database — now safe to reflect the removal in the UI.
+      currentIds.forEach(id => saveHiddenHistoryId(id));
+      setHistory([]);
+      setConfirmModal({ open: false, mode: null, id: null });
+    } catch (err) {
+      console.error('Realtime DB clear all history failed:', err);
+      setDeleteError('Could not clear history. Please try again.');
+    } finally {
+      setIsDeletingHistory(false);
     }
   };
 
@@ -4248,7 +4306,7 @@ const HistoryContent = () => {
 
       {/* Confirm delete modal */}
       {confirmModal.open && (
-        <div className="mini-modal-overlay" onClick={() => setConfirmModal({ open: false, mode: null, id: null })}>
+        <div className="mini-modal-overlay" onClick={() => { if (isDeletingHistory) return; setConfirmModal({ open: false, mode: null, id: null }); setDeleteError(''); }}>
           <div className="mini-modal" onClick={e => e.stopPropagation()}>
             <div className="mini-modal-icon mini-modal-icon--danger"><TrashIcon /></div>
             <h4 className="mini-modal-title">
@@ -4259,9 +4317,22 @@ const HistoryContent = () => {
                 ? 'All activity history entries will be permanently removed.'
                 : 'This history entry will be permanently removed.'}
             </p>
+            {deleteError && <p className="mini-modal-text" style={{ color: '#dc2626' }}>{deleteError}</p>}
             <div className="mini-modal-actions">
-              <button className="mini-modal-btn mini-modal-btn--ghost" onClick={() => setConfirmModal({ open: false, mode: null, id: null })}>Cancel</button>
-              <button className="mini-modal-btn mini-modal-btn--danger" onClick={confirmModal.mode === 'all' ? handleDeleteAll : handleDeleteOne}>Delete</button>
+              <button
+                className="mini-modal-btn mini-modal-btn--ghost"
+                disabled={isDeletingHistory}
+                onClick={() => { setConfirmModal({ open: false, mode: null, id: null }); setDeleteError(''); }}
+              >
+                Cancel
+              </button>
+              <button
+                className="mini-modal-btn mini-modal-btn--danger"
+                disabled={isDeletingHistory}
+                onClick={confirmModal.mode === 'all' ? handleDeleteAll : handleDeleteOne}
+              >
+                {isDeletingHistory ? 'Deleting…' : 'Delete'}
+              </button>
             </div>
           </div>
         </div>

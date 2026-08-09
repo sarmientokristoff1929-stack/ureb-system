@@ -2441,6 +2441,7 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
   const [expandedId, setExpandedId] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [deleteError, setDeleteError] = useState('');
   const [readIds, setReadIds] = useState([]);
   const [viewingFile, setViewingFile] = useState(null);
   const [submittedProtocolCodes, setSubmittedProtocolCodes] = useState(new Set());
@@ -2537,22 +2538,36 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
     }
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!confirmDeleteId) return;
+    setDeleteError('');
     setDeleting(true);
-    const deletedIds = getDeletedAssignmentIds();
-    if (!deletedIds.includes(confirmDeleteId)) {
-      localStorage.setItem(DELETED_ASSIGNMENTS_KEY, JSON.stringify([...deletedIds, confirmDeleteId]));
-    }
-    setAssignments(prev => {
-      const filtered = prev.filter(a => String(a._id) !== confirmDeleteId);
-      if (setAssignedCount) {
-        setAssignedCount(filtered.filter(a => !readIds.includes(String(a._id))).length);
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+      const res = await fetch(`${API_BASE}/assignments/${confirmDeleteId}/delete`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.success === false) {
+        throw new Error(data.error || 'Failed to delete assignment');
       }
-      return filtered;
-    });
-    setConfirmDeleteId(null);
-    setDeleting(false);
+      // Deleted from the database — now safe to reflect the removal in the UI.
+      const deletedIds = getDeletedAssignmentIds();
+      if (!deletedIds.includes(confirmDeleteId)) {
+        localStorage.setItem(DELETED_ASSIGNMENTS_KEY, JSON.stringify([...deletedIds, confirmDeleteId]));
+      }
+      setAssignments(prev => {
+        const filtered = prev.filter(a => String(a._id) !== confirmDeleteId);
+        if (setAssignedCount) {
+          setAssignedCount(filtered.filter(a => !readIds.includes(String(a._id))).length);
+        }
+        return filtered;
+      });
+      setConfirmDeleteId(null);
+    } catch (err) {
+      console.error('Error deleting assignment:', err);
+      setDeleteError('Could not delete this assignment. Please try again.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const formatDate = (dateStr) => {
@@ -2644,16 +2659,17 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
 
       {/* Delete confirmation modal */}
       {confirmDeleteId && (
-        <div className="logout-modal-overlay" onClick={() => setConfirmDeleteId(null)}>
+        <div className="logout-modal-overlay" onClick={() => { if (deleting) return; setConfirmDeleteId(null); setDeleteError(''); }}>
           <div className="logout-modal-container" onClick={e => e.stopPropagation()}>
             <div className="logout-modal-header">
               <h2>Delete Assignment</h2>
             </div>
             <div className="logout-modal-body">
               <p>Are you sure you want to delete this assignment? This cannot be undone.</p>
+              {deleteError && <p style={{ color: '#dc2626' }}>{deleteError}</p>}
             </div>
             <div className="logout-modal-footer">
-              <button className="logout-modal-btn-secondary" onClick={() => setConfirmDeleteId(null)} disabled={deleting}>Cancel</button>
+              <button className="logout-modal-btn-secondary" onClick={() => { setConfirmDeleteId(null); setDeleteError(''); }} disabled={deleting}>Cancel</button>
               <button className="logout-modal-btn-primary" onClick={handleDeleteConfirm} disabled={deleting}>
                 {deleting ? 'Deleting...' : 'Delete'}
               </button>
