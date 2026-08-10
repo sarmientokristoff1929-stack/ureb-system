@@ -4716,6 +4716,8 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
         ? pickStudentAssignmentFiles(existingProposal.studentFiles || existingProposal.files || {})
         : {};
       const existingAdminFiles = pickAdminAssignmentFiles(existingAdminAssignment?.assignedFiles || existingProposal?.adminFiles || {});
+      // Keep the reviewer's copy in sync with attachments the admin removed this save.
+      removedKeys.forEach((removedKey) => delete existingAdminFiles[removedKey]);
       const allAssignedFiles = {
         ...studentFiles,
         ...existingAdminFiles,
@@ -4787,6 +4789,41 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
         createdAt: new Date()
       });
       console.log(`Notification sent to: ${resolvedName} (${reviewer.email})`);
+    }
+
+    // Reassignment cleanup — a reviewer who previously held this admin assignment but is
+    // no longer Reviewer 1/2 after this save loses access entirely (their assignment record,
+    // and with it the files/data that were sent to them, is deleted rather than left dangling).
+    try {
+      const proposalMatchers = buildProposalIdMatchers(resolvedProposalId);
+      const currentAdminAssignments = await assignments.find({
+        $and: [{ $or: proposalMatchers }, adminAssignmentFilter()],
+      }).toArray();
+
+      const keptEmails = new Set(reviewerValues.map((email) => email.toLowerCase()));
+      const staleAssignments = currentAdminAssignments.filter(
+        (a) => a.reviewerEmail && !keptEmails.has(a.reviewerEmail.toLowerCase())
+      );
+
+      if (staleAssignments.length > 0) {
+        await assignments.deleteMany({ _id: { $in: staleAssignments.map((a) => a._id) } });
+        for (const stale of staleAssignments) {
+          await notifications.insertOne({
+            recipientEmail: stale.reviewerEmail,
+            recipientName: stale.reviewerName || stale.reviewerEmail,
+            title: 'Removed from Review Assignment',
+            message: `You have been unassigned from protocol ${protocolCode}. This proposal and its files are no longer available in your dashboard.`,
+            type: 'assignment_removed',
+            protocolCode,
+            proposalId: resolvedProposalId,
+            read: false,
+            createdAt: new Date(),
+          });
+        }
+        console.log(`Removed ${staleAssignments.length} stale admin assignment(s) for proposal ${resolvedProposalId}`);
+      }
+    } catch (cleanupError) {
+      console.error('Error cleaning up stale reviewer assignments:', cleanupError);
     }
 
     // Link protocol code only to student/preliminary assignments (never replace their files)
