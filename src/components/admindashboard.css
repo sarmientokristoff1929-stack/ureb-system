@@ -1835,6 +1835,134 @@
 
 
 
+.form-card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.form-card-header-row h2 {
+  margin-bottom: 1.5rem;
+}
+
+.history-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  height: fit-content;
+}
+
+.history-modal-container {
+  background: white;
+  border-radius: 12px;
+  max-width: 560px;
+  width: 90%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.3s ease-out;
+}
+
+.history-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border-light, #eee);
+}
+
+.history-modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--text-dark);
+}
+
+.history-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+}
+
+.history-modal-body {
+  padding: 1.25rem 1.5rem;
+  overflow-y: auto;
+}
+
+.history-empty-note {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.history-item {
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--border-light, #eee);
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.history-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.history-item-recipient {
+  font-weight: 600;
+  color: var(--text-dark);
+  font-size: 0.9rem;
+}
+
+.history-item-date {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.history-item-message {
+  color: var(--text-dark);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin: 0 0 0.5rem 0;
+  white-space: pre-wrap;
+}
+
+.history-item-files {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.history-item-file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background: #f7f9f7;
+  border-radius: 7px;
+  padding: 0.4rem 0.6rem;
+}
+
+.history-item-file-name {
+  font-size: 0.8rem;
+  color: var(--text-dark);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 
 
 

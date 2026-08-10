@@ -5063,6 +5063,22 @@ app.post('/api/send-message-to-student', upload.any(), async (req, res) => {
   }
 });
 
+// History of messages the admin has sent to researchers (newest first)
+app.get('/api/messages-to-student/history', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+    const history = await messages
+      .find({ type: 'admin_to_student' })
+      .sort({ sentAt: -1 })
+      .toArray();
+    res.json(history);
+  } catch (error) {
+    console.error('Error fetching admin-to-student message history:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Send message to reviewer endpoint
 app.post('/api/send-message-to-reviewer', upload.any(), async (req, res) => {
   const { reviewerEmail, recipientName: clientRecipientName, message } = req.body;

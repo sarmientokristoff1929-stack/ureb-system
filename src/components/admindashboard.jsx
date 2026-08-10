@@ -4960,6 +4960,48 @@ const MessageResearcherContent = () => {
 
   const [messageSuccessRecipient, setMessageSuccessRecipient] = useState('');
 
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+
+  const [messageHistory, setMessageHistory] = useState([]);
+
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const [historyError, setHistoryError] = useState('');
+
+
+
+  const openHistoryModal = async () => {
+
+    setIsHistoryModalOpen(true);
+
+    setHistoryLoading(true);
+
+    setHistoryError('');
+
+    try {
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/messages-to-student/history`);
+
+      if (!response.ok) throw new Error('Failed to fetch history');
+
+      const data = await response.json();
+
+      setMessageHistory(data);
+
+    } catch (err) {
+
+      console.error('Error fetching message history:', err);
+
+      setHistoryError('Failed to load message history');
+
+    } finally {
+
+      setHistoryLoading(false);
+
+    }
+
+  };
+
 
 
   useEffect(() => {
@@ -5158,7 +5200,33 @@ const MessageResearcherContent = () => {
 
       <div className="form-card">
 
-        <h2>Message Researcher</h2>
+        <div className="form-card-header-row">
+
+          <h2>Message Researcher</h2>
+
+          <button
+
+            type="button"
+
+            className="btn-secondary history-btn"
+
+            onClick={openHistoryModal}
+
+          >
+
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+
+              <circle cx="12" cy="12" r="9" />
+
+              <polyline points="12 7 12 12 16 14" />
+
+            </svg>
+
+            History
+
+          </button>
+
+        </div>
 
         <form className="message-form" onSubmit={handleSubmit}>
 
@@ -5453,6 +5521,146 @@ const MessageResearcherContent = () => {
                 </button>
 
               </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {/* Message History Modal */}
+
+      {isHistoryModalOpen && (
+
+        <div className="success-modal-overlay" onClick={() => setIsHistoryModalOpen(false)}>
+
+          <div className="history-modal-container" onClick={(e) => e.stopPropagation()}>
+
+            <div className="history-modal-header">
+
+              <h2>Message History</h2>
+
+              <button
+
+                type="button"
+
+                className="history-modal-close"
+
+                onClick={() => setIsHistoryModalOpen(false)}
+
+              >
+
+                <XIcon />
+
+              </button>
+
+            </div>
+
+            <div className="history-modal-body">
+
+              {historyLoading && <p className="history-empty-note">Loading message history...</p>}
+
+              {!historyLoading && historyError && <p className="error-message">{historyError}</p>}
+
+              {!historyLoading && !historyError && messageHistory.length === 0 && (
+
+                <p className="history-empty-note">No messages have been sent to researchers yet.</p>
+
+              )}
+
+              {!historyLoading && !historyError && messageHistory.map((msg) => (
+
+                <div key={msg._id} className="history-item">
+
+                  <div className="history-item-header">
+
+                    <span className="history-item-recipient">To: {msg.recipientName || msg.recipientEmail}</span>
+
+                    <span className="history-item-date">
+
+                      {msg.sentAt ? new Date(msg.sentAt).toLocaleString() : ''}
+
+                    </span>
+
+                  </div>
+
+                  <p className="history-item-message">{msg.message}</p>
+
+                  {Array.isArray(msg.files) && msg.files.length > 0 && (
+
+                    <div className="history-item-files">
+
+                      {msg.files.map((file, i) => (
+
+                        <div key={i} className="history-item-file">
+
+                          <span className="history-item-file-name">{file.filename}</span>
+
+                          {file.path && (
+
+                            <div style={{ display: 'flex', gap: '8px' }}>
+
+                              <button
+
+                                type="button"
+
+                                className="msg-file-download"
+
+                                onClick={() => {
+
+                                  import('../services/api.js').then(({ viewFile }) => {
+
+                                    viewFile(file.path);
+
+                                  });
+
+                                }}
+
+                              >
+
+                                View
+
+                              </button>
+
+                              <button
+
+                                type="button"
+
+                                className="msg-file-download"
+
+                                onClick={() => {
+
+                                  import('../services/api.js').then(({ downloadReviewerFile }) => {
+
+                                    downloadReviewerFile(file.path, file.filename);
+
+                                  });
+
+                                }}
+
+                              >
+
+                                Download
+
+                              </button>
+
+                            </div>
+
+                          )}
+
+                        </div>
+
+                      ))}
+
+                    </div>
+
+                  )}
+
+                </div>
+
+              ))}
 
             </div>
 
