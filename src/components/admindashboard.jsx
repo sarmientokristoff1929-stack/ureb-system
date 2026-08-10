@@ -4968,11 +4968,21 @@ const MessageResearcherContent = () => {
 
   const [historyError, setHistoryError] = useState('');
 
+  const [historySearch, setHistorySearch] = useState('');
+
+  const [historySearchInput, setHistorySearchInput] = useState('');
+
+  const [historyPage, setHistoryPage] = useState(1);
+
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+
+  const [historyTotal, setHistoryTotal] = useState(0);
+
+  const HISTORY_PAGE_SIZE = 20;
 
 
-  const openHistoryModal = async () => {
 
-    setIsHistoryModalOpen(true);
+  const fetchHistoryPage = async (page, search) => {
 
     setHistoryLoading(true);
 
@@ -4980,13 +4990,23 @@ const MessageResearcherContent = () => {
 
     try {
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/messages-to-student/history`);
+      const params = new URLSearchParams({ page: String(page), limit: String(HISTORY_PAGE_SIZE) });
+
+      if (search) params.set('search', search);
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/messages-to-student/history?${params.toString()}`);
 
       if (!response.ok) throw new Error('Failed to fetch history');
 
       const data = await response.json();
 
-      setMessageHistory(data);
+      setMessageHistory(data.messages || []);
+
+      setHistoryPage(data.page || 1);
+
+      setHistoryTotalPages(data.totalPages || 1);
+
+      setHistoryTotal(data.total || 0);
 
     } catch (err) {
 
@@ -5001,6 +5021,44 @@ const MessageResearcherContent = () => {
     }
 
   };
+
+
+
+  const openHistoryModal = () => {
+
+    setIsHistoryModalOpen(true);
+
+    setHistorySearch('');
+
+    setHistorySearchInput('');
+
+    fetchHistoryPage(1, '');
+
+  };
+
+
+
+  // Debounce search-as-you-type so we don't hit the server on every keystroke
+
+  useEffect(() => {
+
+    if (!isHistoryModalOpen) return;
+
+    if (historySearchInput === historySearch) return;
+
+    const timer = setTimeout(() => {
+
+      setHistorySearch(historySearchInput);
+
+      fetchHistoryPage(1, historySearchInput);
+
+    }, 400);
+
+    return () => clearTimeout(timer);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+  }, [historySearchInput, isHistoryModalOpen]);
 
 
 
@@ -5558,6 +5616,30 @@ const MessageResearcherContent = () => {
 
             </div>
 
+            <div className="history-modal-search">
+
+              <input
+
+                type="text"
+
+                placeholder="Search by researcher name or email..."
+
+                value={historySearchInput}
+
+                onChange={(e) => setHistorySearchInput(e.target.value)}
+
+                className="student-search"
+
+              />
+
+              {historyTotal > 0 && (
+
+                <span className="history-total-count">{historyTotal} message{historyTotal === 1 ? '' : 's'}</span>
+
+              )}
+
+            </div>
+
             <div className="history-modal-body">
 
               {historyLoading && <p className="history-empty-note">Loading message history...</p>}
@@ -5566,7 +5648,11 @@ const MessageResearcherContent = () => {
 
               {!historyLoading && !historyError && messageHistory.length === 0 && (
 
-                <p className="history-empty-note">No messages have been sent to researchers yet.</p>
+                <p className="history-empty-note">
+
+                  {historySearch ? `No messages found matching "${historySearch}".` : 'No messages have been sent to researchers yet.'}
+
+                </p>
 
               )}
 
@@ -5663,6 +5749,48 @@ const MessageResearcherContent = () => {
               ))}
 
             </div>
+
+            {!historyLoading && !historyError && historyTotalPages > 1 && (
+
+              <div className="history-modal-pagination">
+
+                <button
+
+                  type="button"
+
+                  className="btn-secondary"
+
+                  disabled={historyPage <= 1}
+
+                  onClick={() => fetchHistoryPage(historyPage - 1, historySearch)}
+
+                >
+
+                  Previous
+
+                </button>
+
+                <span className="history-page-indicator">Page {historyPage} of {historyTotalPages}</span>
+
+                <button
+
+                  type="button"
+
+                  className="btn-secondary"
+
+                  disabled={historyPage >= historyTotalPages}
+
+                  onClick={() => fetchHistoryPage(historyPage + 1, historySearch)}
+
+                >
+
+                  Next
+
+                </button>
+
+              </div>
+
+            )}
 
           </div>
 

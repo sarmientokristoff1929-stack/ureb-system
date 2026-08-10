@@ -6,6 +6,6 @@
  * 
  * To turn off maintenance mode on production when ready, set IS_UNDER_MAINTENANCE to false.
  */
-export const IS_UNDER_MAINTENANCE = false;
+export const IS_UNDER_MAINTENANCE = true;
 
 

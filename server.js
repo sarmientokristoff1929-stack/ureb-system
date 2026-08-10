@@ -5063,16 +5063,36 @@ app.post('/api/send-message-to-student', upload.any(), async (req, res) => {
   }
 });
 
-// History of messages the admin has sent to researchers (newest first)
+// History of messages the admin has sent to researchers (newest first, paginated)
 app.get('/api/messages-to-student/history', async (req, res) => {
   try {
     const db = getDatabase();
     const messages = db.collection(collections.messages);
-    const history = await messages
-      .find({ type: 'admin_to_student' })
+
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+    const search = String(req.query.search || '').trim();
+
+    const query = { type: 'admin_to_student' };
+    if (search) {
+      const searchRegex = { $regex: escapeRegexEmail(search), $options: 'i' };
+      query.$or = [{ recipientName: searchRegex }, { recipientEmail: searchRegex }];
+    }
+
+    const total = await messages.countDocuments(query);
+    const results = await messages
+      .find(query)
       .sort({ sentAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
       .toArray();
-    res.json(history);
+
+    res.json({
+      messages: results,
+      total,
+      page,
+      totalPages: Math.max(Math.ceil(total / limit), 1),
+    });
   } catch (error) {
     console.error('Error fetching admin-to-student message history:', error);
     res.status(500).json({ error: 'Server error' });
