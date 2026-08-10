@@ -3396,7 +3396,15 @@ function StudentProposalContent({ onNewCountChange }) {
         endDate: formatISOToInputDate(rawEnd),
       });
       setRightCanvasFiles({});
-      setAttachmentSlots(['attachment_0']);
+      // The default new-attachment slot must not reuse a key an already-uploaded
+      // attachment owns (e.g. "attachment_0") — otherwise picking a file here silently
+      // stages a REPLACE of that existing attachment instead of adding a new one,
+      // and the "new" file never actually reaches the reviewer as an extra attachment.
+      const usedAttachmentKeys = new Set(Object.keys(getProposalAdminAttachments(selectedProposal)));
+      const initialSlotKey = usedAttachmentKeys.has('attachment_0')
+        ? `attachment_${Date.now()}_0`
+        : 'attachment_0';
+      setAttachmentSlots([initialSlotKey]);
       setRemovedAttachmentKeys([]);
       setRightCanvasFeedback({ type: '', message: '' });
       setPendingRemoveAttachmentKey(null);
@@ -4036,7 +4044,7 @@ function StudentProposalContent({ onNewCountChange }) {
                                   </svg>
                                   <div className="sp-upload-text-group">
                                     <span className="sp-upload-primary-text">
-                                      {selectedFile ? selectedFile.name : `Choose file for Attachment ${index + 1}`}
+                                      {selectedFile ? selectedFile.name : `Choose file for Attachment ${existingAdminAttachments.length + index + 1}`}
                                     </span>
                                     <span className="sp-upload-subtext">PDF, DOC, DOCX, TXT (MAX. 10MB)</span>
                                   </div>
