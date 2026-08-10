@@ -251,6 +251,13 @@ const getReadAssignmentIds = () => {
   } catch { return []; }
 };
 
+// "Read"/"Done" tracking keys off the proposal, not the assignment document's own _id.
+// The admin can re-save a proposal (edit attachments, swap reviewers, etc.) which may
+// recreate/replace the underlying assignment record with a new _id — keying off proposalId
+// keeps a reviewer's "already viewed this" state intact across those saves instead of the
+// card flipping back to "New" every time the admin touches the proposal.
+const getAssignmentReadKey = (assignment) => String(assignment?.proposalId || assignment?._id || '');
+
 const deduplicateAssignments = (rawList) => {
   if (!Array.isArray(rawList)) return [];
   const uniqueMap = new Map();
@@ -476,7 +483,7 @@ const ReviewerDashboard = ({ onLogout }) => {
       const deletedIds = getDeletedAssignmentIds();
       const readIds = getReadAssignmentIds();
       const uniqueAssignments = deduplicateAssignments(assignments);
-      const activeAssignments = uniqueAssignments.filter((a) => !deletedIds.includes(String(a._id)) && !readIds.includes(String(a._id)));
+      const activeAssignments = uniqueAssignments.filter((a) => !deletedIds.includes(String(a._id)) && !readIds.includes(getAssignmentReadKey(a)));
       setAssignedCount(activeAssignments.length);
 
       // Fetch hidden IDs from DB so badge count matches what's actually visible
@@ -2557,7 +2564,7 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
       setAssignments(prev => {
         const filtered = prev.filter(a => String(a._id) !== confirmDeleteId);
         if (setAssignedCount) {
-          setAssignedCount(filtered.filter(a => !readIds.includes(String(a._id))).length);
+          setAssignedCount(filtered.filter(a => !readIds.includes(getAssignmentReadKey(a))).length);
         }
         return filtered;
       });
@@ -2695,7 +2702,7 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
             || assignment.studentEmail
             || 'Student';
 
-          const isRead = readIds.includes(String(assignment._id));
+          const isRead = readIds.includes(getAssignmentReadKey(assignment));
           const isProtocolAlreadySubmitted = assignment.protocolCode
             && submittedProtocolCodes.has(normalizeProtocolCode(assignment.protocolCode));
           const displayStatus = isAssignmentCompleted(assignment.status)
@@ -2853,8 +2860,9 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                         setExpandedId(null);
                       } else {
                         setExpandedId(idStr);
-                        if (!readIds.includes(idStr)) {
-                          const newReadIds = [...readIds, idStr];
+                        const readKey = getAssignmentReadKey(assignment);
+                        if (!readIds.includes(readKey)) {
+                          const newReadIds = [...readIds, readKey];
                           localStorage.setItem(READ_ASSIGNMENTS_KEY, JSON.stringify(newReadIds));
                           setReadIds(newReadIds);
                           if (setAssignedCount) setAssignedCount(prev => Math.max(0, prev - 1));
