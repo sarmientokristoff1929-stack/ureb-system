@@ -4364,7 +4364,7 @@ const MarkCompletedReviewContent = () => {
   const [proposalStatus, setProposalStatus] = useState({});
   const [reviewerTypeFilter, setReviewerTypeFilter] = useState('');
   const [selectedReviewerKey, setSelectedReviewerKey] = useState('');
-  const [selectedFaculty, setSelectedFaculty] = useState('all');
+  const [selectedFaculty, setSelectedFaculty] = useState('');
 
   const fetchMcrData = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -4670,22 +4670,7 @@ const MarkCompletedReviewContent = () => {
       assignmentCount: (r.proposals || []).filter(proposalMatchesFilter).length,
     }))
     .filter(r => r.assignmentCount > 0)
-    .sort((a, b) => {
-      const deptCmp = (DEPARTMENT_ORDER[a.department] ?? 999) - (DEPARTMENT_ORDER[b.department] ?? 999);
-      if (deptCmp !== 0) return deptCmp;
-      return a.name.localeCompare(b.name);
-    });
-
-  const reviewerGroups = [];
-  reviewerOptions.forEach(r => {
-    const deptKey = r.department || UNASSIGNED_FACULTY_KEY;
-    const lastGroup = reviewerGroups[reviewerGroups.length - 1];
-    if (!lastGroup || lastGroup.department !== deptKey) {
-      reviewerGroups.push({ department: deptKey, label: getFacultyLabel(deptKey), reviewers: [r] });
-    } else {
-      lastGroup.reviewers.push(r);
-    }
-  });
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   // Full canonical faculty list, so every faculty is selectable even if it
   // currently has no reviewer assignments to show.
@@ -4733,13 +4718,16 @@ const MarkCompletedReviewContent = () => {
 
   const completedCount = tableRows.filter(row => isMcrCompleted(getRowStatus(row))).length;
   const totalCount = tableRows.length;
+  const facultySelected = selectedFaculty !== '';
 
   return (
     <div className="mcr-wrapper">
       <div className="mcr-header">
         <h2 className="mcr-title">Mark Completed Review</h2>
         <p className="mcr-subtitle">
-          Select a reviewer to view assignments and manage completed reviews.
+          {facultySelected
+            ? 'Select a reviewer to view assignments and manage completed reviews.'
+            : 'Select a faculty to begin — the reviewers under that faculty will then be listed.'}
         </p>
       </div>
 
@@ -4763,6 +4751,7 @@ const MarkCompletedReviewContent = () => {
                     value={selectedFaculty}
                     onChange={e => setSelectedFaculty(e.target.value)}
                   >
+                    <option value="" disabled>-- Select Faculty --</option>
                     <option value="all">All Faculties</option>
                     {facultyOptions.map(f => (
                       <option key={f.value} value={f.value}>{f.label}</option>
@@ -4774,50 +4763,47 @@ const MarkCompletedReviewContent = () => {
                 </div>
               </div>
 
-              <div className="mcr-dd-select-group mcr-toolbar-filter">
-                <label className="mcr-dd-label" htmlFor="mcr-reviewer-select">
-                  Select Reviewer
-                </label>
-                <div className="mcr-dd-select-wrapper">
-                  <select
-                    id="mcr-reviewer-select"
-                    className="mcr-dd-select"
-                    value={selectedReviewerKey}
-                    onChange={e => setSelectedReviewerKey(e.target.value)}
-                  >
-                    <option value="all">All Reviewers</option>
-                    {selectedFaculty === 'all'
-                      ? reviewerGroups.map(group => (
-                        <optgroup key={group.department} label={group.label}>
-                          {group.reviewers.map(r => (
-                            <option key={r.key} value={r.key}>
-                              {r.name} ({r.assignmentCount} assignment{r.assignmentCount !== 1 ? 's' : ''})
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))
-                      : reviewerOptionsForFaculty.map(r => (
+              {facultySelected && (
+                <div className="mcr-dd-select-group mcr-toolbar-filter">
+                  <label className="mcr-dd-label" htmlFor="mcr-reviewer-select">
+                    Select Reviewer
+                  </label>
+                  <div className="mcr-dd-select-wrapper">
+                    <select
+                      id="mcr-reviewer-select"
+                      className="mcr-dd-select"
+                      value={selectedReviewerKey}
+                      onChange={e => setSelectedReviewerKey(e.target.value)}
+                    >
+                      <option value="all">All Reviewers</option>
+                      {reviewerOptionsForFaculty.map(r => (
                         <option key={r.key} value={r.key}>
                           {r.name} ({r.assignmentCount} assignment{r.assignmentCount !== 1 ? 's' : ''})
                         </option>
                       ))}
-                  </select>
-                  <svg className="mcr-dd-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
+                    </select>
+                    <svg className="mcr-dd-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </div>
                 </div>
+              )}
+            </div>
+            {facultySelected && (
+              <div className="mcr-toolbar-stats">
+                <span className="mcr-toolbar-stat">
+                  <strong>{totalCount}</strong> assignment{totalCount !== 1 ? 's' : ''}
+                </span>
+                <span className="mcr-toolbar-stat mcr-toolbar-stat--done">
+                  <strong>{completedCount}</strong> completed
+                </span>
               </div>
-            </div>
-            <div className="mcr-toolbar-stats">
-              <span className="mcr-toolbar-stat">
-                <strong>{totalCount}</strong> assignment{totalCount !== 1 ? 's' : ''}
-              </span>
-              <span className="mcr-toolbar-stat mcr-toolbar-stat--done">
-                <strong>{completedCount}</strong> completed
-              </span>
-            </div>
+            )}
           </div>
 
+          {!facultySelected ? (
+            <p className="mcr-no-data">Please select a faculty above to view its reviewers.</p>
+          ) : (
           <div className="mcr-section">
             <div className="mcr-section-header">
               <span className="mcr-dot" style={{ background: '#2563eb' }} />
@@ -4920,6 +4906,7 @@ const MarkCompletedReviewContent = () => {
               </div>
             )}
           </div>
+          )}
         </>
       )}
     </div>
@@ -5833,6 +5820,106 @@ const MessageReviewerContent = () => {
 
   const [messageSuccessRecipient, setMessageSuccessRecipient] = useState('');
 
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+
+  const [messageHistory, setMessageHistory] = useState([]);
+
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const [historyError, setHistoryError] = useState('');
+
+  const [historySearch, setHistorySearch] = useState('');
+
+  const [historySearchInput, setHistorySearchInput] = useState('');
+
+  const [historyPage, setHistoryPage] = useState(1);
+
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+
+  const [historyTotal, setHistoryTotal] = useState(0);
+
+  const HISTORY_PAGE_SIZE = 20;
+
+
+
+  const fetchHistoryPage = async (page, search) => {
+
+    setHistoryLoading(true);
+
+    setHistoryError('');
+
+    try {
+
+      const params = new URLSearchParams({ page: String(page), limit: String(HISTORY_PAGE_SIZE) });
+
+      if (search) params.set('search', search);
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/messages-to-reviewer/history?${params.toString()}`);
+
+      if (!response.ok) throw new Error('Failed to fetch history');
+
+      const data = await response.json();
+
+      setMessageHistory(data.messages || []);
+
+      setHistoryPage(data.page || 1);
+
+      setHistoryTotalPages(data.totalPages || 1);
+
+      setHistoryTotal(data.total || 0);
+
+    } catch (err) {
+
+      console.error('Error fetching message history:', err);
+
+      setHistoryError('Failed to load message history');
+
+    } finally {
+
+      setHistoryLoading(false);
+
+    }
+
+  };
+
+
+
+  const openHistoryModal = () => {
+
+    setIsHistoryModalOpen(true);
+
+    setHistorySearch('');
+
+    setHistorySearchInput('');
+
+    fetchHistoryPage(1, '');
+
+  };
+
+
+
+  // Debounce search-as-you-type so we don't hit the server on every keystroke
+
+  useEffect(() => {
+
+    if (!isHistoryModalOpen) return;
+
+    if (historySearchInput === historySearch) return;
+
+    const timer = setTimeout(() => {
+
+      setHistorySearch(historySearchInput);
+
+      fetchHistoryPage(1, historySearchInput);
+
+    }, 400);
+
+    return () => clearTimeout(timer);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+  }, [historySearchInput, isHistoryModalOpen]);
+
 
 
   useEffect(() => {
@@ -5981,7 +6068,20 @@ const MessageReviewerContent = () => {
   return (
     <div className="form-content full-width">
       <div className="form-card">
-        <h2>Message Reviewer</h2>
+        <div className="form-card-header-row">
+          <h2>Message Reviewer</h2>
+          <button
+            type="button"
+            className="btn-secondary history-btn"
+            onClick={openHistoryModal}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <polyline points="12 7 12 12 16 14" />
+            </svg>
+            History
+          </button>
+        </div>
         <form className="message-form" onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Select Reviewer</label>
@@ -6162,6 +6262,112 @@ const MessageReviewerContent = () => {
 
         </div>
 
+      )}
+
+      {/* Message History Modal */}
+      {isHistoryModalOpen && (
+        <div className="success-modal-overlay" onClick={() => setIsHistoryModalOpen(false)}>
+          <div className="history-modal-container" onClick={(e) => e.stopPropagation()}>
+            <div className="history-modal-header">
+              <h2>Message History</h2>
+              <button
+                type="button"
+                className="history-modal-close"
+                onClick={() => setIsHistoryModalOpen(false)}
+              >
+                <XIcon />
+              </button>
+            </div>
+            <div className="history-modal-search">
+              <input
+                type="text"
+                placeholder="Search by reviewer name or email..."
+                value={historySearchInput}
+                onChange={(e) => setHistorySearchInput(e.target.value)}
+                className="student-search"
+              />
+              {historyTotal > 0 && (
+                <span className="history-total-count">{historyTotal} message{historyTotal === 1 ? '' : 's'}</span>
+              )}
+            </div>
+            <div className="history-modal-body">
+              {historyLoading && <p className="history-empty-note">Loading message history...</p>}
+              {!historyLoading && historyError && <p className="error-message">{historyError}</p>}
+              {!historyLoading && !historyError && messageHistory.length === 0 && (
+                <p className="history-empty-note">
+                  {historySearch ? `No messages found matching "${historySearch}".` : 'No messages have been sent to reviewers yet.'}
+                </p>
+              )}
+              {!historyLoading && !historyError && messageHistory.map((msg) => (
+                <div key={msg._id} className="history-item">
+                  <div className="history-item-header">
+                    <span className="history-item-recipient">To: {msg.recipientName || msg.recipientEmail}</span>
+                    <span className="history-item-date">
+                      {msg.sentAt ? new Date(msg.sentAt).toLocaleString() : ''}
+                    </span>
+                  </div>
+                  <p className="history-item-message">{msg.message}</p>
+                  {Array.isArray(msg.files) && msg.files.length > 0 && (
+                    <div className="history-item-files">
+                      {msg.files.map((file, i) => (
+                        <div key={i} className="history-item-file">
+                          <span className="history-item-file-name">{file.filename}</span>
+                          {file.path && (
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button
+                                type="button"
+                                className="msg-file-download"
+                                onClick={() => {
+                                  import('../services/api.js').then(({ viewFile }) => {
+                                    viewFile(file.path);
+                                  });
+                                }}
+                              >
+                                View
+                              </button>
+                              <button
+                                type="button"
+                                className="msg-file-download"
+                                onClick={() => {
+                                  import('../services/api.js').then(({ downloadReviewerFile }) => {
+                                    downloadReviewerFile(file.path, file.filename);
+                                  });
+                                }}
+                              >
+                                Download
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {!historyLoading && !historyError && historyTotalPages > 1 && (
+              <div className="history-modal-pagination">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={historyPage <= 1}
+                  onClick={() => fetchHistoryPage(historyPage - 1, historySearch)}
+                >
+                  Previous
+                </button>
+                <span className="history-page-indicator">Page {historyPage} of {historyTotalPages}</span>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={historyPage >= historyTotalPages}
+                  onClick={() => fetchHistoryPage(historyPage + 1, historySearch)}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
     </div>
