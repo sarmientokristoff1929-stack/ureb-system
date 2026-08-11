@@ -3480,7 +3480,7 @@ app.get('/api/notifications', async (req, res) => {
   try {
     const db = getDatabase();
     const notifications = db.collection(collections.notifications);
-    const notificationList = await notifications.find({}).sort({ createdAt: -1 }).toArray();
+    const notificationList = await notifications.find({ dismissed: { $ne: true } }).sort({ createdAt: -1 }).toArray();
     res.json(notificationList);
   } catch (error) {
     console.error('Error fetching notifications:', error);
@@ -3509,12 +3509,17 @@ app.put('/api/notifications/:id/read', async (req, res) => {
 });
 
 // Delete a notification
+// Soft-deletes (marks dismissed) instead of removing the document. Recurring
+// reminders (e.g. review deadline) are re-created by dedupe checks that look
+// for an existing document by recipient/type/proposalId — a hard delete would
+// leave nothing for that check to find, causing the reminder to reappear with
+// a new id on the next fetch.
 app.post('/api/notifications/:id/delete', async (req, res) => {
   try {
     const { id } = req.params;
     const db = getDatabase();
     const notifications = db.collection(collections.notifications);
-    await notifications.deleteOne({ _id: new ObjectId(id) });
+    await notifications.updateOne({ _id: new ObjectId(id) }, { $set: { dismissed: true, dismissedAt: new Date() } });
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting notification:', error);
@@ -3527,7 +3532,7 @@ app.delete('/api/notifications/:id', async (req, res) => {
     const { id } = req.params;
     const db = getDatabase();
     const notifications = db.collection(collections.notifications);
-    await notifications.deleteOne({ _id: new ObjectId(id) });
+    await notifications.updateOne({ _id: new ObjectId(id) }, { $set: { dismissed: true, dismissedAt: new Date() } });
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting notification via DELETE:', error);
@@ -3609,7 +3614,8 @@ app.get('/api/notifications/:email', async (req, res) => {
     // Case-insensitive match to handle email case mismatches between stored and queried values
     const emailRegex = new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
     const notificationList = await notifications.find({
-      recipientEmail: emailRegex
+      recipientEmail: emailRegex,
+      dismissed: { $ne: true }
     }).sort({ createdAt: -1 }).toArray();
 
     res.json(notificationList);
