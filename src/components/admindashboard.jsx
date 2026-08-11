@@ -4965,6 +4965,10 @@ const MessageResearcherContent = () => {
 
   const [historyTotal, setHistoryTotal] = useState(0);
 
+  const [deletingMessageId, setDeletingMessageId] = useState('');
+
+  const [deleteConfirmMsg, setDeleteConfirmMsg] = useState(null);
+
   const HISTORY_PAGE_SIZE = 20;
 
 
@@ -5020,6 +5024,64 @@ const MessageResearcherContent = () => {
     setHistorySearchInput('');
 
     fetchHistoryPage(1, '');
+
+  };
+
+
+
+  const requestDeleteMessage = (msg) => {
+
+    setDeleteConfirmMsg(msg);
+
+  };
+
+
+
+  const cancelDeleteMessage = () => {
+
+    setDeleteConfirmMsg(null);
+
+  };
+
+
+
+  const confirmDeleteMessage = async () => {
+
+    const messageId = deleteConfirmMsg?._id;
+
+    if (!messageId) return;
+
+    setDeletingMessageId(messageId);
+
+    try {
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/messages/${messageId}`, {
+
+        method: 'DELETE',
+
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || data.success === false) throw new Error(data.error || 'Failed to delete message');
+
+      setMessageHistory(prev => prev.filter(m => m._id !== messageId));
+
+      setHistoryTotal(prev => Math.max(prev - 1, 0));
+
+      setDeleteConfirmMsg(null);
+
+    } catch (err) {
+
+      console.error('Error deleting message:', err);
+
+      setHistoryError('Failed to delete message');
+
+    } finally {
+
+      setDeletingMessageId('');
+
+    }
 
   };
 
@@ -5651,11 +5713,33 @@ const MessageResearcherContent = () => {
 
                     <span className="history-item-recipient">To: {msg.recipientName || msg.recipientEmail}</span>
 
-                    <span className="history-item-date">
+                    <div className="history-item-meta">
 
-                      {msg.sentAt ? new Date(msg.sentAt).toLocaleString() : ''}
+                      <span className="history-item-date">
 
-                    </span>
+                        {msg.sentAt ? new Date(msg.sentAt).toLocaleString() : ''}
+
+                      </span>
+
+                      <button
+
+                        type="button"
+
+                        className="history-item-delete"
+
+                        title="Delete message"
+
+                        disabled={deletingMessageId === msg._id}
+
+                        onClick={() => requestDeleteMessage(msg)}
+
+                      >
+
+                        <TrashIcon />
+
+                      </button>
+
+                    </div>
 
                   </div>
 
@@ -5785,6 +5869,39 @@ const MessageResearcherContent = () => {
 
       )}
 
+      {/* Delete Message Confirmation Modal */}
+      {deleteConfirmMsg && (
+        <div className="mini-modal-overlay delete-msg-modal-overlay" onClick={cancelDeleteMessage}>
+          <div className="mini-modal" onClick={e => e.stopPropagation()}>
+            <div className="mini-modal-icon mini-modal-icon--danger">
+              <TrashIcon />
+            </div>
+            <h4 className="mini-modal-title">Delete Message</h4>
+            <p className="mini-modal-text">
+              Are you sure you want to delete this message to <strong>{deleteConfirmMsg.recipientName || deleteConfirmMsg.recipientEmail}</strong>? This action cannot be undone.
+            </p>
+            <div className="mini-modal-actions">
+              <button
+                type="button"
+                className="mini-modal-btn mini-modal-btn--ghost"
+                onClick={cancelDeleteMessage}
+                disabled={deletingMessageId === deleteConfirmMsg._id}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="mini-modal-btn mini-modal-btn--danger"
+                onClick={confirmDeleteMessage}
+                disabled={deletingMessageId === deleteConfirmMsg._id}
+              >
+                {deletingMessageId === deleteConfirmMsg._id ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
 
   );
@@ -5837,6 +5954,10 @@ const MessageReviewerContent = () => {
   const [historyTotalPages, setHistoryTotalPages] = useState(1);
 
   const [historyTotal, setHistoryTotal] = useState(0);
+
+  const [deletingMessageId, setDeletingMessageId] = useState('');
+
+  const [deleteConfirmMsg, setDeleteConfirmMsg] = useState(null);
 
   const HISTORY_PAGE_SIZE = 20;
 
@@ -5893,6 +6014,64 @@ const MessageReviewerContent = () => {
     setHistorySearchInput('');
 
     fetchHistoryPage(1, '');
+
+  };
+
+
+
+  const requestDeleteMessage = (msg) => {
+
+    setDeleteConfirmMsg(msg);
+
+  };
+
+
+
+  const cancelDeleteMessage = () => {
+
+    setDeleteConfirmMsg(null);
+
+  };
+
+
+
+  const confirmDeleteMessage = async () => {
+
+    const messageId = deleteConfirmMsg?._id;
+
+    if (!messageId) return;
+
+    setDeletingMessageId(messageId);
+
+    try {
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/messages/${messageId}`, {
+
+        method: 'DELETE',
+
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || data.success === false) throw new Error(data.error || 'Failed to delete message');
+
+      setMessageHistory(prev => prev.filter(m => m._id !== messageId));
+
+      setHistoryTotal(prev => Math.max(prev - 1, 0));
+
+      setDeleteConfirmMsg(null);
+
+    } catch (err) {
+
+      console.error('Error deleting message:', err);
+
+      setHistoryError('Failed to delete message');
+
+    } finally {
+
+      setDeletingMessageId('');
+
+    }
 
   };
 
@@ -6302,9 +6481,20 @@ const MessageReviewerContent = () => {
                 <div key={msg._id} className="history-item">
                   <div className="history-item-header">
                     <span className="history-item-recipient">To: {msg.recipientName || msg.recipientEmail}</span>
-                    <span className="history-item-date">
-                      {msg.sentAt ? new Date(msg.sentAt).toLocaleString() : ''}
-                    </span>
+                    <div className="history-item-meta">
+                      <span className="history-item-date">
+                        {msg.sentAt ? new Date(msg.sentAt).toLocaleString() : ''}
+                      </span>
+                      <button
+                        type="button"
+                        className="history-item-delete"
+                        title="Delete message"
+                        disabled={deletingMessageId === msg._id}
+                        onClick={() => requestDeleteMessage(msg)}
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
                   </div>
                   <p className="history-item-message">{msg.message}</p>
                   {Array.isArray(msg.files) && msg.files.length > 0 && (
@@ -6366,6 +6556,39 @@ const MessageReviewerContent = () => {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Message Confirmation Modal */}
+      {deleteConfirmMsg && (
+        <div className="mini-modal-overlay delete-msg-modal-overlay" onClick={cancelDeleteMessage}>
+          <div className="mini-modal" onClick={e => e.stopPropagation()}>
+            <div className="mini-modal-icon mini-modal-icon--danger">
+              <TrashIcon />
+            </div>
+            <h4 className="mini-modal-title">Delete Message</h4>
+            <p className="mini-modal-text">
+              Are you sure you want to delete this message to <strong>{deleteConfirmMsg.recipientName || deleteConfirmMsg.recipientEmail}</strong>? This action cannot be undone.
+            </p>
+            <div className="mini-modal-actions">
+              <button
+                type="button"
+                className="mini-modal-btn mini-modal-btn--ghost"
+                onClick={cancelDeleteMessage}
+                disabled={deletingMessageId === deleteConfirmMsg._id}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="mini-modal-btn mini-modal-btn--danger"
+                onClick={confirmDeleteMessage}
+                disabled={deletingMessageId === deleteConfirmMsg._id}
+              >
+                {deletingMessageId === deleteConfirmMsg._id ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}

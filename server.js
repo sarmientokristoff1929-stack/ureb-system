@@ -496,6 +496,27 @@ const mapProposalStatusToAssignmentStatus = (status) => {
   return status;
 };
 
+// Matchers for the proposal DOCUMENT itself (matched by _id or protocolCode) —
+// unlike buildProposalIdMatchers, which matches the `proposalId` foreign-key
+// field stored on assignment documents.
+const buildProposalDocMatchers = (ref) => {
+  const matchers = [];
+  const str = String(ref || '').trim();
+  if (!str) return matchers;
+
+  if (ObjectId.isValid(str) && String(new ObjectId(str)) === str) {
+    matchers.push({ _id: new ObjectId(str) });
+  }
+
+  matchers.push({ protocolCode: str });
+  const normalizedProtocol = str.toUpperCase().replace(/\s+/g, '');
+  if (normalizedProtocol !== str) {
+    matchers.push({ protocolCode: normalizedProtocol });
+  }
+
+  return matchers;
+};
+
 const buildProposalRefMatchers = (proposalRef) => {
   const matchers = [];
   const ref = String(proposalRef || '').trim();
@@ -3818,8 +3839,8 @@ app.put('/api/assignments/status', async (req, res) => {
       try {
         const proposals = db.collection(collections.proposals);
         const proposalMatchers = [
-          ...buildProposalIdMatchers(proposalId),
-          ...(protocolCode ? buildProposalIdMatchers(protocolCode) : []),
+          ...buildProposalDocMatchers(proposalId),
+          ...(protocolCode ? buildProposalDocMatchers(protocolCode) : []),
         ];
         if (proposalMatchers.length) {
           await proposals.updateMany(
