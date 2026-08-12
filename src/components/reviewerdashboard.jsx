@@ -2444,11 +2444,7 @@ const getReviewerRole = (assignment, userEmail) => {
 const AssignedProposalsContent = ({ setAssignedCount }) => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [restrictedModalOpen, setRestrictedModalOpen] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-  const [deleteError, setDeleteError] = useState('');
   const [readIds, setReadIds] = useState([]);
   const [viewingFile, setViewingFile] = useState(null);
   const [submittedProtocolCodes, setSubmittedProtocolCodes] = useState(new Set());
@@ -2545,38 +2541,6 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
     }
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!confirmDeleteId) return;
-    setDeleteError('');
-    setDeleting(true);
-    try {
-      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
-      const res = await fetch(`${API_BASE}/assignments/${confirmDeleteId}/delete`, { method: 'POST' });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data.success === false) {
-        throw new Error(data.error || 'Failed to delete assignment');
-      }
-      // Deleted from the database — now safe to reflect the removal in the UI.
-      const deletedIds = getDeletedAssignmentIds();
-      if (!deletedIds.includes(confirmDeleteId)) {
-        localStorage.setItem(DELETED_ASSIGNMENTS_KEY, JSON.stringify([...deletedIds, confirmDeleteId]));
-      }
-      setAssignments(prev => {
-        const filtered = prev.filter(a => String(a._id) !== confirmDeleteId);
-        if (setAssignedCount) {
-          setAssignedCount(filtered.filter(a => !readIds.includes(getAssignmentReadKey(a))).length);
-        }
-        return filtered;
-      });
-      setConfirmDeleteId(null);
-    } catch (err) {
-      console.error('Error deleting assignment:', err);
-      setDeleteError('Could not delete this assignment. Please try again.');
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A';
     return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -2664,27 +2628,6 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
     <div className="content-section">
       <h2>Assigned Proposals</h2>
 
-      {/* Delete confirmation modal */}
-      {confirmDeleteId && (
-        <div className="logout-modal-overlay" onClick={() => { if (deleting) return; setConfirmDeleteId(null); setDeleteError(''); }}>
-          <div className="logout-modal-container" onClick={e => e.stopPropagation()}>
-            <div className="logout-modal-header">
-              <h2>Delete Assignment</h2>
-            </div>
-            <div className="logout-modal-body">
-              <p>Are you sure you want to delete this assignment? This cannot be undone.</p>
-              {deleteError && <p style={{ color: '#dc2626' }}>{deleteError}</p>}
-            </div>
-            <div className="logout-modal-footer">
-              <button className="logout-modal-btn-secondary" onClick={() => { setConfirmDeleteId(null); setDeleteError(''); }} disabled={deleting}>Cancel</button>
-              <button className="logout-modal-btn-primary" onClick={handleDeleteConfirm} disabled={deleting}>
-                {deleting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="proposals-list">
         {assignments.map((assignment) => {
           const files = assignment.assignedFiles || {};
@@ -2734,30 +2677,6 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                   >
                     {displayStatus}
                   </span>
-                  <button
-                    title="Delete assignment"
-                    onClick={() => {
-                      const s = (assignment.status || '').toLowerCase();
-                      if (s === 'under review' || s === 'submitted to admin' || s === 'review submitted') {
-                        setRestrictedModalOpen(true);
-                      } else {
-                        setConfirmDeleteId(String(assignment._id));
-                      }
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: '#ef4444',
-                      padding: '0.25rem',
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4h6v2" />
-                    </svg>
-                  </button>
                 </div>
               </div>
               <div className="proposal-content">
@@ -2997,30 +2916,6 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
         />
       )}
 
-      {/* Restricted Action Modal */}
-      {restrictedModalOpen && (
-        <div className="mini-modal-overlay" onClick={() => setRestrictedModalOpen(false)}>
-          <div className="mini-modal" onClick={e => e.stopPropagation()}>
-            <div className="mini-modal-icon" style={{ backgroundColor: '#fff7ed', color: '#ea580c' }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-              </svg>
-            </div>
-            <h4 className="mini-modal-title">Action Restricted</h4>
-            <p className="mini-modal-text">You can't delete this Proposal because it's under review.</p>
-            <div className="mini-modal-actions">
-              <button
-                className="mini-modal-btn"
-                style={{ backgroundColor: '#ea580c', color: '#fff', width: '100%' }}
-                onClick={() => setRestrictedModalOpen(false)}
-              >
-                I Understand
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

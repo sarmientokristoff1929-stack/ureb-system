@@ -168,6 +168,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
   width: 32px;
   height: 32px;
   border-radius: 8px;
@@ -176,6 +177,10 @@
   color: #dc2626;
   cursor: pointer;
   transition: all 0.15s ease;
+}
+
+.sp-delete-btn svg {
+  flex-shrink: 0;
 }
 
 .sp-delete-btn:hover {

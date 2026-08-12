@@ -980,7 +980,7 @@ const AdminDashboard = ({ onLogout }) => {
 
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
 
-    { id: 'student-proposals', label: 'Researcher Proposal', icon: <FileCheckIcon />, badge: studentProposalNewCount > 0 ? studentProposalNewCount : null },
+    { id: 'student-proposals', label: 'Researcher Proposals', icon: <FileCheckIcon />, badge: studentProposalNewCount > 0 ? studentProposalNewCount : null },
 
     { id: 'messages-inbox', label: 'Files And Messages Submitted', icon: <MessageIcon />, badge: messageCount > 0 ? messageCount : null },
 
@@ -2324,38 +2324,6 @@ const DashboardContent = () => {
 
 
 
-
-
-
-        <div className="quick-actions">
-
-
-
-          <h2>Quick Actions</h2>
-
-
-
-          <div className="action-buttons">
-
-
-
-            <button className="action-btn primary" onClick={openPendingProposalsModal}>Review Pending Proposals</button>
-
-
-
-            <button className="action-btn secondary" onClick={openGenerateReportModal}>Generate Report</button>
-
-
-
-            <button className="action-btn secondary" onClick={openStudentModal}>Student Submissions</button>
-
-
-
-          </div>
-
-
-
-        </div>
 
 
 
@@ -4428,11 +4396,7 @@ function StudentProposalContent({ onNewCountChange }) {
             </div>
             <h4 className="sp-confirm-title">Delete this proposal?</h4>
             <p className="sp-confirm-text">
-              <strong>{deleteTarget.researchTitle || 'Untitled Proposal'}</strong>
-              {' '}by {deleteTarget.proponent || 'Unknown'} will be permanently deleted.
-              {isProposalAssigned(deleteTarget) && (
-                <> Its assigned reviewer(s) will lose access — this cannot be undone.</>
-              )}
+              This proposal and any reviewer assignment linked to it will be permanently deleted. This cannot be undone.
             </p>
             <div className="sp-confirm-actions">
               <button type="button" className="sp-confirm-btn sp-confirm-btn--ghost" onClick={cancelDeleteProposal} disabled={isDeletingProposal}>
