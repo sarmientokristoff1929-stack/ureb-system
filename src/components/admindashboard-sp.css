@@ -152,11 +152,41 @@
   overflow: hidden;
 }
 
-.sp-col-indicator { width: 9%; }
-.sp-col-title { width: 38%; }
-.sp-col-student { width: 26%; }
-.sp-col-date { width: 13%; }
-.sp-col-assign-status { width: 14%; }
+.sp-col-indicator { width: 8%; }
+.sp-col-title { width: 33%; }
+.sp-col-student { width: 24%; }
+.sp-col-date { width: 12%; }
+.sp-col-assign-status { width: 13%; }
+.sp-col-actions { width: 10%; }
+
+.sp-cell-actions {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.sp-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sp-delete-btn:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+.sp-delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 .sp-cell-assign-status {
   text-align: center;
@@ -1188,6 +1218,15 @@
 
   .sp-col-action {
     width: 14%;
+  }
+
+  .sp-col-actions {
+    width: 16%;
+  }
+
+  .sp-delete-btn {
+    width: 28px;
+    height: 28px;
   }
 
   .sp-table .sp-assign-btn.btn-primary {

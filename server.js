@@ -2510,12 +2510,13 @@ app.get('/api/proposals/:proposalId', async (req, res) => {
   }
 });
 
-// Delete proposal by ID (student)
+// Delete proposal by ID (student) — cascades to any reviewer assignments tied to it
 app.delete('/api/proposals/:proposalId', async (req, res) => {
   try {
     const { proposalId } = req.params;
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
+    const assignments = db.collection(collections.assignments);
 
     let objectId;
     try {
@@ -2524,13 +2525,27 @@ app.delete('/api/proposals/:proposalId', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid proposal ID format' });
     }
 
+    const proposal = await proposals.findOne({ _id: objectId });
+    if (!proposal) {
+      return res.status(404).json({ success: false, error: 'Proposal not found' });
+    }
+
+    // Match assignments by proposalId (in its various stored forms) and, as a
+    // fallback, by protocolCode — some assignments only carry the protocol code.
+    const proposalMatchers = buildProposalIdMatchers(objectId);
+    if (proposal.protocolCode) {
+      proposalMatchers.push({ protocolCode: proposal.protocolCode });
+    }
+
+    const assignmentsResult = await assignments.deleteMany({ $or: proposalMatchers });
     const result = await proposals.deleteOne({ _id: objectId });
 
     if (result.deletedCount === 0) {
       return res.status(404).json({ success: false, error: 'Proposal not found' });
     }
 
-    res.json({ success: true });
+    console.log(`Deleted proposal ${proposalId} and ${assignmentsResult.deletedCount} linked assignment(s)`);
+    res.json({ success: true, assignmentsDeleted: assignmentsResult.deletedCount || 0 });
   } catch (error) {
     console.error('Error deleting proposal:', error);
     res.status(500).json({ success: false, error: 'Server error' });

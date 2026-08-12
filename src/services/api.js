@@ -672,6 +672,23 @@ export const getProposalById = async (proposalId) => {
   }
 };
 
+// Delete proposal (cascades to its reviewer assignments on the server)
+export const deleteProposal = async (proposalId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/proposals/${proposalId}`, {
+      method: 'DELETE',
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, error: data.error || 'Failed to delete proposal' };
+    }
+    return data;
+  } catch (error) {
+    console.error('Error deleting proposal:', error);
+    return { success: false, error: 'Failed to delete proposal' };
+  }
+};
+
 // File download
 export const downloadFile = (filename) => {
   const link = document.createElement('a');

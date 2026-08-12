@@ -22,7 +22,7 @@ const ReportIcon = () => (
 const buildFilterChips = (filterSummary) => {
   if (!filterSummary) return [];
   const chips = [];
-  if (filterSummary.department) chips.push({ label: 'Department', value: filterSummary.department });
+  if (filterSummary.department) chips.push({ label: 'Faculty', value: filterSummary.department });
   if (filterSummary.senderType && filterSummary.senderType !== 'All') {
     const senderTypeLabel = filterSummary.senderType === 'Student' ? 'Researcher' : filterSummary.senderType;
     chips.push({ label: 'Sender', value: senderTypeLabel });
@@ -241,7 +241,7 @@ const SubmissionTable = ({ rows, variant }) => {
             <th>What was submitted</th>
             {isReviewer && <th>Protocol</th>}
             {isReviewer && <th>Decision</th>}
-            {!isReviewer && <th>Department</th>}
+            {!isReviewer && <th>Faculty</th>}
             <th>Subject</th>
             <th>Attached files</th>
           </tr>
@@ -376,7 +376,7 @@ const InboxReportModal = ({
           {rows.length === 0 ? (
             <div className="imr-empty">
               <h3>No submissions to show</h3>
-              <p>Select a department and filters in the inbox, then open the report again.</p>
+              <p>Select a faculty and filters in the inbox, then open the report again.</p>
             </div>
           ) : (
             <>

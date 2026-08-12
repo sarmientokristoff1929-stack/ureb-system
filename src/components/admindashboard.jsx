@@ -3076,6 +3076,8 @@ function StudentProposalContent({ onNewCountChange }) {
   const [selectedProposalId, setSelectedProposalId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [feedback, setFeedback] = useState({ type: '', message: '' });
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeletingProposal, setIsDeletingProposal] = useState(false);
   const leftPanelRef = useRef(null);
   const rightPanelRef = useRef(null);
   const [showLeftScrollIndicator, setShowLeftScrollIndicator] = useState(false);
@@ -3546,6 +3548,46 @@ function StudentProposalContent({ onNewCountChange }) {
     }
   };
 
+  const requestDeleteProposal = (proposal, e) => {
+    e.stopPropagation();
+    setDeleteTarget(proposal);
+  };
+
+  const cancelDeleteProposal = () => {
+    if (isDeletingProposal) return;
+    setDeleteTarget(null);
+  };
+
+  const confirmDeleteProposal = async () => {
+    if (!deleteTarget) return;
+    const id = toRecordId(deleteTarget._id);
+    setIsDeletingProposal(true);
+    try {
+      const { deleteProposal } = await import('../services/api.js');
+      const result = await deleteProposal(id);
+      if (result.success) {
+        setProposals((prev) => prev.filter((p) => toRecordId(p._id) !== id));
+        setAssignments((prev) => prev.filter((a) => {
+          const aPropId = toRecordId(a.proposalId);
+          if (aPropId && aPropId === id) return false;
+          if (deleteTarget.protocolCode && a.protocolCode === deleteTarget.protocolCode) return false;
+          return true;
+        }));
+        if (selectedProposalId === id) setSelectedProposalId('');
+        setDeleteTarget(null);
+        setFeedback({ type: 'success', message: `"${deleteTarget.researchTitle || 'Proposal'}" and its reviewer assignment(s) were deleted.` });
+        setTimeout(() => setFeedback({ type: '', message: '' }), 4000);
+      } else {
+        setFeedback({ type: 'error', message: result.error || 'Failed to delete proposal.' });
+      }
+    } catch (err) {
+      console.error('Error deleting proposal:', err);
+      setFeedback({ type: 'error', message: 'Failed to delete proposal.' });
+    } finally {
+      setIsDeletingProposal(false);
+    }
+  };
+
   return (
     <div className="content-section sp-wrapper">
       <div className="sp-header">
@@ -3620,6 +3662,7 @@ function StudentProposalContent({ onNewCountChange }) {
               <col className="sp-col-student" />
               <col className="sp-col-date" />
               <col className="sp-col-assign-status" />
+              <col className="sp-col-actions" />
             </colgroup>
             <thead>
               <tr>
@@ -3628,6 +3671,7 @@ function StudentProposalContent({ onNewCountChange }) {
                 <th>Submitted By</th>
                 <th>Submitted</th>
                 <th>Assignment</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -3670,6 +3714,22 @@ function StudentProposalContent({ onNewCountChange }) {
                       <span className={`sp-assign-status-badge ${isAssigned ? 'sp-assign-status-badge--assigned' : 'sp-assign-status-badge--not-assigned'}`}>
                         {isAssigned ? 'Assigned' : 'Not Assigned'}
                       </span>
+                    </td>
+                    <td className="sp-cell-actions">
+                      <button
+                        type="button"
+                        className="sp-delete-btn"
+                        title="Delete proposal"
+                        aria-label="Delete proposal"
+                        onClick={(e) => requestDeleteProposal(proposal, e)}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                          <path d="M10 11v6M14 11v6" />
+                          <path d="M9 6V4h6v2" />
+                        </svg>
+                      </button>
                     </td>
                   </tr>
                 );
@@ -4347,6 +4407,39 @@ function StudentProposalContent({ onNewCountChange }) {
               </button>
               <button type="button" className="sp-confirm-btn sp-confirm-btn--danger" onClick={confirmRemoveExistingAttachment}>
                 Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE PROPOSAL CONFIRMATION */}
+      {deleteTarget && (
+        <div className="sp-confirm-overlay" onClick={cancelDeleteProposal}>
+          <div className="sp-confirm-card" onClick={(e) => e.stopPropagation()}>
+            <div className="sp-confirm-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6l-1 14H6L5 6"></path>
+                <path d="M10 11v6"></path>
+                <path d="M14 11v6"></path>
+                <path d="M9 6V4h6v2"></path>
+              </svg>
+            </div>
+            <h4 className="sp-confirm-title">Delete this proposal?</h4>
+            <p className="sp-confirm-text">
+              <strong>{deleteTarget.researchTitle || 'Untitled Proposal'}</strong>
+              {' '}by {deleteTarget.proponent || 'Unknown'} will be permanently deleted.
+              {isProposalAssigned(deleteTarget) && (
+                <> Its assigned reviewer(s) will lose access — this cannot be undone.</>
+              )}
+            </p>
+            <div className="sp-confirm-actions">
+              <button type="button" className="sp-confirm-btn sp-confirm-btn--ghost" onClick={cancelDeleteProposal} disabled={isDeletingProposal}>
+                Cancel
+              </button>
+              <button type="button" className="sp-confirm-btn sp-confirm-btn--danger" onClick={confirmDeleteProposal} disabled={isDeletingProposal}>
+                {isDeletingProposal ? 'Deleting…' : 'Delete'}
               </button>
             </div>
           </div>
@@ -11412,7 +11505,7 @@ function MessagesInboxContent({ onMessageRead }) {
               title={
                 selectedDepartment
                   ? 'Generate report with analytics and export'
-                  : 'Select a department first'
+                  : 'Select a faculty first'
               }
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -11446,16 +11539,16 @@ function MessagesInboxContent({ onMessageRead }) {
 
         {/* Dropdown Filters Bar */}
         <div className="inbox-filters-bar">
-          {/* Department Dropdown */}
+          {/* Faculty Dropdown */}
           <div className="inbox-filter-group">
-            <label className="inbox-filter-label">Select Department</label>
+            <label className="inbox-filter-label">Select Faculty</label>
             <select
               value={selectedDepartment}
               onChange={(e) => handleDepartmentChange(e.target.value)}
               className="inbox-filter-select"
             >
               <option value="">Select...</option>
-              <option value="All">All Departments</option>
+              <option value="All">All Faculties</option>
               {validDepartments.map(dept => (
                 <option key={dept} value={dept}>{DEPARTMENT_NAMES[dept]}</option>
               ))}
@@ -11554,8 +11647,8 @@ function MessagesInboxContent({ onMessageRead }) {
                   <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </div>
-              <p style={{ fontWeight: 500 }}>Please select a Department first</p>
-              <span style={{ color: '#6b7280' }}>Choose a department from the filters above to load the messages.</span>
+              <p style={{ fontWeight: 500 }}>Please select a Faculty first</p>
+              <span style={{ color: '#6b7280' }}>Choose a faculty from the filters above to load the messages.</span>
             </div>
           ) : filteredMessages.length === 0 ? (
             <div className="inbox-empty">
