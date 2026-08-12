@@ -143,12 +143,23 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
 });
 
-// Upload a single file buffer to GridFS; returns the stored filename
-async function uploadToGridFS(file) {
+// Upload a single file buffer to GridFS; returns the stored filename.
+// `metadata` records who sent the file and what it belongs to (senderName,
+// senderEmail, source, proposalId, etc.) so files in uploads.files can be
+// traced back to their owner later — e.g. to spot orphaned/useless files.
+async function uploadToGridFS(file, metadata = {}) {
   const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
   const filename = file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname);
   return new Promise((resolve, reject) => {
-    const uploadStream = gfsBucket.openUploadStream(filename, { contentType: file.mimetype });
+    const uploadStream = gfsBucket.openUploadStream(filename, {
+      contentType: file.mimetype,
+      metadata: {
+        originalName: file.originalname,
+        fieldname: file.fieldname,
+        uploadedAt: new Date(),
+        ...metadata,
+      },
+    });
     uploadStream.end(file.buffer);
     uploadStream.on('finish', () => resolve(filename));
     uploadStream.on('error', reject);
@@ -167,11 +178,20 @@ const uploadProfilePic = multer({
 });
 
 // Upload profile picture buffer to GridFS
-async function uploadProfilePicToGridFS(file, userId) {
+async function uploadProfilePicToGridFS(file, userId, metadata = {}) {
   const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
   const filename = `avatar-${userId}-${uniqueSuffix}${path.extname(file.originalname)}`;
   return new Promise((resolve, reject) => {
-    const uploadStream = gfsBucket.openUploadStream(filename, { contentType: file.mimetype });
+    const uploadStream = gfsBucket.openUploadStream(filename, {
+      contentType: file.mimetype,
+      metadata: {
+        originalName: file.originalname,
+        source: 'profile-picture',
+        userId,
+        uploadedAt: new Date(),
+        ...metadata,
+      },
+    });
     uploadStream.end(file.buffer);
     uploadStream.on('finish', () => resolve(filename));
     uploadStream.on('error', reject);
@@ -1998,7 +2018,11 @@ app.post('/api/student/profile/picture', uploadProfilePic.single('profilePicture
       await deleteFromGridFS(student.profilePictureGridFS);
     }
 
-    const filename = await uploadProfilePicToGridFS(req.file, student._id.toString());
+    const filename = await uploadProfilePicToGridFS(req.file, student._id.toString(), {
+      senderName: student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || email,
+      senderEmail: email,
+      role: 'student',
+    });
 
     await students.updateOne(
       { _id: student._id },
@@ -2090,7 +2114,11 @@ app.post('/api/reviewer/profile/picture', uploadProfilePic.single('profilePictur
       await deleteFromGridFS(reviewer.profilePictureGridFS);
     }
 
-    const filename = await uploadProfilePicToGridFS(req.file, reviewer._id.toString());
+    const filename = await uploadProfilePicToGridFS(req.file, reviewer._id.toString(), {
+      senderName: reviewer.name || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim() || email,
+      senderEmail: email,
+      role: 'reviewer',
+    });
 
     await reviewers.updateOne(
       { _id: reviewer._id },
@@ -2180,7 +2208,11 @@ app.post('/api/admin/profile/picture', uploadProfilePic.single('profilePicture')
       await deleteFromGridFS(user.profilePictureGridFS);
     }
 
-    const filename = await uploadProfilePicToGridFS(req.file, user._id.toString());
+    const filename = await uploadProfilePicToGridFS(req.file, user._id.toString(), {
+      senderName: user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || email,
+      senderEmail: email,
+      role: 'admin',
+    });
 
     await users.updateOne(
       { _id: user._id },
@@ -2544,8 +2576,25 @@ app.delete('/api/proposals/:proposalId', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Proposal not found' });
     }
 
-    console.log(`Deleted proposal ${proposalId} and ${assignmentsResult.deletedCount} linked assignment(s)`);
-    res.json({ success: true, assignmentsDeleted: assignmentsResult.deletedCount || 0 });
+    // Purge every GridFS blob this proposal owned (files/studentFiles/adminFiles all
+    // reference the same underlying filenames, so dedupe before deleting) — otherwise
+    // the uploaded documents become orphaned rows in uploads.files/uploads.chunks with
+    // nothing left pointing to them.
+    const attachedFilenames = new Set();
+    [proposal.files, proposal.studentFiles, proposal.adminFiles].forEach((fileMap) => {
+      if (!fileMap) return;
+      Object.values(fileMap).forEach((f) => {
+        if (f?.filename) attachedFilenames.add(f.filename);
+      });
+    });
+    await Promise.all(
+      [...attachedFilenames].map((filename) =>
+        deleteFromGridFS(filename).catch((e) => console.error('Error deleting proposal file from GridFS:', filename, e))
+      )
+    );
+
+    console.log(`Deleted proposal ${proposalId}, ${assignmentsResult.deletedCount} linked assignment(s), and ${attachedFilenames.size} GridFS file(s)`);
+    res.json({ success: true, assignmentsDeleted: assignmentsResult.deletedCount || 0, filesDeleted: attachedFilenames.size });
   } catch (error) {
     console.error('Error deleting proposal:', error);
     res.status(500).json({ success: false, error: 'Server error' });
@@ -2618,7 +2667,11 @@ app.post('/api/proposals', upload.fields([
       for (const fieldname of Object.keys(req.files)) {
         const fileArray = req.files[fieldname];
         if (fileArray && fileArray.length > 0) {
-          const gfsFilename = await uploadToGridFS(fileArray[0]);
+          const gfsFilename = await uploadToGridFS(fileArray[0], {
+            senderName: proponent || 'Unknown',
+            source: 'proposal-create',
+            researchTitle,
+          });
           files[fieldname] = {
             filename: gfsFilename,
             originalname: fileArray[0].originalname,
@@ -2699,7 +2752,12 @@ app.post('/api/student/submit-files', upload.fields([
       ? Object.entries(req.files).map(async ([fieldname, fileArray]) => {
           if (!fileArray || fileArray.length === 0) return;
           const file = fileArray[0];
-          const gfsFilename = await uploadToGridFS(file);
+          const gfsFilename = await uploadToGridFS(file, {
+            senderName: studentName || 'Student',
+            senderEmail: studentEmail,
+            source: 'student-submission',
+            researchTitle: proposalTitle,
+          });
           files[fieldname] = {
             filename: gfsFilename,
             originalname: file.originalname,
@@ -2805,7 +2863,13 @@ app.put('/api/student/proposals/:id', upload.fields([
           if (newFiles[fieldname] && newFiles[fieldname].filename) {
              deleteFromGridFS(newFiles[fieldname].filename).catch(e => console.error('Error deleting old file:', e));
           }
-          const gfsFilename = await uploadToGridFS(fileArray[0]);
+          const gfsFilename = await uploadToGridFS(fileArray[0], {
+            senderName: existingProposal.proponent || existingProposal.studentName || 'Student',
+            senderEmail: studentEmail || existingProposal.studentEmail,
+            source: 'student-edit-proposal',
+            proposalId: id,
+            researchTitle: proposalTitle || existingProposal.researchTitle,
+          });
           newFiles[fieldname] = {
             filename: gfsFilename,
             originalname: fileArray[0].originalname,
@@ -2915,7 +2979,12 @@ app.post('/api/student/resubmit-files', upload.fields([
         const fileArray = req.files[fieldname];
         if (fileArray && fileArray.length > 0) {
           const file = fileArray[0];
-          const gfsFilename = await uploadToGridFS(file);
+          const gfsFilename = await uploadToGridFS(file, {
+            senderName: studentName || 'Student',
+            senderEmail: studentEmail,
+            source: 'student-resubmission',
+            proposalId: targetProposalId,
+          });
           files[fieldname] = {
             filename: gfsFilename,
             originalname: file.originalname,
@@ -3108,7 +3177,13 @@ app.post('/api/reviews', upload.any(), async (req, res) => {
       for (const file of req.files) {
         if (file) {
           try {
-            const gfsFilename = await uploadToGridFS(file);
+            const gfsFilename = await uploadToGridFS(file, {
+              senderName: reviewerName || 'Reviewer',
+              senderEmail: reviewerEmail,
+              source: 'reviewer-review-submission',
+              proposalId,
+              protocolCode: submittedProtocolCode,
+            });
             files[file.fieldname] = {
               filename: gfsFilename,
               originalname: file.originalname,
@@ -3284,7 +3359,13 @@ app.post('/api/reviews/:id/resubmit', upload.any(), async (req, res) => {
     const newFiles = {};
     for (const file of req.files) {
       try {
-        const gfsFilename = await uploadToGridFS(file);
+        const gfsFilename = await uploadToGridFS(file, {
+          senderName: reviewerName || 'Reviewer',
+          senderEmail: reviewerEmail,
+          source: 'reviewer-review-resubmission',
+          reviewId: id,
+          proposalId: existingReview.proposalId,
+        });
         newFiles[file.fieldname] = {
           filename: gfsFilename,
           originalname: file.originalname,
@@ -4167,7 +4248,7 @@ app.post('/api/messages/reply', upload.array('files', 10), async (req, res) => {
   }
 });
 
-const uploadMessageFileToGridFS = (file, index = 0) => {
+const uploadMessageFileToGridFS = (file, index = 0, senderInfo = {}) => {
   const uniqueSuffix = `${Date.now()}-${index}-${Math.round(Math.random() * 1e9)}`;
   const ext = path.extname(file.originalname || '') || '';
   const filename = `msg-attach-${uniqueSuffix}${ext}`;
@@ -4178,6 +4259,8 @@ const uploadMessageFileToGridFS = (file, index = 0) => {
       metadata: {
         originalName: file.originalname,
         source: 'student_to_admin',
+        uploadedAt: new Date(),
+        ...senderInfo,
       },
     });
     uploadStream.end(file.buffer);
@@ -4186,7 +4269,7 @@ const uploadMessageFileToGridFS = (file, index = 0) => {
   });
 };
 
-const uploadMessageAttachmentsToGridFS = async (files) => {
+const uploadMessageAttachmentsToGridFS = async (files, senderInfo = {}) => {
   const fileRecords = [];
   const errors = [];
 
@@ -4201,7 +4284,7 @@ const uploadMessageAttachmentsToGridFS = async (files) => {
       continue;
     }
     try {
-      const gfsFilename = await uploadMessageFileToGridFS(file, i);
+      const gfsFilename = await uploadMessageFileToGridFS(file, i, senderInfo);
       fileRecords.push({
         filename: gfsFilename,
         originalname: file.originalname,
@@ -4272,7 +4355,10 @@ app.post('/api/messages/student-to-admin', upload.array('attachments', 15), asyn
       });
     }
 
-    const { fileRecords, errors } = await uploadMessageAttachmentsToGridFS(uploadFiles);
+    const { fileRecords, errors } = await uploadMessageAttachmentsToGridFS(uploadFiles, {
+      senderName: senderName || 'Student',
+      senderEmail,
+    });
 
     if (errors.length > 0) {
       return res.status(500).json({
@@ -4432,6 +4518,8 @@ app.delete('/api/messages/:messageId', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid message ID format' });
     }
 
+    const message = await messages.findOne({ _id: objectId });
+
     const result = await messages.deleteOne({ _id: objectId });
     console.log('Delete result:', result);
 
@@ -4439,6 +4527,23 @@ app.delete('/api/messages/:messageId', async (req, res) => {
       console.log('Message not found with ID:', messageId);
       return res.status(404).json({ success: false, error: 'Message not found' });
     }
+
+    // Purge the message's attachments from GridFS — attachment records store the
+    // GridFS filename under either `filename` or `path` depending on which endpoint
+    // created them, so check both (deleteFromGridFS is a safe no-op if nothing matches).
+    const attachedFiles = Array.isArray(message?.files)
+      ? message.files
+      : (message?.files ? Object.values(message.files) : []);
+    const attachedFilenames = new Set();
+    attachedFiles.forEach((f) => {
+      if (f?.filename) attachedFilenames.add(f.filename);
+      if (f?.path) attachedFilenames.add(f.path);
+    });
+    await Promise.all(
+      [...attachedFilenames].map((filename) =>
+        deleteFromGridFS(filename).catch((e) => console.error('Error deleting message attachment from GridFS:', filename, e))
+      )
+    );
 
     console.log('Message deleted successfully:', messageId);
     res.json({ success: true, message: 'Message deleted successfully' });
@@ -4545,7 +4650,12 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
     const uploadedFiles = {};
     if (Array.isArray(req.files) && req.files.length > 0) {
       for (const fileItem of req.files) {
-        const gfsFilename = await uploadToGridFS(fileItem);
+        const gfsFilename = await uploadToGridFS(fileItem, {
+          senderName: 'Admin',
+          source: 'admin-reviewer-assignment',
+          proposalId,
+          protocolCode,
+        });
         uploadedFiles[fileItem.fieldname] = {
           filename: gfsFilename,
           originalname: fileItem.originalname,
@@ -5016,7 +5126,11 @@ app.post('/api/send-message-to-student', upload.any(), async (req, res) => {
     for (const file of files) {
       try {
         console.log('[upload] file.fieldname:', file.fieldname, 'originalname:', file.originalname);
-        const gfsFilename = await uploadToGridFS(file);
+        const gfsFilename = await uploadToGridFS(file, {
+          senderName: 'Admin',
+          source: 'admin-message-to-student',
+          recipientEmail: studentEmail,
+        });
         console.log('[upload] GridFS filename stored:', gfsFilename);
         fileRecords.push({
           filename: file.originalname,
@@ -5198,7 +5312,11 @@ app.post('/api/send-message-to-reviewer', upload.any(), async (req, res) => {
     for (const file of files) {
       try {
         console.log('[upload] reviewer message file.fieldname:', file.fieldname, 'originalname:', file.originalname);
-        const gfsFilename = await uploadToGridFS(file);
+        const gfsFilename = await uploadToGridFS(file, {
+          senderName: 'Admin',
+          source: 'admin-message-to-reviewer',
+          recipientEmail: reviewerEmail,
+        });
         console.log('[upload] GridFS filename stored:', gfsFilename);
         fileRecords.push({
           filename: gfsFilename,

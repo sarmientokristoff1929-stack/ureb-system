@@ -1586,7 +1586,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
             {[
               { label: 'Full Name', value: fullName },
               { label: 'Email', value: userInfo?.email },
-              { label: 'Department', value: profileData.department },
+              { label: 'Faculty', value: profileData.department },
             ].map(({ label, value }) => (
               <div className="sp-info-row" key={label}>
                 <span className="sp-info-label">{label}</span>
@@ -1622,13 +1622,13 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
             </div>
             <div className="sp-field-row">
               <div className="sp-field">
-                <label htmlFor="rp-dept">Department</label>
+                <label htmlFor="rp-dept">Faculty</label>
                 <select
                   id="rp-dept"
                   value={profileData.department}
                   onChange={(e) => setProfileData(prev => ({ ...prev, department: e.target.value }))}
                 >
-                  <option value="">Select Department</option>
+                  <option value="">Select Faculty</option>
                   <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
                   <option value="FTED">FTED- Faculty of Teacher Education</option>
                   <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
