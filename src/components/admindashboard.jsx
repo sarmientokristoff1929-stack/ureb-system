@@ -917,9 +917,8 @@ const AdminDashboard = ({ onLogout }) => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/notifications`);
       const data = await response.json();
-      const deletedIdsStr = localStorage.getItem('deleted_notifications') || '[]';
-      const deletedIds = JSON.parse(deletedIdsStr);
-      const unreadNotifs = data.filter(n => !n.read && !deletedIds.includes(n._id));
+      // Server already excludes dismissed (deleted) notifications.
+      const unreadNotifs = data.filter(n => !n.read);
       setNotifCount(unreadNotifs.length);
     } catch (error) {
       console.error('Error fetching notification count:', error);
@@ -9526,9 +9525,25 @@ function NotificationContent({ setActiveTab, onRefreshCount }) {
 
 
 
-  const getDeletedIds = () => {
-    try { return JSON.parse(localStorage.getItem('deleted_notifications') || '[]'); }
-    catch { return []; }
+  // One-time migration: notifications previously "deleted" only via the old
+  // localStorage-based hiding never got soft-deleted (dismissed) server-side.
+  // Push those into the real delete endpoint once, then drop the local list —
+  // deletion is now always persisted to the database via confirmDeleteNotification.
+  const migrateLegacyLocalDeletes = async (data) => {
+    let legacyIds = [];
+    try { legacyIds = JSON.parse(localStorage.getItem('deleted_notifications') || '[]'); }
+    catch { legacyIds = []; }
+    if (!legacyIds.length) return data;
+
+    const stillPresent = data.filter(n => legacyIds.includes(n._id));
+    if (stillPresent.length) {
+      await Promise.all(stillPresent.map(n =>
+        fetch(`${import.meta.env.VITE_API_URL}/api/notifications/${n._id}/delete`, { method: 'POST' })
+          .catch(err => console.error('Error migrating deleted notification:', err))
+      ));
+    }
+    localStorage.removeItem('deleted_notifications');
+    return data.filter(n => !legacyIds.includes(n._id));
   };
 
   const fetchNotifications = async () => {
@@ -9539,11 +9554,9 @@ function NotificationContent({ setActiveTab, onRefreshCount }) {
 
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/notifications`);
 
-      const data = await response.json();
+      const rawData = await response.json();
 
-      const deleted = getDeletedIds();
-
-      const filtered = data.filter(n => !deleted.includes(n._id));
+      const filtered = await migrateLegacyLocalDeletes(rawData);
       setNotifications(filtered);
 
       // Auto-expand all groups by default
@@ -9664,16 +9677,17 @@ function NotificationContent({ setActiveTab, onRefreshCount }) {
 
   };
 
-  const confirmDeleteNotification = () => {
+  const confirmDeleteNotification = async () => {
     if (!deleteConfirmId) return;
     const id = deleteConfirmId;
-    const deleted = getDeletedIds();
-    if (!deleted.includes(id)) {
-      localStorage.setItem('deleted_notifications', JSON.stringify([...deleted, id]));
+    setDeleteConfirmId(null);
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/notifications/${id}/delete`, { method: 'POST' });
+    } catch (error) {
+      console.error('Error deleting notification:', error);
     }
     setNotifications(prev => prev.filter(n => n._id !== id));
     if (onRefreshCount) onRefreshCount();
-    setDeleteConfirmId(null);
   };
 
 
