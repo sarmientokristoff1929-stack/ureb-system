@@ -2806,7 +2806,7 @@ app.post('/api/student/submit-files', upload.fields([
     notifications
       .insertOne({
         type: 'student_submission',
-        title: 'New Student Submission',
+        title: 'New Researcher Submission',
         message: `A new research proposal "${proposalTitle || 'Untitled'}" has been submitted by ${studentName || studentEmail}. Please assign a reviewer.`,
         proposalId: result.insertedId.toString(),
         studentEmail,
