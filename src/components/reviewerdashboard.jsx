@@ -946,10 +946,13 @@ const ReviewerNotificationsContent = ({ userInfo, onNotifDeleted }) => {
       }
 
       try {
-        const [dbResult, hiddenResult, assignResult] = await Promise.all([
+        // Assignments are fetched first: the server creates review_deadline reminders
+        // as a side effect of this call, so notifications must be fetched afterward
+        // to pick up any reminder created on this same visit instead of the next one.
+        const assignResult = await reviewerAssignmentsSwr.load(email);
+        const [dbResult, hiddenResult] = await Promise.all([
           reviewerDbNotificationsSwr.load(email),
-          reviewerHiddenItemsSwr.load(email),
-          reviewerAssignmentsSwr.load(email)
+          reviewerHiddenItemsSwr.load(email)
         ]);
         buildNotifs(dbResult.data, hiddenResult.data, assignResult.data);
       } catch (err) {

@@ -3823,30 +3823,28 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
       }
 
       const daysUntilDeadline = Math.ceil((endDate - today) / (1000 * 3600 * 24));
+      const isCompleted = String(assignment.status || '').toLowerCase() === 'completed';
 
-      // DEBUG: Log deadline calculation
-      console.log(`[DEADLINE CHECK] Assignment: ${assignment.protocolCode || assignment.researchTitle || 'Untitled'}`);
-      console.log(`  - End Date: ${endDate.toISOString()}`);
-      console.log(`  - Today: ${today.toISOString()}`);
-      console.log(`  - Days Until Deadline: ${daysUntilDeadline}`);
-      console.log(`  - Will notify: ${daysUntilDeadline <= 3 && daysUntilDeadline > 0}`);
+      // Create a reminder notification specific to this proposal if its deadline is within 3 days
+      // and the reviewer hasn't completed the review yet
+      if (!isCompleted && daysUntilDeadline <= 3 && daysUntilDeadline > 0) {
+        const proposalId = assignment.proposalId?.toString?.() || assignment.proposalId;
 
-      // Create notification if deadline is within 3 days
-      if (daysUntilDeadline <= 3 && daysUntilDeadline > 0) {
-        // Check if notification already exists for this assignment
+        // One reminder per proposal — check if it already exists for this assignment
         const existingNotif = await notifications.findOne({
           recipientEmail: reviewerEmail,
           type: 'review_deadline',
-          proposalId: assignment.proposalId?.toString?.() || assignment.proposalId
+          proposalId
         });
 
         if (!existingNotif) {
+          const dayLabel = daysUntilDeadline === 1 ? 'day' : 'days';
           await notifications.insertOne({
             recipientEmail: reviewerEmail,
             title: 'Upcoming Review Deadline',
-            message: `Your review for "${assignment.researchTitle || assignment.protocolCode || 'Untitled'}" is due in ${daysUntilDeadline} day(s). The review period ends on ${endDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. Please ensure your review is completed before the deadline.`,
+            message: `Your review for "${assignment.researchTitle || assignment.protocolCode || 'Untitled'}" is due in ${daysUntilDeadline} ${dayLabel}. The review period ends on ${endDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. Please ensure your review is completed before the deadline.`,
             type: 'review_deadline',
-            proposalId: assignment.proposalId?.toString?.() || assignment.proposalId,
+            proposalId,
             protocolCode: assignment.protocolCode,
             deadlineDate: endDate,
             read: false,
@@ -4966,23 +4964,32 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
         console.log(`Admin assignment created for reviewer: ${resolvedName} (${reviewer.email})`);
       }
 
-      // Notify the reviewer
-      await notifications.insertOne({
-        recipientEmail: reviewer.email,
-        recipientName: reviewer.email,
-        title: 'New Files Assigned for Review',
-        message: `You have been assigned ${Object.keys(allAssignedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
-        type: 'assignment',
-        protocolCode: protocolCode,
-        proposalId: resolvedProposalId,
-        reviewPeriod: {
-          startDate: new Date(startDate),
-          endDate: new Date(endDate)
+      // Notify the reviewer — one notification per reviewer per proposal. Re-saving
+      // (reassigning) edits this same notification's message instead of stacking a new one.
+      await notifications.updateOne(
+        {
+          recipientEmail: reviewer.email,
+          type: 'assignment',
+          proposalId: resolvedProposalId,
         },
-        assignedFiles: Object.keys(allAssignedFiles),
-        read: false,
-        createdAt: new Date()
-      });
+        {
+          $set: {
+            recipientName: reviewer.email,
+            title: 'New Files Assigned for Review',
+            message: `You have been assigned ${Object.keys(allAssignedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
+            protocolCode: protocolCode,
+            reviewPeriod: {
+              startDate: new Date(startDate),
+              endDate: new Date(endDate)
+            },
+            assignedFiles: Object.keys(allAssignedFiles),
+            read: false,
+            updatedAt: new Date(),
+          },
+          $setOnInsert: { createdAt: new Date() },
+        },
+        { upsert: true }
+      );
       console.log(`Notification sent to: ${resolvedName} (${reviewer.email})`);
     }
 
@@ -5066,19 +5073,28 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
       await ensureStudentAssignmentForProposal(db, refreshedProposal || existingProposal);
     }
 
-    // Create admin notification with assigned reviewer names
-    await notifications.insertOne({
-      title: 'Files Assigned to Reviewers',
-      message: `You have assigned ${Object.keys(uploadedFiles).length} document(s) for protocol ${protocolCode} to ${assignedReviewerNames.join(' and ')}.`,
-      type: 'admin_assignment',
-      protocolCode: protocolCode,
-      proposalId: resolvedProposalId,
-      recipientEmail: 'admin',
-      assignedReviewers: assignedReviewerNames,
-      read: false,
-      createdAt: new Date()
-    });
-    console.log(`Admin notification created with reviewers: ${assignedReviewerNames.join(', ')}`);
+    // Create/update the admin notification for this proposal's assignment — re-saving
+    // (reassigning) edits this same notification's message instead of stacking a new one.
+    await notifications.updateOne(
+      {
+        recipientEmail: 'admin',
+        type: 'admin_assignment',
+        proposalId: resolvedProposalId,
+      },
+      {
+        $set: {
+          title: 'Files Assigned to Reviewers',
+          message: `You have assigned ${Object.keys(uploadedFiles).length} document(s) for protocol ${protocolCode} to ${assignedReviewerNames.join(' and ')}.`,
+          protocolCode: protocolCode,
+          assignedReviewers: assignedReviewerNames,
+          read: false,
+          updatedAt: new Date(),
+        },
+        $setOnInsert: { createdAt: new Date() },
+      },
+      { upsert: true }
+    );
+    console.log(`Admin notification updated with reviewers: ${assignedReviewerNames.join(', ')}`);
 
     res.json({
       success: true,
