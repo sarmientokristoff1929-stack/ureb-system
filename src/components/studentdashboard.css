@@ -4246,8 +4246,8 @@
   border-radius: 14px;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.18);
   width: 100%;
-  max-width: 540px;
-  max-height: 88vh;
+  max-width: 760px;
+  max-height: 92vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;

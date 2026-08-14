@@ -993,7 +993,7 @@ const AdminDashboard = ({ onLogout }) => {
 
     { id: 'message-researcher', label: 'Message Researcher', icon: <MessageIcon /> },
 
-    { id: 'notification', label: 'Notification (File)', icon: <NotificationIcon />, badge: notifCount > 0 ? notifCount : null },
+    { id: 'notification', label: 'Notifications', icon: <NotificationIcon />, badge: notifCount > 0 ? notifCount : null },
     { id: 'profile', label: 'Admin Settings', icon: <SettingsIcon /> },
   ];
 
@@ -7191,6 +7191,30 @@ const ManageUsersContent = () => {
 
 
 
+  // Researcher Type drives Affiliation Category here too: External Researcher
+  // locks the Faculty field to Institution/Agency, while Faculty/Staff/Student
+  // Researcher locks it back to a selectable Faculty (so admin picks the
+  // specific faculty and program).
+  const handleEditResearcherTypeChange = (e) => {
+
+    const selectedType = e.target.value;
+
+    setEditFormData(prev => ({
+
+      ...prev,
+
+      researcherType: selectedType,
+
+      department: selectedType === 'External Researcher' ? 'Institution/Agency' : '',
+
+      program: ''
+
+    }));
+
+  };
+
+
+
   const handleEditSubmit = async (e) => {
 
     e.preventDefault();
@@ -8623,7 +8647,7 @@ const ManageUsersContent = () => {
 
                       value={editFormData.researcherType || ''}
 
-                      onChange={handleEditInputChange}
+                      onChange={handleEditResearcherTypeChange}
 
                     >
 
@@ -8680,11 +8704,15 @@ const ManageUsersContent = () => {
 
                   onChange={handleEditInputChange}
 
+                  disabled={editFormData.researcherType === 'External Researcher'}
+
                   required
 
                 >
 
                   <option value="">Select Faculty</option>
+
+                  <option value="Institution/Agency">Institution/Agency</option>
 
                   <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
 

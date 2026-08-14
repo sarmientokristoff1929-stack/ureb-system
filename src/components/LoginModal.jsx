@@ -252,6 +252,19 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     setProgram('');
   };
 
+  // Affiliation Category is fully derived from Researcher Type, not chosen
+  // manually: External Researcher locks to Institution/Agency, while Faculty/
+  // Staff/Student Researcher lock to Faculty (so the user then picks the
+  // specific Faculty and Program below).
+  const handleResearcherTypeChange = (e) => {
+    const selectedType = e.target.value;
+    setResearcherType(selectedType);
+    setAffiliationType(selectedType === 'External Researcher' ? 'Institution/Agency' : (selectedType ? 'Faculty' : ''));
+    setDepartment('');
+    setCustomAffiliation('');
+    setProgram('');
+  };
+
   // Handle department change to reset program
   const handleDepartmentChange = (e) => {
     const selectedDepartment = e.target.value;
@@ -507,7 +520,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                     <select
                       id="researcherType"
                       value={researcherType}
-                      onChange={(e) => setResearcherType(e.target.value)}
+                      onChange={handleResearcherTypeChange}
                       required
                     >
                       <option value="">Select researcher type</option>
@@ -600,12 +613,16 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                       id="affiliationType"
                       value={affiliationType}
                       onChange={handleAffiliationTypeChange}
+                      disabled
                       required
                     >
-                      <option value="">Select Category</option>
+                      <option value="">Select Researcher Type first</option>
                       <option value="Faculty">Faculty</option>
                       <option value="Institution/Agency">Institution/Agency</option>
                     </select>
+                    <small style={{ color: 'var(--text-medium, #6b7280)', fontSize: '0.78rem' }}>
+                      Set automatically based on Researcher Type.
+                    </small>
                   </div>
 
                   {affiliationType === 'Faculty' && (

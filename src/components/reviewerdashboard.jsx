@@ -4502,8 +4502,38 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeMessage, setComposeMessage] = useState('');
   const [composeSubject, setComposeSubject] = useState('');
+  const [composeFiles, setComposeFiles] = useState([]);
+  const [composeFileError, setComposeFileError] = useState('');
   const [sending, setSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
+
+  const MAX_COMPOSE_ATTACHMENTS = 15;
+  const MAX_COMPOSE_FILE_SIZE = 10 * 1024 * 1024; // 10MB, matches server-side multer limit
+
+  const handleComposeFileSelect = (e) => {
+    const picked = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!picked.length) return;
+
+    setComposeFileError('');
+    setComposeFiles((prev) => {
+      const room = MAX_COMPOSE_ATTACHMENTS - prev.length;
+      if (room <= 0) {
+        setComposeFileError(`You can attach up to ${MAX_COMPOSE_ATTACHMENTS} files per message`);
+        return prev;
+      }
+      const tooLarge = picked.find((f) => f.size > MAX_COMPOSE_FILE_SIZE);
+      if (tooLarge) {
+        setComposeFileError(`"${tooLarge.name}" is too large (max 10MB per file)`);
+      }
+      const accepted = picked.filter((f) => f.size <= MAX_COMPOSE_FILE_SIZE).slice(0, room);
+      return [...prev, ...accepted];
+    });
+  };
+
+  const removeComposeFile = (index) => {
+    setComposeFiles((prev) => prev.filter((_, i) => i !== index));
+  };
 
 
 
@@ -4585,6 +4615,8 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
     setComposeOpen(true);
     setComposeMessage('');
     setComposeSubject('');
+    setComposeFiles([]);
+    setComposeFileError('');
     setSendSuccess(false);
   };
 
@@ -4598,24 +4630,34 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
     setSending(true);
     try {
       const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+
+      const formData = new FormData();
+      formData.append('senderEmail', userInfo?.email || '');
+      formData.append('senderName', userInfo?.name || 'Reviewer');
+      formData.append('subject', composeSubject);
+      formData.append('message', composeMessage);
+      formData.append('attachmentCount', String(composeFiles.length));
+      composeFiles.forEach((file) => {
+        formData.append('attachments', file, file.name);
+      });
+
       const response = await fetch(`${API_BASE}/messages/to-admin`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          senderEmail: userInfo?.email || '',
-          senderName: userInfo?.name || 'Reviewer',
-          subject: composeSubject,
-          message: composeMessage
-        })
+        body: formData
       });
       const data = await response.json();
       if (data.success) {
+        const received = Number(data.filesReceived ?? 0);
+        if (composeFiles.length > 0 && received !== composeFiles.length) {
+          alert(`Only ${received} of ${composeFiles.length} file(s) were saved. Please try sending again.`);
+          return;
+        }
         setSendSuccess(true);
         setTimeout(() => {
           closeCompose();
         }, 1500);
       } else {
-        alert('Failed to send message. Please try again.');
+        alert(data.error || 'Failed to send message. Please try again.');
       }
     } catch (err) {
       console.error('Send message error:', err);
@@ -4877,6 +4919,65 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
                       className="rm-textarea"
                       disabled={sending}
                     />
+                  </div>
+                  <div className="rm-field">
+                    <label className="rm-label">Attachments (optional)</label>
+                    <label
+                      htmlFor="reviewer-compose-file-input"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                        padding: '0.55rem 1rem', border: '1px dashed #7A9E7E', borderRadius: '8px',
+                        color: '#4a7c59', fontSize: '0.85rem', fontWeight: 600, cursor: sending ? 'not-allowed' : 'pointer',
+                        opacity: sending ? 0.6 : 1,
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"></path>
+                      </svg>
+                      Attach files
+                    </label>
+                    <input
+                      id="reviewer-compose-file-input"
+                      type="file"
+                      multiple
+                      accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                      onChange={handleComposeFileSelect}
+                      disabled={sending}
+                      style={{ display: 'none' }}
+                    />
+                    <p style={{ color: '#9ca3af', fontSize: '0.75rem', margin: '0.35rem 0 0' }}>
+                      Up to {MAX_COMPOSE_ATTACHMENTS} files, 10MB each. PDF, DOC, DOCX, TXT, JPG, PNG
+                    </p>
+                    {composeFileError && (
+                      <p style={{ color: '#dc2626', fontSize: '0.78rem', margin: '0.35rem 0 0' }}>{composeFileError}</p>
+                    )}
+                    {composeFiles.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.6rem' }}>
+                        {composeFiles.map((file, i) => (
+                          <div
+                            key={`${file.name}-${i}`}
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px',
+                              padding: '0.4rem 0.7rem', fontSize: '0.8rem',
+                            }}
+                          >
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: '0.5rem' }}>
+                              {file.name} <span style={{ color: '#94a3b8' }}>({(file.size / 1024).toFixed(1)} KB)</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeComposeFile(i)}
+                              disabled={sending}
+                              title="Remove file"
+                              style={{ background: 'none', border: 'none', color: '#dc2626', cursor: sending ? 'not-allowed' : 'pointer', fontSize: '1rem', lineHeight: 1, padding: '0 0.2rem' }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </>
               )}

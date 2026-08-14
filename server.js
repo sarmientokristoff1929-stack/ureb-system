@@ -4422,13 +4422,50 @@ app.post('/api/messages/student-to-admin', upload.array('attachments', 15), asyn
   }
 });
 
-// Reviewer message to admin
-app.post('/api/messages/to-admin', async (req, res) => {
+// Reviewer message to admin (optional multiple file attachments)
+app.post('/api/messages/to-admin', upload.array('attachments', 15), async (req, res) => {
   try {
     const { senderEmail, senderName, subject, message } = req.body;
+    const uploadFiles = Array.isArray(req.files) ? req.files : [];
 
     if (!senderEmail || !message) {
       return res.status(400).json({ success: false, error: 'Sender email and message are required' });
+    }
+
+    if (uploadFiles.length > 0 && !gfsBucket) {
+      return res.status(503).json({ success: false, error: 'File storage is not ready. Please try again shortly.' });
+    }
+
+    const expectedCount = Number.parseInt(req.body.attachmentCount, 10);
+
+    if (Number.isFinite(expectedCount) && expectedCount > 0 && uploadFiles.length !== expectedCount) {
+      return res.status(400).json({
+        success: false,
+        error: `Expected ${expectedCount} attachment(s) but received ${uploadFiles.length}. Please try again.`,
+        filesReceived: uploadFiles.length,
+      });
+    }
+
+    const { fileRecords, errors } = await uploadMessageAttachmentsToGridFS(uploadFiles, {
+      senderName: senderName || 'Reviewer',
+      senderEmail,
+    });
+
+    if (errors.length > 0) {
+      return res.status(500).json({
+        success: false,
+        error: `Could not save all attachments: ${errors.map((e) => e.name).join(', ')}`,
+        filesReceived: fileRecords.length,
+        filesFailed: errors.length,
+      });
+    }
+
+    if (uploadFiles.length > 0 && fileRecords.length !== uploadFiles.length) {
+      return res.status(500).json({
+        success: false,
+        error: `Only ${fileRecords.length} of ${uploadFiles.length} attachment(s) were saved. Please try again.`,
+        filesReceived: fileRecords.length,
+      });
     }
 
     const db = getDatabase();
@@ -4440,6 +4477,8 @@ app.post('/api/messages/to-admin', async (req, res) => {
       recipientEmail: process.env.GMAIL_EMAIL || 'admin',
       subject,
       message,
+      files: fileRecords,
+      attachmentCount: fileRecords.length,
       sentAt: new Date(),
       createdAt: new Date(),
       type: 'reviewer_to_admin',
@@ -4447,7 +4486,11 @@ app.post('/api/messages/to-admin', async (req, res) => {
     };
 
     const result = await messages.insertOne(newMessage);
-    res.json({ success: true, message: { _id: result.insertedId, ...newMessage } });
+    res.json({
+      success: true,
+      filesReceived: fileRecords.length,
+      message: { _id: result.insertedId, ...newMessage },
+    });
   } catch (error) {
     console.error('Error sending reviewer message:', error);
     res.status(500).json({ success: false, error: 'Server error' });
