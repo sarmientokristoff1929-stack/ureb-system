@@ -2558,7 +2558,10 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
 
   const handleDownload = async (file) => {
     if (!file?.filename) return;
-    await downloadReviewerFile(file.filename, file.originalname || file.filename);
+    const result = await downloadReviewerFile(file.filename, file.originalname || file.filename);
+    if (!result?.success) {
+      alert(`Could not download "${file.originalname || file.filename}". The file may no longer be available.`);
+    }
   };
 
   const formatFileLabel = (key) => {
@@ -4760,15 +4763,18 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
                                   </button>
                                 )}
                                 {downloadUrl && (
-                                  <a
-                                    href={downloadUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    download={displayName}
-                                    style={{ background: '#10b981', color: '#ffffff', textDecoration: 'none', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      const result = await downloadReviewerFile(storedName, displayName);
+                                      if (!result?.success) {
+                                        alert(`Could not download "${displayName}". The file may no longer be available.`);
+                                      }
+                                    }}
+                                    style={{ background: '#10b981', color: '#ffffff', border: 'none', textDecoration: 'none', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
                                   >
                                     Download
-                                  </a>
+                                  </button>
                                 )}
                               </div>
                             )}
@@ -5668,7 +5674,12 @@ const ResubmissionContent = ({ userInfo }) => {
                                         type="button"
                                         className="resub-action-btn resub-action-btn--download"
                                         title="Download Document"
-                                        onClick={() => downloadReviewerFile(file.filename, file.originalname || file.filename)}
+                                        onClick={async () => {
+                                          const result = await downloadReviewerFile(file.filename, file.originalname || file.filename);
+                                          if (!result?.success) {
+                                            alert(`Could not download "${file.originalname || file.filename}". The file may no longer be available.`);
+                                          }
+                                        }}
                                       >
                                         <DownloadIcon /> Download
                                       </button>
@@ -5698,7 +5709,12 @@ const ResubmissionContent = ({ userInfo }) => {
         <FileViewerModal
           viewingFile={viewingFile}
           onClose={() => setViewingFile(null)}
-          onDownload={() => downloadReviewerFile(viewingFile.filename, viewingFile.originalname || viewingFile.filename)}
+          onDownload={async () => {
+            const result = await downloadReviewerFile(viewingFile.filename, viewingFile.originalname || viewingFile.filename);
+            if (!result?.success) {
+              alert(`Could not download "${viewingFile.originalname || viewingFile.filename}". The file may no longer be available.`);
+            }
+          }}
         />
       )}
 
