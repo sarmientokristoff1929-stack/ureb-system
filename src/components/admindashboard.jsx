@@ -3500,9 +3500,9 @@ function StudentProposalContent({ onNewCountChange }) {
 
   const handleViewStudentFile = (file) => {
     if (!file?.filename) return;
-    const apiOrigin = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-    const viewUrl = apiOrigin ? `${apiOrigin}/api/view/${file.filename}` : `/api/view/${file.filename}`;
-    window.open(viewUrl, '_blank', 'noopener,noreferrer');
+    import('../services/api.js').then(({ viewFile }) => {
+      viewFile(file.filename);
+    });
   };
 
   const handleDownloadStudentFile = async (file) => {
