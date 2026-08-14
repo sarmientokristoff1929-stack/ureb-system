@@ -4872,6 +4872,13 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
     const assignedReviewerNames = [];
     const notifications = db.collection(collections.notifications);
 
+    // Was this proposal already assigned to reviewers before this save? If so, this is a
+    // reassign — reassigning should not spam a new/edited notification for every save.
+    const priorAdminAssignmentCount = await assignments.countDocuments({
+      $and: [{ $or: buildProposalIdMatchers(resolvedProposalId) }, adminAssignmentFilter()],
+    });
+    const isReassignment = priorAdminAssignmentCount > 0;
+
     for (const reviewerEmail of reviewerValues) {
       // Look up the reviewer by email — direct, guaranteed match
       const reviewer = await reviewerCollection.findOne({ email: reviewerEmail });
@@ -4964,33 +4971,30 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
         console.log(`Admin assignment created for reviewer: ${resolvedName} (${reviewer.email})`);
       }
 
-      // Notify the reviewer — one notification per reviewer per proposal. Re-saving
-      // (reassigning) edits this same notification's message instead of stacking a new one.
-      await notifications.updateOne(
-        {
+      // Notify the reviewer only the first time they're assigned to this proposal.
+      // If they already held this admin assignment, this save is a reassign for them
+      // (e.g. dates/files touched up) — no notification needed.
+      if (!existingAdminAssignment) {
+        await notifications.insertOne({
           recipientEmail: reviewer.email,
+          recipientName: reviewer.email,
+          title: 'New Files Assigned for Review',
+          message: `You have been assigned ${Object.keys(allAssignedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
           type: 'assignment',
+          protocolCode: protocolCode,
           proposalId: resolvedProposalId,
-        },
-        {
-          $set: {
-            recipientName: reviewer.email,
-            title: 'New Files Assigned for Review',
-            message: `You have been assigned ${Object.keys(allAssignedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
-            protocolCode: protocolCode,
-            reviewPeriod: {
-              startDate: new Date(startDate),
-              endDate: new Date(endDate)
-            },
-            assignedFiles: Object.keys(allAssignedFiles),
-            read: false,
-            updatedAt: new Date(),
+          reviewPeriod: {
+            startDate: new Date(startDate),
+            endDate: new Date(endDate)
           },
-          $setOnInsert: { createdAt: new Date() },
-        },
-        { upsert: true }
-      );
-      console.log(`Notification sent to: ${resolvedName} (${reviewer.email})`);
+          assignedFiles: Object.keys(allAssignedFiles),
+          read: false,
+          createdAt: new Date()
+        });
+        console.log(`Notification sent to: ${resolvedName} (${reviewer.email})`);
+      } else {
+        console.log(`Skipped notification for ${resolvedName} (${reviewer.email}) — already assigned to this proposal`);
+      }
     }
 
     // Reassignment cleanup — a reviewer who previously held this admin assignment but is
@@ -5073,28 +5077,25 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
       await ensureStudentAssignmentForProposal(db, refreshedProposal || existingProposal);
     }
 
-    // Create/update the admin notification for this proposal's assignment — re-saving
-    // (reassigning) edits this same notification's message instead of stacking a new one.
-    await notifications.updateOne(
-      {
-        recipientEmail: 'admin',
+    // Notify admin only the first time this proposal is assigned to reviewers.
+    // A later reassign (changing reviewers/dates on an already-assigned proposal)
+    // does not need a fresh notification.
+    if (!isReassignment) {
+      await notifications.insertOne({
+        title: 'Files Assigned to Reviewers',
+        message: `You have assigned ${Object.keys(uploadedFiles).length} document(s) for protocol ${protocolCode} to ${assignedReviewerNames.join(' and ')}.`,
         type: 'admin_assignment',
+        protocolCode: protocolCode,
         proposalId: resolvedProposalId,
-      },
-      {
-        $set: {
-          title: 'Files Assigned to Reviewers',
-          message: `You have assigned ${Object.keys(uploadedFiles).length} document(s) for protocol ${protocolCode} to ${assignedReviewerNames.join(' and ')}.`,
-          protocolCode: protocolCode,
-          assignedReviewers: assignedReviewerNames,
-          read: false,
-          updatedAt: new Date(),
-        },
-        $setOnInsert: { createdAt: new Date() },
-      },
-      { upsert: true }
-    );
-    console.log(`Admin notification updated with reviewers: ${assignedReviewerNames.join(', ')}`);
+        recipientEmail: 'admin',
+        assignedReviewers: assignedReviewerNames,
+        read: false,
+        createdAt: new Date()
+      });
+      console.log(`Admin notification created with reviewers: ${assignedReviewerNames.join(', ')}`);
+    } else {
+      console.log(`Skipped admin notification — proposal ${resolvedProposalId} was already assigned (reassign)`);
+    }
 
     res.json({
       success: true,
