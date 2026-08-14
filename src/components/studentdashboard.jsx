@@ -1047,7 +1047,7 @@ function ProfileContent({ userInfo, setUserInfo, onLogout }) {
                   <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
                   <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
                   <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
-                  <option value="SEIC">SEIC- San Isidro Extension Campus</option>
+                  <option value="SIEC">SIEC- San Isidro Extension Campus</option>
                   <option value="BEC">BEC-BanayBanay Extension Campus</option>
                   <option value="CEC">CEC-Cateel Extension Campus</option>
                   <option value="BGEC">BGEC-Baganga Extension Campus</option>

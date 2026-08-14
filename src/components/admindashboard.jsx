@@ -2546,7 +2546,7 @@ const AddReviewerContent = () => {
 
       'FALS', 'FTED', 'FAIS', 'FNAS', 'FBM', 'FCJE', 'FACET',
 
-      'FHUSOCOM', 'SEIC', 'BEC', 'CEC', 'BGEC', 'TEC',
+      'FHUSOCOM', 'SIEC', 'BEC', 'CEC', 'BGEC', 'TEC',
 
       'NSTP', 'ICS', 'Community Representatives'
 
@@ -2799,7 +2799,7 @@ const AddReviewerContent = () => {
 
                 <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
 
-                <option value="SEIC">SEIC- San Isidro Extension Campus</option>
+                <option value="SIEC">SIEC- San Isidro Extension Campus</option>
 
                 <option value="BEC">BEC-BanayBanay Extension Campus</option>
 
@@ -2946,7 +2946,7 @@ const STUDENT_PROPOSAL_DEPARTMENTS = [
   { value: 'FCJE', label: 'FCJE — Faculty of Criminology Justice Education' },
   { value: 'FACET', label: 'FACET — Faculty of Computing, Engineering, Technology' },
   { value: 'FHUSOCOM', label: 'FHUSOCOM — Faculty of Humanities, Social Science & Communication' },
-  { value: 'SEIC', label: 'SEIC — San Isidro Extension Campus' },
+  { value: 'SIEC', label: 'SIEC — San Isidro Extension Campus' },
   { value: 'BEC', label: 'BEC — BanayBanay Extension Campus' },
   { value: 'CEC', label: 'CEC — Cateel Extension Campus' },
   { value: 'BGEC', label: 'BGEC — Baganga Extension Campus' },
@@ -8730,7 +8730,7 @@ const ManageUsersContent = () => {
 
                   <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
 
-                  <option value="SEIC">SEIC- San Isidro Extension Campus</option>
+                  <option value="SIEC">SIEC- San Isidro Extension Campus</option>
 
                   <option value="BEC">BEC-BanayBanay Extension Campus</option>
 
@@ -9386,7 +9386,7 @@ function AddAdminModal({ isOpen, onClose, onAdminAdded }) {
                 <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
                 <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
                 <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
-                <option value="SEIC">SEIC- San Isidro Extension Campus</option>
+                <option value="SIEC">SIEC- San Isidro Extension Campus</option>
                 <option value="BEC">BEC-BanayBanay Extension Campus</option>
                 <option value="CEC">CEC-Cateel Extension Campus</option>
                 <option value="BGEC">BGEC-Baganga Extension Campus</option>
@@ -10926,7 +10926,7 @@ function MessagesInboxContent({ onMessageRead }) {
     'FCJE': 'FCJE-Faculty of Criminology Justice Education',
     'FACET': 'FACET-Faculty of Computing, Engineering, Technology',
     'FHUSOCOM': 'FHUSOCOM-Faculty of Humanities, Social Science & Communication',
-    'SEIC': 'SEIC- San Isidro Extension Campus',
+    'SIEC': 'SIEC- San Isidro Extension Campus',
     'BEC': 'BEC-BanayBanay Extension Campus',
     'CEC': 'CEC-Cateel Extension Campus',
     'BGEC': 'BGEC-Baganga Extension Campus',

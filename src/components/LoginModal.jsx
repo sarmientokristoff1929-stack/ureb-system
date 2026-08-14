@@ -202,14 +202,14 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       'Bachelor of Science in Information Technology',
       'Bachelor of Science in Engineering',
       'Bachelor of Science in Industrial Technology Management',
-      'Bachelor of Science in Mathimatics with Research Statistics'
+      'Bachelor of Science in Mathematics with Research Statistics'
     ],
     'FHUSOCOM': [
       'Bachelor of Science in Developmental Education',
       'Bachelor of Science in Psychology',
       'Bachelor of Science in Political Science'
     ],
-    'SEIC': [
+    'SIEC': [
       'Bachelor of Science in Agriculture',
       'Bachelor of Science in Business Administration',
       'Bachelor of Science in Criminology',
@@ -645,7 +645,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                           <option value="FCJE">FCJE - Faculty of Criminology Justice Education</option>
                           <option value="FACET">FACET - Faculty of Computing, Engineering, Technology</option>
                           <option value="FHUSOCOM">FHUSOCOM - Faculty of Humanities, Social Science & Communication</option>
-                          <option value="SEIC">SEIC - San Isidro Extension Campus</option>
+                          <option value="SIEC">SIEC - San Isidro Extension Campus</option>
                           <option value="BEC">BEC - BanayBanay Extension Campus</option>
                           <option value="CEC">CEC - Cateel Extension Campus</option>
                           <option value="BGEC">BGEC - Baganga Extension Campus</option>

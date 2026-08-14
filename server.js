@@ -95,7 +95,7 @@ connectToDatabase().then(async (db) => {
     // Migration: Normalize department codes (Old codes to New codes)
     const deptMap = {
       'FNAHS': 'FNAS',
-      'SIEC': 'SEIC',
+      'SEIC': 'SIEC',
       'Faculty of Agriculture and Life Science': 'FALS',
       'Faculty of Agriculture and Life Sciences': 'FALS',
       'Faculty of Teacher Education': 'FTED',
@@ -106,7 +106,7 @@ connectToDatabase().then(async (db) => {
       'Faculty of Criminology Justice Education': 'FCJE',
       'Faculty of Computing, Engineering, Technology': 'FACET',
       'Faculty of Humanities, Social Science & Communication': 'FHUSOCOM',
-      'San Isidro Extension Campus': 'SEIC',
+      'San Isidro Extension Campus': 'SIEC',
       'BanayBanay Extension Campus': 'BEC',
       'Cateel Extension Campus': 'CEC',
       'Baganga Extension Campus': 'BGEC',
