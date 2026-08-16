@@ -42,7 +42,6 @@ app.use(express.json());
 // ---------------------------------------------------------------------------
 // Authentication (session cookie, HMAC-signed, no external deps)
 // ---------------------------------------------------------------------------
-const IS_PROD = process.env.NODE_ENV === 'production';
 const SESSION_SECRET = process.env.SESSION_SECRET || (() => {
   console.warn('[AUTH] SESSION_SECRET is not set in .env — using a random secret for this run. ' +
     'Set SESSION_SECRET in .env so logged-in sessions survive server restarts.');
@@ -84,22 +83,34 @@ function getCookie(req, name) {
   return null;
 }
 
-function issueSession(res, user) {
+// Whether to mark the cookie Secure/SameSite=None is decided from the actual request
+// (is it HTTPS?), not from NODE_ENV — Render doesn't set NODE_ENV=production for this
+// service, and hosts vary in whether they set it at all, so trusting it left the cookie
+// as SameSite=Lax in production. Lax cookies are silently dropped by the browser on
+// cross-site fetch() calls, which is exactly what Vercel (frontend) -> Render (API) is,
+// since they're different sites — that's what caused the 401s / missing data.
+function isHttps(req) {
+  return req.secure || req.headers['x-forwarded-proto'] === 'https';
+}
+
+function issueSession(req, res, user) {
   const token = signSession({ ...user, exp: Date.now() + SESSION_MAX_AGE_MS });
+  const secure = isHttps(req);
   res.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: IS_PROD,
-    sameSite: IS_PROD ? 'none' : 'lax',
+    secure,
+    sameSite: secure ? 'none' : 'lax',
     maxAge: SESSION_MAX_AGE_MS,
     path: '/'
   });
 }
 
-function clearSession(res) {
+function clearSession(req, res) {
+  const secure = isHttps(req);
   res.clearCookie(SESSION_COOKIE, {
     httpOnly: true,
-    secure: IS_PROD,
-    sameSite: IS_PROD ? 'none' : 'lax',
+    secure,
+    sameSite: secure ? 'none' : 'lax',
     path: '/'
   });
 }
@@ -1170,7 +1181,7 @@ app.post('/api/auth/login', async (req, res) => {
       console.log('[DEBUG] Login - Added admin profilePicture to response:', userResponse.profilePicture);
     }
 
-    issueSession(res, {
+    issueSession(req, res, {
       id: user._id.toString(),
       email: userResponse.email,
       role: userResponse.role,
@@ -1189,7 +1200,7 @@ app.post('/api/auth/login', async (req, res) => {
 
 // Logout: clears the session cookie
 app.post('/api/auth/logout', (req, res) => {
-  clearSession(res);
+  clearSession(req, res);
   res.json({ success: true });
 });
 

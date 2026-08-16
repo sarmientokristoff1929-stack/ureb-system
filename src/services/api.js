@@ -2,6 +2,16 @@
 const apiOrigin = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 export const API_BASE_URL = apiOrigin ? `${apiOrigin}/api` : '/api';
 
+// List endpoints are expected to resolve to an array. If the session cookie is missing or
+// expired, the server now replies with an error object like { success: false, error: '...' }
+// instead — callers that assume an array (e.g. messageList.sort(...)) would otherwise crash
+// the whole component. This keeps them degrading to an empty list instead.
+const asArray = (data, context) => {
+  if (Array.isArray(data)) return data;
+  console.error(`${context}: expected an array, got`, data);
+  return [];
+};
+
 // Authentication
 export const authenticateUser = async (email, password) => {
   try {
@@ -50,7 +60,7 @@ export const getAllProposals = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/proposals`);
     const data = await response.json();
-    return data;
+    return asArray(data, 'getAllProposals');
   } catch (error) {
     console.error('Error fetching proposals:', error);
     return [];
@@ -99,7 +109,7 @@ export const getProposalsByReviewer = async (reviewerId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/proposals/reviewer/${reviewerId}`);
     const data = await response.json();
-    return data;
+    return asArray(data, 'getProposalsByReviewer');
   } catch (error) {
     console.error('Error fetching reviewer proposals:', error);
     return [];
@@ -143,7 +153,7 @@ export const getReviewsByReviewer = async (reviewerId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/reviews/reviewer/${reviewerId}`);
     const data = await response.json();
-    return data;
+    return asArray(data, 'getReviewsByReviewer');
   } catch (error) {
     console.error('Error fetching reviews:', error);
     return [];
@@ -259,7 +269,7 @@ export const getCompletedReviews = async (email) => {
   try {
     const response = await fetch(`${API_BASE_URL}/reviews/completed/${encodeURIComponent(email)}`);
     const data = await response.json();
-    return data;
+    return asArray(data, 'getCompletedReviews');
   } catch (error) {
     console.error('Error fetching completed reviews:', error);
     return [];
@@ -271,7 +281,7 @@ export const getNotifications = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/notifications`);
     const data = await response.json();
-    return data;
+    return asArray(data, 'getNotifications');
   } catch (error) {
     console.error('Error fetching notifications:', error);
     return [];
@@ -322,7 +332,7 @@ export const getMessagesByUser = async (userId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/messages/${encodeURIComponent(userId)}`);
     const data = await response.json();
-    return data;
+    return asArray(data, 'getMessagesByUser');
   } catch (error) {
     console.error('Error fetching messages:', error);
     return [];
@@ -445,7 +455,7 @@ export const getAllUsers = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/users`);
     const data = await response.json();
-    return data;
+    return asArray(data, 'getAllUsers');
   } catch (error) {
     console.error('Error fetching users:', error);
     return [];
@@ -456,7 +466,7 @@ export const getAllStudents = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/students`);
     const data = await response.json();
-    return data;
+    return asArray(data, 'getAllStudents');
   } catch (error) {
     console.error('Error fetching students:', error);
     return [];
@@ -467,7 +477,7 @@ export const getAllReviewers = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/reviewers`);
     const data = await response.json();
-    return data;
+    return asArray(data, 'getAllReviewers');
   } catch (error) {
     console.error('Error fetching reviewers:', error);
     return [];
@@ -725,7 +735,7 @@ export const getUserNotifications = async (email) => {
   try {
     const response = await fetch(`${API_BASE_URL}/notifications/${email}`);
     const data = await response.json();
-    return data;
+    return asArray(data, 'getUserNotifications');
   } catch (error) {
     console.error('Error fetching user notifications:', error);
     return [];
@@ -750,7 +760,7 @@ export const getReviewerAssignments = async (reviewerEmail) => {
   try {
     const response = await fetch(`${API_BASE_URL}/assignments/${encodeURIComponent(reviewerEmail)}`);
     const data = await response.json();
-    return data;
+    return asArray(data, 'getReviewerAssignments');
   } catch (error) {
     console.error('Error fetching reviewer assignments:', error);
     return [];
