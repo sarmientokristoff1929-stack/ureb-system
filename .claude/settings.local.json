@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(node:*)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(npx eslint *)",
+      "Bash(curl -s -i http://127.0.0.1:5001/api/students)",
+      "Bash(curl -s -i -X POST http://127.0.0.1:5001/api/users -H \"Content-Type: application/json\" -d '{\"name\":\"hacker\",\"email\":\"hacker@evil.com\",\"password\":\"x\",\"role\":\"admin\"}')",
+      "Bash(curl -s -i -X POST http://127.0.0.1:5001/api/recover-admin)",
+      "Bash(curl -s -i -X POST http://127.0.0.1:5001/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"nonexistent@test.com\",\"password\":\"whatever\"}')",
+      "Bash(taskkill //F //IM node.exe)"
     ]
   }
 }

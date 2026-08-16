@@ -178,6 +178,10 @@ function App() {
   }
 
   const handleLogout = () => {
+    // Fire-and-forget: clears the server-side session cookie. Client-side logout
+    // below doesn't wait on it so logout still feels instant either way.
+    fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST' }).catch(() => {});
+
     setIsAuthenticated(false);
     setUserRole(null);
     setPrivacyAccepted(false);
