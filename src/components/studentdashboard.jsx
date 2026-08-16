@@ -2437,7 +2437,7 @@ function EditProposalModal({ proposal, onClose, onSuccess }) {
 
   return (
     <div className="mini-modal-overlay" onClick={onClose} style={{ zIndex: 1000, overflowY: 'auto', padding: '2rem 0' }}>
-      <div className="mini-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '90%', margin: 'auto' }}>
+      <div className="mini-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', width: '92%', margin: 'auto', padding: '2.5rem 3rem' }}>
         <div className="mini-modal-icon" style={{ backgroundColor: '#f3e8ff', color: '#7c3aed' }}>
           <UploadIcon />
         </div>

@@ -4971,29 +4971,48 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
         console.log(`Admin assignment created for reviewer: ${resolvedName} (${reviewer.email})`);
       }
 
-      // Notify the reviewer only the first time they're assigned to this proposal.
-      // If they already held this admin assignment, this save is a reassign for them
-      // (e.g. dates/files touched up) — no notification needed.
+      // Notify the reviewer when they're assigned to this proposal. First time, insert a
+      // fresh notification. On reassignment (they already held this admin assignment),
+      // update their existing notification in place instead of spamming a new one — the
+      // admin may have changed the protocol code, added files, or moved the deadline, so
+      // the notification should be "remade" to reflect the latest state.
+      const notificationPayload = {
+        recipientEmail: reviewer.email,
+        recipientName: reviewer.email,
+        title: 'New Files Assigned for Review',
+        message: `You have been assigned ${Object.keys(allAssignedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
+        type: 'assignment',
+        protocolCode: protocolCode,
+        proposalId: resolvedProposalId,
+        reviewPeriod: {
+          startDate: new Date(startDate),
+          endDate: new Date(endDate)
+        },
+        assignedFiles: Object.keys(allAssignedFiles),
+        read: false,
+        createdAt: new Date()
+      };
+
       if (!existingAdminAssignment) {
-        await notifications.insertOne({
-          recipientEmail: reviewer.email,
-          recipientName: reviewer.email,
-          title: 'New Files Assigned for Review',
-          message: `You have been assigned ${Object.keys(allAssignedFiles).length} document(s) for review in protocol ${protocolCode}. Please review the assigned files before the deadline.`,
-          type: 'assignment',
-          protocolCode: protocolCode,
-          proposalId: resolvedProposalId,
-          reviewPeriod: {
-            startDate: new Date(startDate),
-            endDate: new Date(endDate)
-          },
-          assignedFiles: Object.keys(allAssignedFiles),
-          read: false,
-          createdAt: new Date()
-        });
+        await notifications.insertOne(notificationPayload);
         console.log(`Notification sent to: ${resolvedName} (${reviewer.email})`);
       } else {
-        console.log(`Skipped notification for ${resolvedName} (${reviewer.email}) — already assigned to this proposal`);
+        const priorNotification = await notifications.find({
+          recipientEmail: emailRegexFilter(reviewer.email),
+          proposalId: resolvedProposalId,
+          type: 'assignment',
+        }).sort({ createdAt: -1 }).limit(1).next();
+
+        if (priorNotification) {
+          await notifications.updateOne(
+            { _id: priorNotification._id },
+            { $set: notificationPayload }
+          );
+          console.log(`Notification updated for: ${resolvedName} (${reviewer.email}) — reassignment with changes`);
+        } else {
+          await notifications.insertOne(notificationPayload);
+          console.log(`Notification created for: ${resolvedName} (${reviewer.email}) — reassignment, no prior notification found`);
+        }
       }
     }
 

@@ -19,7 +19,9 @@
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
       "Bash(gh run *)",
-      "Bash(curl -s -i http://127.0.0.1:5001/api/view/whatever.docx?token=__TRACKED_VAR__)"
+      "Bash(curl -s -i http://127.0.0.1:5001/api/view/whatever.docx?token=__TRACKED_VAR__)",
+      "Bash(git fetch *)",
+      "Bash(git checkout *)"
     ]
   }
 }
