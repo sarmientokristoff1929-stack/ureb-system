@@ -836,6 +836,22 @@ const AdminDashboard = ({ onLogout }) => {
   const [pwdLoading, setPwdLoading] = useState(false);
   const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
 
+  // Admin-only text size preference (accessibility). Persisted per-browser and
+  // only applied while the Admin Dashboard is mounted — reset on logout/unmount
+  // so it never leaks into the Landing Page or other roles' dashboards.
+  const [fontScale, setFontScale] = useState(() => {
+    const saved = parseInt(localStorage.getItem('ureb_admin_font_scale') || '100', 10);
+    return Number.isNaN(saved) ? 100 : saved;
+  });
+
+  useEffect(() => {
+    document.documentElement.style.fontSize = `${fontScale}%`;
+    localStorage.setItem('ureb_admin_font_scale', String(fontScale));
+    return () => {
+      document.documentElement.style.fontSize = '';
+    };
+  }, [fontScale]);
+
 
 
   // Load user info from localStorage on mount and refresh profile picture from server
@@ -1256,6 +1272,8 @@ const AdminDashboard = ({ onLogout }) => {
             handlePasswordUpdate={handlePasswordUpdate}
             showPasswords={showPasswords}
             setShowPasswords={setShowPasswords}
+            fontScale={fontScale}
+            setFontScale={setFontScale}
           />
         );
       case 'notification':
@@ -6675,7 +6693,9 @@ function AdminProfileContent({
   pwdLoading,
   handlePasswordUpdate,
   showPasswords,
-  setShowPasswords
+  setShowPasswords,
+  fontScale,
+  setFontScale
 }) {
   const initials = (userInfo?.name || 'A').charAt(0).toUpperCase();
   const rawRole = (userInfo?.originalRole || userInfo?.role || 'admin').toLowerCase();
@@ -6905,6 +6925,41 @@ function AdminProfileContent({
             </div>
           </form>
         )}
+      </div>
+
+      {/* ── Display Card ── */}
+      <div className="ap-info-card">
+        <div className="ap-card-header">
+          <div>
+            <h3 className="ap-card-title">Display</h3>
+            <p className="ap-card-subtitle">Adjust the text size across your Admin Dashboard</p>
+          </div>
+        </div>
+
+        <div className="ap-font-size-control">
+          <span className="ap-font-size-icon ap-font-size-icon--small">A</span>
+          <input
+            type="range"
+            className="ap-font-size-slider"
+            min="80"
+            max="150"
+            step="5"
+            value={fontScale}
+            onChange={e => setFontScale(Number(e.target.value))}
+            aria-label="Font size"
+          />
+          <span className="ap-font-size-icon ap-font-size-icon--large">A</span>
+          <span className="ap-font-size-value">{fontScale}%</span>
+          {fontScale !== 100 && (
+            <button
+              type="button"
+              className="ap-toggle-btn"
+              onClick={() => setFontScale(100)}
+            >
+              Reset
+            </button>
+          )}
+        </div>
       </div>
 
     </div>

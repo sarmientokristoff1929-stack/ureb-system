@@ -4,6 +4,7 @@ import AdminDashboard from './components/admindashboard'
 import ReviewerDashboard from './components/reviewerdashboard'
 import StudentDashboard from './components/studentdashboard'
 import DataPrivacyModal from './components/DataPrivacyModal'
+import SessionExpiryModal from './components/SessionExpiryModal'
 import MaintenancePage from './components/MaintenancePage'
 import { IS_UNDER_MAINTENANCE } from './config/maintenance'
 import { authenticateUser, API_BASE_URL } from './services/api'
@@ -19,6 +20,11 @@ const isLocalEnv = () => {
     hostname.endsWith('.local')
   );
 };
+
+// Inactivity session limit for Researcher (student role) accounts only.
+const RESEARCHER_IDLE_LIMIT_MS = 10 * 60 * 1000; // 10 minutes
+const RESEARCHER_IDLE_CHECK_INTERVAL_MS = 15 * 1000; // poll every 15s
+const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
 
 // Keep the Render free-tier server warm so OTP sending is always fast.
 // Fires immediately on page load, then every 10 minutes while the tab is open.
@@ -39,6 +45,7 @@ function App() {
   const [userRole, setUserRole] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [privacyAccepted, setPrivacyAccepted] = useState(false)
+  const [showSessionExpiredModal, setShowSessionExpiredModal] = useState(false)
 
   // Show maintenance page ONLY on deployed production, bypass for localhost
   const shouldShowMaintenance = IS_UNDER_MAINTENANCE && !isLocalEnv();
@@ -58,6 +65,23 @@ function App() {
       const savedPrivacyAccepted = sessionStorage.getItem('ureb_privacy_accepted');
       
       if (savedAuth === 'true' && savedRole) {
+        // Researcher (student) accounts expire after 10 minutes of inactivity,
+        // even across a page refresh or reopened tab. Other roles are unaffected.
+        if (savedRole === 'student') {
+          const lastActivity = parseInt(localStorage.getItem('ureb_last_activity') || '0', 10);
+          const idleFor = Date.now() - lastActivity;
+          if (!lastActivity || idleFor >= RESEARCHER_IDLE_LIMIT_MS) {
+            localStorage.removeItem('ureb_auth');
+            localStorage.removeItem('ureb_role');
+            localStorage.removeItem('ureb_user');
+            localStorage.removeItem('ureb_last_activity');
+            sessionStorage.removeItem('ureb_privacy_accepted');
+            setShowSessionExpiredModal(true);
+            setIsLoading(false);
+            return;
+          }
+        }
+
         setIsAuthenticated(true);
         setUserRole(savedRole);
         if (savedPrivacyAccepted === 'true') {
@@ -68,7 +92,7 @@ function App() {
       }
       setIsLoading(false);
     };
-    
+
     // Small delay to ensure localStorage is ready
     setTimeout(checkAuth, 100);
   }, []);
@@ -103,6 +127,9 @@ function App() {
         localStorage.setItem('ureb_auth', 'true');
         localStorage.setItem('ureb_role', result.user.role);
         localStorage.setItem('ureb_user', JSON.stringify(result.user));
+        if (result.user.role === 'student') {
+          localStorage.setItem('ureb_last_activity', Date.now().toString());
+        }
 
         // Dispatch custom event to notify components of user change
         window.dispatchEvent(new CustomEvent('userChanged', {
@@ -159,12 +186,54 @@ function App() {
     localStorage.removeItem('ureb_auth');
     localStorage.removeItem('ureb_role');
     localStorage.removeItem('ureb_user');
+    localStorage.removeItem('ureb_last_activity');
     sessionStorage.removeItem('ureb_privacy_accepted');
 
     // Dispatch custom event to notify components of user change
-    window.dispatchEvent(new CustomEvent('userChanged', { 
-      detail: { action: 'logout' } 
+    window.dispatchEvent(new CustomEvent('userChanged', {
+      detail: { action: 'logout' }
     }));
+  }
+
+  // Flag Researcher (student role) sessions as expired after 10 minutes of
+  // inactivity. The dashboard stays on screen behind the modal; the actual
+  // logout/redirect to the Landing Page happens only once "OK" is clicked.
+  useEffect(() => {
+    if (!isAuthenticated || userRole !== 'student') return;
+
+    let hasExpired = false;
+
+    const markActivity = () => {
+      if (hasExpired) return;
+      localStorage.setItem('ureb_last_activity', Date.now().toString());
+    };
+
+    markActivity();
+    ACTIVITY_EVENTS.forEach(evt => window.addEventListener(evt, markActivity, { passive: true }));
+
+    const intervalId = setInterval(() => {
+      if (hasExpired) return;
+      const lastActivity = parseInt(localStorage.getItem('ureb_last_activity') || '0', 10);
+      if (Date.now() - lastActivity >= RESEARCHER_IDLE_LIMIT_MS) {
+        hasExpired = true;
+        setShowSessionExpiredModal(true);
+      }
+    }, RESEARCHER_IDLE_CHECK_INTERVAL_MS);
+
+    return () => {
+      ACTIVITY_EVENTS.forEach(evt => window.removeEventListener(evt, markActivity));
+      clearInterval(intervalId);
+    };
+  }, [isAuthenticated, userRole]);
+
+  const handleCloseSessionExpiredModal = () => {
+    setShowSessionExpiredModal(false);
+    // Only run the logout/redirect for a live expiry (dashboard still open).
+    // If the session was already flagged as expired on page load, the user
+    // is on the Landing Page already and there's nothing left to clear.
+    if (isAuthenticated) {
+      handleLogout();
+    }
   }
 
   const handleAcceptPrivacy = () => {
@@ -218,6 +287,7 @@ function App() {
       ) : (
         <LandingPage onLogin={handleLogin} onRegister={handleRegister} />
       )}
+      <SessionExpiryModal isOpen={showSessionExpiredModal} onClose={handleCloseSessionExpiredModal} />
     </>
   )
 }
