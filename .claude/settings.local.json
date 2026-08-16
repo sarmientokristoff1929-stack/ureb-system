@@ -8,7 +8,16 @@
       "Bash(curl -s -i -X POST http://127.0.0.1:5001/api/users -H \"Content-Type: application/json\" -d '{\"name\":\"hacker\",\"email\":\"hacker@evil.com\",\"password\":\"x\",\"role\":\"admin\"}')",
       "Bash(curl -s -i -X POST http://127.0.0.1:5001/api/recover-admin)",
       "Bash(curl -s -i -X POST http://127.0.0.1:5001/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"nonexistent@test.com\",\"password\":\"whatever\"}')",
-      "Bash(taskkill //F //IM node.exe)"
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
+      "Bash(netstat -ano)",
+      "Bash(curl -s -i https://ureb-server-zrxc.onrender.com/api/students)",
+      "Bash(curl -s https://ureb-server-zrxc.onrender.com/api/students)",
+      "Bash(curl -s -X POST https://ureb-server-zrxc.onrender.com/api/recover-admin)",
+      "Bash(curl -s -i -X POST https://ureb-server-zrxc.onrender.com/api/auth/logout)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }
