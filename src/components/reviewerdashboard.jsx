@@ -239,24 +239,58 @@ const FileTemplatesIcon = () => (
 const DELETED_ASSIGNMENTS_KEY = 'ureb_deleted_assignments';
 const READ_ASSIGNMENTS_KEY = 'ureb_read_assignments';
 
+// These lists must be scoped per reviewer account, not shared globally in localStorage.
+// Without this, testing/using more than one reviewer login in the same browser leaks
+// "already read"/"deleted" state across accounts — e.g. swapping Reviewer 2 for a
+// different reviewer in Reassign would show the new reviewer's freshly-assigned proposal
+// as already "Done" simply because some other reviewer had viewed a proposal with the
+// same content on this browser before.
+const getCurrentReviewerEmail = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('ureb_user') || 'null');
+    return (saved?.email || '').toLowerCase().trim();
+  } catch { return ''; }
+};
+
+const scopedStorageKey = (baseKey) => {
+  const email = getCurrentReviewerEmail();
+  return email ? `${baseKey}_${email}` : baseKey;
+};
+
 const getDeletedAssignmentIds = () => {
   try {
-    return JSON.parse(localStorage.getItem(DELETED_ASSIGNMENTS_KEY) || '[]');
+    return JSON.parse(localStorage.getItem(scopedStorageKey(DELETED_ASSIGNMENTS_KEY)) || '[]');
   } catch { return []; }
 };
 
 const getReadAssignmentIds = () => {
   try {
-    return JSON.parse(localStorage.getItem(READ_ASSIGNMENTS_KEY) || '[]');
+    return JSON.parse(localStorage.getItem(scopedStorageKey(READ_ASSIGNMENTS_KEY)) || '[]');
   } catch { return []; }
 };
 
-// "Read"/"Done" tracking keys off the proposal, not the assignment document's own _id.
-// The admin can re-save a proposal (edit attachments, swap reviewers, etc.) which may
-// recreate/replace the underlying assignment record with a new _id — keying off proposalId
-// keeps a reviewer's "already viewed this" state intact across those saves instead of the
-// card flipping back to "New" every time the admin touches the proposal.
-const getAssignmentReadKey = (assignment) => String(assignment?.proposalId || assignment?._id || '');
+const setReadAssignmentIds = (ids) => {
+  try {
+    localStorage.setItem(scopedStorageKey(READ_ASSIGNMENTS_KEY), JSON.stringify(ids));
+  } catch { /* ignore quota/serialization errors */ }
+};
+
+// "Read"/"Done" tracking keys off the proposal's content, not just its id or the
+// assignment document's own _id. The admin can re-save a proposal (edit attachments,
+// swap reviewers, etc.) which may recreate/replace the underlying assignment record with
+// a new _id — keying off proposalId alone keeps a reviewer's "already viewed this" state
+// intact across no-op saves instead of the card flipping back to "New" every time the
+// admin merely touches the proposal. But a real reassignment — new protocol code, added/
+// removed files, or a moved review period — SHOULD flip the card back to "New" until the
+// reviewer opens the updated files again, so those fields are folded into the key too.
+const getAssignmentReadKey = (assignment) => {
+  const proposalKey = String(assignment?.proposalId || assignment?._id || '');
+  const protocolCode = String(assignment?.protocolCode || '');
+  const fileKeys = Object.keys(assignment?.assignedFiles || {}).sort().join(',');
+  const startDate = assignment?.reviewPeriod?.startDate ? new Date(assignment.reviewPeriod.startDate).getTime() : '';
+  const endDate = assignment?.reviewPeriod?.endDate ? new Date(assignment.reviewPeriod.endDate).getTime() : '';
+  return `${proposalKey}|${protocolCode}|${fileKeys}|${startDate}|${endDate}`;
+};
 
 const deduplicateAssignments = (rawList) => {
   if (!Array.isArray(rawList)) return [];
@@ -2788,7 +2822,7 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                         const readKey = getAssignmentReadKey(assignment);
                         if (!readIds.includes(readKey)) {
                           const newReadIds = [...readIds, readKey];
-                          localStorage.setItem(READ_ASSIGNMENTS_KEY, JSON.stringify(newReadIds));
+                          setReadAssignmentIds(newReadIds);
                           setReadIds(newReadIds);
                           if (setAssignedCount) setAssignedCount(prev => Math.max(0, prev - 1));
 
