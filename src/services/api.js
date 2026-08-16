@@ -2,16 +2,6 @@
 const apiOrigin = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 export const API_BASE_URL = apiOrigin ? `${apiOrigin}/api` : '/api';
 
-// List endpoints are expected to resolve to an array. If the session cookie is missing or
-// expired, the server now replies with an error object like { success: false, error: '...' }
-// instead — callers that assume an array (e.g. messageList.sort(...)) would otherwise crash
-// the whole component. This keeps them degrading to an empty list instead.
-const asArray = (data, context) => {
-  if (Array.isArray(data)) return data;
-  console.error(`${context}: expected an array, got`, data);
-  return [];
-};
-
 // Authentication
 export const authenticateUser = async (email, password) => {
   try {
@@ -60,7 +50,7 @@ export const getAllProposals = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/proposals`);
     const data = await response.json();
-    return asArray(data, 'getAllProposals');
+    return data;
   } catch (error) {
     console.error('Error fetching proposals:', error);
     return [];
@@ -109,7 +99,7 @@ export const getProposalsByReviewer = async (reviewerId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/proposals/reviewer/${reviewerId}`);
     const data = await response.json();
-    return asArray(data, 'getProposalsByReviewer');
+    return data;
   } catch (error) {
     console.error('Error fetching reviewer proposals:', error);
     return [];
@@ -153,7 +143,7 @@ export const getReviewsByReviewer = async (reviewerId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/reviews/reviewer/${reviewerId}`);
     const data = await response.json();
-    return asArray(data, 'getReviewsByReviewer');
+    return data;
   } catch (error) {
     console.error('Error fetching reviews:', error);
     return [];
@@ -269,7 +259,7 @@ export const getCompletedReviews = async (email) => {
   try {
     const response = await fetch(`${API_BASE_URL}/reviews/completed/${encodeURIComponent(email)}`);
     const data = await response.json();
-    return asArray(data, 'getCompletedReviews');
+    return data;
   } catch (error) {
     console.error('Error fetching completed reviews:', error);
     return [];
@@ -281,7 +271,7 @@ export const getNotifications = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/notifications`);
     const data = await response.json();
-    return asArray(data, 'getNotifications');
+    return data;
   } catch (error) {
     console.error('Error fetching notifications:', error);
     return [];
@@ -332,7 +322,7 @@ export const getMessagesByUser = async (userId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/messages/${encodeURIComponent(userId)}`);
     const data = await response.json();
-    return asArray(data, 'getMessagesByUser');
+    return data;
   } catch (error) {
     console.error('Error fetching messages:', error);
     return [];
@@ -455,7 +445,7 @@ export const getAllUsers = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/users`);
     const data = await response.json();
-    return asArray(data, 'getAllUsers');
+    return data;
   } catch (error) {
     console.error('Error fetching users:', error);
     return [];
@@ -466,7 +456,7 @@ export const getAllStudents = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/students`);
     const data = await response.json();
-    return asArray(data, 'getAllStudents');
+    return data;
   } catch (error) {
     console.error('Error fetching students:', error);
     return [];
@@ -477,7 +467,7 @@ export const getAllReviewers = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/reviewers`);
     const data = await response.json();
-    return asArray(data, 'getAllReviewers');
+    return data;
   } catch (error) {
     console.error('Error fetching reviewers:', error);
     return [];
@@ -711,7 +701,7 @@ export const downloadFile = (filename) => {
 };
 
 // File view - open file in browser for preview
-export const viewFile = async (filename) => {
+export const viewFile = (filename) => {
   if (!filename) return;
 
   const fileExt = filename.split('.').pop().toLowerCase();
@@ -719,31 +709,10 @@ export const viewFile = async (filename) => {
   const isExcelFile = ['xls', 'xlsx'].includes(fileExt);
 
   if (isWordFile || isExcelFile) {
-    // Microsoft's Office Online Viewer fetches the document from ITS OWN servers, not this
-    // browser, so it can't carry our login cookie. Open the tab synchronously (so browsers
-    // don't treat it as a blocked popup once the awaited fetch below resolves), then fill in
-    // the URL once we have a short-lived, file-scoped token Office's fetch can present instead.
-    const newTab = window.open('', '_blank', 'noopener,noreferrer');
-    try {
-      const tokenResponse = await fetch(`${API_BASE_URL}/view-token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename }),
-      });
-      const tokenData = await tokenResponse.json();
-      if (!tokenData.success || !tokenData.token) {
-        console.error('Could not get a view token for', filename, tokenData);
-        if (newTab) newTab.close();
-        return;
-      }
-      const fileUrl = `${API_BASE_URL}/view/${encodeURIComponent(filename)}?token=${encodeURIComponent(tokenData.token)}`;
-      const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fileUrl)}`;
-      if (newTab) newTab.location = officeViewerUrl;
-      else window.open(officeViewerUrl, '_blank', 'noopener,noreferrer');
-    } catch (error) {
-      console.error('Error opening Office file:', error);
-      if (newTab) newTab.close();
-    }
+    // Use Microsoft Office Online Viewer for Office documents
+    const encodedUrl = encodeURIComponent(`${API_BASE_URL}/view/${encodeURIComponent(filename)}`);
+    const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodedUrl}`;
+    window.open(officeViewerUrl, '_blank', 'noopener,noreferrer');
   } else {
     // For PDFs, images, and other viewable files, use direct view
     const viewUrl = `${API_BASE_URL}/view/${encodeURIComponent(filename)}`;
@@ -756,7 +725,7 @@ export const getUserNotifications = async (email) => {
   try {
     const response = await fetch(`${API_BASE_URL}/notifications/${email}`);
     const data = await response.json();
-    return asArray(data, 'getUserNotifications');
+    return data;
   } catch (error) {
     console.error('Error fetching user notifications:', error);
     return [];
@@ -781,7 +750,7 @@ export const getReviewerAssignments = async (reviewerEmail) => {
   try {
     const response = await fetch(`${API_BASE_URL}/assignments/${encodeURIComponent(reviewerEmail)}`);
     const data = await response.json();
-    return asArray(data, 'getReviewerAssignments');
+    return data;
   } catch (error) {
     console.error('Error fetching reviewer assignments:', error);
     return [];

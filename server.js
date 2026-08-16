@@ -6,7 +6,6 @@ import nodemailer from 'nodemailer';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 // Load environment variables
@@ -21,11 +20,7 @@ console.log('*** SERVER v2.0 - GENDER FIX ACTIVE  ***');
 console.log('******************************************');
 
 // Middleware & Security Hardening
-// credentials: true + reflected origin is required so the session cookie can be sent from the
-// Vercel-hosted frontend to this Render-hosted API (they are different origins in production).
-app.use(cors({ origin: true, credentials: true }));
-// Needed so req.protocol / cookie "secure" detection is correct behind Render's/Vercel's proxy.
-app.set('trust proxy', 1);
+app.use(cors());
 
 // Global Security Response Headers
 app.use((req, res, next) => {
@@ -38,139 +33,6 @@ app.use((req, res, next) => {
 
 // Request body parser
 app.use(express.json());
-
-// ---------------------------------------------------------------------------
-// Authentication (session cookie, HMAC-signed, no external deps)
-// ---------------------------------------------------------------------------
-const SESSION_SECRET = process.env.SESSION_SECRET || (() => {
-  console.warn('[AUTH] SESSION_SECRET is not set in .env — using a random secret for this run. ' +
-    'Set SESSION_SECRET in .env so logged-in sessions survive server restarts.');
-  return crypto.randomBytes(32).toString('hex');
-})();
-const SESSION_COOKIE = 'ureb_session';
-const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-
-function signSession(payload) {
-  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const sig = crypto.createHmac('sha256', SESSION_SECRET).update(body).digest('base64url');
-  return `${body}.${sig}`;
-}
-
-function verifySession(token) {
-  if (!token || typeof token !== 'string' || !token.includes('.')) return null;
-  const [body, sig] = token.split('.');
-  const expectedSig = crypto.createHmac('sha256', SESSION_SECRET).update(body).digest('base64url');
-  const sigBuf = Buffer.from(sig);
-  const expectedBuf = Buffer.from(expectedSig);
-  if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) return null;
-  try {
-    const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
-    if (!payload.exp || Date.now() > payload.exp) return null;
-    return payload;
-  } catch {
-    return null;
-  }
-}
-
-function getCookie(req, name) {
-  const header = req.headers.cookie;
-  if (!header) return null;
-  for (const part of header.split(';')) {
-    const idx = part.indexOf('=');
-    if (idx === -1) continue;
-    if (part.slice(0, idx).trim() === name) return decodeURIComponent(part.slice(idx + 1).trim());
-  }
-  return null;
-}
-
-// Whether to mark the cookie Secure/SameSite=None is decided from the actual request
-// (is it HTTPS?), not from NODE_ENV — Render doesn't set NODE_ENV=production for this
-// service, and hosts vary in whether they set it at all, so trusting it left the cookie
-// as SameSite=Lax in production. Lax cookies are silently dropped by the browser on
-// cross-site fetch() calls, which is exactly what Vercel (frontend) -> Render (API) is,
-// since they're different sites — that's what caused the 401s / missing data.
-function isHttps(req) {
-  return req.secure || req.headers['x-forwarded-proto'] === 'https';
-}
-
-function issueSession(req, res, user) {
-  const token = signSession({ ...user, exp: Date.now() + SESSION_MAX_AGE_MS });
-  const secure = isHttps(req);
-  res.cookie(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure,
-    sameSite: secure ? 'none' : 'lax',
-    maxAge: SESSION_MAX_AGE_MS,
-    path: '/'
-  });
-}
-
-function clearSession(req, res) {
-  const secure = isHttps(req);
-  res.clearCookie(SESSION_COOKIE, {
-    httpOnly: true,
-    secure,
-    sameSite: secure ? 'none' : 'lax',
-    path: '/'
-  });
-}
-
-function requireAuth(req, res, next) {
-  const session = verifySession(getCookie(req, SESSION_COOKIE));
-  if (!session) {
-    return res.status(401).json({ success: false, error: 'Authentication required. Please log in.' });
-  }
-  req.user = session;
-  next();
-}
-
-function requireRole(...roles) {
-  return (req, res, next) => {
-    requireAuth(req, res, () => {
-      if (!roles.includes(req.user.role)) {
-        return res.status(403).json({ success: false, error: 'You do not have permission to perform this action.' });
-      }
-      next();
-    });
-  };
-}
-
-// Routes reachable before a session exists (login itself, signup, and the email-OTP
-// verification step signup relies on). Everything else under /api and /uploads requires
-// a valid session — see the gate below.
-const PUBLIC_API_PATHS = new Set([
-  '/api/version',
-  '/api/ping',
-  '/api/auth/login',
-  '/api/auth/register',
-  '/api/auth/logout',
-  '/api/check-gmail-exists',
-  '/api/send-otp',
-  '/api/verify-otp',
-  '/api/recover-admin' // gated by its own secret check inside the handler, not a session
-]);
-
-// The Word/Excel preview flow hands the file's URL to Microsoft's Office Online Viewer,
-// which fetches it from ITS OWN servers, not the user's browser — so it can never carry
-// our login cookie. A logged-in user first mints a short-lived token scoped to that one
-// file (via POST /api/view-token, itself behind the normal cookie check), and Office's
-// fetch presents that token in the query string instead.
-function verifyViewToken(token, filename) {
-  if (!token) return false;
-  const payload = verifySession(token);
-  return !!payload && payload.viewFile === filename;
-}
-
-app.use((req, res, next) => {
-  if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads')) return next();
-  if (PUBLIC_API_PATHS.has(req.path)) return next();
-  if (req.path.startsWith('/api/templates')) return next(); // public blank form templates
-  if (req.path.startsWith('/api/view/')) {
-    const filename = path.basename(decodeURIComponent(req.path.slice('/api/view/'.length)));
-    if (verifyViewToken(req.query.token, filename)) return next();
-  }
-  return requireAuth(req, res, next);
-});
 
 // Version endpoint to verify deployment
 app.get('/api/version', (req, res) => {
@@ -402,7 +264,7 @@ const MIME_MAP = {
 };
 
 // Diagnostic endpoint — disabled in production for security
-app.get('/api/debug-paths', requireRole('admin'), (req, res) => {
+app.get('/api/debug-paths', (req, res) => {
   if (process.env.NODE_ENV === 'production') {
     return res.status(403).json({ error: 'Access denied' });
   }
@@ -450,16 +312,6 @@ app.get('/api/download/*', async (req, res) => {
 });
 
 // View endpoint — disk first, then GridFS fallback, inline for browser rendering (Sanitized)
-// Mints the short-lived, file-scoped token described above the auth gate. Must be called
-// from the user's own browser (so it carries the login cookie) before opening the Office
-// Online Viewer, which can't authenticate itself.
-app.post('/api/view-token', requireAuth, (req, res) => {
-  const filename = path.basename(req.body?.filename || '');
-  if (!filename) return res.status(400).json({ success: false, error: 'filename is required' });
-  const token = signSession({ viewFile: filename, exp: Date.now() + 5 * 60 * 1000 });
-  res.json({ success: true, token });
-});
-
 app.get('/api/view/*', async (req, res) => {
   const rawParam = req.params[0] || '';
   const filename = path.basename(rawParam);
@@ -1206,13 +1058,6 @@ app.post('/api/auth/login', async (req, res) => {
       console.log('[DEBUG] Login - Added admin profilePicture to response:', userResponse.profilePicture);
     }
 
-    issueSession(req, res, {
-      id: user._id.toString(),
-      email: userResponse.email,
-      role: userResponse.role,
-      userType: userResponse.userType
-    });
-
     res.json({
       success: true,
       user: userResponse
@@ -1221,12 +1066,6 @@ app.post('/api/auth/login', async (req, res) => {
     console.error('Login error:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
-});
-
-// Logout: clears the session cookie
-app.post('/api/auth/logout', (req, res) => {
-  clearSession(req, res);
-  res.json({ success: true });
 });
 
 // Student Registration
@@ -1351,7 +1190,7 @@ app.get('/api/reviewers', async (req, res) => {
   }
 });
 
-app.post('/api/reviewers', requireRole('admin'), async (req, res) => {
+app.post('/api/reviewers', async (req, res) => {
   try {
     const db = getDatabase();
     const reviewers = db.collection('reviewers');
@@ -1394,7 +1233,7 @@ app.get('/api/students', async (req, res) => {
 });
 
 // Update System Administrator role to superadmin
-app.put('/api/users/update-superadmin', requireRole('admin'), async (req, res) => {
+app.put('/api/users/update-superadmin', async (req, res) => {
   try {
     const db = getDatabase();
     const users = db.collection(collections.users);
@@ -1423,18 +1262,6 @@ app.put('/api/users/update-superadmin', requireRole('admin'), async (req, res) =
 // Admin recovery endpoint - creates a default admin account if none exists
 app.post('/api/recover-admin', async (req, res) => {
   try {
-    // Requires a secret only you know (set ADMIN_RECOVERY_SECRET in your .env) so this
-    // can't be triggered by a stranger who just finds the URL. If you haven't set that
-    // secret, this route is disabled outright.
-    const recoverySecret = process.env.ADMIN_RECOVERY_SECRET;
-    if (!recoverySecret) {
-      return res.status(404).json({ success: false, error: 'Not found' });
-    }
-    const providedSecret = req.headers['x-recovery-secret'] || req.body?.recoverySecret;
-    if (providedSecret !== recoverySecret) {
-      return res.status(404).json({ success: false, error: 'Not found' });
-    }
-
     const db = getDatabase();
     const users = db.collection(collections.users);
 
@@ -1480,7 +1307,7 @@ app.post('/api/recover-admin', async (req, res) => {
   }
 });
 
-app.post('/api/users', requireRole('admin'), async (req, res) => {
+app.post('/api/users', async (req, res) => {
   try {
     console.log('Request body:', req.body);
     const { name, email, password, role, department } = req.body;
@@ -1524,7 +1351,7 @@ app.post('/api/users', requireRole('admin'), async (req, res) => {
 });
 
 // Enhanced user creation with separate name fields
-app.post('/api/users/detailed', requireRole('admin'), async (req, res) => {
+app.post('/api/users/detailed', async (req, res) => {
   try {
     console.log('Request body:', req.body);
     const { firstName, middleName, lastName, title, gender, email, password, role, department, reviewerType } = req.body;
@@ -1595,7 +1422,7 @@ app.post('/api/users/detailed', requireRole('admin'), async (req, res) => {
 });
 
 // Update user endpoint
-app.put('/api/users/:id', requireRole('admin'), async (req, res) => {
+app.put('/api/users/:id', async (req, res) => {
   try {
     const db = getDatabase();
     const users = db.collection(collections.users);
@@ -1624,7 +1451,7 @@ app.put('/api/users/:id', requireRole('admin'), async (req, res) => {
 });
 
 // Delete user endpoint
-app.delete('/api/users/:id', requireRole('admin'), async (req, res) => {
+app.delete('/api/users/:id', async (req, res) => {
   try {
     const db = getDatabase();
     const users = db.collection(collections.users);
@@ -1797,7 +1624,7 @@ app.put('/api/reviewer/change-password', async (req, res) => {
 });
 
 // Update reviewer endpoint
-app.put('/api/reviewers/:id', requireRole('admin'), async (req, res) => {
+app.put('/api/reviewers/:id', async (req, res) => {
   console.log('=== REVIEWER ID ENDPOINT HIT ===');
   console.log('Request URL:', req.originalUrl);
   console.log('Request method:', req.method);
@@ -1880,7 +1707,7 @@ app.put('/api/reviewers/:id', requireRole('admin'), async (req, res) => {
 });
 
 // Delete reviewer endpoint
-app.delete('/api/reviewers/:id', requireRole('admin'), async (req, res) => {
+app.delete('/api/reviewers/:id', async (req, res) => {
   try {
     const db = getDatabase();
     const reviewers = db.collection(collections.reviewers);
@@ -1971,7 +1798,7 @@ app.put('/api/students/:id', async (req, res) => {
 });
 
 // Delete student endpoint
-app.delete('/api/students/:id', requireRole('admin'), async (req, res) => {
+app.delete('/api/students/:id', async (req, res) => {
   try {
     const db = getDatabase();
     const students = db.collection(collections.students);
@@ -2716,7 +2543,7 @@ app.get('/api/proposals/:proposalId', async (req, res) => {
 });
 
 // Delete proposal by ID (student) — cascades to any reviewer assignments tied to it
-app.delete('/api/proposals/:proposalId', requireRole('admin'), async (req, res) => {
+app.delete('/api/proposals/:proposalId', async (req, res) => {
   try {
     const { proposalId } = req.params;
     const db = getDatabase();
