@@ -150,10 +150,25 @@ const PUBLIC_API_PATHS = new Set([
   '/api/recover-admin' // gated by its own secret check inside the handler, not a session
 ]);
 
+// The Word/Excel preview flow hands the file's URL to Microsoft's Office Online Viewer,
+// which fetches it from ITS OWN servers, not the user's browser — so it can never carry
+// our login cookie. A logged-in user first mints a short-lived token scoped to that one
+// file (via POST /api/view-token, itself behind the normal cookie check), and Office's
+// fetch presents that token in the query string instead.
+function verifyViewToken(token, filename) {
+  if (!token) return false;
+  const payload = verifySession(token);
+  return !!payload && payload.viewFile === filename;
+}
+
 app.use((req, res, next) => {
   if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads')) return next();
   if (PUBLIC_API_PATHS.has(req.path)) return next();
   if (req.path.startsWith('/api/templates')) return next(); // public blank form templates
+  if (req.path.startsWith('/api/view/')) {
+    const filename = path.basename(decodeURIComponent(req.path.slice('/api/view/'.length)));
+    if (verifyViewToken(req.query.token, filename)) return next();
+  }
   return requireAuth(req, res, next);
 });
 
@@ -435,6 +450,16 @@ app.get('/api/download/*', async (req, res) => {
 });
 
 // View endpoint — disk first, then GridFS fallback, inline for browser rendering (Sanitized)
+// Mints the short-lived, file-scoped token described above the auth gate. Must be called
+// from the user's own browser (so it carries the login cookie) before opening the Office
+// Online Viewer, which can't authenticate itself.
+app.post('/api/view-token', requireAuth, (req, res) => {
+  const filename = path.basename(req.body?.filename || '');
+  if (!filename) return res.status(400).json({ success: false, error: 'filename is required' });
+  const token = signSession({ viewFile: filename, exp: Date.now() + 5 * 60 * 1000 });
+  res.json({ success: true, token });
+});
+
 app.get('/api/view/*', async (req, res) => {
   const rawParam = req.params[0] || '';
   const filename = path.basename(rawParam);
