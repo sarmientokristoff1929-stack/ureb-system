@@ -17,7 +17,8 @@
       "Bash(curl -s -i -X POST https://ureb-server-zrxc.onrender.com/api/auth/logout)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(gh run *)"
     ]
   }
 }
