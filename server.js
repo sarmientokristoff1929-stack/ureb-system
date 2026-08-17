@@ -355,6 +355,12 @@ const collections = {
   user_hidden_items: 'user_hidden_items'
 };
 
+// A Researcher/Reviewer counts as "active" for the Admin Dashboard's realtime
+// stat cards if a heartbeat was received within this window. The frontend
+// pings every 60s while a Researcher/Reviewer tab is open, so this must be
+// comfortably larger than that interval to tolerate a couple of missed beats.
+const ACTIVE_SESSION_WINDOW_MS = 3 * 60 * 1000; // 3 minutes
+
 const STUDENT_ASSIGNMENT_FILE_KEYS = [
   'proposal', 'approvalSheet', 'urebForm2', 'applicationForm6',
   'accomplishedForm8', 'accomplishedForm10A', 'instrumentTool', 'ethicsReviewFee',
@@ -1064,6 +1070,43 @@ app.post('/api/auth/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Heartbeat — called periodically by logged-in Researcher/Reviewer clients so the
+// Admin Dashboard's "Active Researchers" / "Active Reviewers" stat cards can show
+// who is actually online right now (see ACTIVE_SESSION_WINDOW_MS).
+app.post('/api/auth/heartbeat', async (req, res) => {
+  try {
+    const { email, role } = req.body;
+    if (!email || !role) {
+      return res.status(400).json({ success: false, error: 'email and role are required' });
+    }
+
+    const db = getDatabase();
+    const now = new Date();
+
+    if (role === 'student') {
+      const students = db.collection(collections.students);
+      const student = await findStudentByLoginEmail(students, email);
+      if (!student) {
+        return res.status(404).json({ success: false, error: 'Researcher not found' });
+      }
+      await students.updateOne({ _id: student._id }, { $set: { lastActive: now } });
+    } else if (role === 'reviewer') {
+      const reviewers = db.collection(collections.reviewers);
+      const result = await reviewers.updateOne({ email }, { $set: { lastActive: now } });
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ success: false, error: 'Reviewer not found' });
+      }
+    } else {
+      return res.status(400).json({ success: false, error: 'Unsupported role for heartbeat' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Heartbeat error:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -5196,7 +5239,14 @@ app.get('/api/stats', async (req, res) => {
     // Reviewer-submitted reviews: all completed reviews submitted via /api/reviews
     const reviewerSubmissionCount = await reviews.countDocuments();
 
-    console.log(`[stats] proposals=${proposalCount}, student=${studentProposalCount}, reviewerSubs=${reviewerSubmissionCount}`);
+    // Realtime "currently logged in" counts, driven by the /api/auth/heartbeat
+    // pings sent from logged-in Researcher/Reviewer clients.
+    const students = db.collection(collections.students);
+    const activeSince = new Date(Date.now() - ACTIVE_SESSION_WINDOW_MS);
+    const onlineResearchersCount = await students.countDocuments({ lastActive: { $gte: activeSince } });
+    const onlineReviewersCount = await reviewers.countDocuments({ lastActive: { $gte: activeSince } });
+
+    console.log(`[stats] proposals=${proposalCount}, student=${studentProposalCount}, reviewerSubs=${reviewerSubmissionCount}, onlineResearchers=${onlineResearchersCount}, onlineReviewers=${onlineReviewersCount}`);
 
     res.json({
       totalProposals: proposalCount,
@@ -5204,7 +5254,9 @@ app.get('/api/stats', async (req, res) => {
       approved: approvedCount,
       activeReviewers: activeReviewersCount,
       studentProposals: studentProposalCount,
-      reviewerProposals: reviewerSubmissionCount
+      reviewerProposals: reviewerSubmissionCount,
+      onlineResearchers: onlineResearchersCount,
+      onlineReviewers: onlineReviewersCount
     });
   } catch (error) {
     console.error('Error fetching stats:', error);

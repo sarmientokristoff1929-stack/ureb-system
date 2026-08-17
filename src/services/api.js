@@ -40,8 +40,26 @@ export const getDashboardStats = async () => {
       approved: 0,
       activeReviewers: 0,
       studentProposals: 0,
-      reviewerProposals: 0
+      reviewerProposals: 0,
+      onlineResearchers: 0,
+      onlineReviewers: 0
     };
+  }
+};
+
+// Realtime presence — pings the server so this Researcher/Reviewer counts as
+// "active" in the Admin Dashboard's System Realtime stat cards.
+export const sendHeartbeat = async (email, role) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/heartbeat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, role }),
+    });
+    return await response.json();
+  } catch (error) {
+    // Silent — a missed heartbeat just means this tick won't count as "online"
+    return { success: false };
   }
 };
 

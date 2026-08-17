@@ -7,7 +7,7 @@ import DataPrivacyModal from './components/DataPrivacyModal'
 import SessionExpiryModal from './components/SessionExpiryModal'
 import MaintenancePage from './components/MaintenancePage'
 import { IS_UNDER_MAINTENANCE } from './config/maintenance'
-import { authenticateUser, API_BASE_URL } from './services/api'
+import { authenticateUser, sendHeartbeat, API_BASE_URL } from './services/api'
 
 // Helper function to check if running in local development environment
 const isLocalEnv = () => {
@@ -25,6 +25,10 @@ const isLocalEnv = () => {
 const RESEARCHER_IDLE_LIMIT_MS = 10 * 60 * 1000; // 10 minutes
 const RESEARCHER_IDLE_CHECK_INTERVAL_MS = 15 * 1000; // poll every 15s
 const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+
+// How often a logged-in Researcher/Reviewer tab tells the server it's still
+// open, feeding the Admin Dashboard's "Active Researchers/Reviewers" cards.
+const HEARTBEAT_INTERVAL_MS = 60 * 1000; // 60 seconds
 
 // Keep the Render free-tier server warm so OTP sending is always fast.
 // Fires immediately on page load, then every 10 minutes while the tab is open.
@@ -224,6 +228,26 @@ function App() {
       ACTIVITY_EVENTS.forEach(evt => window.removeEventListener(evt, markActivity));
       clearInterval(intervalId);
     };
+  }, [isAuthenticated, userRole]);
+
+  // Tell the server this Researcher/Reviewer session is alive, so the Admin
+  // Dashboard's realtime "Active Researchers" / "Active Reviewers" cards can
+  // count it. Fires immediately on login/reload, then on a fixed interval.
+  useEffect(() => {
+    if (!isAuthenticated || (userRole !== 'student' && userRole !== 'reviewer')) return;
+
+    let savedUser;
+    try {
+      savedUser = JSON.parse(localStorage.getItem('ureb_user') || 'null');
+    } catch {
+      savedUser = null;
+    }
+    const email = savedUser?.email;
+    if (!email) return;
+
+    sendHeartbeat(email, userRole);
+    const intervalId = setInterval(() => sendHeartbeat(email, userRole), HEARTBEAT_INTERVAL_MS);
+    return () => clearInterval(intervalId);
   }, [isAuthenticated, userRole]);
 
   const handleCloseSessionExpiredModal = () => {

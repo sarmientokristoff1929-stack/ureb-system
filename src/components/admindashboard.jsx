@@ -1652,7 +1652,9 @@ const DashboardContent = () => {
     approved: 0,
     activeReviewers: 0,
     studentProposals: 0,
-    reviewerProposals: 0
+    reviewerProposals: 0,
+    onlineResearchers: 0,
+    onlineReviewers: 0
 
 
 
@@ -1729,6 +1731,12 @@ const DashboardContent = () => {
     };
 
     fetchStats();
+
+    // Keep the "System Realtime" Active Researchers/Reviewers cards fresh
+    // without a manual refresh — heartbeats land server-side every 60s, so
+    // poll a bit faster than that.
+    const realtimeInterval = setInterval(fetchStats, 30 * 1000);
+    return () => clearInterval(realtimeInterval);
 
   }, []);
 
@@ -2110,6 +2118,43 @@ const DashboardContent = () => {
           <div className="stat-info">
             <h3>{stats.reviewerProposals}</h3>
             <p>Reviewer Submissions</p>
+          </div>
+        </div>
+
+        {/* System Realtime: Researchers currently logged in */}
+        <div className="stat-card realtime">
+          <span className="stat-live-badge" title="Updates automatically">
+            <span className="stat-live-dot"></span>
+            Live
+          </span>
+          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #10b981, #06b6d4)' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="8.5" cy="7" r="4" />
+              <polyline points="17 11 19 13 23 9" />
+            </svg>
+          </div>
+          <div className="stat-info">
+            <h3>{stats.onlineResearchers ?? 0}</h3>
+            <p>Active Researchers</p>
+          </div>
+        </div>
+
+        {/* System Realtime: Reviewers currently logged in */}
+        <div className="stat-card realtime">
+          <span className="stat-live-badge" title="Updates automatically">
+            <span className="stat-live-dot"></span>
+            Live
+          </span>
+          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #0ea5e9, #6366f1)' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </div>
+          <div className="stat-info">
+            <h3>{stats.onlineReviewers ?? 0}</h3>
+            <p>Active Reviewers</p>
           </div>
         </div>
 
