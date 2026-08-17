@@ -3655,12 +3655,20 @@ app.post('/api/notifications', async (req, res) => {
   }
 });
 
-// Get all notifications
+// Get all notifications — this feeds the Admin Dashboard's notification bell/panel only
+// (the only two callers, admindashboard.jsx). 'review_deadline' reminders are written for
+// the assigned Reviewer ("Your review for... is due in...", recipientEmail: reviewerEmail)
+// and delivered to them via GET /api/notifications/:email — the Admin has no review to
+// submit and no action to take on them, so they're excluded here rather than leaking into
+// the admin's notification count/list.
 app.get('/api/notifications', async (req, res) => {
   try {
     const db = getDatabase();
     const notifications = db.collection(collections.notifications);
-    const notificationList = await notifications.find({ dismissed: { $ne: true } }).sort({ createdAt: -1 }).toArray();
+    const notificationList = await notifications
+      .find({ dismissed: { $ne: true }, type: { $ne: 'review_deadline' } })
+      .sort({ createdAt: -1 })
+      .toArray();
     res.json(notificationList);
   } catch (error) {
     console.error('Error fetching notifications:', error);
@@ -3688,18 +3696,35 @@ app.put('/api/notifications/:id/read', async (req, res) => {
   }
 });
 
+// Permanently deletes a notification document. The only notification type that's
+// ever re-created automatically is 'review_deadline' (see the dedupe check in
+// GET /api/assignments/:reviewerEmail) — for that one, deleting the document would
+// make the dedupe check blind and spam a fresh reminder back on the next fetch.
+// So a real delete here also leaves a standing suppression record in
+// user_hidden_items, keyed by proposalId (not the notification's _id, which is
+// gone), for that dedupe check to consult instead.
+async function hardDeleteNotification(db, id) {
+  const notifications = db.collection(collections.notifications);
+  const notif = await notifications.findOne({ _id: new ObjectId(id) });
+  if (notif && notif.type === 'review_deadline' && notif.proposalId && notif.recipientEmail) {
+    const hiddenItems = db.collection(collections.user_hidden_items);
+    const email = String(notif.recipientEmail).toLowerCase().trim();
+    const itemId = `review_deadline:${notif.proposalId}`;
+    await hiddenItems.updateOne(
+      { email, itemId },
+      { $set: { email, itemId, itemType: 'notification-suppression', hiddenAt: new Date() } },
+      { upsert: true }
+    );
+  }
+  await notifications.deleteOne({ _id: new ObjectId(id) });
+}
+
 // Delete a notification
-// Soft-deletes (marks dismissed) instead of removing the document. Recurring
-// reminders (e.g. review deadline) are re-created by dedupe checks that look
-// for an existing document by recipient/type/proposalId — a hard delete would
-// leave nothing for that check to find, causing the reminder to reappear with
-// a new id on the next fetch.
 app.post('/api/notifications/:id/delete', async (req, res) => {
   try {
     const { id } = req.params;
     const db = getDatabase();
-    const notifications = db.collection(collections.notifications);
-    await notifications.updateOne({ _id: new ObjectId(id) }, { $set: { dismissed: true, dismissedAt: new Date() } });
+    await hardDeleteNotification(db, id);
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting notification:', error);
@@ -3711,8 +3736,7 @@ app.delete('/api/notifications/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const db = getDatabase();
-    const notifications = db.collection(collections.notifications);
-    await notifications.updateOne({ _id: new ObjectId(id) }, { $set: { dismissed: true, dismissedAt: new Date() } });
+    await hardDeleteNotification(db, id);
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting notification via DELETE:', error);
@@ -3914,14 +3938,19 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
       if (!isCompleted && daysUntilDeadline <= 3 && daysUntilDeadline > 0) {
         const proposalId = assignment.proposalId?.toString?.() || assignment.proposalId;
 
-        // One reminder per proposal — check if it already exists for this assignment
+        // One reminder per proposal — check if it already exists for this assignment,
+        // or was permanently deleted (see hardDeleteNotification's suppression record).
         const existingNotif = await notifications.findOne({
           recipientEmail: reviewerEmail,
           type: 'review_deadline',
           proposalId
         });
+        const wasPermanentlyDismissed = !existingNotif && await db.collection(collections.user_hidden_items).findOne({
+          email: reviewerEmail.toLowerCase().trim(),
+          itemId: `review_deadline:${proposalId}`
+        });
 
-        if (!existingNotif) {
+        if (!existingNotif && !wasPermanentlyDismissed) {
           const dayLabel = daysUntilDeadline === 1 ? 'day' : 'days';
           await notifications.insertOne({
             recipientEmail: reviewerEmail,
