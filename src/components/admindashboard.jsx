@@ -9599,6 +9599,7 @@ function NotificationContent({ setActiveTab, onRefreshCount }) {
 
   const [expandedGroups, setExpandedGroups] = useState({}); // Track which reviewer groups are expanded
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
 
@@ -9660,6 +9661,17 @@ function NotificationContent({ setActiveTab, onRefreshCount }) {
 
     }
 
+  };
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await fetchNotifications();
+      if (onRefreshCount) onRefreshCount();
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   // Helper to extract reviewer name from notification
@@ -9869,6 +9881,25 @@ function NotificationContent({ setActiveTab, onRefreshCount }) {
         <h2>Notifications {unreadCount > 0 && <span className="unread-badge">{unreadCount}</span>}</h2>
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+
+          <button
+            className="btn-secondary"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Refresh notifications"
+            style={{ fontSize: '0.85rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <svg
+              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              style={isRefreshing ? { animation: 'spin 0.8s linear infinite' } : undefined}
+            >
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+            Refresh
+          </button>
 
           {reviewers.length > 0 && (
             <>

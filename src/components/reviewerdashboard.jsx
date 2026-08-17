@@ -345,6 +345,13 @@ const createSwrCache = (fetcher) => {
       const fresh = await fetcher(key);
       cache.set(key, fresh);
       return { data: fresh, fromCache: false };
+    },
+    // Unlike load(), always awaits a fresh network response before resolving —
+    // used for explicit "Refresh" actions where stale cached data must not be shown.
+    async refresh(key) {
+      const fresh = await fetcher(key);
+      cache.set(key, fresh);
+      return { data: fresh, fromCache: false };
     }
   };
 };
@@ -889,6 +896,7 @@ const ReviewerNotificationsContent = ({ userInfo, onNotifDeleted }) => {
   const [deleteAllConfirmOpen, setDeleteAllConfirmOpen] = useState(false);
   const [deletingSingle, setDeletingSingle] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL
     ? import.meta.env.VITE_API_URL.replace(/\/$/, '') + '/api'
@@ -956,47 +964,60 @@ const ReviewerNotificationsContent = ({ userInfo, onNotifDeleted }) => {
     setNotifications(notifs);
   };
 
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      if (!userInfo?.email) return;
-      const email = userInfo.email;
+  const fetchNotifications = useCallback(async ({ force = false } = {}) => {
+    if (!userInfo?.email) return;
+    const email = userInfo.email;
 
-      // These three sources are each cached, so a repeat visit to this tab (or a switch
-      // from Dashboard/Assigned Proposals, which share the assignments cache) can render
-      // immediately instead of showing "Loading notifications..." again.
-      const allCached = reviewerDbNotificationsSwr.has(email)
-        && reviewerHiddenItemsSwr.has(email)
-        && reviewerAssignmentsSwr.has(email);
+    // These three sources are each cached, so a repeat visit to this tab (or a switch
+    // from Dashboard/Assigned Proposals, which share the assignments cache) can render
+    // immediately instead of showing "Loading notifications..." again. A manual refresh
+    // skips this shortcut so the click visibly waits on a fresh network response.
+    const allCached = !force
+      && reviewerDbNotificationsSwr.has(email)
+      && reviewerHiddenItemsSwr.has(email)
+      && reviewerAssignmentsSwr.has(email);
 
-      if (allCached) {
-        buildNotifs(
-          reviewerDbNotificationsSwr.get(email),
-          reviewerHiddenItemsSwr.get(email),
-          reviewerAssignmentsSwr.get(email)
-        );
-        setLoading(false);
-      } else {
-        setLoading(true);
-      }
+    if (allCached) {
+      buildNotifs(
+        reviewerDbNotificationsSwr.get(email),
+        reviewerHiddenItemsSwr.get(email),
+        reviewerAssignmentsSwr.get(email)
+      );
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
 
-      try {
-        // Assignments are fetched first: the server creates review_deadline reminders
-        // as a side effect of this call, so notifications must be fetched afterward
-        // to pick up any reminder created on this same visit instead of the next one.
-        const assignResult = await reviewerAssignmentsSwr.load(email);
-        const [dbResult, hiddenResult] = await Promise.all([
-          reviewerDbNotificationsSwr.load(email),
-          reviewerHiddenItemsSwr.load(email)
-        ]);
-        buildNotifs(dbResult.data, hiddenResult.data, assignResult.data);
-      } catch (err) {
-        console.error('Error loading reviewer notifications:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchNotifications();
+    try {
+      // Assignments are fetched first: the server creates review_deadline reminders
+      // as a side effect of this call, so notifications must be fetched afterward
+      // to pick up any reminder created on this same visit instead of the next one.
+      // A forced refresh uses refresh() instead of load() — load() would otherwise
+      // resolve immediately with the stale cached value for any source already cached,
+      // updating it only in the background, which defeats the point of a Refresh click.
+      const assignResult = force
+        ? await reviewerAssignmentsSwr.refresh(email)
+        : await reviewerAssignmentsSwr.load(email);
+      const [dbResult, hiddenResult] = force
+        ? await Promise.all([
+            reviewerDbNotificationsSwr.refresh(email),
+            reviewerHiddenItemsSwr.refresh(email)
+          ])
+        : await Promise.all([
+            reviewerDbNotificationsSwr.load(email),
+            reviewerHiddenItemsSwr.load(email)
+          ]);
+      buildNotifs(dbResult.data, hiddenResult.data, assignResult.data);
+    } catch (err) {
+      console.error('Error loading reviewer notifications:', err);
+    } finally {
+      setLoading(false);
+    }
   }, [userInfo]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   const markAsRead = async (id) => {
     try {
@@ -1101,12 +1122,41 @@ const ReviewerNotificationsContent = ({ userInfo, onNotifDeleted }) => {
     </svg>
   );
 
+  const RefreshIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={isRefreshing ? { animation: 'sr-spin 0.8s linear infinite' } : undefined}>
+      <polyline points="23 4 23 10 17 10" />
+      <polyline points="1 20 1 14 7 14" />
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+    </svg>
+  );
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await fetchNotifications({ force: true });
+      if (onNotifDeleted) onNotifDeleted(); // also resync the sidebar badge count
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <div className="content-section">
       <div className="sm-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
           <h2>Notifications</h2>
         </div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <button
+          className="hist-refresh-btn"
+          title="Refresh notifications"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+        >
+          <RefreshIcon />
+          <span>Refresh</span>
+        </button>
         {notifications.length > 0 && (
           <button
             className="hist-delete-all-btn"
@@ -1117,6 +1167,7 @@ const ReviewerNotificationsContent = ({ userInfo, onNotifDeleted }) => {
             <span>Delete All</span>
           </button>
         )}
+        </div>
       </div>
       <div className="notifications-list">
         {loading ? (
@@ -1778,10 +1829,6 @@ const DashboardContent = () => {
 
   });
 
-  const [recentActivity, setRecentActivity] = useState([]);
-  const [showAllActivity, setShowAllActivity] = useState(false);
-  const ACTIVITY_LIMIT = 5;
-
   const [loading, setLoading] = useState(true);
 
   const [userInfo, setUserInfo] = useState({ id: null });
@@ -1805,6 +1852,21 @@ const DashboardContent = () => {
 
   }, []);
 
+  // Submitting a review (from Submit Review) updates this reviewer's assignment status
+  // and review stats server-side, but the cached assignments/reviews data this tab reads
+  // from wouldn't otherwise know that — force a fresh fetch so the stat cards reflect the
+  // submission immediately instead of only after the next full reload.
+  useEffect(() => {
+    const handleReviewSubmitted = () => {
+      const savedUser = localStorage.getItem('ureb_user');
+      if (!savedUser) return;
+      const user = JSON.parse(savedUser);
+      fetchDashboardData(user.email, { force: true });
+    };
+    window.addEventListener('reviewSubmitted', handleReviewSubmitted);
+    return () => window.removeEventListener('reviewSubmitted', handleReviewSubmitted);
+  }, []);
+
 
 
   const applyDashboardData = (assignments, reviews, messages, reviewerProfile) => {
@@ -1826,18 +1888,15 @@ const DashboardContent = () => {
 
     const unreadMessages = messages.filter(m => !m.read).length;
 
-    const activities = generateRecentActivity(activeAssignments, reviews, messages);
-
     setStats({
       assignedProposals: activeAssignments.length,
       pendingReviews: pendingReviewsCount + pendingAssignmentsCount,
       completedReviews,
       unreadMessages
     });
-    setRecentActivity(activities);
   };
 
-  const fetchDashboardData = async (userEmail) => {
+  const fetchDashboardData = async (userEmail, { force = false } = {}) => {
     if (!userEmail) return;
 
     // Warm the caches used by Assigned Proposals / Submit Review / Notifications in the
@@ -1851,7 +1910,11 @@ const DashboardContent = () => {
     // Assignments/reviews/messages/profile are each cached, so if we've already loaded
     // them once this session (e.g. visited Assigned Proposals or came back to Dashboard)
     // render instantly instead of showing "Loading..." again while refreshing quietly.
-    const allCached = reviewerAssignmentsSwr.has(userEmail)
+    // A forced refresh (e.g. right after submitting a review) skips this shortcut and
+    // uses refresh() below so the stat cards reflect the submission immediately instead
+    // of the stale cached value.
+    const allCached = !force
+      && reviewerAssignmentsSwr.has(userEmail)
       && reviewerReviewsSwr.has(userEmail)
       && reviewerMessagesSwr.has(userEmail)
       && reviewerProfileSwr.has(userEmail);
@@ -1869,12 +1932,19 @@ const DashboardContent = () => {
     }
 
     try {
-      const [assignmentsResult, reviewsResult, messagesResult, profileResult] = await Promise.all([
-        reviewerAssignmentsSwr.load(userEmail),
-        reviewerReviewsSwr.load(userEmail),
-        reviewerMessagesSwr.load(userEmail),
-        reviewerProfileSwr.load(userEmail)
-      ]);
+      const [assignmentsResult, reviewsResult, messagesResult, profileResult] = force
+        ? await Promise.all([
+            reviewerAssignmentsSwr.refresh(userEmail),
+            reviewerReviewsSwr.refresh(userEmail),
+            reviewerMessagesSwr.refresh(userEmail),
+            reviewerProfileSwr.refresh(userEmail)
+          ])
+        : await Promise.all([
+            reviewerAssignmentsSwr.load(userEmail),
+            reviewerReviewsSwr.load(userEmail),
+            reviewerMessagesSwr.load(userEmail),
+            reviewerProfileSwr.load(userEmail)
+          ]);
 
       applyDashboardData(assignmentsResult.data, reviewsResult.data, messagesResult.data, profileResult.data);
     } catch (error) {
@@ -1882,114 +1952,6 @@ const DashboardContent = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-
-
-  const generateRecentActivity = (proposals, reviews, messages) => {
-
-    const activities = [];
-
-
-
-    proposals.slice(0, 5).forEach(proposal => {
-
-      activities.push({
-
-        type: 'proposal',
-
-        icon: <FileCheckIcon />,
-
-        title: 'New Proposal Assigned',
-
-        description: `${proposal.protocolCode ? 'Protocol ' + proposal.protocolCode : 'Proposal'}: "${proposal.researchTitle || 'Untitled'}"`,
-
-        time: proposal.submissionDate || proposal.createdAt,
-
-        timeLabel: formatTimeAgo(proposal.submissionDate || proposal.createdAt)
-
-      });
-
-    });
-
-
-
-    reviews.filter(r => r.status === 'completed').slice(0, 5).forEach(review => {
-
-      activities.push({
-
-        type: 'review',
-
-        icon: <DashboardIcon />,
-
-        title: 'Review Completed',
-
-        description: `Proposal: "${review.proposalTitle || 'Untitled Proposal'}"`,
-
-        time: review.completedDate || review.updatedAt || review.createdAt,
-
-        timeLabel: formatTimeAgo(review.completedDate || review.updatedAt || review.createdAt)
-
-      });
-
-    });
-
-
-
-    messages.slice(0, 5).forEach(message => {
-
-      activities.push({
-
-        type: 'message',
-
-        icon: <MessageIcon />,
-
-        title: 'New Message',
-
-        description: `From: ${message.senderName || message.senderEmail || 'Unknown'} - "${message.subject || 'No Subject'}"`,
-
-        time: message.createdAt,
-
-        timeLabel: formatTimeAgo(message.createdAt)
-
-      });
-
-    });
-
-
-
-    return activities
-
-      .sort((a, b) => new Date(b.time) - new Date(a.time))
-
-      .slice(0, 5);
-
-  };
-
-
-
-  const formatTimeAgo = (dateString) => {
-
-    if (!dateString) return 'Unknown';
-
-    const date = new Date(dateString);
-
-    const now = new Date();
-
-    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
-
-
-
-    if (diffInHours < 1) return 'Just now';
-
-    if (diffInHours < 24) return `${diffInHours} hours ago`;
-
-    const diffInDays = Math.floor(diffInHours / 24);
-
-    if (diffInDays === 1) return '1 day ago';
-
-    return `${diffInDays} days ago`;
-
   };
 
 
@@ -2072,69 +2034,6 @@ const DashboardContent = () => {
           </div>
 
         </div>
-
-      </div>
-
-
-
-
-
-
-      <div className="dashboard-sections">
-
-        <div className="recent-activity">
-
-          <h2>Recent Activity</h2>
-
-          {loading ? (
-
-            <div className="loading-state">Loading activity...</div>
-
-          ) : recentActivity.length === 0 ? (
-
-            <div className="empty-state">No recent activity.</div>
-
-          ) : (
-            <>
-              <div className="activity-list" style={{ maxHeight: showAllActivity ? 'none' : '400px', overflow: showAllActivity ? 'visible' : 'auto' }}>
-                {(showAllActivity ? recentActivity : recentActivity.slice(0, ACTIVITY_LIMIT)).map((activity, index) => (
-                  <div className="activity-item" key={index}>
-                    <div className="activity-icon">
-                      {activity.icon}
-                    </div>
-                    <div className="activity-content">
-                      <h4>{activity.title}</h4>
-                      <p>{activity.description}</p>
-                      <span className="activity-time">{activity.timeLabel}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {recentActivity.length > ACTIVITY_LIMIT && (
-                <button
-                  onClick={() => setShowAllActivity(!showAllActivity)}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    marginTop: '1rem',
-                    background: 'var(--pale-green)',
-                    border: '1px solid var(--soft-green)',
-                    borderRadius: '8px',
-                    color: 'var(--dark-green)',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  {showAllActivity ? 'Show Less' : `Show ${recentActivity.length - ACTIVITY_LIMIT} More`}
-                </button>
-              )}
-            </>
-          )}
-
-        </div>
-
-
 
       </div>
 

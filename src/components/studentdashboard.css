@@ -2625,6 +2625,35 @@
   flex-shrink: 0;
 }
 
+.hist-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  background: var(--pale-green);
+  color: var(--primary-green);
+  border: 1px solid var(--soft-green);
+  border-radius: 7px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.hist-refresh-btn:hover {
+  background: var(--soft-green);
+  border-color: var(--primary-green);
+}
+.hist-refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.hist-refresh-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
 .hist-item-delete-btn {
   display: inline-flex;
   align-items: center;

@@ -5467,3 +5467,58 @@
     font-size: 0.75rem;
   }
 }
+
+/* ── Notifications tab — Delete All / Refresh buttons ─────────────────── */
+.hist-delete-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  background: #fff0f0;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  border-radius: 7px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.hist-delete-all-btn:hover {
+  background: #fee2e2;
+  border-color: #dc2626;
+}
+.hist-delete-all-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.hist-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  background: var(--pale-green);
+  color: var(--primary-green);
+  border: 1px solid var(--soft-green);
+  border-radius: 7px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.hist-refresh-btn:hover {
+  background: var(--soft-green);
+  border-color: var(--primary-green);
+}
+.hist-refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.hist-refresh-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
