@@ -1651,6 +1651,7 @@ const DashboardContent = () => {
     pendingReviews: 0,
     approved: 0,
     activeReviewers: 0,
+    totalResearchers: 0,
     studentProposals: 0,
     reviewerProposals: 0,
     onlineResearchers: 0,
@@ -2106,20 +2107,17 @@ const DashboardContent = () => {
           </div>
         </div>
 
-        {/* Reviewer Proposals Submitted */}
+        {/* Total Researchers registered */}
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #f59e0b, #ef4444)' }}>
+          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #14b8a6, #0ea5e9)' }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <polyline points="10 9 9 9 8 9" />
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+              <path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5" />
             </svg>
           </div>
           <div className="stat-info">
-            <h3>{stats.reviewerProposals}</h3>
-            <p>Reviewer Submissions</p>
+            <h3>{stats.totalResearchers}</h3>
+            <p>Researchers</p>
           </div>
         </div>
 
@@ -4863,6 +4861,7 @@ const MarkCompletedReviewContent = () => {
 
   const completedCount = tableRows.filter(row => isMcrCompleted(getRowStatus(row))).length;
   const totalCount = tableRows.length;
+  const underReviewCount = totalCount - completedCount;
   const facultySelected = selectedFaculty !== '';
 
   return (
@@ -4938,6 +4937,9 @@ const MarkCompletedReviewContent = () => {
               <div className="mcr-toolbar-stats">
                 <span className="mcr-toolbar-stat">
                   <strong>{totalCount}</strong> assignment{totalCount !== 1 ? 's' : ''}
+                </span>
+                <span className="mcr-toolbar-stat mcr-toolbar-stat--pending">
+                  <strong>{underReviewCount}</strong> under review
                 </span>
                 <span className="mcr-toolbar-stat mcr-toolbar-stat--done">
                   <strong>{completedCount}</strong> completed

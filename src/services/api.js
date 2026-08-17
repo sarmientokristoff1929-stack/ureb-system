@@ -39,6 +39,7 @@ export const getDashboardStats = async () => {
       pendingReviews: 0,
       approved: 0,
       activeReviewers: 0,
+      totalResearchers: 0,
       studentProposals: 0,
       reviewerProposals: 0,
       onlineResearchers: 0,

@@ -5308,20 +5308,22 @@ app.get('/api/stats', async (req, res) => {
     const toDisplayName = (doc) =>
       doc.name || [doc.firstName, doc.middleName, doc.lastName].filter(Boolean).join(' ') || doc.email || doc.gmail || 'Unknown';
 
-    const [activeStudentDocs, activeReviewerDocs] = await Promise.all([
+    const [activeStudentDocs, activeReviewerDocs, totalResearchersCount] = await Promise.all([
       students.find({ lastActive: { $gte: activeSince } }, nameProjection).toArray(),
-      reviewers.find({ lastActive: { $gte: activeSince } }, nameProjection).toArray()
+      reviewers.find({ lastActive: { $gte: activeSince } }, nameProjection).toArray(),
+      students.countDocuments()
     ]);
     const onlineResearchersNames = activeStudentDocs.map(toDisplayName);
     const onlineReviewersNames = activeReviewerDocs.map(toDisplayName);
 
-    console.log(`[stats] proposals=${proposalCount}, student=${studentProposalCount}, reviewerSubs=${reviewerSubmissionCount}, onlineResearchers=${onlineResearchersNames.length}, onlineReviewers=${onlineReviewersNames.length}`);
+    console.log(`[stats] proposals=${proposalCount}, student=${studentProposalCount}, reviewerSubs=${reviewerSubmissionCount}, totalResearchers=${totalResearchersCount}, onlineResearchers=${onlineResearchersNames.length}, onlineReviewers=${onlineReviewersNames.length}`);
 
     res.json({
       totalProposals: proposalCount,
       pendingReviews: pendingReviewCount,
       approved: approvedCount,
       activeReviewers: activeReviewersCount,
+      totalResearchers: totalResearchersCount,
       studentProposals: studentProposalCount,
       reviewerProposals: reviewerSubmissionCount,
       onlineResearchers: onlineResearchersNames.length,

@@ -16368,6 +16368,10 @@
   color: #15803d;
 }
 
+.mcr-toolbar-stat--pending strong {
+  color: #d97706;
+}
+
 .mcr-protocol-code {
   display: inline-block;
   max-width: 100%;
