@@ -1111,6 +1111,38 @@ app.post('/api/auth/heartbeat', async (req, res) => {
   }
 });
 
+// Sign-off — called on explicit logout, or via sendBeacon when the tab/browser
+// closes, so a Researcher/Reviewer drops out of the Admin Dashboard's "Active"
+// counts immediately instead of waiting out ACTIVE_SESSION_WINDOW_MS.
+app.post('/api/auth/signoff', async (req, res) => {
+  try {
+    const { email, role } = req.body;
+    if (!email || !role) {
+      return res.status(400).json({ success: false, error: 'email and role are required' });
+    }
+
+    const db = getDatabase();
+
+    if (role === 'student') {
+      const students = db.collection(collections.students);
+      const student = await findStudentByLoginEmail(students, email);
+      if (student) {
+        await students.updateOne({ _id: student._id }, { $unset: { lastActive: '' } });
+      }
+    } else if (role === 'reviewer') {
+      const reviewers = db.collection(collections.reviewers);
+      await reviewers.updateOne({ email }, { $unset: { lastActive: '' } });
+    } else {
+      return res.status(400).json({ success: false, error: 'Unsupported role for signoff' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Signoff error:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // Student Registration
 app.post('/api/auth/register', async (req, res) => {
   console.log('========== REGISTRATION REQUEST RECEIVED ==========');
@@ -5239,14 +5271,22 @@ app.get('/api/stats', async (req, res) => {
     // Reviewer-submitted reviews: all completed reviews submitted via /api/reviews
     const reviewerSubmissionCount = await reviews.countDocuments();
 
-    // Realtime "currently logged in" counts, driven by the /api/auth/heartbeat
-    // pings sent from logged-in Researcher/Reviewer clients.
+    // Realtime "currently logged in" counts + names, driven by the
+    // /api/auth/heartbeat pings sent from logged-in Researcher/Reviewer clients.
     const students = db.collection(collections.students);
     const activeSince = new Date(Date.now() - ACTIVE_SESSION_WINDOW_MS);
-    const onlineResearchersCount = await students.countDocuments({ lastActive: { $gte: activeSince } });
-    const onlineReviewersCount = await reviewers.countDocuments({ lastActive: { $gte: activeSince } });
+    const nameProjection = { projection: { name: 1, firstName: 1, middleName: 1, lastName: 1, email: 1, gmail: 1 } };
+    const toDisplayName = (doc) =>
+      doc.name || [doc.firstName, doc.middleName, doc.lastName].filter(Boolean).join(' ') || doc.email || doc.gmail || 'Unknown';
 
-    console.log(`[stats] proposals=${proposalCount}, student=${studentProposalCount}, reviewerSubs=${reviewerSubmissionCount}, onlineResearchers=${onlineResearchersCount}, onlineReviewers=${onlineReviewersCount}`);
+    const [activeStudentDocs, activeReviewerDocs] = await Promise.all([
+      students.find({ lastActive: { $gte: activeSince } }, nameProjection).toArray(),
+      reviewers.find({ lastActive: { $gte: activeSince } }, nameProjection).toArray()
+    ]);
+    const onlineResearchersNames = activeStudentDocs.map(toDisplayName);
+    const onlineReviewersNames = activeReviewerDocs.map(toDisplayName);
+
+    console.log(`[stats] proposals=${proposalCount}, student=${studentProposalCount}, reviewerSubs=${reviewerSubmissionCount}, onlineResearchers=${onlineResearchersNames.length}, onlineReviewers=${onlineReviewersNames.length}`);
 
     res.json({
       totalProposals: proposalCount,
@@ -5255,8 +5295,10 @@ app.get('/api/stats', async (req, res) => {
       activeReviewers: activeReviewersCount,
       studentProposals: studentProposalCount,
       reviewerProposals: reviewerSubmissionCount,
-      onlineResearchers: onlineResearchersCount,
-      onlineReviewers: onlineReviewersCount
+      onlineResearchers: onlineResearchersNames.length,
+      onlineReviewers: onlineReviewersNames.length,
+      onlineResearchersNames,
+      onlineReviewersNames
     });
   } catch (error) {
     console.error('Error fetching stats:', error);

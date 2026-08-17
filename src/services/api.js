@@ -42,7 +42,9 @@ export const getDashboardStats = async () => {
       studentProposals: 0,
       reviewerProposals: 0,
       onlineResearchers: 0,
-      onlineReviewers: 0
+      onlineReviewers: 0,
+      onlineResearchersNames: [],
+      onlineReviewersNames: []
     };
   }
 };
@@ -60,6 +62,31 @@ export const sendHeartbeat = async (email, role) => {
   } catch (error) {
     // Silent — a missed heartbeat just means this tick won't count as "online"
     return { success: false };
+  }
+};
+
+// Explicit sign-off — tells the server this Researcher/Reviewer is no longer
+// online (logout button, or the tab/window closing), so they drop out of the
+// Admin Dashboard's active count right away instead of waiting for their last
+// heartbeat to age out. Uses sendBeacon so it still fires during page unload,
+// when a normal fetch could get cancelled before it reaches the server.
+export const sendSignOff = (email, role) => {
+  if (!email || !role) return;
+  try {
+    const payload = JSON.stringify({ email, role });
+    if (navigator.sendBeacon) {
+      const blob = new Blob([payload], { type: 'application/json' });
+      navigator.sendBeacon(`${API_BASE_URL}/auth/signoff`, blob);
+    } else {
+      fetch(`${API_BASE_URL}/auth/signoff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+        keepalive: true,
+      }).catch(() => {});
+    }
+  } catch (error) {
+    // Best-effort — a missed signoff just means the active window has to age out
   }
 };
 

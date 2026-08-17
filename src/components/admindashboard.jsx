@@ -1654,7 +1654,9 @@ const DashboardContent = () => {
     studentProposals: 0,
     reviewerProposals: 0,
     onlineResearchers: 0,
-    onlineReviewers: 0
+    onlineReviewers: 0,
+    onlineResearchersNames: [],
+    onlineReviewersNames: []
 
 
 
@@ -2138,6 +2140,18 @@ const DashboardContent = () => {
             <h3>{stats.onlineResearchers ?? 0}</h3>
             <p>Active Researchers</p>
           </div>
+          <div className="stat-tooltip">
+            <div className="stat-tooltip-title">Active Researchers</div>
+            {(stats.onlineResearchersNames && stats.onlineResearchersNames.length > 0) ? (
+              <ul>
+                {stats.onlineResearchersNames.map((name, idx) => (
+                  <li key={idx}>{name}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="stat-tooltip-empty">No researchers currently active</p>
+            )}
+          </div>
         </div>
 
         {/* System Realtime: Reviewers currently logged in */}
@@ -2155,6 +2169,18 @@ const DashboardContent = () => {
           <div className="stat-info">
             <h3>{stats.onlineReviewers ?? 0}</h3>
             <p>Active Reviewers</p>
+          </div>
+          <div className="stat-tooltip">
+            <div className="stat-tooltip-title">Active Reviewers</div>
+            {(stats.onlineReviewersNames && stats.onlineReviewersNames.length > 0) ? (
+              <ul>
+                {stats.onlineReviewersNames.map((name, idx) => (
+                  <li key={idx}>{name}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="stat-tooltip-empty">No reviewers currently active</p>
+            )}
           </div>
         </div>
 

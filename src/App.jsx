@@ -7,7 +7,7 @@ import DataPrivacyModal from './components/DataPrivacyModal'
 import SessionExpiryModal from './components/SessionExpiryModal'
 import MaintenancePage from './components/MaintenancePage'
 import { IS_UNDER_MAINTENANCE } from './config/maintenance'
-import { authenticateUser, sendHeartbeat, API_BASE_URL } from './services/api'
+import { authenticateUser, sendHeartbeat, sendSignOff, API_BASE_URL } from './services/api'
 
 // Helper function to check if running in local development environment
 const isLocalEnv = () => {
@@ -182,6 +182,19 @@ function App() {
   }
 
   const handleLogout = () => {
+    // Drop out of the Admin Dashboard's "Active Researchers/Reviewers" count
+    // immediately, instead of waiting for the last heartbeat to age out.
+    if (userRole === 'student' || userRole === 'reviewer') {
+      try {
+        const savedUser = JSON.parse(localStorage.getItem('ureb_user') || 'null');
+        if (savedUser?.email) {
+          sendSignOff(savedUser.email, userRole);
+        }
+      } catch {
+        // ignore — best-effort signoff
+      }
+    }
+
     setIsAuthenticated(false);
     setUserRole(null);
     setPrivacyAccepted(false);
@@ -247,7 +260,17 @@ function App() {
 
     sendHeartbeat(email, userRole);
     const intervalId = setInterval(() => sendHeartbeat(email, userRole), HEARTBEAT_INTERVAL_MS);
-    return () => clearInterval(intervalId);
+
+    // Tab/window closing or navigating away without clicking Logout — 'pagehide'
+    // fires reliably in this case (unlike 'beforeunload' with bfcache), and
+    // sendSignOff uses sendBeacon so the request survives the page unloading.
+    const handlePageHide = () => sendSignOff(email, userRole);
+    window.addEventListener('pagehide', handlePageHide);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('pagehide', handlePageHide);
+    };
   }, [isAuthenticated, userRole]);
 
   const handleCloseSessionExpiredModal = () => {
