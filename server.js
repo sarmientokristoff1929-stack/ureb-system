@@ -2542,13 +2542,14 @@ app.get('/api/proposals/:proposalId', async (req, res) => {
   }
 });
 
-// Delete proposal by ID (student) — cascades to any reviewer assignments tied to it
+// Delete proposal by ID (student) — cascades to any reviewer assignments and reviews tied to it
 app.delete('/api/proposals/:proposalId', async (req, res) => {
   try {
     const { proposalId } = req.params;
     const db = getDatabase();
     const proposals = db.collection(collections.proposals);
     const assignments = db.collection(collections.assignments);
+    const reviews = db.collection(collections.reviews);
 
     let objectId;
     try {
@@ -2562,14 +2563,17 @@ app.delete('/api/proposals/:proposalId', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Proposal not found' });
     }
 
-    // Match assignments by proposalId (in its various stored forms) and, as a
-    // fallback, by protocolCode — some assignments only carry the protocol code.
+    // Match assignments/reviews by proposalId (in its various stored forms) and, as a
+    // fallback, by protocolCode — some assignments/reviews only carry the protocol code.
     const proposalMatchers = buildProposalIdMatchers(objectId);
     if (proposal.protocolCode) {
       proposalMatchers.push({ protocolCode: proposal.protocolCode });
     }
 
     const assignmentsResult = await assignments.deleteMany({ $or: proposalMatchers });
+    // Without this, a reviewer's already-submitted review for this proposal survives
+    // the delete and keeps showing up as an orphaned row in Mark Completed Review.
+    const reviewsResult = await reviews.deleteMany({ $or: proposalMatchers });
     const result = await proposals.deleteOne({ _id: objectId });
 
     if (result.deletedCount === 0) {
@@ -2593,8 +2597,13 @@ app.delete('/api/proposals/:proposalId', async (req, res) => {
       )
     );
 
-    console.log(`Deleted proposal ${proposalId}, ${assignmentsResult.deletedCount} linked assignment(s), and ${attachedFilenames.size} GridFS file(s)`);
-    res.json({ success: true, assignmentsDeleted: assignmentsResult.deletedCount || 0, filesDeleted: attachedFilenames.size });
+    console.log(`Deleted proposal ${proposalId}, ${assignmentsResult.deletedCount} linked assignment(s), ${reviewsResult.deletedCount} linked review(s), and ${attachedFilenames.size} GridFS file(s)`);
+    res.json({
+      success: true,
+      assignmentsDeleted: assignmentsResult.deletedCount || 0,
+      reviewsDeleted: reviewsResult.deletedCount || 0,
+      filesDeleted: attachedFilenames.size,
+    });
   } catch (error) {
     console.error('Error deleting proposal:', error);
     res.status(500).json({ success: false, error: 'Server error' });
@@ -4871,6 +4880,7 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
     // Collect reviewer names for admin notification
     const assignedReviewerNames = [];
     const notifications = db.collection(collections.notifications);
+    const reviews = db.collection(collections.reviews);
 
     // Was this proposal already assigned to reviewers before this save? If so, this is a
     // reassign — reassigning should not spam a new/edited notification for every save.
@@ -5032,6 +5042,24 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
 
       if (staleAssignments.length > 0) {
         await assignments.deleteMany({ _id: { $in: staleAssignments.map((a) => a._id) } });
+
+        // Also delete any review this reviewer already submitted for this proposal —
+        // leaving it behind orphans a "Mark Completed Review" row for a reviewer no
+        // longer assigned, which is exactly the stale-data reassignment causes.
+        const staleReviewFilters = staleAssignments
+          .filter((stale) => stale.reviewerEmail)
+          .map((stale) => ({
+            $and: [
+              { reviewerEmail: emailRegexFilter(stale.reviewerEmail) },
+              { $or: [...proposalMatchers, ...(protocolCode ? [{ protocolCode }] : [])] },
+            ],
+          }));
+        let staleReviewsDeleted = 0;
+        if (staleReviewFilters.length > 0) {
+          const staleReviewsResult = await reviews.deleteMany({ $or: staleReviewFilters });
+          staleReviewsDeleted = staleReviewsResult.deletedCount || 0;
+        }
+
         for (const stale of staleAssignments) {
           await notifications.insertOne({
             recipientEmail: stale.reviewerEmail,
@@ -5045,7 +5073,7 @@ app.post('/api/assign-file-to-reviewer', upload.any(), async (req, res) => {
             createdAt: new Date(),
           });
         }
-        console.log(`Removed ${staleAssignments.length} stale admin assignment(s) for proposal ${resolvedProposalId}`);
+        console.log(`Removed ${staleAssignments.length} stale admin assignment(s) and ${staleReviewsDeleted} stale review submission(s) for proposal ${resolvedProposalId}`);
       }
     } catch (cleanupError) {
       console.error('Error cleaning up stale reviewer assignments:', cleanupError);
