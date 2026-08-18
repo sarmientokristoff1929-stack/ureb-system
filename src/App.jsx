@@ -156,7 +156,7 @@ function App() {
         return { success: true };
       } else {
         // Return error message to be displayed in modal
-        return { success: false, error: result.error || 'Login failed' };
+        return { success: false, error: result.error || 'Login failed', field: result.field };
       }
     } catch (error) {
       console.error('Login error:', error);

@@ -989,12 +989,12 @@ app.post('/api/auth/login', async (req, res) => {
 
     if (!user) {
       console.log(`User not found: ${email}`);
-      return res.json({ success: false, error: 'Invalid email or password' });
+      return res.json({ success: false, error: 'Incorrect email', field: 'email' });
     }
 
     if (user.password !== password) {
       console.log(`Password mismatch for: ${email}`);
-      return res.json({ success: false, error: 'Invalid email or password' });
+      return res.json({ success: false, error: 'Incorrect password', field: 'password' });
     }
 
     // Check if student account is disabled

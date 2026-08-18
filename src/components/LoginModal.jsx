@@ -31,10 +31,19 @@ const EyeOffIcon = () => (
   </svg>
 );
 
+const PASSWORD_RULES = [
+  { key: 'minLength', label: 'At least 8 characters', test: (pw) => pw.length >= 8 },
+  { key: 'upper', label: 'One uppercase letter (A-Z)', test: (pw) => /[A-Z]/.test(pw) },
+  { key: 'lower', label: 'One lowercase letter (a-z)', test: (pw) => /[a-z]/.test(pw) },
+  { key: 'number', label: 'One number (0-9)', test: (pw) => /\d/.test(pw) },
+  { key: 'special', label: 'One special character (!@#$%^&* etc.)', test: (pw) => /[!@#$%^&*(),.?":{}|<>]/.test(pw) },
+];
+
 const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loginErrorField, setLoginErrorField] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
@@ -61,6 +70,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordTouched, setPasswordTouched] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [registerLoading, setRegisterLoading] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
@@ -104,33 +114,9 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     debounceTimer.current = setTimeout(() => checkGmailExists(gmail), 500);
   };
 
-  // Password validation function
+  // Password validation function — returns the labels of unmet rules
   const validatePassword = (password) => {
-    const minLength = 8;
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumbers = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-
-    const errors = [];
-
-    if (password.length < minLength) {
-      errors.push(`at least ${minLength} characters`);
-    }
-    if (!hasUpperCase) {
-      errors.push('one uppercase letter');
-    }
-    if (!hasLowerCase) {
-      errors.push('one lowercase letter');
-    }
-    if (!hasNumbers) {
-      errors.push('one number');
-    }
-    if (!hasSpecialChar) {
-      errors.push('one special character (!@#$%^&*(),.?":{}|<>)');
-    }
-
-    return errors;
+    return PASSWORD_RULES.filter((rule) => !rule.test(password)).map((rule) => rule.label);
   };
 
   // Handle password change with validation
@@ -291,6 +277,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     setRegPassword('');
     setConfirmPassword('');
     setError('');
+    setLoginErrorField(null);
     setPasswordError('');
     setPasswordTouched(false);
     setShowSuccessModal(false);
@@ -307,6 +294,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoginErrorField(null);
     setLoginLoading(true);
 
     try {
@@ -342,6 +330,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
             onClose();
           } else {
             setError(loginResult.error || 'Login failed');
+            setLoginErrorField(loginResult.field || null);
           }
         } else {
           setPendingAuthResult(result);
@@ -350,7 +339,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       } else if (result.error === 'disabled') {
         setShowDisabledModal(true);
       } else {
-        setError(result.error || 'Invalid username or password');
+        setError(result.error || 'Invalid email or password');
+        setLoginErrorField(result.field || null);
       }
     } catch (err) {
       console.error('Login submit error:', err);
@@ -370,6 +360,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
         onClose();
       } else {
         setError(result.error || 'Login failed');
+        setLoginErrorField(result.field || null);
         setShowPrivacyStep(false);
       }
     } catch (err) {
@@ -718,7 +709,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                         id="regPassword"
                         value={regPassword}
                         onChange={(e) => handlePasswordChange(e.target.value)}
-                        onBlur={handlePasswordBlur}
+                        onFocus={() => setPasswordFocused(true)}
+                        onBlur={() => { setPasswordFocused(false); handlePasswordBlur(); }}
                         placeholder="Create a password"
                         required
                         className={passwordError && passwordTouched ? 'error' : ''}
@@ -732,8 +724,18 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                         {showRegPassword ? <EyeOffIcon /> : <EyeIcon />}
                       </button>
                     </div>
-                    {passwordError && passwordTouched && (
-                      <div className="password-error-message">{passwordError}</div>
+                    {(passwordFocused || (passwordTouched && passwordError)) && (
+                      <ul className="password-requirements-list">
+                        {PASSWORD_RULES.map((rule) => {
+                          const met = rule.test(regPassword);
+                          return (
+                            <li key={rule.key} className={met ? 'met' : 'unmet'}>
+                              <span className="password-requirement-icon">{met ? '✓' : '✕'}</span>
+                              {rule.label}
+                            </li>
+                          );
+                        })}
+                      </ul>
                     )}
                   </div>
 
@@ -800,17 +802,22 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
               )
             ) : (
               <form className="login-modal-form" onSubmit={handleLoginSubmit}>
-                {error && <div className="login-error-message">{error}</div>}
+                {error && !loginErrorField && <div className="login-error-message">{error}</div>}
                 <div className="login-form-group">
                   <label htmlFor="username">Email</label>
                   <input
                     type="text"
                     id="username"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (loginErrorField === 'email') setLoginErrorField(null);
+                    }}
                     placeholder="Enter your Email"
                     required
+                    className={loginErrorField === 'email' ? 'error' : ''}
                   />
+                  {loginErrorField === 'email' && <div className="login-field-error">{error}</div>}
                 </div>
                 <div className="login-form-group">
                   <label htmlFor="password">Password</label>
@@ -819,9 +826,13 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                       type={showPassword ? 'text' : 'password'}
                       id="password"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (loginErrorField === 'password') setLoginErrorField(null);
+                      }}
                       placeholder="Enter your password"
                       required
+                      className={loginErrorField === 'password' ? 'error' : ''}
                     />
                     <button
                       type="button"
@@ -832,6 +843,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                       {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                     </button>
                   </div>
+                  {loginErrorField === 'password' && <div className="login-field-error">{error}</div>}
                 </div>
                 <div className="login-form-options">
                   <label className="login-checkbox-label">

@@ -146,6 +146,12 @@
   text-align: center;
 }
 
+.login-field-error {
+  color: #D32F2F;
+  font-size: 0.8rem;
+  margin-top: 0.35rem;
+}
+
 .login-form-group {
   display: flex;
   flex-direction: column;
@@ -414,32 +420,50 @@
 }
 
 /* Password Validation Styles */
-.password-error-message {
-  color: #D32F2F;
-  font-size: 0.8rem;
-  margin-top: 0.5rem;
-  line-height: 1.4;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.25rem;
-}
-
-.password-error-message::before {
-  content: "⚠";
-  color: #D32F2F;
-  font-size: 0.9rem;
-  flex-shrink: 0;
-  margin-top: 0.1rem;
-}
-
-.password-input-wrapper input.error {
+.login-form-group input.error {
   border-color: #D32F2F;
   box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.1);
 }
 
-.password-input-wrapper input.error:focus {
+.login-form-group input.error:focus {
   border-color: #D32F2F;
   box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.2);
+}
+
+.password-requirements-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0.6rem 0.75rem;
+  background: #F7FAF7;
+  border: 1px solid #D4E4D4;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.password-requirements-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  transition: color 0.2s ease;
+}
+
+.password-requirements-list li.unmet {
+  color: #D32F2F;
+}
+
+.password-requirements-list li.met {
+  color: #388E3C;
+}
+
+.password-requirements-list .password-requirement-icon {
+  flex-shrink: 0;
+  width: 1em;
+  text-align: center;
+  font-weight: 700;
 }
 
 /* Registration Success Modal */
