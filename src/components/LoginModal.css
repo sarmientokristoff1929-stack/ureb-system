@@ -146,12 +146,6 @@
   text-align: center;
 }
 
-.login-field-error {
-  color: #D32F2F;
-  font-size: 0.8rem;
-  margin-top: 0.35rem;
-}
-
 .login-form-group {
   display: flex;
   flex-direction: column;

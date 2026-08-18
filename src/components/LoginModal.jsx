@@ -802,7 +802,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
               )
             ) : (
               <form className="login-modal-form" onSubmit={handleLoginSubmit}>
-                {error && !loginErrorField && <div className="login-error-message">{error}</div>}
+                {error && <div className="login-error-message">{error}</div>}
                 <div className="login-form-group">
                   <label htmlFor="username">Email</label>
                   <input
@@ -817,7 +817,6 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                     required
                     className={loginErrorField === 'email' ? 'error' : ''}
                   />
-                  {loginErrorField === 'email' && <div className="login-field-error">{error}</div>}
                 </div>
                 <div className="login-form-group">
                   <label htmlFor="password">Password</label>
@@ -843,7 +842,6 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                       {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                     </button>
                   </div>
-                  {loginErrorField === 'password' && <div className="login-field-error">{error}</div>}
                 </div>
                 <div className="login-form-options">
                   <label className="login-checkbox-label">

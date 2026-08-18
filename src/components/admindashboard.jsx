@@ -4112,7 +4112,7 @@ function StudentProposalContent({ onNewCountChange }) {
                                           <input
                                             type="file"
                                             id={`sp-right-attachment-replace-${key}`}
-                                            accept=".pdf,.doc,.docx,.txt"
+                                            accept=".pdf,.doc,.docx"
                                             onChange={(e) => handleRightCanvasFileChange(key, e.target.files[0])}
                                             className="sp-canvas-file-input-hidden"
                                           />
@@ -4145,7 +4145,7 @@ function StudentProposalContent({ onNewCountChange }) {
                               <input
                                 type="file"
                                 id={`sp-right-attachment-${slotKey}`}
-                                accept=".pdf,.doc,.docx,.txt"
+                                accept=".pdf,.doc,.docx"
                                 onChange={(e) => handleRightCanvasFileChange(slotKey, e.target.files[0])}
                                 className="sp-canvas-file-input-hidden"
                               />
@@ -4158,7 +4158,7 @@ function StudentProposalContent({ onNewCountChange }) {
                                     <span className="sp-upload-primary-text">
                                       {selectedFile ? selectedFile.name : `Choose file for Attachment ${existingAdminAttachments.length + index + 1}`}
                                     </span>
-                                    <span className="sp-upload-subtext">PDF, DOC, DOCX, TXT (MAX. 10MB)</span>
+                                    <span className="sp-upload-subtext">PDF, DOC, DOCX (MAX. 12MB)</span>
                                   </div>
                                 </label>
                                 {attachmentSlots.length > 1 && (
@@ -5368,11 +5368,71 @@ const MessageResearcherContent = () => {
 
 
 
+  const MAX_MESSAGE_ATTACHMENTS = 3;
+
+  const MAX_MESSAGE_TOTAL_BYTES = 12 * 1024 * 1024;
+
+  const MESSAGE_ATTACHMENT_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+  const addValidatedFiles = (files) => {
+
+    const room = MAX_MESSAGE_ATTACHMENTS - attachedFiles.length;
+
+    if (room <= 0) {
+
+      setError(`You can attach up to ${MAX_MESSAGE_ATTACHMENTS} files per message`);
+
+      setTimeout(() => setError(''), 3000);
+
+      return;
+
+    }
+
+    let runningTotal = attachedFiles.reduce((sum, f) => sum + f.size, 0);
+
+    const accepted = [];
+
+    let rejected = false;
+
+    for (const file of files) {
+
+      if (accepted.length >= room) { rejected = true; break; }
+
+      if (!MESSAGE_ATTACHMENT_TYPES.includes(file.type)) { rejected = true; continue; }
+
+      if (runningTotal + file.size > MAX_MESSAGE_TOTAL_BYTES) { rejected = true; break; }
+
+      runningTotal += file.size;
+
+      accepted.push(file);
+
+    }
+
+    if (accepted.length > 0) {
+
+      setAttachedFiles(prev => [...prev, ...accepted]);
+
+    }
+
+    if (rejected) {
+
+      setError(`Only PDF, DOC, and DOCX files are allowed, up to ${MAX_MESSAGE_ATTACHMENTS} files and 12MB combined`);
+
+      setTimeout(() => setError(''), 3000);
+
+    }
+
+  };
+
+
+
   const handleFileChange = (e) => {
 
     const files = Array.from(e.target.files);
 
-    setAttachedFiles(prev => [...prev, ...files]);
+    addValidatedFiles(files);
+
+    e.target.value = '';
 
   };
 
@@ -5416,31 +5476,7 @@ const MessageResearcherContent = () => {
 
     const files = Array.from(e.dataTransfer.files);
 
-    const validFiles = files.filter(file => {
-
-      const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'image/jpeg', 'image/jpg', 'image/png'];
-
-      return validTypes.includes(file.type) && file.size <= 10 * 1024 * 1024; // 10MB limit
-
-    });
-
-
-
-    if (validFiles.length > 0) {
-
-      setAttachedFiles(prev => [...prev, ...validFiles]);
-
-    }
-
-
-
-    if (validFiles.length !== files.length) {
-
-      setError('Some files were invalid or too large and were not added');
-
-      setTimeout(() => setError(''), 3000);
-
-    }
+    addValidatedFiles(files);
 
   };
 
@@ -5596,7 +5632,7 @@ const MessageResearcherContent = () => {
 
                 onChange={handleFileChange}
 
-                accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                accept=".pdf,.doc,.docx"
 
                 style={{ display: 'none' }}
 
@@ -5610,7 +5646,7 @@ const MessageResearcherContent = () => {
 
                 <p>{isDragOver ? 'Drop files here' : 'Click to upload files or drag and drop'}</p>
 
-                <span>PDF, DOC, DOCX, TXT, JPG, PNG (MAX. 10MB per file)</span>
+                <span>PDF, DOC, DOCX (MAX. 3 files, 12MB total)</span>
 
               </div>
 
@@ -6350,9 +6386,42 @@ const MessageReviewerContent = () => {
     }).catch(err => console.error('Message send failed:', err));
   };
 
+  const MAX_MESSAGE_ATTACHMENTS = 3;
+  const MAX_MESSAGE_TOTAL_BYTES = 12 * 1024 * 1024;
+  const MESSAGE_ATTACHMENT_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+  const addValidatedFiles = (files) => {
+    const room = MAX_MESSAGE_ATTACHMENTS - attachedFiles.length;
+    if (room <= 0) {
+      setError(`You can attach up to ${MAX_MESSAGE_ATTACHMENTS} files per message`);
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    let runningTotal = attachedFiles.reduce((sum, f) => sum + f.size, 0);
+    const accepted = [];
+    let rejected = false;
+    for (const file of files) {
+      if (accepted.length >= room) { rejected = true; break; }
+      if (!MESSAGE_ATTACHMENT_TYPES.includes(file.type)) { rejected = true; continue; }
+      if (runningTotal + file.size > MAX_MESSAGE_TOTAL_BYTES) { rejected = true; break; }
+      runningTotal += file.size;
+      accepted.push(file);
+    }
+
+    if (accepted.length > 0) {
+      setAttachedFiles(prev => [...prev, ...accepted]);
+    }
+    if (rejected) {
+      setError(`Only PDF, DOC, and DOCX files are allowed, up to ${MAX_MESSAGE_ATTACHMENTS} files and 12MB combined`);
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
-    setAttachedFiles(prev => [...prev, ...files]);
+    addValidatedFiles(files);
+    e.target.value = '';
   };
 
   const handleRemoveFile = (index) => {
@@ -6374,19 +6443,7 @@ const MessageReviewerContent = () => {
     setIsDragOver(false);
 
     const files = Array.from(e.dataTransfer.files);
-    const validFiles = files.filter(file => {
-      const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'image/jpeg', 'image/jpg', 'image/png'];
-      return validTypes.includes(file.type) && file.size <= 10 * 1024 * 1024; // 10MB limit
-    });
-
-    if (validFiles.length > 0) {
-      setAttachedFiles(prev => [...prev, ...validFiles]);
-    }
-
-    if (validFiles.length !== files.length) {
-      setError('Some files were invalid or too large and were not added');
-      setTimeout(() => setError(''), 3000);
-    }
+    addValidatedFiles(files);
   };
 
   return (
@@ -6465,14 +6522,14 @@ const MessageReviewerContent = () => {
                 type="file"
                 multiple
                 onChange={handleFileChange}
-                accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                accept=".pdf,.doc,.docx"
                 style={{ display: 'none' }}
                 id="message-reviewer-file-upload"
               />
               <div className="file-upload-label">
                 <FilePlusIcon />
                 <p>{isDragOver ? 'Drop files here' : 'Click to upload files or drag and drop'}</p>
-                <span>PDF, DOC, DOCX, TXT, JPG, PNG (MAX. 10MB per file)</span>
+                <span>PDF, DOC, DOCX (MAX. 3 files, 12MB total)</span>
               </div>
             </div>
           </div>

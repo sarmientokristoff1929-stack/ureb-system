@@ -140,7 +140,7 @@ if (!fs.existsSync(uploadsDir)) {
 // Multer — memory storage (files buffered in RAM, then pushed to GridFS)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: 12 * 1024 * 1024 }, // 12MB limit
 });
 
 // Upload a single file buffer to GridFS; returns the stored filename.
@@ -4442,14 +4442,20 @@ const normalizeMessageAttachments = (msg) => {
   return msg;
 };
 
-// Student message to admin (optional multiple file attachments)
-app.post('/api/messages/student-to-admin', upload.array('attachments', 15), async (req, res) => {
+// Student message to admin (optional multiple file attachments, max 3 files / 12MB combined)
+const STUDENT_MESSAGE_MAX_TOTAL_BYTES = 12 * 1024 * 1024;
+app.post('/api/messages/student-to-admin', upload.array('attachments', 3), async (req, res) => {
   try {
     const { senderEmail, senderName, subject, message } = req.body;
     const uploadFiles = Array.isArray(req.files) ? req.files : [];
 
     if (!senderEmail || !message) {
       return res.status(400).json({ success: false, error: 'Sender email and message are required' });
+    }
+
+    const totalBytes = uploadFiles.reduce((sum, f) => sum + f.size, 0);
+    if (totalBytes > STUDENT_MESSAGE_MAX_TOTAL_BYTES) {
+      return res.status(400).json({ success: false, error: 'Combined attachment size cannot exceed 12MB' });
     }
 
     if (!gfsBucket) {
@@ -4533,14 +4539,20 @@ app.post('/api/messages/student-to-admin', upload.array('attachments', 15), asyn
   }
 });
 
-// Reviewer message to admin (optional multiple file attachments)
-app.post('/api/messages/to-admin', upload.array('attachments', 15), async (req, res) => {
+// Reviewer message to admin (optional multiple file attachments, max 3 files / 12MB combined)
+const REVIEWER_MESSAGE_MAX_TOTAL_BYTES = 12 * 1024 * 1024;
+app.post('/api/messages/to-admin', upload.array('attachments', 3), async (req, res) => {
   try {
     const { senderEmail, senderName, subject, message } = req.body;
     const uploadFiles = Array.isArray(req.files) ? req.files : [];
 
     if (!senderEmail || !message) {
       return res.status(400).json({ success: false, error: 'Sender email and message are required' });
+    }
+
+    const totalBytes = uploadFiles.reduce((sum, f) => sum + f.size, 0);
+    if (totalBytes > REVIEWER_MESSAGE_MAX_TOTAL_BYTES) {
+      return res.status(400).json({ success: false, error: 'Combined attachment size cannot exceed 12MB' });
     }
 
     if (uploadFiles.length > 0 && !gfsBucket) {
@@ -5350,6 +5362,15 @@ app.post('/api/send-message-to-student', upload.any(), async (req, res) => {
     });
   }
 
+  // Max 3 files / 12MB combined
+  if (files.length > 3) {
+    return res.status(400).json({ success: false, error: 'You can attach up to 3 files per message' });
+  }
+  const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
+  if (totalBytes > 12 * 1024 * 1024) {
+    return res.status(400).json({ success: false, error: 'Combined attachment size cannot exceed 12MB' });
+  }
+
   const recipientName = clientRecipientName || studentEmail;
 
   // Upload files to GridFS first
@@ -5534,6 +5555,15 @@ app.post('/api/send-message-to-reviewer', upload.any(), async (req, res) => {
       success: false,
       error: 'Reviewer email and message are required'
     });
+  }
+
+  // Max 3 files / 12MB combined
+  if (files.length > 3) {
+    return res.status(400).json({ success: false, error: 'You can attach up to 3 files per message' });
+  }
+  const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
+  if (totalBytes > 12 * 1024 * 1024) {
+    return res.status(400).json({ success: false, error: 'Combined attachment size cannot exceed 12MB' });
   }
 
   const recipientName = clientRecipientName || reviewerEmail;

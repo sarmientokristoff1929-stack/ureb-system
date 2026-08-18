@@ -2470,7 +2470,7 @@ function EditProposalModal({ proposal, onClose, onSuccess }) {
             type="file"
             id={`edit-${fieldName}`}
             onChange={(e) => handleFileChange(fieldName, e.target.files[0])}
-            accept=".pdf,.doc,.docx,.txt"
+            accept=".pdf,.doc,.docx"
             style={{ fontSize: '0.875rem' }}
           />
         </div>
@@ -2623,12 +2623,12 @@ function AddFilesContent({ setSubmittedFiles, setShowSuccessModal, userInfo, stu
           type="file"
           id={fieldName}
           onChange={(e) => handleFileChange(fieldName, e.target.files[0])}
-          accept=".pdf,.doc,.docx,.txt"
+          accept=".pdf,.doc,.docx"
         />
         <div className="file-upload-label">
           <UploadIcon />
           <p>{formData[fieldName] ? formData[fieldName].name : 'Click to upload file'}</p>
-          <span>PDF, DOC, DOCX, TXT (MAX. 10MB)</span>
+          <span>PDF, DOC, DOCX (MAX. 12MB)</span>
         </div>
       </div>
     </div>
@@ -2853,12 +2853,12 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
             type="file"
             id={`resub-${fieldName}`}
             onChange={(e) => handleFileChange(fieldName, e.target.files[0])}
-            accept=".pdf,.doc,.docx,.txt"
+            accept=".pdf,.doc,.docx"
           />
           <div className="file-upload-label">
             <UploadIcon />
             <p>{formData[fieldName] ? formData[fieldName].name : 'Click to select replacement file'}</p>
-            <span>PDF, DOC, DOCX, TXT (MAX. 10MB)</span>
+            <span>PDF, DOC, DOCX (MAX. 12MB)</span>
           </div>
         </div>
       </div>
@@ -4385,23 +4385,18 @@ const HistoryContent = () => {
   );
 };
 
-const MAX_MESSAGE_ATTACHMENTS = 15;
-const MAX_MESSAGE_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_MESSAGE_ATTACHMENTS = 3;
+const MAX_MESSAGE_TOTAL_BYTES = 12 * 1024 * 1024;
 const MESSAGE_ATTACHMENT_TYPES = new Set([
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'text/plain',
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
 ]);
 
 const isValidMessageAttachment = (file) =>
   file
   && MESSAGE_ATTACHMENT_TYPES.has(file.type)
-  && file.size > 0
-  && file.size <= MAX_MESSAGE_FILE_BYTES;
+  && file.size > 0;
 
 const createMessageUploadZone = () => ({
   id: `zone-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -4517,14 +4512,14 @@ function MessageUploadDropZone({ zone, showRemoveZone, onFileSet, onRemoveZone, 
               </label>
             </p>
             <p style={{ color: '#999', fontSize: '0.85rem', margin: 0 }}>
-              Up to {MAX_MESSAGE_ATTACHMENTS} files, 10MB each. PDF, DOC, DOCX, TXT, JPG, PNG
+              Up to {MAX_MESSAGE_ATTACHMENTS} files, 12MB total. PDF, DOC, DOCX
             </p>
           </>
         )}
         <input
           type="file"
           id={inputId}
-          accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+          accept=".pdf,.doc,.docx"
           onChange={(e) => {
             applyFile(e.target.files?.[0]);
             e.target.value = '';
@@ -4551,11 +4546,25 @@ function MessageAdminContent({ userInfo }) {
   const canAddMoreZones = uploadZones.length < MAX_MESSAGE_ATTACHMENTS;
 
   const showInvalidFileError = () => {
-    setError('Invalid file type or file too large (max 10MB)');
+    setError('Invalid file type. Only PDF, DOC, and DOCX files are allowed.');
+    setTimeout(() => setError(''), 4000);
+  };
+
+  const showTotalSizeError = () => {
+    setError('Combined attachment size cannot exceed 12MB');
     setTimeout(() => setError(''), 4000);
   };
 
   const setZoneFile = (zoneId, file) => {
+    if (file) {
+      const otherZonesTotal = uploadZones
+        .filter((zone) => zone.id !== zoneId)
+        .reduce((sum, zone) => sum + (zone.file?.size || 0), 0);
+      if (otherZonesTotal + file.size > MAX_MESSAGE_TOTAL_BYTES) {
+        showTotalSizeError();
+        return;
+      }
+    }
     setUploadZones((prev) =>
       prev.map((zone) => (zone.id === zoneId ? { ...zone, file } : zone))
     );

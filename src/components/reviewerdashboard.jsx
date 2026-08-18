@@ -3670,7 +3670,7 @@ const SubmitReviewContent = ({ onShowSuccessModal, onNavigateToSubmitted }) => {
             </div>
             <div className="file-upload-text">
               <p>Attach file or drag and drop here</p>
-              <span>PDF, DOC, DOCX (MAX. 10MB)</span>
+              <span>PDF, DOC, DOCX (MAX. 12MB)</span>
             </div>
           </label>
           {reviewData[field] && (
@@ -4244,7 +4244,7 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
             </div>
             <div className="file-upload-text">
               <p>Attach file or drag and drop here</p>
-              <span>PDF, DOC, DOCX (MAX. 10MB)</span>
+              <span>PDF, DOC, DOCX (MAX. 12MB)</span>
             </div>
           </label>
           {file && (
@@ -4312,7 +4312,7 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
             </div>
             <div className="file-upload-text">
               <p>Attach file or drag and drop here</p>
-              <span>PDF, DOC, DOCX (MAX. 10MB)</span>
+              <span>PDF, DOC, DOCX (MAX. 12MB)</span>
             </div>
           </label>
           {secondaryFileData[field] && (
@@ -4527,8 +4527,13 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
   const [sending, setSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
 
-  const MAX_COMPOSE_ATTACHMENTS = 15;
-  const MAX_COMPOSE_FILE_SIZE = 10 * 1024 * 1024; // 10MB, matches server-side multer limit
+  const MAX_COMPOSE_ATTACHMENTS = 3;
+  const MAX_COMPOSE_TOTAL_BYTES = 12 * 1024 * 1024; // 12MB combined, matches server-side check
+  const COMPOSE_ATTACHMENT_TYPES = new Set([
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ]);
 
   const handleComposeFileSelect = (e) => {
     const picked = Array.from(e.target.files || []);
@@ -4542,11 +4547,24 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
         setComposeFileError(`You can attach up to ${MAX_COMPOSE_ATTACHMENTS} files per message`);
         return prev;
       }
-      const tooLarge = picked.find((f) => f.size > MAX_COMPOSE_FILE_SIZE);
-      if (tooLarge) {
-        setComposeFileError(`"${tooLarge.name}" is too large (max 10MB per file)`);
+
+      const invalidType = picked.find((f) => !COMPOSE_ATTACHMENT_TYPES.has(f.type));
+      if (invalidType) {
+        setComposeFileError(`"${invalidType.name}" is not a supported file type. Only PDF, DOC, and DOCX are allowed.`);
       }
-      const accepted = picked.filter((f) => f.size <= MAX_COMPOSE_FILE_SIZE).slice(0, room);
+
+      let runningTotal = prev.reduce((sum, f) => sum + f.size, 0);
+      const accepted = [];
+      for (const f of picked) {
+        if (!COMPOSE_ATTACHMENT_TYPES.has(f.type)) continue;
+        if (accepted.length + prev.length >= MAX_COMPOSE_ATTACHMENTS) break;
+        if (runningTotal + f.size > MAX_COMPOSE_TOTAL_BYTES) {
+          setComposeFileError('Combined attachment size cannot exceed 12MB');
+          break;
+        }
+        runningTotal += f.size;
+        accepted.push(f);
+      }
       return [...prev, ...accepted];
     });
   };
@@ -4960,13 +4978,13 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
                       id="reviewer-compose-file-input"
                       type="file"
                       multiple
-                      accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                      accept=".pdf,.doc,.docx"
                       onChange={handleComposeFileSelect}
                       disabled={sending}
                       style={{ display: 'none' }}
                     />
                     <p style={{ color: '#9ca3af', fontSize: '0.75rem', margin: '0.35rem 0 0' }}>
-                      Up to {MAX_COMPOSE_ATTACHMENTS} files, 10MB each. PDF, DOC, DOCX, TXT, JPG, PNG
+                      Up to {MAX_COMPOSE_ATTACHMENTS} files, 12MB total. PDF, DOC, DOCX
                     </p>
                     {composeFileError && (
                       <p style={{ color: '#dc2626', fontSize: '0.78rem', margin: '0.35rem 0 0' }}>{composeFileError}</p>
