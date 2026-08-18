@@ -2,34 +2,10 @@
 const apiOrigin = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 export const API_BASE_URL = apiOrigin ? `${apiOrigin}/api` : '/api';
 
-// Per-request id generator — prefers crypto.randomUUID, falls back for older browsers.
-const genId = () =>
-  (typeof crypto !== 'undefined' && crypto.randomUUID)
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-// Thin fetch wrapper used by every call in this file. Attaches a per-request
-// context the server can use for tracing and basic replay protection:
-//   X-Request-Id (cid)  — correlates this request across client/server logs
-//   X-Timestamp (ts)    — lets the server reject stale requests
-//   X-Nonce             — lets the server reject an exact resend of a request
-// This is defense-in-depth, not authentication — a page's own JS can always
-// mint a fresh nonce, so it only stops naive replay of a captured request.
-export const apiFetch = (url, options = {}) =>
-  fetch(url, {
-    ...options,
-    headers: {
-      ...options.headers,
-      'X-Request-Id': genId(),
-      'X-Timestamp': Date.now().toString(),
-      'X-Nonce': genId(),
-    },
-  });
-
 // Authentication
 export const authenticateUser = async (email, password) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/auth/login`, {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -53,7 +29,7 @@ export const authenticateUser = async (email, password) => {
 // Dashboard stats
 export const getDashboardStats = async () => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/stats`);
+    const response = await fetch(`${API_BASE_URL}/stats`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -78,7 +54,7 @@ export const getDashboardStats = async () => {
 // "active" in the Admin Dashboard's System Realtime stat cards.
 export const sendHeartbeat = async (email, role) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/auth/heartbeat`, {
+    const response = await fetch(`${API_BASE_URL}/auth/heartbeat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, role }),
@@ -103,7 +79,7 @@ export const sendSignOff = (email, role) => {
       const blob = new Blob([payload], { type: 'application/json' });
       navigator.sendBeacon(`${API_BASE_URL}/auth/signoff`, blob);
     } else {
-      apiFetch(`${API_BASE_URL}/auth/signoff`, {
+      fetch(`${API_BASE_URL}/auth/signoff`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: payload,
@@ -118,7 +94,7 @@ export const sendSignOff = (email, role) => {
 // Proposals
 export const getAllProposals = async () => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/proposals`);
+    const response = await fetch(`${API_BASE_URL}/proposals`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -129,7 +105,7 @@ export const getAllProposals = async () => {
 
 export const assignStudentProposalReviewer = async (proposalId, { department, preliminaryReviewer }) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/proposals/${proposalId}/assign-preliminary`, {
+    const response = await fetch(`${API_BASE_URL}/proposals/${proposalId}/assign-preliminary`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ department, preliminaryReviewer }),
@@ -144,7 +120,7 @@ export const assignStudentProposalReviewer = async (proposalId, { department, pr
 
 export const markStudentProposalSeen = async (proposalId) => {
   try {
-    const response = await apiFetch(
+    const response = await fetch(
       `${API_BASE_URL}/proposals/${encodeURIComponent(proposalId)}/mark-seen`,
       {
         method: 'PUT',
@@ -167,7 +143,7 @@ export const markStudentProposalSeen = async (proposalId) => {
 
 export const getProposalsByReviewer = async (reviewerId) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/proposals/reviewer/${reviewerId}`);
+    const response = await fetch(`${API_BASE_URL}/proposals/reviewer/${reviewerId}`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -179,7 +155,7 @@ export const getProposalsByReviewer = async (reviewerId) => {
 // Create new proposal with file uploads
 export const createProposal = async (formData) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/proposals`, {
+    const response = await fetch(`${API_BASE_URL}/proposals`, {
       method: 'POST',
       body: formData, // FormData object (no Content-Type header needed for multipart)
     });
@@ -194,7 +170,7 @@ export const createProposal = async (formData) => {
 
 export const updateProposalStatus = async (proposalId, status) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/proposals/${proposalId}/status`, {
+    const response = await fetch(`${API_BASE_URL}/proposals/${proposalId}/status`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -211,7 +187,7 @@ export const updateProposalStatus = async (proposalId, status) => {
 // Reviews
 export const getReviewsByReviewer = async (reviewerId) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/reviews/reviewer/${reviewerId}`);
+    const response = await fetch(`${API_BASE_URL}/reviews/reviewer/${reviewerId}`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -257,7 +233,7 @@ export const submitReview = async (reviewData) => {
       });
     }
 
-    const response = await apiFetch(`${API_BASE_URL}/reviews`, {
+    const response = await fetch(`${API_BASE_URL}/reviews`, {
       method: 'POST',
       body: formData, // No Content-Type header — browser sets it with boundary
     });
@@ -301,7 +277,7 @@ export const resubmitReview = async (reviewId, resubmitData) => {
       });
     }
 
-    const response = await apiFetch(`${API_BASE_URL}/reviews/${reviewId}/resubmit`, {
+    const response = await fetch(`${API_BASE_URL}/reviews/${reviewId}/resubmit`, {
       method: 'POST',
       body: formData,
     });
@@ -327,7 +303,7 @@ export const resubmitReview = async (reviewId, resubmitData) => {
 // Get completed reviews by reviewer email
 export const getCompletedReviews = async (email) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/reviews/completed/${encodeURIComponent(email)}`);
+    const response = await fetch(`${API_BASE_URL}/reviews/completed/${encodeURIComponent(email)}`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -339,7 +315,7 @@ export const getCompletedReviews = async (email) => {
 // Notifications
 export const getNotifications = async () => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/notifications`);
+    const response = await fetch(`${API_BASE_URL}/notifications`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -350,7 +326,7 @@ export const getNotifications = async () => {
 
 export const markNotificationAsRead = async (id) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/notifications/${id}/read`, {
+    const response = await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
       method: 'PUT',
     });
     const data = await response.json();
@@ -363,7 +339,7 @@ export const markNotificationAsRead = async (id) => {
 
 export const deleteNotification = async (id) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/notifications/${id}/delete`, {
+    const response = await fetch(`${API_BASE_URL}/notifications/${id}/delete`, {
       method: 'POST',
     });
     const data = await response.json();
@@ -376,7 +352,7 @@ export const deleteNotification = async (id) => {
 
 export const markAllNotificationsAsRead = async () => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/notifications/read-all`, {
+    const response = await fetch(`${API_BASE_URL}/notifications/read-all`, {
       method: 'PUT',
     });
     const data = await response.json();
@@ -390,7 +366,7 @@ export const markAllNotificationsAsRead = async () => {
 // Messages
 export const getMessagesByUser = async (userId) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/messages/${encodeURIComponent(userId)}`);
+    const response = await fetch(`${API_BASE_URL}/messages/${encodeURIComponent(userId)}`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -401,7 +377,7 @@ export const getMessagesByUser = async (userId) => {
 
 export const sendMessage = async (messageData) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/messages`, {
+    const response = await fetch(`${API_BASE_URL}/messages`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -430,7 +406,7 @@ export const sendStudentMessageToAdmin = async ({ senderEmail, senderName, subje
       formData.append('attachments', file, name);
     });
 
-    const response = await apiFetch(`${API_BASE_URL}/messages/student-to-admin`, {
+    const response = await fetch(`${API_BASE_URL}/messages/student-to-admin`, {
       method: 'POST',
       body: formData,
     });
@@ -452,7 +428,7 @@ export const sendStudentMessageToAdmin = async ({ senderEmail, senderName, subje
 
 export const sendEmail = async (emailData) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/send-email`, {
+    const response = await fetch(`${API_BASE_URL}/send-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -469,7 +445,7 @@ export const sendEmail = async (emailData) => {
 
 export const deleteMessage = async (messageId) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/messages/${messageId}`, {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}`, {
       method: 'DELETE',
     });
     const data = await response.json();
@@ -482,7 +458,7 @@ export const deleteMessage = async (messageId) => {
 
 export const markMessageAsRead = async (messageId) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/messages/${messageId}/read`, {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}/read`, {
       method: 'PUT',
     });
     const data = await response.json();
@@ -495,7 +471,7 @@ export const markMessageAsRead = async (messageId) => {
 
 export const markAllMessagesAsRead = async (email) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/messages/read-all`, {
+    const response = await fetch(`${API_BASE_URL}/messages/read-all`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -513,7 +489,7 @@ export const markAllMessagesAsRead = async (email) => {
 // Users
 export const getAllUsers = async () => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/users`);
+    const response = await fetch(`${API_BASE_URL}/users`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -524,7 +500,7 @@ export const getAllUsers = async () => {
 
 export const getAllStudents = async () => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/students`);
+    const response = await fetch(`${API_BASE_URL}/students`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -535,7 +511,7 @@ export const getAllStudents = async () => {
 
 export const getAllReviewers = async () => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/reviewers`);
+    const response = await fetch(`${API_BASE_URL}/reviewers`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -546,7 +522,7 @@ export const getAllReviewers = async () => {
 
 export const addReviewer = async (reviewerData) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/users/detailed`, {
+    const response = await fetch(`${API_BASE_URL}/users/detailed`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -576,7 +552,7 @@ export const addReviewer = async (reviewerData) => {
 // Update user
 export const updateUser = async (id, userData) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/users/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -609,7 +585,7 @@ export const updateUser = async (id, userData) => {
 // Delete user
 export const deleteUser = async (id) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/users/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
       method: 'DELETE',
     });
     const data = await response.json();
@@ -623,7 +599,7 @@ export const deleteUser = async (id) => {
 // Change reviewer password
 export const changeReviewerPassword = async (email, currentPassword, newPassword) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/reviewer/change-password`, {
+    const response = await fetch(`${API_BASE_URL}/reviewer/change-password`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, currentPassword, newPassword }),
@@ -639,7 +615,7 @@ export const changeReviewerPassword = async (email, currentPassword, newPassword
 // Update reviewer
 export const updateReviewer = async (id, reviewerData) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/reviewers/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/reviewers/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -672,7 +648,7 @@ export const updateReviewer = async (id, reviewerData) => {
 // Delete reviewer
 export const deleteReviewer = async (id) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/reviewers/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/reviewers/${id}`, {
       method: 'DELETE',
     });
     const data = await response.json();
@@ -686,7 +662,7 @@ export const deleteReviewer = async (id) => {
 // Update student
 export const updateStudent = async (id, studentData) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/students/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/students/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -719,7 +695,7 @@ export const updateStudent = async (id, studentData) => {
 // Delete student
 export const deleteStudent = async (id) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/students/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/students/${id}`, {
       method: 'DELETE',
     });
     const data = await response.json();
@@ -733,7 +709,7 @@ export const deleteStudent = async (id) => {
 // Get proposal by ID
 export const getProposalById = async (proposalId) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/proposals/${proposalId}`);
+    const response = await fetch(`${API_BASE_URL}/proposals/${proposalId}`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -745,7 +721,7 @@ export const getProposalById = async (proposalId) => {
 // Delete proposal (cascades to its reviewer assignments on the server)
 export const deleteProposal = async (proposalId) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/proposals/${proposalId}`, {
+    const response = await fetch(`${API_BASE_URL}/proposals/${proposalId}`, {
       method: 'DELETE',
     });
     const data = await response.json();
@@ -793,7 +769,7 @@ export const viewFile = (filename) => {
 // Get notifications for a specific user
 export const getUserNotifications = async (email) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/notifications/${email}`);
+    const response = await fetch(`${API_BASE_URL}/notifications/${email}`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -805,7 +781,7 @@ export const getUserNotifications = async (email) => {
 // Get a reviewer's profile (status, etc.) by email
 export const getReviewerProfile = async (email) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/reviewers`);
+    const response = await fetch(`${API_BASE_URL}/reviewers`);
     const data = await response.json();
     if (!Array.isArray(data)) return null;
     return data.find(r => (r.email || '').toLowerCase() === (email || '').toLowerCase()) || null;
@@ -818,7 +794,7 @@ export const getReviewerProfile = async (email) => {
 // Get assignments for a specific reviewer
 export const getReviewerAssignments = async (reviewerEmail) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/assignments/${encodeURIComponent(reviewerEmail)}`);
+    const response = await fetch(`${API_BASE_URL}/assignments/${encodeURIComponent(reviewerEmail)}`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -830,7 +806,7 @@ export const getReviewerAssignments = async (reviewerEmail) => {
 // Assign file to reviewer
 export const assignFileToReviewer = async (formData) => {
   try {
-    const response = await apiFetch(`${API_BASE_URL}/assign-file-to-reviewer`, {
+    const response = await fetch(`${API_BASE_URL}/assign-file-to-reviewer`, {
       method: 'POST',
       body: formData,
     });
@@ -848,7 +824,7 @@ export const downloadReviewerFile = async (filename, originalName) => {
     const downloadUrl = `${API_BASE_URL.replace('/api', '')}/api/download/${filename}?name=${encodeURIComponent(originalName)}`;
 
     // Try to download the file directly
-    const response = await apiFetch(downloadUrl, {
+    const response = await fetch(downloadUrl, {
       method: 'GET',
       mode: 'cors',
       credentials: 'omit'
