@@ -30,6 +30,12 @@ const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchst
 // open, feeding the Admin Dashboard's "Active Researchers/Reviewers" cards.
 const HEARTBEAT_INTERVAL_MS = 60 * 1000; // 60 seconds
 
+// Researcher (student) sessions live in sessionStorage, which is private to
+// the tab that created it — copying the URL into a new tab or another
+// browser never inherits an active login. Admin/Reviewer sessions keep the
+// previous localStorage behavior (persist across tabs/restarts).
+const getAuthStorage = (role) => (role === 'student' ? sessionStorage : localStorage);
+
 // Keep the Render free-tier server warm so OTP sending is always fast.
 // Fires immediately on page load, then every 10 minutes while the tab is open.
 function pingServer() {
@@ -64,21 +70,25 @@ function App() {
   // Check for existing authentication on app load
   useEffect(() => {
     const checkAuth = () => {
-      const savedAuth = localStorage.getItem('ureb_auth');
-      const savedRole = localStorage.getItem('ureb_role');
+      // A student session only ever lives in sessionStorage (this tab). If
+      // this tab doesn't have one, fall back to localStorage for an
+      // admin/reviewer session, which is meant to persist across tabs.
+      const source = sessionStorage.getItem('ureb_auth') ? sessionStorage : localStorage;
+      const savedAuth = source.getItem('ureb_auth');
+      const savedRole = source.getItem('ureb_role');
       const savedPrivacyAccepted = sessionStorage.getItem('ureb_privacy_accepted');
-      
+
       if (savedAuth === 'true' && savedRole) {
         // Researcher (student) accounts expire after 10 minutes of inactivity,
-        // even across a page refresh or reopened tab. Other roles are unaffected.
+        // even across a page refresh. Other roles are unaffected.
         if (savedRole === 'student') {
-          const lastActivity = parseInt(localStorage.getItem('ureb_last_activity') || '0', 10);
+          const lastActivity = parseInt(source.getItem('ureb_last_activity') || '0', 10);
           const idleFor = Date.now() - lastActivity;
           if (!lastActivity || idleFor >= RESEARCHER_IDLE_LIMIT_MS) {
-            localStorage.removeItem('ureb_auth');
-            localStorage.removeItem('ureb_role');
-            localStorage.removeItem('ureb_user');
-            localStorage.removeItem('ureb_last_activity');
+            source.removeItem('ureb_auth');
+            source.removeItem('ureb_role');
+            source.removeItem('ureb_user');
+            source.removeItem('ureb_last_activity');
             sessionStorage.removeItem('ureb_privacy_accepted');
             setShowSessionExpiredModal(true);
             setIsLoading(false);
@@ -127,12 +137,15 @@ function App() {
         setUserRole(result.user.role);
         setPrivacyAccepted(false); // Must Accept & Proceed before entering dashboard
 
-        // Save to localStorage for persistence
-        localStorage.setItem('ureb_auth', 'true');
-        localStorage.setItem('ureb_role', result.user.role);
-        localStorage.setItem('ureb_user', JSON.stringify(result.user));
+        // Persist the session. Researcher (student) logins go to
+        // sessionStorage only, so they never leak into a new tab or a
+        // pasted URL; admin/reviewer keep the persistent localStorage session.
+        const storage = getAuthStorage(result.user.role);
+        storage.setItem('ureb_auth', 'true');
+        storage.setItem('ureb_role', result.user.role);
+        storage.setItem('ureb_user', JSON.stringify(result.user));
         if (result.user.role === 'student') {
-          localStorage.setItem('ureb_last_activity', Date.now().toString());
+          storage.setItem('ureb_last_activity', Date.now().toString());
         }
 
         // Dispatch custom event to notify components of user change
@@ -186,7 +199,7 @@ function App() {
     // immediately, instead of waiting for the last heartbeat to age out.
     if (userRole === 'student' || userRole === 'reviewer') {
       try {
-        const savedUser = JSON.parse(localStorage.getItem('ureb_user') || 'null');
+        const savedUser = JSON.parse(getAuthStorage(userRole).getItem('ureb_user') || 'null');
         if (savedUser?.email) {
           sendSignOff(savedUser.email, userRole);
         }
@@ -199,11 +212,13 @@ function App() {
     setUserRole(null);
     setPrivacyAccepted(false);
 
-    // Clear localStorage & sessionStorage privacy key
-    localStorage.removeItem('ureb_auth');
-    localStorage.removeItem('ureb_role');
-    localStorage.removeItem('ureb_user');
-    localStorage.removeItem('ureb_last_activity');
+    // Clear both stores — whichever one actually held this session.
+    [localStorage, sessionStorage].forEach((store) => {
+      store.removeItem('ureb_auth');
+      store.removeItem('ureb_role');
+      store.removeItem('ureb_user');
+      store.removeItem('ureb_last_activity');
+    });
     sessionStorage.removeItem('ureb_privacy_accepted');
 
     // Dispatch custom event to notify components of user change
@@ -222,7 +237,7 @@ function App() {
 
     const markActivity = () => {
       if (hasExpired) return;
-      localStorage.setItem('ureb_last_activity', Date.now().toString());
+      sessionStorage.setItem('ureb_last_activity', Date.now().toString());
     };
 
     markActivity();
@@ -230,7 +245,7 @@ function App() {
 
     const intervalId = setInterval(() => {
       if (hasExpired) return;
-      const lastActivity = parseInt(localStorage.getItem('ureb_last_activity') || '0', 10);
+      const lastActivity = parseInt(sessionStorage.getItem('ureb_last_activity') || '0', 10);
       if (Date.now() - lastActivity >= RESEARCHER_IDLE_LIMIT_MS) {
         hasExpired = true;
         setShowSessionExpiredModal(true);
@@ -251,7 +266,7 @@ function App() {
 
     let savedUser;
     try {
-      savedUser = JSON.parse(localStorage.getItem('ureb_user') || 'null');
+      savedUser = JSON.parse(getAuthStorage(userRole).getItem('ureb_user') || 'null');
     } catch {
       savedUser = null;
     }

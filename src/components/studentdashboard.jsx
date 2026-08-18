@@ -194,7 +194,7 @@ const StudentDashboard = ({ onLogout }) => {
   const [messageCount, setMessageCount] = useState(0);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('ureb_user');
+    const savedUser = sessionStorage.getItem('ureb_user');
     if (savedUser) {
       setUserInfo(JSON.parse(savedUser));
     }
@@ -215,6 +215,29 @@ const StudentDashboard = ({ onLogout }) => {
     } else {
       setActiveTab(currentTab);
     }
+  }, []);
+
+  // Block common DevTools / view-source / save-page shortcuts while the
+  // Researcher portal is mounted. Deterrent only — see note on
+  // onContextMenu below, this does not stop a determined user.
+  useEffect(() => {
+    const blockShortcutKeys = (e) => {
+      const key = e.key?.toUpperCase();
+      const isDevToolsKey =
+        key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(key)) || // DevTools panels
+        (e.metaKey && e.altKey && ['I', 'J', 'C'].includes(key)) || // macOS DevTools
+        (e.ctrlKey && ['U', 'S'].includes(key)) || // view-source / save page
+        (e.metaKey && ['U', 'S'].includes(key));
+
+      if (isDevToolsKey) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    document.addEventListener('keydown', blockShortcutKeys);
+    return () => document.removeEventListener('keydown', blockShortcutKeys);
   }, []);
 
   // Fetch message count for badge
@@ -349,7 +372,7 @@ const StudentDashboard = ({ onLogout }) => {
   };
 
   return (
-    <div className="student-dashboard">
+    <div className="student-dashboard" onContextMenu={(e) => e.preventDefault()}>
       {/* Success Modal */}
       {showSuccessModal && (
         <SuccessModal
@@ -571,7 +594,7 @@ function ProfileContent({ userInfo, setUserInfo, onLogout }) {
         setStudentData(prev => ({ ...prev, profilePicture: imageUrlWithCache }));
         const updatedUser = { ...userInfo, profilePicture: imageUrlWithCache };
         setUserInfo(updatedUser);
-        localStorage.setItem('ureb_user', JSON.stringify(updatedUser));
+        sessionStorage.setItem('ureb_user', JSON.stringify(updatedUser));
         setSuccessMsg('Profile picture updated successfully');
         setTimeout(() => setSuccessMsg(''), 4000);
       } else {
@@ -608,7 +631,7 @@ function ProfileContent({ userInfo, setUserInfo, onLogout }) {
         setStudentData(prev => ({ ...prev, profilePicture: null }));
         const updatedUser = { ...userInfo, profilePicture: null };
         setUserInfo(updatedUser);
-        localStorage.setItem('ureb_user', JSON.stringify(updatedUser));
+        sessionStorage.setItem('ureb_user', JSON.stringify(updatedUser));
         setSuccessMsg('Profile picture removed successfully');
         setTimeout(() => setSuccessMsg(''), 4000);
       } else {
@@ -669,7 +692,7 @@ function ProfileContent({ userInfo, setUserInfo, onLogout }) {
           profilePicture: result.student.profilePicture,
         };
         setUserInfo(updatedUser);
-        localStorage.setItem('ureb_user', JSON.stringify(updatedUser));
+        sessionStorage.setItem('ureb_user', JSON.stringify(updatedUser));
         setIsEditing(false);
         setSuccessMsg('Profile updated successfully.');
         setTimeout(() => setSuccessMsg(''), 4000);
@@ -2402,7 +2425,7 @@ function EditProposalModal({ proposal, onClose, onSuccess }) {
     setUploading(true);
 
     try {
-      const savedUser = localStorage.getItem('ureb_user');
+      const savedUser = sessionStorage.getItem('ureb_user');
       const user = savedUser ? JSON.parse(savedUser) : null;
 
       const submitData = new FormData();
@@ -2553,7 +2576,7 @@ function AddFilesContent({ setSubmittedFiles, setShowSuccessModal, userInfo, stu
 
     setUploading(true);
     try {
-      const savedUser = localStorage.getItem('ureb_user');
+      const savedUser = sessionStorage.getItem('ureb_user');
       const user = savedUser ? JSON.parse(savedUser) : null;
 
       const submitData = new FormData();
@@ -4012,7 +4035,7 @@ const HistoryContent = () => {
   const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem('ureb_user') || '{}');
+    const userData = JSON.parse(sessionStorage.getItem('ureb_user') || '{}');
     setUserInfo(userData);
   }, []);
 

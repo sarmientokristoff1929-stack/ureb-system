@@ -9,7 +9,8 @@
   line-height: 28px;
   align-items: center;
   position: relative;
-  max-width: 190px;
+  flex: 1 1 320px;
+  min-width: 160px;
 }
 
 .input {
@@ -10445,7 +10446,9 @@
 
 
 
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+
+  flex-shrink: 0;
 
 
 

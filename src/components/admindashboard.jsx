@@ -1,11 +1,9 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 
 
 
 import './admindashboard.css';
 import './admindashboard-sp.css';
-
-import './AddAdminModal.css';
 
 import './GenerateReportModal.css';
 import InboxReportModal from './InboxReportModal';
@@ -257,7 +255,7 @@ const RichTextEditor = ({ placeholder, content, onChange }) => {
 
         >
 
-          • List
+          â€¢ List
 
         </button>
 
@@ -837,7 +835,7 @@ const AdminDashboard = ({ onLogout }) => {
   const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
 
   // Admin-only text size preference (accessibility). Persisted per-browser and
-  // only applied while the Admin Dashboard is mounted — reset on logout/unmount
+  // only applied while the Admin Dashboard is mounted â€” reset on logout/unmount
   // so it never leaks into the Landing Page or other roles' dashboards.
   const [fontScale, setFontScale] = useState(() => {
     const saved = parseInt(localStorage.getItem('ureb_admin_font_scale') || '100', 10);
@@ -1736,7 +1734,7 @@ const DashboardContent = () => {
     fetchStats();
 
     // Keep the "System Realtime" Active Researchers/Reviewers cards fresh
-    // without a manual refresh — heartbeats land server-side every 60s, so
+    // without a manual refresh â€” heartbeats land server-side every 60s, so
     // poll a bit faster than that.
     const realtimeInterval = setInterval(fetchStats, 30 * 1000);
     return () => clearInterval(realtimeInterval);
@@ -1814,7 +1812,7 @@ const DashboardContent = () => {
 
 
 
-            description: `${proposal.protocolCode ? 'Protocol ' + proposal.protocolCode : 'Proposal'}: "${proposal.researchTitle || proposal.title || 'Untitled'}"${(proposal.proponent || proposal.studentName) ? ' — by ' + (proposal.proponent || proposal.studentName) : ''}`,
+            description: `${proposal.protocolCode ? 'Protocol ' + proposal.protocolCode : 'Proposal'}: "${proposal.researchTitle || proposal.title || 'Untitled'}"${(proposal.proponent || proposal.studentName) ? ' â€” by ' + (proposal.proponent || proposal.studentName) : ''}`,
 
 
 
@@ -1985,6 +1983,22 @@ const DashboardContent = () => {
 
 
 
+        {/* Student Proposals Submitted */}
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <div className="stat-info">
+            <h3>{stats.studentProposals}</h3>
+            <p>Researcher Proposals</p>
+          </div>
+        </div>
+
         <div className="stat-card">
 
 
@@ -2081,7 +2095,7 @@ const DashboardContent = () => {
 
 
 
-            <p>Reviewers Created by Admin</p>
+            <p>Reviewers</p>
 
 
 
@@ -2089,22 +2103,6 @@ const DashboardContent = () => {
 
 
 
-        </div>
-
-        {/* Student Proposals Submitted */}
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-          </div>
-          <div className="stat-info">
-            <h3>{stats.studentProposals}</h3>
-            <p>Researcher Proposals</p>
-          </div>
         </div>
 
         {/* Total Researchers registered */}
@@ -2288,7 +2286,7 @@ const DashboardContent = () => {
                             const d = activity.timestamp ? new Date(activity.timestamp) : null;
                             const isValid = d && !isNaN(d.getTime());
                             return isValid
-                              ? `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                              ? `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} â€¢ ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
                               : 'Just now';
                           })()}
                         </span>
@@ -2938,7 +2936,7 @@ const AddReviewerContent = () => {
 
             <div className="success-content">
 
-              <div className="success-checkmark">✓</div>
+              <div className="success-checkmark">âœ“</div>
 
               <h3>Reviewer Added Successfully!</h3>
 
@@ -2970,7 +2968,7 @@ const AddReviewerContent = () => {
 
             <div className="error-content">
 
-              <div className="error-icon">✕</div>
+              <div className="error-icon">âœ•</div>
               <h3>{errorMessage?.toLowerCase().includes('email') ? 'Email Already Exists' : 'Action Failed'}</h3>
               <p>{errorMessage}</p>
 
@@ -3025,23 +3023,23 @@ const normalizeMcrStatus = (status) => {
 const getMcrRowKey = (row) => row.assignmentId || row.proposalId || row.protocolCode;
 
 const STUDENT_PROPOSAL_DEPARTMENTS = [
-  { value: 'FALS', label: 'FALS — Faculty of Agriculture and Life Sciences' },
-  { value: 'FTED', label: 'FTED — Faculty of Teacher Education' },
-  { value: 'FAIS', label: 'FAIS — Faculty of Advance and International Studies' },
-  { value: 'FNAS', label: 'FNAS — Faculty of Nursing and Allied Health Science' },
-  { value: 'FBM', label: 'FBM — Faculty of Business Management' },
-  { value: 'FCJE', label: 'FCJE — Faculty of Criminology Justice Education' },
-  { value: 'FACET', label: 'FACET — Faculty of Computing, Engineering, Technology' },
-  { value: 'FHUSOCOM', label: 'FHUSOCOM — Faculty of Humanities, Social Science & Communication' },
-  { value: 'SIEC', label: 'SIEC — San Isidro Extension Campus' },
-  { value: 'BEC', label: 'BEC — BanayBanay Extension Campus' },
-  { value: 'CEC', label: 'CEC — Cateel Extension Campus' },
-  { value: 'BGEC', label: 'BGEC — Baganga Extension Campus' },
-  { value: 'TEC', label: 'TEC — Tarragona Extension Campus' },
-  { value: 'NSTP', label: 'NSTP — National Service Training Program' },
-  { value: 'ICS', label: 'ICS — Indigenous Community Studies' },
+  { value: 'FALS', label: 'FALS â€” Faculty of Agriculture and Life Sciences' },
+  { value: 'FTED', label: 'FTED â€” Faculty of Teacher Education' },
+  { value: 'FAIS', label: 'FAIS â€” Faculty of Advance and International Studies' },
+  { value: 'FNAS', label: 'FNAS â€” Faculty of Nursing and Allied Health Science' },
+  { value: 'FBM', label: 'FBM â€” Faculty of Business Management' },
+  { value: 'FCJE', label: 'FCJE â€” Faculty of Criminology Justice Education' },
+  { value: 'FACET', label: 'FACET â€” Faculty of Computing, Engineering, Technology' },
+  { value: 'FHUSOCOM', label: 'FHUSOCOM â€” Faculty of Humanities, Social Science & Communication' },
+  { value: 'SIEC', label: 'SIEC â€” San Isidro Extension Campus' },
+  { value: 'BEC', label: 'BEC â€” BanayBanay Extension Campus' },
+  { value: 'CEC', label: 'CEC â€” Cateel Extension Campus' },
+  { value: 'BGEC', label: 'BGEC â€” Baganga Extension Campus' },
+  { value: 'TEC', label: 'TEC â€” Tarragona Extension Campus' },
+  { value: 'NSTP', label: 'NSTP â€” National Service Training Program' },
+  { value: 'ICS', label: 'ICS â€” Indigenous Community Studies' },
   { value: 'Community Representatives', label: 'Community Representatives' },
-  { value: 'UREB Board', label: 'UREB Board — University Research Ethics Board' },
+  { value: 'UREB Board', label: 'UREB Board â€” University Research Ethics Board' },
 ];
 
 const DEPARTMENT_ORDER = STUDENT_PROPOSAL_DEPARTMENTS.reduce((acc, d, idx) => {
@@ -3121,7 +3119,7 @@ const getReviewerDisplayName = (reviewer) => {
     || '';
 };
 
-// ── Student Proposal (admin assigns reviewers) ─────
+// â”€â”€ Student Proposal (admin assigns reviewers) â”€â”€â”€â”€â”€
 function StudentProposalContent({ onNewCountChange }) {
   const [proposals, setProposals] = useState([]);
   const [reviewers, setReviewers] = useState([]);
@@ -3288,7 +3286,7 @@ function StudentProposalContent({ onNewCountChange }) {
 
   const formatDate = (d) => (d
     ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-    : '—');
+    : 'â€”');
 
   const newCount = proposals.filter(isStudentProposalNew).length;
 
@@ -3353,7 +3351,7 @@ function StudentProposalContent({ onNewCountChange }) {
 
   const handleRemoveExistingAttachment = (key) => {
     setRemovedAttachmentKeys((prev) => (prev.includes(key) ? prev : [...prev, key]));
-    // Discard any replacement file staged for this attachment — it's being removed, not replaced.
+    // Discard any replacement file staged for this attachment â€” it's being removed, not replaced.
     setRightCanvasFiles((prev) => {
       const next = { ...prev };
       delete next[key];
@@ -3453,7 +3451,7 @@ function StudentProposalContent({ onNewCountChange }) {
       });
       setRightCanvasFiles({});
       // The default new-attachment slot must not reuse a key an already-uploaded
-      // attachment owns (e.g. "attachment_0") — otherwise picking a file here silently
+      // attachment owns (e.g. "attachment_0") â€” otherwise picking a file here silently
       // stages a REPLACE of that existing attachment instead of adding a new one,
       // and the "new" file never actually reaches the reviewer as an extra attachment.
       const usedAttachmentKeys = new Set(Object.keys(getProposalAdminAttachments(selectedProposal)));
@@ -3689,7 +3687,7 @@ function StudentProposalContent({ onNewCountChange }) {
         <input
           type="search"
           className="sp-search"
-          placeholder="Search by title or researcher…"
+          placeholder="Search by title or researcherâ€¦"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -3704,7 +3702,7 @@ function StudentProposalContent({ onNewCountChange }) {
       </div>
 
       {loading ? (
-        <div className="sp-loading">Loading student submissions…</div>
+        <div className="sp-loading">Loading student submissionsâ€¦</div>
       ) : filteredProposals.length === 0 ? (
         <div className="sp-empty">No student submissions found.</div>
       ) : (
@@ -3813,7 +3811,7 @@ function StudentProposalContent({ onNewCountChange }) {
                 onClick={() => setSelectedProposalId('')}
                 aria-label="Close details"
               >
-                ×
+                Ã—
               </button>
             </div>
             <div className="sp-modal-body-split">
@@ -3857,7 +3855,7 @@ function StudentProposalContent({ onNewCountChange }) {
                             </div>
                             <div className="sp-file-submeta">
                               {file?.size ? `${(file.size / 1024).toFixed(1)} KB` : 'Unknown size'}
-                              {file?.mimetype ? ` • ${file.mimetype}` : ''}
+                              {file?.mimetype ? ` â€¢ ${file.mimetype}` : ''}
                             </div>
                           </div>
                           <div className="sp-file-actions">
@@ -4029,7 +4027,7 @@ function StudentProposalContent({ onNewCountChange }) {
                     <div className="sp-canvas-field-group">
                       <div className="sp-canvas-period-header">
                         <div className="sp-canvas-doc-header-title">
-                          <span className="sp-canvas-icon">📎</span>
+                          <span className="sp-canvas-icon">ðŸ“Ž</span>
                           <label className="sp-canvas-input-label">Attachments</label>
                         </div>
                         <span className="sp-canvas-tz-badge">
@@ -4077,14 +4075,14 @@ function StudentProposalContent({ onNewCountChange }) {
                                                   title="Cancel replacement"
                                                   onClick={() => handleRightCanvasFileChange(key, null)}
                                                 >
-                                                  ×
+                                                  Ã—
                                                 </button>
                                               </>
                                             )
                                             : (
                                               <>
                                                 {file?.size ? `${(file.size / 1024).toFixed(1)} KB` : 'Unknown size'}
-                                                {file?.mimetype ? ` • ${file.mimetype}` : ''}
+                                                {file?.mimetype ? ` â€¢ ${file.mimetype}` : ''}
                                               </>
                                             )}
                                       </div>
@@ -4170,14 +4168,14 @@ function StudentProposalContent({ onNewCountChange }) {
                                     onClick={() => handleRemoveAttachmentSlot(slotKey)}
                                     title="Remove attachment slot"
                                   >
-                                    🗑
+                                    ðŸ—‘
                                   </button>
                                 )}
                               </div>
 
                               {selectedFile && (
                                 <div className="sp-canvas-selected-chip">
-                                  <span className="sp-chip-icon">✓</span>
+                                  <span className="sp-chip-icon">âœ“</span>
                                   <span className="sp-chip-filename">{selectedFile.name}</span>
                                   <button
                                     type="button"
@@ -4185,7 +4183,7 @@ function StudentProposalContent({ onNewCountChange }) {
                                     onClick={() => handleRightCanvasFileChange(slotKey, null)}
                                     title="Remove file"
                                   >
-                                    ×
+                                    Ã—
                                   </button>
                                 </div>
                               )}
@@ -4216,7 +4214,7 @@ function StudentProposalContent({ onNewCountChange }) {
                         disabled={rightCanvasSaving}
                       >
                         {rightCanvasSaving
-                          ? (isSelectedProposalAssigned ? 'Reassigning…' : 'Assigning…')
+                          ? (isSelectedProposalAssigned ? 'Reassigningâ€¦' : 'Assigningâ€¦')
                           : (isSelectedProposalAssigned ? 'Reassign' : 'Assign')}
                       </button>
                     </div>
@@ -4489,7 +4487,7 @@ function StudentProposalContent({ onNewCountChange }) {
                 Cancel
               </button>
               <button type="button" className="sp-confirm-btn sp-confirm-btn--danger" onClick={confirmDeleteProposal} disabled={isDeletingProposal}>
-                {isDeletingProposal ? 'Deleting…' : 'Delete'}
+                {isDeletingProposal ? 'Deletingâ€¦' : 'Delete'}
               </button>
             </div>
           </div>
@@ -4499,7 +4497,7 @@ function StudentProposalContent({ onNewCountChange }) {
   );
 };
 
-// ── Mark Completed Review ──────────────────────────────────────────────────
+// â”€â”€ Mark Completed Review â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const MarkCompletedReviewContent = () => {
   const [reviewerRows, setReviewerRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -4653,7 +4651,7 @@ const MarkCompletedReviewContent = () => {
             const protocolCode = (review.protocolCode || proposal.protocolCode || '').trim();
             const proposalId = pId || toRecordId(proposal._id) || protocolCode;
 
-            // Secondary reviewers: assignments are the source of truth — skip review duplicates
+            // Secondary reviewers: assignments are the source of truth â€” skip review duplicates
             if (rType === 'secondary') {
               const hasAssignment = byKey[key]?.proposals.some(p =>
                 (protocolCode && p.protocolCode === protocolCode) ||
@@ -4798,9 +4796,9 @@ const MarkCompletedReviewContent = () => {
   };
 
   // Submitted reviews only ever show as "Under Review" until the admin marks
-  // them done — there is no separate "Pending" state in this panel.
+  // them done â€” there is no separate "Pending" state in this panel.
   const getMcrStatusLabel = (status) => {
-    return isMcrCompleted(status) ? '✓ Done' : 'Under Review';
+    return isMcrCompleted(status) ? 'âœ“ Done' : 'Under Review';
   };
 
   const proposalMatchesFilter = (p) => {
@@ -4871,14 +4869,14 @@ const MarkCompletedReviewContent = () => {
         <p className="mcr-subtitle">
           {facultySelected
             ? 'Select a reviewer to view assignments and manage completed reviews.'
-            : 'Select a faculty to begin — the reviewers under that faculty will then be listed.'}
+            : 'Select a faculty to begin â€” the reviewers under that faculty will then be listed.'}
         </p>
       </div>
 
       {loading ? (
         <div className="mcr-loading">
           <div className="mcr-spinner" />
-          <span>Loading reviewer data…</span>
+          <span>Loading reviewer dataâ€¦</span>
         </div>
       ) : (
         <>
@@ -4960,7 +4958,7 @@ const MarkCompletedReviewContent = () => {
                   : selectedReviewerKey === 'all'
                     ? (selectedFaculty === 'all'
                       ? 'All Reviewers'
-                      : `All Reviewers — ${getFacultyLabel(selectedFaculty)}`)
+                      : `All Reviewers â€” ${getFacultyLabel(selectedFaculty)}`)
                     : 'Reviewer Assignments'}
               </h3>
               <span className="mcr-section-badge" style={{ background: '#dbeafe', color: '#1d4ed8' }}>
@@ -5339,7 +5337,7 @@ const MessageResearcherContent = () => {
       ? (selectedStudentObj.name || `${selectedStudentObj.firstName || ''} ${selectedStudentObj.lastName || ''}`.trim())
       : '';
 
-    // Show success immediately — don't wait for file upload
+    // Show success immediately â€” don't wait for file upload
     setMessageSuccessRecipient(recipientName || 'researcher');
     setIsMessageSuccessModalOpen(true);
 
@@ -5648,7 +5646,7 @@ const MessageResearcherContent = () => {
 
                     >
 
-                      ×
+                      Ã—
 
                     </button>
 
@@ -6492,7 +6490,7 @@ const MessageReviewerContent = () => {
                       className="remove-file-btn"
                       onClick={() => handleRemoveFile(index)}
                     >
-                      ×
+                      Ã—
                     </button>
                   </li>
                 ))}
@@ -6778,7 +6776,7 @@ function AdminProfileContent({
   return (
     <div className="ap-wrapper">
 
-      {/* ── Hero Card ── */}
+      {/* â”€â”€ Hero Card â”€â”€ */}
       <div className="ap-hero-card">
         {/* Avatar with upload functionality */}
         <div
@@ -6853,7 +6851,7 @@ function AdminProfileContent({
           <p className="ap-hero-email">{userInfo?.email || ''}</p>
         </div>
 
-        {/* Remove photo button — only visible when photo exists */}
+        {/* Remove photo button â€” only visible when photo exists */}
         {userInfo?.profilePicture && (
           <button
             className="ap-remove-btn"
@@ -6866,11 +6864,11 @@ function AdminProfileContent({
         )}
       </div>
 
-      {/* ── Feedback Banners ── */}
+      {/* â”€â”€ Feedback Banners â”€â”€ */}
       {picSuccess && <div className="ap-banner ap-banner--success">{picSuccess}</div>}
       {picError && <div className="ap-banner ap-banner--error">{picError}</div>}
 
-      {/* ── Account Information Card ── */}
+      {/* â”€â”€ Account Information Card â”€â”€ */}
       <div className="ap-info-card">
         <div className="ap-card-header">
           <h3 className="ap-card-title">Account Information</h3>
@@ -6895,7 +6893,7 @@ function AdminProfileContent({
         </p>
       </div>
 
-      {/* ── Security Card ── */}
+      {/* â”€â”€ Security Card â”€â”€ */}
       <div className="ap-info-card">
         <div className="ap-card-header">
           <div>
@@ -7000,7 +6998,7 @@ function AdminProfileContent({
         )}
       </div>
 
-      {/* ── Display Card ── */}
+      {/* â”€â”€ Display Card â”€â”€ */}
       <div className="ap-info-card">
         <div className="ap-card-header">
           <div>
@@ -7060,10 +7058,6 @@ const ManageUsersContent = () => {
 
 
   const [activeTab, setActiveTab] = useState('admins');
-
-
-
-  const [isAddAdminModalOpen, setIsAddAdminModalOpen] = useState(false);
 
 
 
@@ -7143,12 +7137,6 @@ const ManageUsersContent = () => {
 
 
 
-  const openAddAdminModal = () => setIsAddAdminModalOpen(true);
-
-
-
-  const closeAddAdminModal = () => setIsAddAdminModalOpen(false);
-
   // Disable / Enable handlers
   const handleDisable = (student) => {
     setDisablingStudent(student);
@@ -7201,6 +7189,8 @@ const ManageUsersContent = () => {
         gender: user.gender || '',
 
         researcherType: user.researcherType || '',
+
+        department: user.department || '',
 
         program: user.program || '',
         coMembers: user.coMembers || [],
@@ -7998,9 +7988,9 @@ const ManageUsersContent = () => {
 
             {/* Search and Sort Controls */}
 
-            <div className="search-sort-controls" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="search-sort-controls" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'space-between', overflowX: 'auto' }}>
 
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'nowrap' }}>
 
                 <div className="group">
 
@@ -8042,7 +8032,7 @@ const ManageUsersContent = () => {
 
                   >
 
-                    Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    Name {sortBy === 'name' && (sortOrder === 'asc' ? 'â†‘' : 'â†“')}
 
                   </button>
 
@@ -8056,7 +8046,7 @@ const ManageUsersContent = () => {
 
                   >
 
-                    First Name {sortBy === 'firstName' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    First Name {sortBy === 'firstName' && (sortOrder === 'asc' ? 'â†‘' : 'â†“')}
 
                   </button>
 
@@ -8070,7 +8060,7 @@ const ManageUsersContent = () => {
 
                   >
 
-                    Last Name {sortBy === 'lastName' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    Last Name {sortBy === 'lastName' && (sortOrder === 'asc' ? 'â†‘' : 'â†“')}
 
                   </button>
 
@@ -8084,7 +8074,7 @@ const ManageUsersContent = () => {
 
                   >
 
-                    Faculty {sortBy === 'department' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    Faculty {sortBy === 'department' && (sortOrder === 'asc' ? 'â†‘' : 'â†“')}
 
                   </button>
 
@@ -8210,9 +8200,9 @@ const ManageUsersContent = () => {
 
             {/* Search and Sort Controls */}
 
-            <div className="search-sort-controls" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="search-sort-controls" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'space-between', overflowX: 'auto' }}>
 
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'nowrap' }}>
 
                 <div className="group">
 
@@ -8254,7 +8244,7 @@ const ManageUsersContent = () => {
 
                   >
 
-                    Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    Name {sortBy === 'name' && (sortOrder === 'asc' ? 'â†‘' : 'â†“')}
 
                   </button>
 
@@ -8268,7 +8258,7 @@ const ManageUsersContent = () => {
 
                   >
 
-                    First Name {sortBy === 'firstName' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    First Name {sortBy === 'firstName' && (sortOrder === 'asc' ? 'â†‘' : 'â†“')}
 
                   </button>
 
@@ -8282,7 +8272,7 @@ const ManageUsersContent = () => {
 
                   >
 
-                    Last Name {sortBy === 'lastName' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    Last Name {sortBy === 'lastName' && (sortOrder === 'asc' ? 'â†‘' : 'â†“')}
 
                   </button>
 
@@ -8296,7 +8286,7 @@ const ManageUsersContent = () => {
 
                   >
 
-                    Faculty {sortBy === 'department' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    Faculty {sortBy === 'department' && (sortOrder === 'asc' ? 'â†‘' : 'â†“')}
 
                   </button>
 
@@ -8435,8 +8425,6 @@ const ManageUsersContent = () => {
 
         <h2>Manage Users</h2>
 
-        <button className="btn-primary" onClick={openAddAdminModal}>Add Admin</button>
-
       </div>
 
 
@@ -8470,58 +8458,6 @@ const ManageUsersContent = () => {
         {renderTable()}
 
       </div>
-
-
-
-      <AddAdminModal
-
-        isOpen={isAddAdminModalOpen}
-
-        onClose={closeAddAdminModal}
-
-        onAdminAdded={() => {
-
-          closeAddAdminModal();
-
-          // Refresh users list
-
-          const fetchUsers = async () => {
-
-            try {
-
-              const { getAllUsers, getAllReviewers, getAllStudents } = await import('../services/api.js');
-
-              const [userList, reviewerList, studentList] = await Promise.all([
-
-                getAllUsers(),
-
-                getAllReviewers(),
-
-                getAllStudents()
-
-              ]);
-
-              const nonReviewerUsers = userList.filter(user => user.role !== 'reviewer');
-
-              setUsers(nonReviewerUsers);
-
-              setReviewers(reviewerList);
-
-              setStudents(studentList);
-
-            } catch (error) {
-
-              console.error('Error fetching users:', error);
-
-            }
-
-          };
-
-          fetchUsers();
-
-        }}
-
-      />
 
 
 
@@ -8903,7 +8839,7 @@ const ManageUsersContent = () => {
                           rel="noopener noreferrer"
                           style={{ fontSize: '0.75rem', color: '#0866FF', fontWeight: 600, textDecoration: 'none' }}
                         >
-                          Visit Profile ↗
+                          Visit Profile â†—
                         </a>
                       )}
                     </div>
@@ -8987,7 +8923,7 @@ const ManageUsersContent = () => {
                             <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#2d3436' }}>{m.name}</div>
                             <div style={{ fontSize: '0.75rem', color: '#636e72', display: 'flex', gap: '0.5rem' }}>
                               <span>{m.email}</span>
-                              {m.role && <span style={{ color: '#b2bec3' }}>•</span>}
+                              {m.role && <span style={{ color: '#b2bec3' }}>â€¢</span>}
                               {m.role && <span>{m.role}</span>}
                             </div>
                           </div>
@@ -9334,336 +9270,6 @@ const ManageUsersContent = () => {
 
 
 
-function AddAdminModal({ isOpen, onClose, onAdminAdded }) {
-
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    department: ''
-  });
-
-  const [loading, setLoading] = useState(false);
-
-  const [showPassword, setShowPassword] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-
-
-
-  if (!isOpen) return null;
-
-
-
-  const handleSubmit = async (e) => {
-
-    e.preventDefault();
-
-    setLoading(true);
-
-
-
-    try {
-
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users`, {
-
-        method: 'POST',
-
-        headers: {
-
-          'Content-Type': 'application/json',
-
-        },
-
-        body: JSON.stringify({
-
-          ...formData,
-
-          role: 'admin'
-
-        }),
-
-      });
-
-
-
-      if (response.ok) {
-        setFormData({ name: '', email: '', password: '', department: '' });
-        setShowSuccessModal(true);
-      } else {
-        const errorData = await response.json();
-        console.error('Error adding admin:', errorData);
-        setErrorMessage(errorData.error || 'Failed to add admin');
-        setShowErrorModal(true);
-      }
-
-    } catch (error) {
-
-      console.error('Error adding admin:', error);
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
-  };
-
-
-
-  const handleChange = (e) => {
-
-    setFormData({
-
-      ...formData,
-
-      [e.target.name]: e.target.value
-
-    });
-
-  };
-
-
-
-  return (
-    <>
-      <div className="add-admin-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-
-      <div className="add-admin-modal-container">
-
-        <button className="add-admin-modal-close" onClick={onClose} aria-label="Close modal">
-
-          <XIcon />
-
-        </button>
-
-        <div className="add-admin-modal-header">
-
-          <h2>Add Admin Account</h2>
-
-        </div>
-
-        <div className="add-admin-modal-body">
-
-          <form onSubmit={handleSubmit} className="add-admin-form">
-
-            <div className="form-group">
-
-              <label htmlFor="name">Full Name</label>
-
-              <input
-
-                type="text"
-
-                id="name"
-
-                name="name"
-
-                value={formData.name}
-
-                onChange={handleChange}
-
-                placeholder="Enter full name"
-
-                required
-
-              />
-
-            </div>
-
-            <div className="form-group">
-
-              <label htmlFor="email">Email</label>
-
-              <input
-
-                type="email"
-
-                id="email"
-
-                name="email"
-
-                value={formData.email}
-
-                onChange={handleChange}
-
-                placeholder="Enter email address"
-
-                required
-
-              />
-
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="department">Department</label>
-              <select
-                id="department"
-                name="department"
-                value={formData.department}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Select Department</option>
-                <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
-                <option value="FTED">FTED- Faculty of Teacher Education</option>
-                <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
-                <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
-                <option value="FBM">FBM-Faculty of Business Management</option>
-                <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
-                <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
-                <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
-                <option value="SIEC">SIEC- San Isidro Extension Campus</option>
-                <option value="BEC">BEC-BanayBanay Extension Campus</option>
-                <option value="CEC">CEC-Cateel Extension Campus</option>
-                <option value="BGEC">BGEC-Baganga Extension Campus</option>
-                <option value="TEC">TEC-Tarragona Extension Campus</option>
-                <option value="NSTP">NSTP-National Service Training Program</option>
-                <option value="ICS">ICS- Indigenous Community Studies</option>
-                <option value="Community Representatives">Community Representatives</option>
-                <option value="UREB Board">UREB Board - University Research Ethics Board</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-
-              <label htmlFor="password">Password</label>
-
-              <div className="password-input-wrapper">
-
-                <input
-
-                  type={showPassword ? 'text' : 'password'}
-
-                  id="password"
-
-                  name="password"
-
-                  value={formData.password}
-
-                  onChange={handleChange}
-
-                  placeholder="Enter password"
-
-                  required
-
-                />
-
-                <button
-
-                  type="button"
-
-                  className="password-toggle"
-
-                  onClick={() => setShowPassword(!showPassword)}
-
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-
-                >
-
-                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-
-                </button>
-
-              </div>
-
-            </div>
-
-            <div className="add-admin-modal-footer">
-
-              <button type="button" className="btn-secondary" onClick={onClose} disabled={loading}>
-
-                Cancel
-
-              </button>
-
-              <button type="submit" className="btn-primary" disabled={loading}>
-
-                {loading ? 'Adding...' : 'Add Admin'}
-
-              </button>
-
-            </div>
-
-          </form>
-
-        </div>
-
-      </div>
-
-
-
-      {/* Success Modal */}
-
-      {showSuccessModal && (
-
-        <div className="admin-success-modal-overlay">
-
-          <div className="admin-success-modal-container">
-
-            <div className="admin-success-content">
-
-              <div className="admin-success-checkmark">✓</div>
-
-              <h3>Admin Added Successfully!</h3>
-
-              <p>The new administrator account has been created successfully.</p>
-
-              <button
-
-                className="admin-success-close-btn"
-
-                onClick={() => {
-
-                  setShowSuccessModal(false);
-
-                  onAdminAdded();
-
-                }}
-
-              >
-
-                OK
-
-              </button>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      )}
-
-    </div>
-
-      {/* Error Modal - renders as a sibling above the form modal */}
-      {showErrorModal && (
-        <div className="admin-error-modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowErrorModal(false)}>
-          <div className="admin-error-modal-container">
-            <div className="admin-error-content">
-              <div className="admin-error-icon">✕</div>
-              <h3>{errorMessage?.toLowerCase().includes('email') || errorMessage?.toLowerCase().includes('exist') ? 'Email Already Exists' : 'Action Failed'}</h3>
-              <p>{errorMessage}</p>
-              <button
-                className="admin-error-close-btn"
-                onClick={() => setShowErrorModal(false)}
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
-
-
-
-
-
 function NotificationContent({ setActiveTab, onRefreshCount }) {
 
   const [notifications, setNotifications] = useState([]);
@@ -9684,7 +9290,7 @@ function NotificationContent({ setActiveTab, onRefreshCount }) {
 
   // One-time migration: notifications previously "deleted" only via the old
   // localStorage-based hiding never got soft-deleted (dismissed) server-side.
-  // Push those into the real delete endpoint once, then drop the local list —
+  // Push those into the real delete endpoint once, then drop the local list â€”
   // deletion is now always persisted to the database via confirmDeleteNotification.
   const migrateLegacyLocalDeletes = async (data) => {
     let legacyIds = [];
@@ -10068,7 +9674,7 @@ function NotificationContent({ setActiveTab, onRefreshCount }) {
 
                     <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
 
-                      {isExpanded ? '▼' : '▶'}
+                      {isExpanded ? 'â–¼' : 'â–¶'}
 
                     </span>
 
@@ -10422,7 +10028,7 @@ const ReviewsFileContent = () => {
         <div className="review-detail-content">
           <div className="review-detail-header">
             <button className="btn-secondary" onClick={handleBackToList}>
-              ← Back to Reviews
+              â† Back to Reviews
             </button>
             <h2>
               <svg className="review-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -10574,7 +10180,7 @@ const ReviewsFileContent = () => {
 
           <button className="btn-secondary" onClick={handleBackToList}>
 
-            ← Back to Reviews
+            â† Back to Reviews
 
           </button>
 
@@ -12154,7 +11760,7 @@ function MessageViewModal({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
 
 
-        {/* ── Header: sender info ── */}
+        {/* â”€â”€ Header: sender info â”€â”€ */}
 
         <div className="msg-modal-header">
 
@@ -12172,7 +11778,7 @@ function MessageViewModal({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
               <span className="msg-modal-sender-email">{message.senderEmail}</span>
 
-              <span className="msg-modal-date">{fmtDate(message.createdAt || message.sentAt)} · {fmtTime(message.createdAt || message.sentAt)}</span>
+              <span className="msg-modal-date">{fmtDate(message.createdAt || message.sentAt)} Â· {fmtTime(message.createdAt || message.sentAt)}</span>
 
             </div>
 
@@ -12185,7 +11791,7 @@ function MessageViewModal({ isOpen, onClose, message, userInfo, onMarkAsRead, on
             {message.submissionType === 'resubmission' && <span className="msg-modal-badge resubmit">Resubmission</span>}
 
             <button className="msg-modal-close" onClick={onClose} aria-label="Close">
-              ✕
+              âœ•
             </button>
 
           </div>
@@ -12194,7 +11800,7 @@ function MessageViewModal({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
 
 
-        {/* ── Subject bar ── */}
+        {/* â”€â”€ Subject bar â”€â”€ */}
 
         <div className="msg-modal-subject-bar">
 
@@ -12204,7 +11810,7 @@ function MessageViewModal({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
 
 
-        {/* ── Scrollable body ── */}
+        {/* â”€â”€ Scrollable body â”€â”€ */}
 
         <div className="msg-modal-body">
 
@@ -12256,7 +11862,7 @@ function MessageViewModal({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
                         <span className="msg-file-name">{fileData.originalname || fileKey}</span>
 
-                        <span className="msg-file-meta">{(fileData.size / 1024).toFixed(1)} KB · {fileData.mimetype || 'Unknown'}</span>
+                        <span className="msg-file-meta">{(fileData.size / 1024).toFixed(1)} KB Â· {fileData.mimetype || 'Unknown'}</span>
 
                       </div>
 
@@ -12337,7 +11943,7 @@ function MessageViewModal({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
                         <span className="msg-file-name">{displayName}</span>
 
-                        <span className="msg-file-meta">{(file.size / 1024).toFixed(1)} KB · {file.mimetype || 'File'}</span>
+                        <span className="msg-file-meta">{(file.size / 1024).toFixed(1)} KB Â· {file.mimetype || 'File'}</span>
 
                       </div>
 
@@ -12415,7 +12021,7 @@ function MessageViewModal({ isOpen, onClose, message, userInfo, onMarkAsRead, on
 
                       <span className="msg-file-name">{fileData.originalname || fileKey}</span>
 
-                      <span className="msg-file-meta">{(fileData.size / 1024).toFixed(1)} KB · {fileData.mimetype || 'Unknown'}</span>
+                      <span className="msg-file-meta">{(fileData.size / 1024).toFixed(1)} KB Â· {fileData.mimetype || 'Unknown'}</span>
 
                     </div>
 
@@ -12892,7 +12498,7 @@ function GenerateReportModal({ isOpen, onClose }) {
         return;
       }
 
-      // Build reviewer email → actual profile name lookup
+      // Build reviewer email â†’ actual profile name lookup
       const reviewerNameMap = {};
       if (Array.isArray(allReviewerAccounts)) {
         allReviewerAccounts.forEach(acc => {
@@ -13296,12 +12902,12 @@ function GenerateReportModal({ isOpen, onClose }) {
       const date = (review.completedDate || review.createdAt)
         ? new Date(review.completedDate || review.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
         : 'N/A';
-      const comment = (review.comment || review.comments || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const comment = (review.comment || review.comments || 'â€”').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       return `
         <tr>
           <td>${(review.reviewerName || review.reviewer || 'N/A').replace(/</g, '&lt;')}</td>
           <td><span class="badge badge-${decision.toLowerCase().replace(/\s+/g, '-')}">${decision}</span></td>
-          <td>${review.overallRating || '—'}</td>
+          <td>${review.overallRating || 'â€”'}</td>
           <td>${date}</td>
           <td>${comment}</td>
         </tr>`;
@@ -13326,7 +12932,7 @@ function GenerateReportModal({ isOpen, onClose }) {
 <html>
 <head>
   <meta charset="utf-8"/>
-  <title>Reviewer Report — ${dateStr}</title>
+  <title>Reviewer Report â€” ${dateStr}</title>
   <style>
     @page { size: A4 landscape; margin: 1.5cm; }
     * { box-sizing: border-box; }
@@ -13413,7 +13019,7 @@ function GenerateReportModal({ isOpen, onClose }) {
     <div className="grm-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="grm-modal">
 
-        {/* ── Header ── */}
+        {/* â”€â”€ Header â”€â”€ */}
         <div className="grm-header">
           <div className="grm-header-left">
             <div className="grm-header-icon">
@@ -13457,7 +13063,7 @@ function GenerateReportModal({ isOpen, onClose }) {
           </button>
         </div>
 
-        {/* ── Search ── */}
+        {/* â”€â”€ Search â”€â”€ */}
         <div className="grm-search-bar">
           <svg className="grm-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -13465,7 +13071,7 @@ function GenerateReportModal({ isOpen, onClose }) {
           <input
             className="grm-search-input"
             type="text"
-            placeholder="Search by reviewer name…"
+            placeholder="Search by reviewer nameâ€¦"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -13476,12 +13082,12 @@ function GenerateReportModal({ isOpen, onClose }) {
           )}
         </div>
 
-        {/* ── Body ── */}
+        {/* â”€â”€ Body â”€â”€ */}
         <div className="grm-body">
           {loading ? (
             <div className="grm-loading">
               <div className="grm-spinner" />
-              <p>Loading reviews…</p>
+              <p>Loading reviewsâ€¦</p>
             </div>
           ) : completedReviews.length === 0 ? (
             <div className="grm-empty">
@@ -13549,7 +13155,7 @@ function GenerateReportModal({ isOpen, onClose }) {
                               const isChecked = selectedReviews.includes(id);
                               const { label: decLabel, cls: decCls } = getDecisionInfo(review.decision || review.status);
                               const dateVal = review.completedDate || review.createdAt;
-                              const dateStr = dateVal ? new Date(dateVal).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+                              const dateStr = dateVal ? new Date(dateVal).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'â€”';
                               return (
                                 <tr key={id} className={`grm-row${isChecked ? ' grm-row--checked' : ''}${idx % 2 === 1 ? ' grm-row--alt' : ''}`}>
                                   <td className="grm-td-check">
@@ -13558,7 +13164,7 @@ function GenerateReportModal({ isOpen, onClose }) {
                                   <td className="grm-td-name">{getReviewerName(review)}</td>
                                   <td><span className={`grm-badge ${decCls}`}>{decLabel}</span></td>
                                   <td className="grm-td-date">{dateStr}</td>
-                                  <td className="grm-td-text">{review.comment || review.comments || <span className="grm-muted">—</span>}</td>
+                                  <td className="grm-td-text">{review.comment || review.comments || <span className="grm-muted">â€”</span>}</td>
                                 </tr>
                               );
                             })}
@@ -13573,7 +13179,7 @@ function GenerateReportModal({ isOpen, onClose }) {
           )}
         </div>
 
-        {/* ── Footer ── */}
+        {/* â”€â”€ Footer â”€â”€ */}
         <div className="grm-footer">
           <div className="grm-footer-info">
             {selectedReviews.length > 0
@@ -13591,7 +13197,7 @@ function GenerateReportModal({ isOpen, onClose }) {
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
                 <line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" />
               </svg>
-              {isExporting ? 'Exporting…' : `Export CSV`}
+              {isExporting ? 'Exportingâ€¦' : `Export CSV`}
             </button>
             <button
               className="grm-btn grm-btn--pdf"
@@ -13602,7 +13208,7 @@ function GenerateReportModal({ isOpen, onClose }) {
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
                 <line x1="12" y1="18" x2="12" y2="12" /><polyline points="9 15 12 18 15 15" />
               </svg>
-              {isExporting ? 'Exporting…' : `Export PDF`}
+              {isExporting ? 'Exportingâ€¦' : `Export PDF`}
             </button>
           </div>
         </div>
@@ -13867,10 +13473,10 @@ function StudentSubmissionsModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   const tabs = [
-    { id: 'payment-receipts', label: 'Payment Receipts', icon: '💳', color: '#2563eb', filter: (p) => p.files?.paymentReceipt },
-    { id: 'resubmitted-manuscripts', label: 'Resubmitted Manuscripts', icon: '📄', color: '#7c3aed', filter: (p) => p.status === 'Resubmitted' || p.submissionType === 'resubmission' },
-    { id: 'response-letters', label: 'Response Letters', icon: '✉️', color: '#0891b2', filter: (p) => p.files?.reviewResults || p.files?.decisionOfInitialReview || p.files?.responseLetter },
-    { id: 'completed-manuscripts', label: 'Completed Manuscripts', icon: '✅', color: '#16a34a', filter: (p) => p.files?.ethicalClearance || p.files?.releaseOfCompletedEthicalReview },
+    { id: 'payment-receipts', label: 'Payment Receipts', icon: 'ðŸ’³', color: '#2563eb', filter: (p) => p.files?.paymentReceipt },
+    { id: 'resubmitted-manuscripts', label: 'Resubmitted Manuscripts', icon: 'ðŸ“„', color: '#7c3aed', filter: (p) => p.status === 'Resubmitted' || p.submissionType === 'resubmission' },
+    { id: 'response-letters', label: 'Response Letters', icon: 'âœ‰ï¸', color: '#0891b2', filter: (p) => p.files?.reviewResults || p.files?.decisionOfInitialReview || p.files?.responseLetter },
+    { id: 'completed-manuscripts', label: 'Completed Manuscripts', icon: 'âœ…', color: '#16a34a', filter: (p) => p.files?.ethicalClearance || p.files?.releaseOfCompletedEthicalReview },
   ];
 
   const activeTabData = tabs.find((t) => t.id === activeTab);
@@ -13884,7 +13490,7 @@ function StudentSubmissionsModal({ isOpen, onClose }) {
         (p.researchTitle || '').toLowerCase().includes(q);
     });
 
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+  const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'â€”';
   const formatSize = (b) => {
     if (!b) return '';
     if (b < 1024) return `${b} B`;
@@ -13892,11 +13498,11 @@ function StudentSubmissionsModal({ isOpen, onClose }) {
     return `${(b / 1048576).toFixed(1)} MB`;
   };
   const getFileIcon = (mime = '') => {
-    if (mime.includes('pdf')) return '📕';
-    if (mime.includes('word') || mime.includes('docx')) return '📘';
-    if (mime.includes('sheet') || mime.includes('excel')) return '📗';
-    if (mime.includes('image')) return '🖼️';
-    return '📎';
+    if (mime.includes('pdf')) return 'ðŸ“•';
+    if (mime.includes('word') || mime.includes('docx')) return 'ðŸ“˜';
+    if (mime.includes('sheet') || mime.includes('excel')) return 'ðŸ“—';
+    if (mime.includes('image')) return 'ðŸ–¼ï¸';
+    return 'ðŸ“Ž';
   };
   const buildDownloadUrl = (file) =>
     `${import.meta.env.VITE_API_URL}/api/download/${file.filename}?name=${encodeURIComponent(file.originalname || file.filename)}`;
@@ -13991,7 +13597,7 @@ function StudentSubmissionsModal({ isOpen, onClose }) {
           <input
             className="ssm-search-input"
             type="text"
-            placeholder="Search by proponent, protocol code, or title…"
+            placeholder="Search by proponent, protocol code, or titleâ€¦"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -14009,7 +13615,7 @@ function StudentSubmissionsModal({ isOpen, onClose }) {
           {loading ? (
             <div className="ssm-loading">
               <div className="ssm-spinner" />
-              <p>Loading submissions…</p>
+              <p>Loading submissionsâ€¦</p>
             </div>
           ) : rows.length === 0 ? (
             <div className="ssm-empty">
@@ -14042,10 +13648,10 @@ function StudentSubmissionsModal({ isOpen, onClose }) {
                       <tr key={proposal._id} className={`ssm-row${idx % 2 === 1 ? ' ssm-row--alt' : ''}`}>
                         <td className="ssm-td-num">{idx + 1}</td>
                         <td className="ssm-td-code">
-                          <span className="ssm-protocol-badge">{proposal.protocolCode || '—'}</span>
+                          <span className="ssm-protocol-badge">{proposal.protocolCode || 'â€”'}</span>
                         </td>
-                        <td className="ssm-td-name">{proposal.proponent || '—'}</td>
-                        <td className="ssm-td-title">{proposal.researchTitle || '—'}</td>
+                        <td className="ssm-td-name">{proposal.proponent || 'â€”'}</td>
+                        <td className="ssm-td-title">{proposal.researchTitle || 'â€”'}</td>
                         <td className="ssm-td-status">
                           <span className="ssm-status-badge" style={{ background: statusStyle.bg, color: statusStyle.color }}>
                             {(proposal.status || 'Pending').replace(/Pending Preliminary Reviewer/gi, 'Pending Reviewer')}
@@ -14090,7 +13696,7 @@ function StudentSubmissionsModal({ isOpen, onClose }) {
 
       </div>
 
-      {/* ── File Viewer Modal ── */}
+      {/* â”€â”€ File Viewer Modal â”€â”€ */}
       {viewingFile && (
         <div className="ssm-viewer-overlay" onClick={(e) => e.target === e.currentTarget && setViewingFile(null)}>
           <div className="ssm-viewer-modal">
@@ -14248,7 +13854,7 @@ function AdminWelcomeModal({ firstName, onClose }) {
 
         <div className="welcome-content">
 
-          <div className="welcome-checkmark">✓</div>
+          <div className="welcome-checkmark">âœ“</div>
 
           <h2>WELCOME BACK, ADMIN!</h2>
 
