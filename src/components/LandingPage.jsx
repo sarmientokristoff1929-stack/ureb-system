@@ -222,7 +222,7 @@ const Hero = () => {
           <div className="hero-mockup-float">
             <img
               ref={imageRef}
-              src="/ureb-mockup.png"
+              src="/ureb-mockup2.png"
               alt="UREB System preview"
               className="hero-mockup-image"
             />
