@@ -827,11 +827,6 @@ function ProfileContent({ userInfo, setUserInfo, onLogout }) {
   const initials = fullName.charAt(0).toUpperCase();
   const profilePicUrl = studentData?.profilePicture || userInfo?.profilePicture;
 
-  // Debug logging
-  console.log('[DEBUG] Profile Picture URL:', profilePicUrl);
-  console.log('[DEBUG] studentData:', studentData);
-  console.log('[DEBUG] userInfo:', userInfo);
-
   return (
     <div className="sp-wrapper">
 
@@ -3627,11 +3622,9 @@ function MessagesContent({ userInfo, onMessageRead }) {
       try {
         const response = await fetch(`${API_BASE_URL}/messages/${encodeURIComponent(userInfo.email)}`);
         const data = await response.json();
-        console.log('[Messages] All fetched messages:', data);
         const adminMessages = data
           .filter((m) => m.recipientEmail === userInfo.email && m.type === 'admin_to_student')
           .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));
-        console.log('[Messages] Admin messages with files:', adminMessages.map(m => ({ id: m._id, files: m.files })));
         setMessages(adminMessages);
       } catch (error) {
         console.error('Error fetching messages:', error);
@@ -3842,9 +3835,7 @@ function MessagesContent({ userInfo, onMessageRead }) {
                   </span>
                   <div className="sm-attachments-list">
                     {msg.files.map((file, i) => {
-                      console.log(`[File ${i}] file.path:`, file.path, '| file.filename:', file.filename);
                       const storedName = getStoredFilename(file.path);
-                      console.log(`[File ${i}] storedName:`, storedName);
                       const downloadUrl = storedName
                         ? `${API_BASE_URL}/download/${storedName}?name=${encodeURIComponent(file.filename)}`
                         : null;
