@@ -180,52 +180,61 @@ const Navbar = ({ onLoginClick }) => {
   );
 };
 
-const Hero = () => (
-  <section id="home" className="hero">
-    <div className="hero-container">
-      <div className="hero-content">
-        <h1 className="hero-title">
-          Track and Manage.<br />
-          <span className="highlight">Research Protocols</span> with ease.
-        </h1>
-        <p className="hero-description">
-          Supporting researchers in conducting ethical, responsible, and impactful research.
-          We review and approve research protocols to ensure the protection of human participants
-          and the integrity of research endeavors.
-        </p>
-        <div className="hero-cta">
-          <a href="#apply" className="btn-primary">
-            Send us message <ArrowRightIcon />
-          </a>
-          <a href="#services" className="btn-secondary">
-            Learn More
-          </a>
+const Hero = () => {
+  const imageRef = useRef(null);
+
+  const handleMouseMove = (e) => {
+    const el = imageRef.current;
+    if (!el) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    el.style.transform = `rotateY(${x * 16}deg) rotateX(${y * -12}deg) scale(1.03)`;
+  };
+
+  const handleMouseLeave = () => {
+    if (imageRef.current) imageRef.current.style.transform = '';
+  };
+
+  return (
+    <section id="home" className="hero">
+      <div className="hero-container">
+        <div className="hero-content">
+          <h1 className="hero-title">
+            Track and Manage.<br />
+            <span className="highlight">Research Protocols</span> with ease.
+          </h1>
+          <p className="hero-description">
+            Supporting researchers in conducting ethical, responsible, and impactful research.
+            We review and approve research protocols to ensure the protection of human participants
+            and the integrity of research endeavors.
+          </p>
+          <div className="hero-cta">
+            <a href="#apply" className="btn-primary">
+              Send us message <ArrowRightIcon />
+            </a>
+            <a href="#services" className="btn-secondary">
+              Learn More
+            </a>
+          </div>
+        </div>
+        <div className="hero-visual" onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
+          <div className="hero-mockup-float">
+            <img
+              ref={imageRef}
+              src="/ureb-mockup.png"
+              alt="UREB System preview"
+              className="hero-mockup-image"
+            />
+          </div>
         </div>
       </div>
-      <div className="hero-visual">
-        <div className="floating-background">
-          <span className="bg-letter bg-u">U<span className="dot">.</span></span>
-          <span className="bg-letter bg-r">R<span className="dot">.</span></span>
-          <span className="bg-letter bg-e">E<span className="dot">.</span></span>
-          <span className="bg-letter bg-b">B<span className="dot">.</span></span>
-          <span className="bg-letter bg-u2">U<span className="dot">.</span></span>
-          <span className="bg-letter bg-r2">R<span className="dot">.</span></span>
-          <span className="bg-letter bg-e2">E<span className="dot">.</span></span>
-          <span className="bg-letter bg-b2">B<span className="dot">.</span></span>
-        </div>
-        <div className="floating-letters">
-          <span className="floating-letter letter-u">U<span className="dot">.</span></span>
-          <span className="floating-letter letter-r">R<span className="dot">.</span></span>
-          <span className="floating-letter letter-e">E<span className="dot">.</span></span>
-          <span className="floating-letter letter-b">B<span className="dot">.</span></span>
-        </div>
+      <div className="hero-scroll">
+        <div className="scroll-indicator"></div>
       </div>
-    </div>
-    <div className="hero-scroll">
-      <div className="scroll-indicator"></div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 const Services = () => {
   const services = [

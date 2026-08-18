@@ -252,176 +252,48 @@
   align-items: center;
   min-height: 420px;
   width: 100%;
+  perspective: 1200px;
+  animation: heroVisualEnter 1.6s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
 }
 
-.floating-background {
-  position: absolute;
-  top: 0;
-  left: 0;
+.hero-mockup-float {
   width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 1;
+  max-width: 640px;
+  animation: heroMockupBounce 1.2s ease-out 1.65s 1;
 }
 
-.bg-letter {
-  position: absolute;
-  font-size: 3rem;
-  font-weight: 600;
-  font-family: 'Georgia', 'Times New Roman', serif;
-  color: #2e0000;
-  user-select: none;
-  opacity: 0.15;
-}
-
-.bg-u {
-  bottom: 10%;
-  left: 10%;
-  animation: floatUp 8s ease-out infinite;
-}
-
-.bg-r {
-  bottom: 5%;
-  left: 25%;
-  animation: floatUp 10s ease-out infinite 1s;
-}
-
-.bg-e {
-  bottom: 15%;
-  left: 40%;
-  animation: floatUp 9s ease-out infinite 2s;
-}
-
-.bg-b {
-  bottom: 8%;
-  left: 55%;
-  animation: floatUp 11s ease-out infinite 3s;
-}
-
-.bg-u2 {
-  bottom: 12%;
-  left: 70%;
-  animation: floatUp 8.5s ease-out infinite 4s;
-}
-
-.bg-r2 {
-  bottom: 6%;
-  left: 85%;
-  animation: floatUp 9.5s ease-out infinite 5s;
-}
-
-.bg-e2 {
-  bottom: 14%;
-  right: 15%;
-  animation: floatUp 10.5s ease-out infinite 6s;
-}
-
-.bg-b2 {
-  bottom: 9%;
-  right: 5%;
-  animation: floatUp 7.5s ease-out infinite 7s;
-}
-
-@keyframes floatUp {
-  0% {
-    transform: translateY(0) translateX(0) rotate(0deg);
-    opacity: 0.08;
-  }
-
-  10% {
-    opacity: 0.15;
-  }
-
-  30% {
-    opacity: 0.18;
-    transform: translateY(-100px) translateX(20px) rotate(90deg);
-  }
-
-  50% {
-    opacity: 0.12;
-    transform: translateY(-200px) translateX(-10px) rotate(180deg);
-  }
-
-  70% {
-    opacity: 0.07;
-    transform: translateY(-300px) translateX(15px) rotate(270deg);
-  }
-
-  90% {
-    opacity: 0.03;
-    transform: translateY(-400px) translateX(-5px) rotate(360deg);
-  }
-
-  100% {
-    transform: translateY(-500px) translateX(0) rotate(450deg);
-    opacity: 0;
-  }
-}
-
-.floating-letters {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  gap: 1rem;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.floating-letter {
+.hero-mockup-image {
   position: relative;
-  font-size: 8rem;
-  font-weight: 800;
-  font-family: 'Georgia', 'Times New Roman', serif;
-  background: linear-gradient(135deg, #2e0000 0%, #00272d 25%, #032800 50%, #290000f1 75%, #210000 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  color: transparent;
-  user-select: none;
-  opacity: 1;
-  animation: float 8s ease-in-out infinite;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: auto;
+  transform-style: preserve-3d;
+  transition: transform 0.25s ease-out;
+  will-change: transform;
+  cursor: pointer;
 }
 
-.letter-u {
-  animation-delay: 0s;
-}
-
-.letter-r {
-  animation-delay: 1s;
-  animation-duration: 7s;
-}
-
-.letter-e {
-  animation-delay: 2s;
-  animation-duration: 9s;
-}
-
-.letter-b {
-  animation-delay: 3s;
-  animation-duration: 6s;
-}
-
-@keyframes float {
+@keyframes heroVisualEnter {
   0% {
-    transform: translateY(0px) rotate(0deg);
+    opacity: 0;
+    transform: translateY(-120px) scale(0.94);
   }
-
-  25% {
-    transform: translateY(-15px) rotate(2deg);
-  }
-
-  50% {
-    transform: translateY(-8px) rotate(-1deg);
-  }
-
-  75% {
-    transform: translateY(-20px) rotate(1deg);
-  }
-
   100% {
-    transform: translateY(0px) rotate(0deg);
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes heroMockupBounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  40% {
+    transform: translateY(-30px) scale(1.02);
+  }
+  60% {
+    transform: translateY(-14px) scale(1.01);
   }
 }
 
@@ -1327,10 +1199,6 @@
     gap: 1rem;
   }
 
-  .floating-letter {
-    font-size: 6rem;
-  }
-
   .hero-card {
     max-width: 220px;
     padding: 1.5rem;
@@ -1505,10 +1373,6 @@
     min-height: 160px;
     margin-bottom: 0.5rem;
     order: -1;
-  }
-
-  .floating-letter {
-    font-size: 4.5rem;
   }
 
   .hero-scroll {
@@ -1759,10 +1623,6 @@
 
   .hero-visual {
     min-height: 130px;
-  }
-
-  .floating-letter {
-    font-size: 3.5rem;
   }
 
   .btn-primary,
@@ -2072,9 +1932,4 @@
 .reveal-on-scroll.is-revealed {
   opacity: 1;
   transform: translateY(0);
-}
-
-.floating-letter .dot,
-.bg-letter .dot {
-  font-size: 0.3em;
 }

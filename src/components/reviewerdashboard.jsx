@@ -1300,9 +1300,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
   const [reviewerType, setReviewerType] = useState('');
 
   // Profile picture state
-  const [uploadingPic, setUploadingPic] = useState(false);
   const [reviewerData, setReviewerData] = useState(null);
-  const fileInputRef = useRef(null);
 
   // Only sync profileData from userInfo when NOT editing (prevents resetting while user types)
   useEffect(() => {
@@ -1364,68 +1362,6 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
   const fullName = userInfo?.name || profileData.name || 'Reviewer';
   const initials = fullName.charAt(0).toUpperCase();
   const profilePicUrl = reviewerData?.profilePicture || userInfo?.profilePicture;
-
-  const handleProfilePicClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleProfilePicUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-    if (!validTypes.includes(file.type)) {
-      setError('Please upload a valid image file (JPEG, PNG, WebP, or GIF)');
-      setTimeout(() => setError(''), 4000);
-      return;
-    }
-
-    // Validate file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      setError('File size must be less than 2MB');
-      setTimeout(() => setError(''), 4000);
-      return;
-    }
-
-    setUploadingPic(true);
-    setError('');
-
-    try {
-      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
-      const formData = new FormData();
-      formData.append('profilePicture', file);
-      formData.append('email', userInfo.email);
-
-      const response = await fetch(`${API_BASE}/reviewer/profile/picture`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        // Add timestamp for cache-busting
-        const imageUrlWithCache = `${result.profilePicture}?t=${Date.now()}`;
-        setReviewerData(prev => ({ ...prev, profilePicture: imageUrlWithCache }));
-        const updatedUser = { ...userInfo, profilePicture: imageUrlWithCache };
-        setUserInfo(updatedUser);
-        localStorage.setItem('ureb_user', JSON.stringify(updatedUser));
-        setSuccessMsg('Profile picture updated successfully');
-        setTimeout(() => setSuccessMsg(''), 4000);
-      } else {
-        setError(result.error || 'Failed to upload profile picture');
-        setTimeout(() => setError(''), 4000);
-      }
-    } catch (err) {
-      console.error('Error uploading profile picture:', err);
-      setError('Failed to upload profile picture');
-      setTimeout(() => setError(''), 4000);
-    } finally {
-      setUploadingPic(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
 
   const handleEdit = () => { setIsEditing(true); setError(''); setSuccessMsg(''); };
 
@@ -1584,21 +1520,10 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
 
       {/* ── Hero Card ── */}
       <div className="sp-hero-card">
-        {/* Avatar with upload functionality */}
-        <div
-          className="sp-avatar-wrapper"
-          onClick={!uploadingPic ? handleProfilePicClick : undefined}
-          style={{ cursor: uploadingPic ? 'default' : 'pointer' }}
-        >
-          {/* Loading state */}
-          {uploadingPic && (
-            <div className="sp-avatar-loading">
-              <div className="sp-avatar-spinner" />
-            </div>
-          )}
-
-          {/* Profile image - shown when URL exists and not loading */}
-          {!uploadingPic && profilePicUrl && (
+        {/* Avatar (display only) */}
+        <div className="sp-avatar-wrapper">
+          {/* Profile image - shown when URL exists */}
+          {profilePicUrl && (
             <img
               key={profilePicUrl}
               src={getProfilePicUrl(profilePicUrl)}
@@ -1620,30 +1545,10 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
           {/* Fallback initials - shown when no URL */}
           <div
             className="sp-hero-avatar"
-            style={{ display: (!uploadingPic && !profilePicUrl) ? 'flex' : 'none' }}
+            style={{ display: profilePicUrl ? 'none' : 'flex' }}
           >
             {initials}
           </div>
-
-          {/* Hover overlay - shows "Upload Picture" on hover */}
-          {!uploadingPic && (
-            <div className="sp-avatar-hover-overlay">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-                <circle cx="12" cy="13" r="3" />
-              </svg>
-              <span>Upload Picture</span>
-            </div>
-          )}
-
-          {/* Hidden file input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
-            onChange={handleProfilePicUpload}
-            style={{ display: 'none' }}
-          />
         </div>
         <div className="sp-hero-info">
           <h2 className="sp-hero-name">{fullName}</h2>

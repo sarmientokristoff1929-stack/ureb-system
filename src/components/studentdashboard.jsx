@@ -494,10 +494,6 @@ function ProfileContent({ userInfo, setUserInfo, onLogout }) {
   const [pwdSuccess, setPwdSuccess] = useState('');
   const [showPwd, setShowPwd] = useState({ current: false, newPwd: false, confirm: false });
 
-  // Profile picture state
-  const [uploadingPic, setUploadingPic] = useState(false);
-  const fileInputRef = useRef(null);
-
   // Co-members state
   const [coMembers, setCoMembers] = useState([]);
   const [showCoMemberForm, setShowCoMemberForm] = useState(false);
@@ -551,101 +547,6 @@ function ProfileContent({ userInfo, setUserInfo, onLogout }) {
     return studentData.suffix ? `${base} ${studentData.suffix}` : base;
   };
 
-  const handleProfilePicClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleProfilePicUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-    if (!allowedTypes.includes(file.type)) {
-      setError('Please upload a valid image file (JPEG, PNG, WebP, or GIF)');
-      setTimeout(() => setError(''), 4000);
-      return;
-    }
-
-    // Validate file size (2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      setError('Image size must be less than 2MB');
-      setTimeout(() => setError(''), 4000);
-      return;
-    }
-
-    setUploadingPic(true);
-    setError('');
-
-    try {
-      const formData = new FormData();
-      formData.append('profilePicture', file);
-      formData.append('email', userInfo.email);
-
-      const response = await fetch(`${API_BASE_URL}/student/profile/picture`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        const imageUrlWithCache = `${result.profilePicture}?t=${Date.now()}`;
-        setStudentData(prev => ({ ...prev, profilePicture: imageUrlWithCache }));
-        const updatedUser = { ...userInfo, profilePicture: imageUrlWithCache };
-        setUserInfo(updatedUser);
-        sessionStorage.setItem('ureb_user', JSON.stringify(updatedUser));
-        setSuccessMsg('Profile picture updated successfully');
-        setTimeout(() => setSuccessMsg(''), 4000);
-      } else {
-        setError(result.error || 'Failed to upload profile picture');
-        setTimeout(() => setError(''), 4000);
-      }
-    } catch (err) {
-      console.error('Error uploading profile picture:', err);
-      setError('Failed to upload profile picture');
-      setTimeout(() => setError(''), 4000);
-    } finally {
-      setUploadingPic(false);
-      // Reset file input
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  const handleProfilePicDelete = async () => {
-    if (!window.confirm('Are you sure you want to remove your profile picture?')) return;
-
-    setUploadingPic(true);
-    setError('');
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/student/profile/picture`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userInfo.email }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        setStudentData(prev => ({ ...prev, profilePicture: null }));
-        const updatedUser = { ...userInfo, profilePicture: null };
-        setUserInfo(updatedUser);
-        sessionStorage.setItem('ureb_user', JSON.stringify(updatedUser));
-        setSuccessMsg('Profile picture removed successfully');
-        setTimeout(() => setSuccessMsg(''), 4000);
-      } else {
-        setError(result.error || 'Failed to remove profile picture');
-        setTimeout(() => setError(''), 4000);
-      }
-    } catch (err) {
-      console.error('Error removing profile picture:', err);
-      setError('Failed to remove profile picture');
-      setTimeout(() => setError(''), 4000);
-    } finally {
-      setUploadingPic(false);
-    }
-  };
 
   const handleEdit = () => { setIsEditing(true); setError(''); setSuccessMsg(''); };
 
@@ -832,21 +733,10 @@ function ProfileContent({ userInfo, setUserInfo, onLogout }) {
 
       {/* ── Hero Card ── */}
       <div className="sp-hero-card">
-        {/* Avatar with upload functionality */}
-        <div
-          className="sp-avatar-wrapper"
-          onClick={!uploadingPic ? handleProfilePicClick : undefined}
-          style={{ cursor: uploadingPic ? 'default' : 'pointer' }}
-        >
-          {/* Loading state */}
-          {uploadingPic && (
-            <div className="sp-avatar-loading">
-              <div className="sp-avatar-spinner" />
-            </div>
-          )}
-
-          {/* Profile image - shown when URL exists and not loading */}
-          {!uploadingPic && profilePicUrl && (
+        {/* Avatar (display only) */}
+        <div className="sp-avatar-wrapper">
+          {/* Profile image - shown when URL exists */}
+          {profilePicUrl && (
             <img
               key={profilePicUrl}
               src={getProfilePicUrl(profilePicUrl)}
@@ -868,30 +758,10 @@ function ProfileContent({ userInfo, setUserInfo, onLogout }) {
           {/* Fallback initials - shown when no URL */}
           <div
             className="sp-hero-avatar"
-            style={{ display: (!uploadingPic && !profilePicUrl) ? 'flex' : 'none' }}
+            style={{ display: profilePicUrl ? 'none' : 'flex' }}
           >
             {initials}
           </div>
-
-          {/* Hover overlay - shows "Upload Picture" on hover */}
-          {!uploadingPic && (
-            <div className="sp-avatar-hover-overlay">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-                <circle cx="12" cy="13" r="3" />
-              </svg>
-              <span>Upload Picture</span>
-            </div>
-          )}
-
-          {/* Hidden file input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
-            onChange={handleProfilePicUpload}
-            style={{ display: 'none' }}
-          />
         </div>
         <div className="sp-hero-info">
           <h2 className="sp-hero-name">{fullName}</h2>
