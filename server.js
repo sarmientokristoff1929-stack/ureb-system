@@ -34,6 +34,44 @@ app.use((req, res, next) => {
 // Request body parser
 app.use(express.json());
 
+// Anti-replay guard: the client (src/services/api.js `apiFetch`) tags every
+// request with X-Request-Id (cid, for tracing), X-Timestamp (ts) and X-Nonce.
+// Reject requests whose timestamp is stale/from-the-future, and reject a
+// nonce we've already seen so a captured request can't just be resent as-is.
+// Requests without these headers (direct downloads, older clients, curl)
+// pass through unchecked — this is a defense-in-depth layer, not auth.
+const seenNonces = new Map(); // nonce -> expiry epoch ms
+const REPLAY_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const CLOCK_SKEW_MS = 60 * 1000; // tolerate up to 1 minute of client clock drift
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [nonce, expiry] of seenNonces) {
+    if (expiry <= now) seenNonces.delete(nonce);
+  }
+}, 60 * 1000).unref();
+
+app.use('/api', (req, res, next) => {
+  const cid = req.get('X-Request-Id');
+  const ts = Number(req.get('X-Timestamp'));
+  const nonce = req.get('X-Nonce');
+
+  req.cid = cid;
+
+  if (!ts || !nonce) return next();
+
+  const age = Date.now() - ts;
+  if (age > REPLAY_WINDOW_MS || age < -CLOCK_SKEW_MS) {
+    return res.status(400).json({ success: false, error: 'Request expired, please retry' });
+  }
+  if (seenNonces.has(nonce)) {
+    return res.status(409).json({ success: false, error: 'Duplicate request' });
+  }
+  seenNonces.set(nonce, Date.now() + REPLAY_WINDOW_MS);
+
+  next();
+});
+
 // Version endpoint to verify deployment
 app.get('/api/version', (req, res) => {
   res.json({ version: '2.0-gender-fix', genderSupport: true, timestamp: new Date().toISOString() });
