@@ -56,13 +56,6 @@ const ClockIcon = () => (
   </svg>
 );
 
-const ArrowRightIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M5 12h14" />
-    <path d="m12 5 7 7-7 7" />
-  </svg>
-);
-
 const MenuIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="3" y1="12" x2="21" y2="12" />
@@ -209,14 +202,6 @@ const Hero = () => {
             We review and approve research protocols to ensure the protection of human participants
             and the integrity of research endeavors.
           </p>
-          <div className="hero-cta">
-            <a href="#apply" className="btn-primary">
-              Send us message <ArrowRightIcon />
-            </a>
-            <a href="#services" className="btn-secondary">
-              Learn More
-            </a>
-          </div>
         </div>
         <div className="hero-visual" onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <div className="hero-mockup-float">
