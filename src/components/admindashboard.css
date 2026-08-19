@@ -2003,6 +2003,20 @@
   white-space: nowrap;
 }
 
+.sp-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0.9rem 0 0.25rem;
+}
+
+.sp-pagination-indicator {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .history-empty-note {
   color: var(--text-muted);
   text-align: center;

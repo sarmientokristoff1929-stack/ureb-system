@@ -3275,6 +3275,23 @@ function StudentProposalContent({ onNewCountChange }) {
   const firstSubmissionsCount = useMemo(() => proposals.filter(p => !p.isResubmissionProposal && p.submissionType !== 'resubmission').length, [proposals]);
   const resubmissionsCount = useMemo(() => proposals.filter(p => p.isResubmissionProposal === true || p.submissionType === 'resubmission').length, [proposals]);
 
+  const SP_PAGE_SIZE = 15;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filteredProposals.length / SP_PAGE_SIZE));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, submissionTypeFilter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const paginatedProposals = useMemo(() => {
+    const start = (currentPage - 1) * SP_PAGE_SIZE;
+    return filteredProposals.slice(start, start + SP_PAGE_SIZE);
+  }, [filteredProposals, currentPage]);
+
   useEffect(() => {
     if (!filteredProposals.length) {
       setSelectedProposalId('');
@@ -3727,7 +3744,7 @@ function StudentProposalContent({ onNewCountChange }) {
               </tr>
             </thead>
             <tbody>
-              {filteredProposals.map((proposal) => {
+              {paginatedProposals.map((proposal) => {
                 const id = toRecordId(proposal._id);
                 const isNew = isStudentProposalNew(proposal);
                 const statusLabel = isNew ? 'New' : 'Seen';
@@ -3788,6 +3805,30 @@ function StudentProposalContent({ onNewCountChange }) {
               })}
             </tbody>
           </table>
+
+          {totalPages > 1 && (
+            <div className="sp-pagination">
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </button>
+              <span className="sp-pagination-indicator">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       )}
 

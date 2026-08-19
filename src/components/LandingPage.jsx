@@ -217,6 +217,8 @@ const Hero = () => {
       <div className="hero-scroll">
         <div className="scroll-indicator"></div>
       </div>
+
+      
     </section>
   );
 };
