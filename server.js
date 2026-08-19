@@ -1198,8 +1198,6 @@ app.post('/api/auth/register', async (req, res) => {
     console.log('[DEBUG] Raw req.body.gender:', req.body.gender);
     console.log('[DEBUG] Server /api/auth/register - full req.body:', JSON.stringify(req.body, null, 2));
 
-    if (await rejectIfTurnstileInvalid(req, res)) return;
-
     const { firstName, middleName, lastName, suffix, sex, gender, researcherType, department, program, email, password, role } = req.body;
 
     const emailNorm = (email || '').trim().toLowerCase();

@@ -82,8 +82,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
   const rightPanelRef = useRef(null);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
 
-  // Cloudflare Turnstile — one shared widget slot, since the login and
-  // registration forms are mutually exclusive (only one is ever mounted).
+  // Cloudflare Turnstile — Login form only (not required for registration).
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const resetTurnstile = () => {
@@ -432,8 +431,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
       program: (affiliationType === 'Institution/Agency' || affiliationType === 'Institution' || affiliationType === 'Agency') ? 'N/A' : program,
       email: regGmail,  // Changed from gmail to email
       password: regPassword,
-      role: 'student',
-      turnstileToken
+      role: 'student'
     };
 
     console.log('[DEBUG] Registration - userData:', { ...userData, password: '[HIDDEN]' });
@@ -468,8 +466,6 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
         setConfirmPassword('');
         setPasswordError('');
         setPasswordTouched(false);
-        setTurnstileToken('');
-        setTurnstileResetKey((k) => k + 1);
 
         setTimeout(() => {
           setShowSuccessModal(false);
@@ -479,12 +475,10 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
         }, 3000);
       } else {
         setError(result.error || 'Registration failed');
-        resetTurnstile();
       }
     } catch (err) {
       console.error('Registration error:', err);
       setError('Registration failed. Please try again.');
-      resetTurnstile();
     } finally {
       setRegisterLoading(false);
     }
@@ -784,9 +778,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
                     </div>
                   </div>
 
-                  <TurnstileWidget onToken={setTurnstileToken} resetKey={turnstileResetKey} />
-
-                  <button type="submit" className="login-btn-primary login-modal-submit" disabled={registerLoading || !turnstileToken}>
+                  <button type="submit" className="login-btn-primary login-modal-submit" disabled={registerLoading}>
                     {registerLoading ? 'Creating account…' : 'Create Account'}
                   </button>
                 </form>
