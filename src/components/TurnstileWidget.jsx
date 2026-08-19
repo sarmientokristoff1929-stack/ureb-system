@@ -42,6 +42,7 @@ const TurnstileWidget = ({ onToken, resetKey }) => {
     }
     widgetIdRef.current = window.turnstile.render(containerRef.current, {
       sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
+      size: 'flexible',
       callback: (token) => onToken(token),
       'expired-callback': () => onToken(''),
       'error-callback': () => onToken(''),
