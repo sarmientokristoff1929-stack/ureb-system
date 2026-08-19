@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 import './reviewerdashboard.css';
 
-import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, resubmitReview, getCompletedReviews, getReviewerAssignments, downloadReviewerFile, deleteMessage, markMessageAsRead, changeReviewerPassword, getReviewerProfile, getUserNotifications, markNotificationAsRead, deleteNotification } from '../services/api';
+import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, resubmitReview, getCompletedReviews, getReviewerAssignments, downloadReviewerFile, deleteMessage, markMessageAsRead, changeReviewerPassword, getReviewerProfile, getUserNotifications, markNotificationAsRead, deleteNotification, viewFile } from '../services/api';
 
 const formatAssignmentStatus = (status) => {
   if (!status) return 'Under Review';
@@ -2371,7 +2371,6 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
   const [readIds, setReadIds] = useState([]);
-  const [viewingFile, setViewingFile] = useState(null);
   const [submittedProtocolCodes, setSubmittedProtocolCodes] = useState(new Set());
 
   useEffect(() => {
@@ -2760,7 +2759,7 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                                     <button
                                       className="btn-secondary"
                                       style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem' }}
-                                      onClick={() => setViewingFile(file)}
+                                      onClick={() => viewFile(file.filename)}
                                       title="View file"
                                     >
                                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2811,7 +2810,7 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                                     <button
                                       className="btn-secondary"
                                       style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem' }}
-                                      onClick={() => setViewingFile(file)}
+                                      onClick={() => viewFile(file.filename)}
                                       title="View file"
                                     >
                                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2834,15 +2833,6 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
           );
         })}
       </div>
-
-      {/* File Viewer Modal */}
-      {viewingFile && (
-        <FileViewerModal
-          viewingFile={viewingFile}
-          onClose={() => setViewingFile(null)}
-          onDownload={() => handleDownload(viewingFile)}
-        />
-      )}
 
     </div>
   );
@@ -2870,11 +2860,15 @@ const FileViewerModal = ({ viewingFile, onClose, onDownload }) => {
         className="modal-container"
         onClick={e => e.stopPropagation()}
         style={{
-          maxWidth: '95vw',
-          width: '95vw',
-          maxHeight: '95vh',
-          height: 'auto',
-          margin: '0 auto'
+          maxWidth: '98vw',
+          width: '98vw',
+          maxHeight: '96vh',
+          height: '96vh',
+          margin: '0 auto',
+          padding: '1rem 1.25rem',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden'
         }}
       >
         <button className="modal-close" onClick={onClose} aria-label="Close modal">
@@ -2883,7 +2877,7 @@ const FileViewerModal = ({ viewingFile, onClose, onDownload }) => {
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
-        <div className="modal-header" style={{ overflow: 'hidden' }}>
+        <div className="modal-header" style={{ overflow: 'hidden', flexShrink: 0, margin: 0 }}>
           <h2
             title={viewingFile.originalname || viewingFile.filename}
             style={{
@@ -2891,16 +2885,17 @@ const FileViewerModal = ({ viewingFile, onClose, onDownload }) => {
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              maxWidth: '100%'
+              maxWidth: '100%',
+              marginBottom: 0
             }}
           >
             {viewingFile.originalname || viewingFile.filename}
           </h2>
         </div>
-        <div className="modal-body" style={{ padding: '1rem' }}>
+        <div className="modal-body" style={{ padding: '0.5rem 0', flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
           <FileViewer file={viewingFile} onClose={onClose} />
         </div>
-        <div className="modal-footer">
+        <div className="modal-footer" style={{ flexShrink: 0, margin: 0, paddingTop: '0.75rem' }}>
           <button className="btn-secondary" onClick={onClose}>Close</button>
           <button
             className="btn-primary"
@@ -3048,9 +3043,9 @@ const FileViewer = ({ file, onClose }) => {
   // PDF Viewer
   if (fileType === 'pdf') {
     return (
-      <div style={{ height: '92vh', width: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <ZoomControls />
-        <div style={{ flex: 1, overflow: 'auto', borderRadius: '8px' }}>
+        <div style={{ flex: 1, minHeight: 0, overflow: 'auto', borderRadius: '8px' }}>
           <iframe
             src={`${fileUrl}#zoom=${zoom}`}
             width="100%"
@@ -3071,9 +3066,9 @@ const FileViewer = ({ file, onClose }) => {
   // Image Viewer
   if (fileType === 'image') {
     return (
-      <div style={{ height: '85vh', width: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <ZoomControls />
-        <div style={{ flex: 1, overflow: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', borderRadius: '8px' }}>
+        <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', borderRadius: '8px' }}>
           <img
             src={fileUrl}
             alt={file.originalname || file.filename}
@@ -3097,7 +3092,7 @@ const FileViewer = ({ file, onClose }) => {
   // Text File Viewer
   if (fileType === 'text') {
     return (
-      <div style={{ height: '70vh', width: '100%', overflow: 'auto' }}>
+      <div style={{ height: '100%', width: '100%', minHeight: 0, overflow: 'auto' }}>
         <iframe
           src={fileUrl}
           width="100%"
@@ -3241,7 +3236,7 @@ const OfficeDocumentViewer = ({ file, fileUrl }) => {
   }
 
   return (
-    <div style={{ height: '70vh', width: '100%' }}>
+    <div style={{ height: '100%', width: '100%', minHeight: 0 }}>
       {isLoading && (
         <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
           <div style={{ marginBottom: '1rem' }}>Loading document preview...</div>
