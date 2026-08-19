@@ -70,25 +70,10 @@ const verifyTurnstileToken = async (token) => {
   }
 };
 
-// Requests originating from the machine running this process (127.0.0.1/::1) —
-// i.e. `node server.js` on localhost, not a request that merely arrived via a
-// proxy. Deployed hosts (Render, etc.) never see the real client on a loopback
-// address, so this can't be true there even if NODE_ENV is misconfigured.
-const LOOPBACK_ADDRESSES = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
-const isLocalhostRequest = (req) => {
-  const ip = req.socket?.remoteAddress || req.ip || '';
-  return LOOPBACK_ADDRESSES.has(ip);
-};
-
 // Rejects the request with 403 if the Turnstile token is missing/invalid.
 // Returns true (and has already sent the response) when the request was rejected,
 // so callers can `if (await rejectIfTurnstileInvalid(req, res)) return;`.
-// Skipped only for requests physically originating from localhost — this must
-// never apply to the deployed server, regardless of NODE_ENV.
 const rejectIfTurnstileInvalid = async (req, res) => {
-  if (isLocalhostRequest(req)) {
-    return false;
-  }
   const outcome = await verifyTurnstileToken(req.body?.turnstileToken);
   if (!outcome.success) {
     console.log('[turnstile] verification failed:', outcome['error-codes']);
