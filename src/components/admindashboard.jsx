@@ -823,6 +823,17 @@ const AdminDashboard = ({ onLogout }) => {
 
   const [notifCount, setNotifCount] = useState(0);
   const [studentProposalNewCount, setStudentProposalNewCount] = useState(0);
+  const [proposalsPagination, setProposalsPagination] = useState(null);
+  const [messagesPagination, setMessagesPagination] = useState(null);
+  const [mcrPagination, setMcrPagination] = useState(null);
+  const [manageUsersPagination, setManageUsersPagination] = useState(null);
+
+  useEffect(() => {
+    if (activeTab !== 'student-proposals') setProposalsPagination(null);
+    if (activeTab !== 'messages-inbox') setMessagesPagination(null);
+    if (activeTab !== 'mark-completed-review') setMcrPagination(null);
+    if (activeTab !== 'manage-users') setManageUsersPagination(null);
+  }, [activeTab]);
   const [uploadingPic, setUploadingPic] = useState(false);
   const [picError, setPicError] = useState('');
   const [picSuccess, setPicSuccess] = useState('');
@@ -1219,11 +1230,11 @@ const AdminDashboard = ({ onLogout }) => {
 
       case 'mark-completed-review':
 
-        return <MarkCompletedReviewContent />;
+        return <MarkCompletedReviewContent onPaginationChange={setMcrPagination} />;
 
       case 'student-proposals':
 
-        return <StudentProposalContent onNewCountChange={refreshStudentProposalNewCount} />;
+        return <StudentProposalContent onNewCountChange={refreshStudentProposalNewCount} onPaginationChange={setProposalsPagination} />;
 
       case 'message-researcher':
 
@@ -1245,7 +1256,7 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
-        return <ManageUsersContent />;
+        return <ManageUsersContent onPaginationChange={setManageUsersPagination} />;
 
 
 
@@ -1286,7 +1297,7 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
-        return <MessagesInboxContent onMessageRead={refreshMessageCount} />;
+        return <MessagesInboxContent onMessageRead={refreshMessageCount} onPaginationChange={setMessagesPagination} />;
 
 
 
@@ -1588,7 +1599,113 @@ const AdminDashboard = ({ onLogout }) => {
 
         </div>
 
+        {proposalsPagination && (
+          <div className="sp-pagination-floating">
+            <span className="sp-pagination-count">
+              Showing {proposalsPagination.pageCount} Proposal{proposalsPagination.pageCount !== 1 ? 's' : ''} of {proposalsPagination.pageSize}
+            </span>
+            <button
+              type="button"
+              className="sp-pagination-btn"
+              disabled={proposalsPagination.currentPage <= 1}
+              onClick={() => proposalsPagination.setCurrentPage((p) => Math.max(1, p - 1))}
+            >
+              ‹ Prev
+            </button>
+            <span className="sp-pagination-indicator">
+              Page <strong>{proposalsPagination.currentPage}</strong> of {proposalsPagination.totalPages}
+            </span>
+            <button
+              type="button"
+              className="sp-pagination-btn"
+              disabled={proposalsPagination.currentPage >= proposalsPagination.totalPages}
+              onClick={() => proposalsPagination.setCurrentPage((p) => Math.min(proposalsPagination.totalPages, p + 1))}
+            >
+              Next ›
+            </button>
+          </div>
+        )}
 
+        {messagesPagination && (
+          <div className="sp-pagination-floating">
+            <span className="sp-pagination-count">
+              Showing {messagesPagination.pageCount} Message{messagesPagination.pageCount !== 1 ? 's' : ''} of {messagesPagination.pageSize}
+            </span>
+            <button
+              type="button"
+              className="sp-pagination-btn"
+              disabled={messagesPagination.currentPage <= 1}
+              onClick={() => messagesPagination.setCurrentPage((p) => Math.max(1, p - 1))}
+            >
+              ‹ Prev
+            </button>
+            <span className="sp-pagination-indicator">
+              Page <strong>{messagesPagination.currentPage}</strong> of {messagesPagination.totalPages}
+            </span>
+            <button
+              type="button"
+              className="sp-pagination-btn"
+              disabled={messagesPagination.currentPage >= messagesPagination.totalPages}
+              onClick={() => messagesPagination.setCurrentPage((p) => Math.min(messagesPagination.totalPages, p + 1))}
+            >
+              Next ›
+            </button>
+          </div>
+        )}
+
+        {mcrPagination && (
+          <div className="sp-pagination-floating">
+            <span className="sp-pagination-count">
+              Showing {mcrPagination.pageCount} Assignment{mcrPagination.pageCount !== 1 ? 's' : ''} of {mcrPagination.pageSize}
+            </span>
+            <button
+              type="button"
+              className="sp-pagination-btn"
+              disabled={mcrPagination.currentPage <= 1}
+              onClick={() => mcrPagination.setCurrentPage((p) => Math.max(1, p - 1))}
+            >
+              ‹ Prev
+            </button>
+            <span className="sp-pagination-indicator">
+              Page <strong>{mcrPagination.currentPage}</strong> of {mcrPagination.totalPages}
+            </span>
+            <button
+              type="button"
+              className="sp-pagination-btn"
+              disabled={mcrPagination.currentPage >= mcrPagination.totalPages}
+              onClick={() => mcrPagination.setCurrentPage((p) => Math.min(mcrPagination.totalPages, p + 1))}
+            >
+              Next ›
+            </button>
+          </div>
+        )}
+
+        {manageUsersPagination && (
+          <div className="sp-pagination-floating">
+            <span className="sp-pagination-count">
+              Showing {manageUsersPagination.pageCount} {manageUsersPagination.label}{manageUsersPagination.pageCount !== 1 ? 's' : ''} of {manageUsersPagination.pageSize}
+            </span>
+            <button
+              type="button"
+              className="sp-pagination-btn"
+              disabled={manageUsersPagination.currentPage <= 1}
+              onClick={() => manageUsersPagination.setCurrentPage((p) => Math.max(1, p - 1))}
+            >
+              ‹ Prev
+            </button>
+            <span className="sp-pagination-indicator">
+              Page <strong>{manageUsersPagination.currentPage}</strong> of {manageUsersPagination.totalPages}
+            </span>
+            <button
+              type="button"
+              className="sp-pagination-btn"
+              disabled={manageUsersPagination.currentPage >= manageUsersPagination.totalPages}
+              onClick={() => manageUsersPagination.setCurrentPage((p) => Math.min(manageUsersPagination.totalPages, p + 1))}
+            >
+              Next ›
+            </button>
+          </div>
+        )}
 
       </main>
 
@@ -3120,7 +3237,7 @@ const getReviewerDisplayName = (reviewer) => {
 };
 
 // ── Student Proposal (admin assigns reviewers) ─────
-function StudentProposalContent({ onNewCountChange }) {
+function StudentProposalContent({ onNewCountChange, onPaginationChange }) {
   const [proposals, setProposals] = useState([]);
   const [reviewers, setReviewers] = useState([]);
   const [assignments, setAssignments] = useState([]);
@@ -3291,6 +3408,24 @@ function StudentProposalContent({ onNewCountChange }) {
     const start = (currentPage - 1) * SP_PAGE_SIZE;
     return filteredProposals.slice(start, start + SP_PAGE_SIZE);
   }, [filteredProposals, currentPage]);
+
+  useEffect(() => {
+    if (!onPaginationChange) return;
+    if (loading || filteredProposals.length === 0) {
+      onPaginationChange(null);
+      return;
+    }
+    onPaginationChange({
+      currentPage,
+      totalPages,
+      pageSize: SP_PAGE_SIZE,
+      pageCount: paginatedProposals.length,
+      total: filteredProposals.length,
+      setCurrentPage,
+    });
+  }, [onPaginationChange, loading, filteredProposals.length, paginatedProposals.length, currentPage, totalPages]);
+
+  useEffect(() => () => onPaginationChange?.(null), [onPaginationChange]);
 
   useEffect(() => {
     if (!filteredProposals.length) {
@@ -3805,30 +3940,6 @@ function StudentProposalContent({ onNewCountChange }) {
               })}
             </tbody>
           </table>
-
-          {totalPages > 1 && (
-            <div className="sp-pagination">
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </button>
-              <span className="sp-pagination-indicator">
-                Page {currentPage} of {totalPages}
-              </span>
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              >
-                Next
-              </button>
-            </div>
-          )}
         </div>
       )}
 
@@ -4539,7 +4650,7 @@ function StudentProposalContent({ onNewCountChange }) {
 };
 
 // ── Mark Completed Review ──────────────────────────────────────────────────
-const MarkCompletedReviewContent = () => {
+const MarkCompletedReviewContent = ({ onPaginationChange }) => {
   const [reviewerRows, setReviewerRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState({});
@@ -4903,6 +5014,41 @@ const MarkCompletedReviewContent = () => {
   const underReviewCount = totalCount - completedCount;
   const facultySelected = selectedFaculty !== '';
 
+  const MCR_PAGE_SIZE = 15;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(tableRows.length / MCR_PAGE_SIZE));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedFaculty, selectedReviewerKey]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * MCR_PAGE_SIZE;
+    return tableRows.slice(start, start + MCR_PAGE_SIZE);
+  }, [tableRows, currentPage]);
+
+  useEffect(() => {
+    if (!onPaginationChange) return;
+    if (loading || tableRows.length === 0) {
+      onPaginationChange(null);
+      return;
+    }
+    onPaginationChange({
+      currentPage,
+      totalPages,
+      pageSize: MCR_PAGE_SIZE,
+      pageCount: paginatedRows.length,
+      total: tableRows.length,
+      setCurrentPage,
+    });
+  }, [onPaginationChange, loading, tableRows.length, paginatedRows.length, currentPage, totalPages]);
+
+  useEffect(() => () => onPaginationChange?.(null), [onPaginationChange]);
+
   return (
     <div className="mcr-wrapper">
       <div className="mcr-header">
@@ -5041,7 +5187,8 @@ const MarkCompletedReviewContent = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {tableRows.map((row, idx) => {
+                    {paginatedRows.map((row, idx) => {
+                      const rowNumber = (currentPage - 1) * MCR_PAGE_SIZE + idx + 1;
                       const rowKey = getMcrRowKey(row);
                       const pStatus = getRowStatus(row);
                       const isDone = isMcrCompleted(pStatus);
@@ -5053,7 +5200,7 @@ const MarkCompletedReviewContent = () => {
                           key={`${reviewer.key}-${rowKey}-${idx}`}
                           className={`mcr-row ${idx % 2 === 1 ? 'mcr-row--alt' : ''} ${isDone ? 'mcr-row--done' : ''}`}
                         >
-                          <td className="mcr-td-num">{idx + 1}</td>
+                          <td className="mcr-td-num">{rowNumber}</td>
                           <td className="mcr-td-name" title={reviewer.name}>{reviewer.name}</td>
                           <td className="mcr-td-email" title={reviewer.reviewerEmail || reviewer.email}>{reviewer.reviewerEmail || reviewer.email}</td>
                           <td className="mcr-td-student" title={row.leader}>{row.leader || 'N/A'}</td>
@@ -7135,7 +7282,7 @@ function AdminProfileContent({
   );
 };
 
-const ManageUsersContent = () => {
+const ManageUsersContent = ({ onPaginationChange }) => {
 
 
 
@@ -7232,6 +7379,13 @@ const ManageUsersContent = () => {
   const [sortBy, setSortBy] = useState('name');
 
   const [sortOrder, setSortOrder] = useState('asc');
+
+  const MU_PAGE_SIZE = 15;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery, sortBy, sortOrder]);
 
 
 
@@ -7936,7 +8090,36 @@ const ManageUsersContent = () => {
 
   };
 
+  const paginatableType = activeTab === 'reviewers' ? 'reviewer' : activeTab === 'students' ? 'student' : null;
+  const paginatableSource = activeTab === 'reviewers' ? reviewers : activeTab === 'students' ? students : null;
+  const filteredActiveList = paginatableSource ? filterAndSortData(paginatableSource, paginatableType) : null;
+  const totalPages = filteredActiveList ? Math.max(1, Math.ceil(filteredActiveList.length / MU_PAGE_SIZE)) : 1;
+  const paginatedActiveList = filteredActiveList
+    ? filteredActiveList.slice((currentPage - 1) * MU_PAGE_SIZE, currentPage * MU_PAGE_SIZE)
+    : null;
 
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    if (!onPaginationChange) return;
+    if (loading || !filteredActiveList || filteredActiveList.length === 0) {
+      onPaginationChange(null);
+      return;
+    }
+    onPaginationChange({
+      currentPage,
+      totalPages,
+      pageSize: MU_PAGE_SIZE,
+      pageCount: paginatedActiveList.length,
+      total: filteredActiveList.length,
+      label: paginatableType === 'reviewer' ? 'Reviewer' : 'Researcher',
+      setCurrentPage,
+    });
+  }, [onPaginationChange, loading, filteredActiveList?.length, paginatedActiveList?.length, currentPage, totalPages, paginatableType]);
+
+  useEffect(() => () => onPaginationChange?.(null), [onPaginationChange]);
 
 
 
@@ -8078,7 +8261,8 @@ const ManageUsersContent = () => {
 
       case 'reviewers':
 
-        const filteredReviewers = filterAndSortData(reviewers, 'reviewer');
+        const filteredReviewers = filteredActiveList || [];
+        const paginatedReviewers = paginatedActiveList || [];
 
         return (
 
@@ -8230,7 +8414,7 @@ const ManageUsersContent = () => {
 
                 ) : (
 
-                  filteredReviewers.map((reviewer, index) => (
+                  paginatedReviewers.map((reviewer, index) => (
 
                     <tr key={index}>
 
@@ -8290,7 +8474,8 @@ const ManageUsersContent = () => {
 
       case 'students':
 
-        const filteredStudents = filterAndSortData(students, 'student');
+        const filteredStudents = filteredActiveList || [];
+        const paginatedStudents = paginatedActiveList || [];
 
         return (
 
@@ -8442,7 +8627,7 @@ const ManageUsersContent = () => {
 
                 ) : (
 
-                  filteredStudents.map((student, index) => (
+                  paginatedStudents.map((student, index) => (
 
                     <tr key={index}>
 
@@ -10740,7 +10925,7 @@ const ReviewsFileContent = () => {
 
 
 
-function MessagesInboxContent({ onMessageRead }) {
+function MessagesInboxContent({ onMessageRead, onPaginationChange }) {
 
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11037,6 +11222,41 @@ function MessagesInboxContent({ onMessageRead }) {
       return true;
     });
   }, [messages, searchQuery, selectedDepartment, selectedSenderType, selectedReviewer, selectedStudent, getMessageMetadata]);
+
+  const INBOX_PAGE_SIZE = 15;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filteredMessages.length / INBOX_PAGE_SIZE));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedDepartment, selectedSenderType, selectedReviewer, selectedStudent, submissionCategoryFilter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const paginatedMessages = useMemo(() => {
+    const start = (currentPage - 1) * INBOX_PAGE_SIZE;
+    return filteredMessages.slice(start, start + INBOX_PAGE_SIZE);
+  }, [filteredMessages, currentPage]);
+
+  useEffect(() => {
+    if (!onPaginationChange) return;
+    if (loading || filteredMessages.length === 0) {
+      onPaginationChange(null);
+      return;
+    }
+    onPaginationChange({
+      currentPage,
+      totalPages,
+      pageSize: INBOX_PAGE_SIZE,
+      pageCount: paginatedMessages.length,
+      total: filteredMessages.length,
+      setCurrentPage,
+    });
+  }, [onPaginationChange, loading, filteredMessages.length, paginatedMessages.length, currentPage, totalPages]);
+
+  useEffect(() => () => onPaginationChange?.(null), [onPaginationChange]);
 
   const formatInboxDate = (dateStr) => {
     const date = new Date(dateStr);
@@ -11546,7 +11766,7 @@ function MessagesInboxContent({ onMessageRead }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredMessages.map((message) => {
+                  {paginatedMessages.map((message) => {
                     const { type, name, department } = getMessageMetadata(message);
                     return (
                       <tr
