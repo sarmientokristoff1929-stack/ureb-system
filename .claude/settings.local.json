@@ -22,7 +22,8 @@
       "Bash(curl -s -i http://127.0.0.1:5001/api/view/whatever.docx?token=__TRACKED_VAR__)",
       "Bash(git fetch *)",
       "Bash(git checkout *)",
-      "Bash(npx --yes vite build --mode development)"
+      "Bash(npx --yes vite build --mode development)",
+      "Bash(powershell -Command \"Get-Process -Id 11092 | Select-Object Id,ProcessName,Path,StartTime\")"
     ]
   }
 }
