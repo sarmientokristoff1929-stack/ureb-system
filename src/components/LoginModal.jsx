@@ -3,6 +3,10 @@ import { API_BASE_URL } from '../services/api';
 import TurnstileWidget from './TurnstileWidget';
 import './LoginModal.css';
 
+// Skip the Turnstile widget entirely in local dev (`vite dev`) so localhost doesn't
+// require a Turnstile site key configured for the localhost domain.
+const TURNSTILE_ENABLED = !import.meta.env.DEV;
+
 const ShieldIcon = () => (
   <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -866,8 +870,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
                     <span>Remember me</span>
                   </label>
                 </div>
-                <TurnstileWidget onToken={setTurnstileToken} resetKey={turnstileResetKey} />
-                <button type="submit" className="login-btn-primary login-modal-submit" disabled={loginLoading || !turnstileToken}>
+                {TURNSTILE_ENABLED && <TurnstileWidget onToken={setTurnstileToken} resetKey={turnstileResetKey} />}
+                <button type="submit" className="login-btn-primary login-modal-submit" disabled={loginLoading || (TURNSTILE_ENABLED && !turnstileToken)}>
                   {loginLoading ? 'Signing in...' : 'Sign In'}
                 </button>
               </form>

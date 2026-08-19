@@ -73,7 +73,12 @@ const verifyTurnstileToken = async (token) => {
 // Rejects the request with 403 if the Turnstile token is missing/invalid.
 // Returns true (and has already sent the response) when the request was rejected,
 // so callers can `if (await rejectIfTurnstileInvalid(req, res)) return;`.
+// Skipped entirely in local dev (NODE_ENV=development) so localhost doesn't need a
+// working Turnstile site key — this must never apply in production.
 const rejectIfTurnstileInvalid = async (req, res) => {
+  if (process.env.NODE_ENV === 'development') {
+    return false;
+  }
   const outcome = await verifyTurnstileToken(req.body?.turnstileToken);
   if (!outcome.success) {
     console.log('[turnstile] verification failed:', outcome['error-codes']);
