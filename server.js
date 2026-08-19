@@ -39,6 +39,50 @@ app.get('/api/version', (req, res) => {
   res.json({ version: '2.0-gender-fix', genderSupport: true, timestamp: new Date().toISOString() });
 });
 
+// Cloudflare Turnstile verification (Login / Register bot protection).
+// Fails closed: a missing secret key or a failed/absent token both reject the request —
+// this endpoint never silently allows a request through unverified.
+const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+
+const verifyTurnstileToken = async (token) => {
+  if (!process.env.TURNSTILE_SECRET_KEY) {
+    console.error('[turnstile] TURNSTILE_SECRET_KEY is not configured — rejecting request');
+    return { success: false, 'error-codes': ['missing-secret-key'] };
+  }
+  if (!token) {
+    return { success: false, 'error-codes': ['missing-input-response'] };
+  }
+
+  try {
+    const params = new URLSearchParams();
+    params.append('secret', process.env.TURNSTILE_SECRET_KEY);
+    params.append('response', token);
+
+    const verifyRes = await fetch(TURNSTILE_VERIFY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params,
+    });
+    return await verifyRes.json();
+  } catch (error) {
+    console.error('[turnstile] siteverify request failed:', error);
+    return { success: false, 'error-codes': ['internal-error'] };
+  }
+};
+
+// Rejects the request with 403 if the Turnstile token is missing/invalid.
+// Returns true (and has already sent the response) when the request was rejected,
+// so callers can `if (await rejectIfTurnstileInvalid(req, res)) return;`.
+const rejectIfTurnstileInvalid = async (req, res) => {
+  const outcome = await verifyTurnstileToken(req.body?.turnstileToken);
+  if (!outcome.success) {
+    console.log('[turnstile] verification failed:', outcome['error-codes']);
+    res.status(403).json({ success: false, error: 'Security verification failed. Please complete the challenge and try again.' });
+    return true;
+  }
+  return false;
+};
+
 // MongoDB connection
 const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/ureb_system';
 let client;
@@ -956,6 +1000,8 @@ app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     console.log(`[AUTH] Login attempt for email: ${email}`);
 
+    if (await rejectIfTurnstileInvalid(req, res)) return;
+
     const db = getDatabase();
     const users = db.collection(collections.users);
     const students = db.collection(collections.students);
@@ -1151,6 +1197,8 @@ app.post('/api/auth/register', async (req, res) => {
     console.log('[DEBUG] Request body keys:', Object.keys(req.body));
     console.log('[DEBUG] Raw req.body.gender:', req.body.gender);
     console.log('[DEBUG] Server /api/auth/register - full req.body:', JSON.stringify(req.body, null, 2));
+
+    if (await rejectIfTurnstileInvalid(req, res)) return;
 
     const { firstName, middleName, lastName, suffix, sex, gender, researcherType, department, program, email, password, role } = req.body;
 

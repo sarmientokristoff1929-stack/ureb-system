@@ -3,14 +3,14 @@ const apiOrigin = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 export const API_BASE_URL = apiOrigin ? `${apiOrigin}/api` : '/api';
 
 // Authentication
-export const authenticateUser = async (email, password) => {
+export const authenticateUser = async (email, password, turnstileToken) => {
   try {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, turnstileToken }),
     });
 
     const data = await response.json();

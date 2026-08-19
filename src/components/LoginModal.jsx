@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { API_BASE_URL, authenticateUser } from '../services/api';
+import { API_BASE_URL } from '../services/api';
+import TurnstileWidget from './TurnstileWidget';
 import './LoginModal.css';
 
 const ShieldIcon = () => (
@@ -39,7 +40,7 @@ const PASSWORD_RULES = [
   { key: 'special', label: 'One special character (!@#$%^&* etc.)', test: (pw) => /[!@#$%^&*(),.?":{}|<>]/.test(pw) },
 ];
 
-const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
+const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -80,6 +81,15 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const pendingRegistrationRef = useRef(null);
   const rightPanelRef = useRef(null);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
+
+  // Cloudflare Turnstile — one shared widget slot, since the login and
+  // registration forms are mutually exclusive (only one is ever mounted).
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
+  const resetTurnstile = () => {
+    setTurnstileToken('');
+    setTurnstileResetKey((k) => k + 1);
+  };
 
   const checkRightPanelScroll = () => {
     if (rightPanelRef.current) {
@@ -307,6 +317,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     setPrivacyChecked(false);
     setPendingAuthResult(null);
     pendingRegistrationRef.current = null;
+    setTurnstileToken('');
+    setTurnstileResetKey((k) => k + 1);
   };
 
   const handleLoginSubmit = async (e) => {
@@ -316,7 +328,10 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
     setLoginLoading(true);
 
     try {
-      const result = await authenticateUser(email, password);
+      // Single network call — carries the (single-use) Turnstile token. The
+      // result is reused below both to decide role-based routing and, once
+      // accepted, to commit the session, so we never re-verify the same token.
+      const result = await onLogin(email, password, turnstileToken);
 
       if (result.success) {
         // For students, check if account is disabled
@@ -342,52 +357,37 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
         const isReviewer = result.user?.role?.toLowerCase() === 'reviewer';
         if (isAdmin || isReviewer) {
           // Exclude admin and reviewer from data and privacy act modal - proceed directly to login
-          const loginResult = await onLogin(email, password);
-          if (loginResult.success) {
-            resetForm();
-            onClose();
-          } else {
-            setError(loginResult.error || 'Login failed');
-            setLoginErrorField(loginResult.field || null);
-          }
+          onCommitLogin(result.user);
+          resetForm();
+          onClose();
         } else {
           setPendingAuthResult(result);
           setShowPrivacyStep(true);
         }
       } else if (result.error === 'disabled') {
         setShowDisabledModal(true);
+        resetTurnstile();
       } else {
         setError(result.error || 'Invalid email or password');
         setLoginErrorField(result.field || null);
+        resetTurnstile();
       }
     } catch (err) {
       console.error('Login submit error:', err);
       setError('An error occurred during sign in');
+      resetTurnstile();
     } finally {
       setLoginLoading(false);
     }
   };
 
-  const handleAcceptAndProceedLogin = async () => {
-    if (!privacyChecked) return;
-    setLoginLoading(true);
-    try {
-      const result = await onLogin(email, password);
-      if (result.success) {
-        resetForm();
-        onClose();
-      } else {
-        setError(result.error || 'Login failed');
-        setLoginErrorField(result.field || null);
-        setShowPrivacyStep(false);
-      }
-    } catch (err) {
-      console.error('Final login error:', err);
-      setError('An error occurred during sign in');
-      setShowPrivacyStep(false);
-    } finally {
-      setLoginLoading(false);
-    }
+  const handleAcceptAndProceedLogin = () => {
+    if (!privacyChecked || !pendingAuthResult?.user) return;
+    // The credentials + Turnstile token were already verified in handleLoginSubmit's
+    // single call — this just applies the session now that privacy terms are accepted.
+    onCommitLogin(pendingAuthResult.user);
+    resetForm();
+    onClose();
   };
 
   const handleRegisterSubmit = async (e) => {
@@ -432,7 +432,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       program: (affiliationType === 'Institution/Agency' || affiliationType === 'Institution' || affiliationType === 'Agency') ? 'N/A' : program,
       email: regGmail,  // Changed from gmail to email
       password: regPassword,
-      role: 'student'
+      role: 'student',
+      turnstileToken
     };
 
     console.log('[DEBUG] Registration - userData:', { ...userData, password: '[HIDDEN]' });
@@ -467,6 +468,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
         setConfirmPassword('');
         setPasswordError('');
         setPasswordTouched(false);
+        setTurnstileToken('');
+        setTurnstileResetKey((k) => k + 1);
 
         setTimeout(() => {
           setShowSuccessModal(false);
@@ -476,10 +479,12 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
         }, 3000);
       } else {
         setError(result.error || 'Registration failed');
+        resetTurnstile();
       }
     } catch (err) {
       console.error('Registration error:', err);
       setError('Registration failed. Please try again.');
+      resetTurnstile();
     } finally {
       setRegisterLoading(false);
     }
@@ -779,7 +784,9 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                     </div>
                   </div>
 
-                  <button type="submit" className="login-btn-primary login-modal-submit" disabled={registerLoading}>
+                  <TurnstileWidget onToken={setTurnstileToken} resetKey={turnstileResetKey} />
+
+                  <button type="submit" className="login-btn-primary login-modal-submit" disabled={registerLoading || !turnstileToken}>
                     {registerLoading ? 'Creating account…' : 'Create Account'}
                   </button>
                 </form>
@@ -867,7 +874,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                     <span>Remember me</span>
                   </label>
                 </div>
-                <button type="submit" className="login-btn-primary login-modal-submit" disabled={loginLoading}>
+                <TurnstileWidget onToken={setTurnstileToken} resetKey={turnstileResetKey} />
+                <button type="submit" className="login-btn-primary login-modal-submit" disabled={loginLoading || !turnstileToken}>
                   {loginLoading ? 'Signing in...' : 'Sign In'}
                 </button>
               </form>

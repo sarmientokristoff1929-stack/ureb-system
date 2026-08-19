@@ -683,7 +683,7 @@ const ThankYouModal = ({ isOpen, onClose }) => {
   );
 };
 
-const LandingPage = ({ onLogin, onRegister }) => {
+const LandingPage = ({ onLogin, onRegister, onCommitLogin }) => {
   useScrollReveal();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
@@ -723,7 +723,7 @@ const LandingPage = ({ onLogin, onRegister }) => {
         <Contact onMessageClick={openMessageModal} />
       </main>
       <Footer onTermsClick={openTermsModal} onPrivacyClick={openPrivacyModal} onFeedbackClick={openFeedbackModal} onHelpClick={openHelpModal} />
-      <LoginModal isOpen={isLoginModalOpen} onClose={closeLoginModal} onLogin={onLogin} onRegister={onRegister} />
+      <LoginModal isOpen={isLoginModalOpen} onClose={closeLoginModal} onLogin={onLogin} onRegister={onRegister} onCommitLogin={onCommitLogin} />
       <MessageModal isOpen={isMessageModalOpen} onClose={closeMessageModal} setIsSuccessModalOpen={setIsSuccessModalOpen} />
       <ThankYouModal isOpen={isSuccessModalOpen} onClose={closeThankYouModal} />
       <TermsModal isOpen={isTermsModalOpen} onClose={closeTermsModal} />

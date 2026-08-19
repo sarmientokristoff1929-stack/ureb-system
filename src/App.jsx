@@ -111,58 +111,49 @@ function App() {
     setTimeout(checkAuth, 100);
   }, []);
 
-  const handleLogin = async (email, password) => {
+  // Verifies credentials + the (single-use) Turnstile token with the backend.
+  // Does NOT commit any session state — LoginModal may need to show the privacy
+  // consent step first (students) before the session is actually applied via
+  // commitLogin below. This keeps the login endpoint called exactly once per
+  // attempt, since a Turnstile token can only be verified successfully once.
+  const handleLogin = async (email, password, turnstileToken) => {
     try {
-      const result = await authenticateUser(email, password);
+      const result = await authenticateUser(email, password, turnstileToken);
       if (result.success) {
-        // For students, check if account is disabled before allowing login
-        if (result.user.role === 'student') {
-          try {
-            const studentsRes = await fetch(`${API_BASE_URL}/students`);
-            if (studentsRes.ok) {
-              const students = await studentsRes.json();
-              const studentRecord = Array.isArray(students)
-                ? students.find(s => s.email === email)
-                : null;
-              if (studentRecord?.disabled === true) {
-                return { success: false, error: 'disabled' };
-              }
-            }
-          } catch {
-            // If check fails, proceed with login
-          }
-        }
-
-        setIsAuthenticated(true);
-        setUserRole(result.user.role);
-        setPrivacyAccepted(false); // Must Accept & Proceed before entering dashboard
-
-        // Persist the session. Researcher (student) logins go to
-        // sessionStorage only, so they never leak into a new tab or a
-        // pasted URL; admin/reviewer keep the persistent localStorage session.
-        const storage = getAuthStorage(result.user.role);
-        storage.setItem('ureb_auth', 'true');
-        storage.setItem('ureb_role', result.user.role);
-        storage.setItem('ureb_user', JSON.stringify(result.user));
-        if (result.user.role === 'student') {
-          storage.setItem('ureb_last_activity', Date.now().toString());
-        }
-
-        // Dispatch custom event to notify components of user change
-        window.dispatchEvent(new CustomEvent('userChanged', {
-          detail: { action: 'login', user: result.user }
-        }));
-
-        return { success: true };
-      } else {
-        // Return error message to be displayed in modal
-        return { success: false, error: result.error || 'Login failed', field: result.field };
+        return { success: true, user: result.user };
       }
+      // Return error message to be displayed in modal
+      return { success: false, error: result.error || 'Login failed', field: result.field };
     } catch (error) {
       console.error('Login error:', error);
       // Return error message to be displayed in modal
       return { success: false, error: 'Login failed. Please try again.' };
     }
+  }
+
+  // Applies an already-verified login result to app state. No network call —
+  // called once handleLogin has succeeded (and, for students, once the privacy
+  // step has been accepted).
+  const commitLogin = (user) => {
+    setIsAuthenticated(true);
+    setUserRole(user.role);
+    setPrivacyAccepted(false); // Must Accept & Proceed before entering dashboard
+
+    // Persist the session. Researcher (student) logins go to
+    // sessionStorage only, so they never leak into a new tab or a
+    // pasted URL; admin/reviewer keep the persistent localStorage session.
+    const storage = getAuthStorage(user.role);
+    storage.setItem('ureb_auth', 'true');
+    storage.setItem('ureb_role', user.role);
+    storage.setItem('ureb_user', JSON.stringify(user));
+    if (user.role === 'student') {
+      storage.setItem('ureb_last_activity', Date.now().toString());
+    }
+
+    // Dispatch custom event to notify components of user change
+    window.dispatchEvent(new CustomEvent('userChanged', {
+      detail: { action: 'login', user }
+    }));
   }
 
   const handleRegister = async (registrationData) => {
@@ -347,7 +338,7 @@ function App() {
           <ReviewerDashboard onLogout={handleLogout} />
         )
       ) : (
-        <LandingPage onLogin={handleLogin} onRegister={handleRegister} />
+        <LandingPage onLogin={handleLogin} onRegister={handleRegister} onCommitLogin={commitLogin} />
       )}
       <SessionExpiryModal isOpen={showSessionExpiredModal} onClose={handleCloseSessionExpiredModal} />
     </>
