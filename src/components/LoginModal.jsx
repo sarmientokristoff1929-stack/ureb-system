@@ -78,6 +78,24 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [checkingGmail, setCheckingGmail] = useState(false);
   const debounceTimer = useRef(null);
   const pendingRegistrationRef = useRef(null);
+  const rightPanelRef = useRef(null);
+  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
+
+  const checkRightPanelScroll = () => {
+    if (rightPanelRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = rightPanelRef.current;
+      setShowScrollIndicator(scrollHeight - scrollTop - clientHeight > 30);
+    }
+  };
+
+  useEffect(() => {
+    if (isRegistering && showRegistrationForm) {
+      const timer = setTimeout(checkRightPanelScroll, 100);
+      return () => clearTimeout(timer);
+    } else {
+      setShowScrollIndicator(false);
+    }
+  }, [isRegistering, showRegistrationForm, researcherType, affiliationType, passwordFocused]);
 
   // Institutional / Email validation function
   const validateGmail = (email) => {
@@ -500,7 +518,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
             <h2>{isRegistering ? 'Create Account' : 'Welcome to'}</h2>
             <img src="/ureb.png" alt="UREB Logo" style={{ width: '100%', maxWidth: '320px', objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.25))' }} />
           </div>
-          <div className="login-modal-right">
+          <div className="login-modal-right" ref={rightPanelRef} onScroll={checkRightPanelScroll}>
             {isRegistering ? (
               showRegistrationForm ? (
                 <form className="login-modal-form" onSubmit={handleRegisterSubmit}>
@@ -862,6 +880,24 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
                 </button>
               </p>
             </div>
+
+            {showScrollIndicator && (
+              <button
+                type="button"
+                className="login-scroll-indicator"
+                title="Scroll down to see more"
+                onClick={() => {
+                  if (rightPanelRef.current) {
+                    rightPanelRef.current.scrollBy({ top: 250, behavior: 'smooth' });
+                  }
+                }}
+              >
+                <span>Scroll down</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14M19 12l-7 7-7-7" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </div>      {/* Data Privacy & Protection Commitment White Modal Popup */}

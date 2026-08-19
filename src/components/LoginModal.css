@@ -130,6 +130,44 @@
   display: none;
 }
 
+.login-scroll-indicator {
+  position: sticky;
+  bottom: 0.35rem;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 1rem auto 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #0f172a;
+  color: #ffffff;
+  border: 1px solid #334155;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.35);
+  z-index: 50;
+  animation: loginScrollBounce 1.6s infinite ease-in-out;
+  transition: all 0.2s ease;
+}
+
+.login-scroll-indicator:hover {
+  background: #1e293b;
+  border-color: #3b82f6;
+  color: #60a5fa;
+}
+
+@keyframes loginScrollBounce {
+  0%, 100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(5px);
+  }
+}
+
 .login-modal-form {
   display: flex;
   flex-direction: column;
