@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import LoginModal from './LoginModal';
 import TermsModal from './TermsModal';
 import PrivacyModal from './PrivacyModal';
@@ -271,64 +272,116 @@ const Services = () => {
   );
 };
 
+const PARTICLE_COLOR = '122, 158, 126';
+const PARTICLE_LINK_DISTANCE = 130;
+
+const ParticleNetwork = () => {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const container = canvas?.parentElement;
+    if (!canvas || !container) return;
+
+    const ctx = canvas.getContext('2d');
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    let width = 0;
+    let height = 0;
+    let particles = [];
+    let animationId = null;
+
+    const createParticles = () => {
+      const count = Math.max(24, Math.min(70, Math.floor((width * height) / 9000)));
+      particles = Array.from({ length: count }, () => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.35,
+        vy: (Math.random() - 0.5) * 0.35,
+        r: Math.random() * 1.6 + 1.2,
+      }));
+    };
+
+    const resize = () => {
+      width = container.clientWidth;
+      height = container.clientHeight;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      createParticles();
+    };
+
+    const step = () => {
+      ctx.clearRect(0, 0, width, height);
+
+      particles.forEach((p) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x <= 0 || p.x >= width) p.vx *= -1;
+        if (p.y <= 0 || p.y >= height) p.vy *= -1;
+        p.x = Math.max(0, Math.min(width, p.x));
+        p.y = Math.max(0, Math.min(height, p.y));
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${PARTICLE_COLOR}, 0.8)`;
+        ctx.fill();
+      });
+
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const a = particles[i];
+          const b = particles[j];
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < PARTICLE_LINK_DISTANCE) {
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.strokeStyle = `rgba(${PARTICLE_COLOR}, ${(1 - dist / PARTICLE_LINK_DISTANCE) * 0.55})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+        }
+      }
+
+      if (!prefersReducedMotion) {
+        animationId = requestAnimationFrame(step);
+      }
+    };
+
+    resize();
+    step();
+
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(container);
+
+    return () => {
+      if (animationId) cancelAnimationFrame(animationId);
+      resizeObserver.disconnect();
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="about-particles" aria-hidden="true" />;
+};
+
 const About = () => {
-  const [selectedMember, setSelectedMember] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isOrgChartOpen, setIsOrgChartOpen] = useState(false);
 
-  const team = [
-    {
-      name: 'Dr. Jeralyn N. Hemillan',
-      role: 'UREB Director',
-      description: 'Leads and oversees the operations of UREB, ensuring ethical compliance, effective research review processes, and the promotion of responsible research practices within the institution.',
-      image: '/Dr.%20Gera.png'
-    },
-    {
-      name: 'Mary Grace Obenza',
-      role: 'UREB Technical Assistant',
-      description: 'Manages the submission, review, and documentation of graduate research proposals, ensuring adherence to research policies, academic standards, and institutional requirements.',
-      image: '/Ms.Obenza.png'
-    },
-    {
-      name: 'Mary Cris Decena',
-      role: 'UREB Technical Assistant',
-      description: 'Manages the submission, review, and documentation of undergraduate research proposals, ensuring compliance with institutional research policies and procedures.',
-      image: '/Ms.Cris.png'
-    },
-    {
-      name: 'Ermelyn Padalapat',
-      role: 'Web Designer',
-      subtext: 'Intern',
-      description: 'Creates graphic designs and system interfaces, developing visual assets, layouts, and user-centered designs that enhance the system functionality and appearance.',
-      image: '/Ermelyn.png'
-    },
-    {
-      name: 'Kristofer John Sarmiento',
-      role: 'System Developer',
-      subtext: 'Intern',
-      description: 'Created the initial version of the system, designing its core structure, features, and functionality that served as the foundation for subsequent development.',
-      image: '/Kristoff.png'
-    },
-    {
-      name: 'Rozel Candado',
-      role: 'Technical Support/System Enhancer',
-      subtext: 'Intern',
-      description: 'Providing essential troubleshooting and user support to ensure reliable platform operations.',
-      image: '/rozel.jpg'
+  useEffect(() => {
+    if (isOrgChartOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = ''; };
     }
-  ];
-
-  const handleMemberClick = (member) => {
-    setSelectedMember(member);
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setSelectedMember(null);
-    setIsModalOpen(false);
-  };
+  }, [isOrgChartOpen]);
 
   return (
     <section id="about" className="about reveal-on-scroll">
+      <ParticleNetwork />
       <div className="section-container">
         <div className="section-header">
           <span className="section-badge">Our Team</span>
@@ -337,32 +390,40 @@ const About = () => {
             Dedicated professionals committed to ethical research excellence
           </p>
         </div>
-        <div className="team-slider-container">
-          <div className="team-slider">
-            {[...team, ...team].map((member, index) => (
-              <div key={index} className="team-card">
-                <div className="team-avatar" onClick={() => handleMemberClick(member)} style={{ cursor: 'pointer' }}>
-                  {member.image ? (
-                    <img src={member.image} alt={member.name} className="team-image" />
-                  ) : (
-                    <div className="avatar-placeholder">
-                      {member.name.split(' ').map(n => n[0]).join('')}
-                    </div>
-                  )}
-                </div>
-                <div className="team-info">
-                  <h3 className="team-name">{member.name}</h3>
-                  <span className="team-role">{member.role}</span>
-                  {member.subtext && (
-                    <span className="team-subtext">{member.subtext}</span>
-                  )}
-                  <p className="team-description">{member.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="orgchart-trigger-wrap">
+          <button
+            type="button"
+            className="orgchart-trigger"
+            onClick={() => setIsOrgChartOpen(true)}
+          >
+            <UsersIcon />
+            <span>View Organizational Chart</span>
+          </button>
         </div>
       </div>
+
+      {isOrgChartOpen && createPortal(
+        <div
+          className="orgchart-modal-overlay"
+          onClick={(e) => e.target === e.currentTarget && setIsOrgChartOpen(false)}
+        >
+          <button
+            className="orgchart-modal-close"
+            onClick={() => setIsOrgChartOpen(false)}
+            aria-label="Close organizational chart"
+          >
+            <XIcon />
+          </button>
+          <div className="orgchart-modal-container">
+            <img
+              src="/ORGCHART.png"
+              alt="UREB Organizational Chart"
+              className="orgchart-modal-image"
+            />
+          </div>
+        </div>,
+        document.body
+      )}
     </section>
   );
 };

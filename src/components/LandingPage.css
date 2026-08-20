@@ -452,8 +452,23 @@
 
 /* About Section */
 .about {
+  position: relative;
+  overflow: hidden;
   padding: 6rem 0;
   background: linear-gradient(135deg, var(--nude-green) 0%, var(--white) 100%);
+}
+
+.about .section-container {
+  position: relative;
+  z-index: 1;
+}
+
+.about-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  pointer-events: none;
 }
 
 .team-slider-container {
@@ -592,6 +607,134 @@
   margin-top: 3rem;
   padding-top: 3rem;
   border-top: 1px solid var(--soft-green);
+}
+
+.orgchart-trigger-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.orgchart-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: transparent;
+  color: var(--dark-green);
+  padding: 0.7rem 1.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+  border: 1.5px solid var(--soft-green);
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.orgchart-trigger svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+.orgchart-trigger:hover {
+  background: var(--pale-green);
+  border-color: var(--primary-green);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(122, 158, 126, 0.18);
+}
+
+@keyframes orgchartOverlayIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+
+  to {
+    opacity: 1;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+}
+
+@keyframes orgchartPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.orgchart-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 18, 12, 0.6);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem;
+  z-index: 3000;
+  animation: orgchartOverlayIn 0.3s ease;
+}
+
+.orgchart-modal-container {
+  position: relative;
+  width: min(96vw, 1400px);
+  max-height: 92vh;
+  display: flex;
+  animation: orgchartPopIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.orgchart-modal-close {
+  position: fixed;
+  top: 1.75rem;
+  right: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 3001;
+}
+
+.orgchart-modal-close svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
+}
+
+.orgchart-modal-close:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.06);
+}
+
+.orgchart-modal-close:active {
+  transform: scale(0.96);
+}
+
+.orgchart-modal-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 92vh;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
 }
 
 /* Process Section */

@@ -183,73 +183,79 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
       'Master of Science in Environmental Science',
       'Master of Business Administration'
     ],
-    'FNAS': [
-      'Bachelor of Science in Nursing'
-    ],
     'FTED': [
-      'Bachelor of Secondary Education',
-      'Bachelor of Secondary Education major in Filipino',
-      'Bachelor of Secondary Education major in English',
-      'Bachelor of Secondary Education major in Science',
-      'Bachelor of Secondary Education major in Mathematics',
-      'Bachelor of Technology and Livelihood Education major in Industrial Arts',
-      'Bachelor of Technology and Livelihood Education major in Home Economics',
-      'Bachelor of Early Education',
-      'Bachelor of Physical Education',
       'Bachelor of Special Needs Education',
-      'Bachelor of Elementary Education'
+      'Bachelor of Early Childhood Education',
+      'Bachelor of Elementary Education',
+      'Bachelor of Physical Education',
+      'Bachelor of Secondary Education – Major in Science',
+      'Bachelor of Secondary Education – Major in Mathematics',
+      'Bachelor of Secondary Education – Major in English',
+      'Bachelor of Secondary Education – Major in Filipino',
+      'Bachelor of Technology and Livelihood Education – Major in Home Economics',
+      'Bachelor of Technology and Livelihood Education – Major in Industrial Arts'
     ],
     'FBM': [
-      'Bachelor of Science in Business Administration'
+      'Bachelor of Science in Business Administration',
+      'Bachelor of Science in Hospitality Management'
     ],
     'FALS': [
       'Bachelor of Science in Environmental Science',
-      'Bachelor of Science in Biology',
-      'Bachelor of Science in Business Management',
-      'Bachelor of Science in Agriculture',
+      'Bachelor of Science in Agriculture – Major in Animal Science',
+      'Bachelor of Science in Agriculture – Major in Crop Science',
+      'Bachelor of Science in Biology – Major in Ecology',
+      'Bachelor of Science in Biology – Major in Animal Biology',
+      'Bachelor of Science in Agribusiness Management'
     ],
     'FCJE': [
       'Bachelor of Science in Criminilogy'
     ],
     'FACET': [
+      'Bachelor in Industrial Technology Management',
       'Bachelor of Science in Information Technology',
-      'Bachelor of Science in Engineering',
-      'Bachelor of Science in Industrial Technology Management',
+      'Bachelor of Science in Civil Engineering',
+      'Bachelor of Science in Mathematics',
       'Bachelor of Science in Mathematics with Research Statistics'
     ],
     'FHUSOCOM': [
-      'Bachelor of Science in Developmental Education',
-      'Bachelor of Science in Psychology',
-      'Bachelor of Science in Political Science'
+      'Bachelor of Science in Development Communication',
+      'Bachelor of Science in Political Science',
+      'Bachelor of Science in Psychology'
     ],
     'SIEC': [
-      'Bachelor of Science in Agriculture',
-      'Bachelor of Science in Business Administration',
+      'Bachelor of Science in Agriculture – Major in Crop Science',
       'Bachelor of Science in Criminology',
-      'Bachelor of Elementary Education'
+      'Bachelor of Elementary Education',
+      'Bachelor of Science in Business Administration'
     ],
     'BEC': [
-      'Bachelor of Science in Agriculture',
+      'Bachelor of Science in Business Administration – Major in Financial Management',
       'Bachelor of Science in Information Technology',
-      'Bachelor of Science in Business Administration',
-      'Bachelor of Technology and Livelihood Education'
+      'Bachelor of Technology and Livelihood Education – Major in Home Economics',
+      'Bachelor of Science in Agriculture – Major in Crop Science'
     ],
     'CEC': [
-      'Bachelor of Science in Agriculture',
+      'Bachelor of Elementary Education',
+      'Bachelor of Science in Agriculture – Major in Animal Science',
       'Bachelor of Science in Agribusiness Management',
       'Bachelor of Science in Business Administration',
-      'Bachelor of Science in Criminology',
-      'Bachelor of Elementary Education'
+      'Bachelor of Science in Criminology'
     ],
     'BGEC': [
-      'Bachelor of Science in Agriculture',
-      'Bachelor of Science in Agribusiness Management',
       'Bachelor of Science in Environmental Science',
-      'Bachelor of Science in Information Technology'
+      'Bachelor of Science in Mathematics',
+      'Bachelor of Science in Agribusiness Management',
+      'Bachelor of Science in Agriculture – Major in Animal Science',
+      'Bachelor of Science in Information Technology',
+      'Bachelor of Science in Hospitality Management'
     ],
     'TEC': [
-      'Bachelor of Science Agriculture',
-      'Bachelor of Science in Agribusiness Management '
+      'Bachelor of Elementary Education',
+      'Bachelor of Science in Agribusiness Management',
+      'Bachelor of Science in Agriculture – Major in Animal Science'
+    ],
+    'FNAHS': [
+      'Bachelor of Science in Nursing'
     ],
     'NSTP': ['National Service Training Program'],
     'ICS': ['Indigenous Community Studies'],
@@ -649,7 +655,6 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
                           <option value="FTED">FTED - Faculty of Teacher Education</option>
                           <option value="FBM">FBM - Faculty of Business and Management</option>
                           <option value="FALS">FALS - Faculty of Agriculture and Life Sciences</option>
-                          <option value="FNAS">FNAS - Faculty of Nursing and Allied Health Science</option>
                           <option value="FCJE">FCJE - Faculty of Criminology Justice Education</option>
                           <option value="FACET">FACET - Faculty of Computing, Engineering, Technology</option>
                           <option value="FHUSOCOM">FHUSOCOM - Faculty of Humanities, Social Science & Communication</option>
