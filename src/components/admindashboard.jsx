@@ -8750,7 +8750,7 @@ const ManageUsersContent = ({ onPaginationChange }) => {
 
         <div className="modal-overlay">
 
-          <div className="modal-container">
+          <div className="modal-container edit-user-modal">
 
             <div className="modal-header">
 
@@ -8768,511 +8768,650 @@ const ManageUsersContent = ({ onPaginationChange }) => {
 
             <form onSubmit={handleEditSubmit} className="admin-form">
 
-              <div className="form-group">
-
-                <label>First Name</label>
-
-                <input
-
-                  type="text"
-
-                  name="firstName"
-
-                  value={editFormData.firstName || ''}
-
-                  onChange={handleEditInputChange}
-
-                  required
-
-                />
-
-              </div>
-
-
-
-              <div className="form-group">
-
-                <label>Middle Name (optional)</label>
-
-                <input
-
-                  type="text"
-
-                  name="middleName"
-
-                  value={editFormData.middleName || ''}
-
-                  onChange={handleEditInputChange}
-
-                />
-
-              </div>
-
-
-
-              <div className="form-group">
-
-                <label>Last Name</label>
-
-                <input
-
-                  type="text"
-
-                  name="lastName"
-
-                  value={editFormData.lastName || ''}
-
-                  onChange={handleEditInputChange}
-
-                  required
-
-                />
-
-              </div>
-
-
-
-              <div className="form-group">
-
-                <label>Suffix (optional)</label>
-
-                <select
-
-                  name="suffix"
-
-                  value={editFormData.suffix || ''}
-
-                  onChange={handleEditInputChange}
-
-                >
-
-                  <option value="">None</option>
-
-                  <option value="Jr.">Jr.</option>
-
-                  <option value="Sr.">Sr.</option>
-
-                  <option value="II">II</option>
-
-                  <option value="III">III</option>
-
-                  <option value="IV">IV</option>
-
-                  <option value="V">V</option>
-
-                  <option value="VI">VI</option>
-
-                  <option value="Ph.D.">Ph.D.</option>
-
-                  <option value="Ed.D.">Ed.D.</option>
-
-                  <option value="M.D.">M.D.</option>
-
-                  <option value="M.S.">M.S.</option>
-
-                  <option value="M.A.">M.A.</option>
-
-                  <option value="CPA">CPA</option>
-
-                  <option value="Engr.">Engr.</option>
-
-                  <option value="RN">RN</option>
-
-                  <option value="LPT">LPT</option>
-
-                </select>
-
-              </div>
-
-
-
-              {editingUser?.userType === 'reviewer' && (
-                <>
-                  <div className="form-group">
-
-                    <label>Title (optional)</label>
-
-                    <select
-
-                      name="title"
-
-                      value={editFormData.title || ''}
-
-                      onChange={handleEditInputChange}
-
-                    >
-
-                      <option value="">None</option>
-
-                      <option value="Doctor">Doctor (Dr.)</option>
-
-                      <option value="Engineer">Engineer (Engr.)</option>
-
-                      <option value="Professor">Professor (Prof.)</option>
-
-                      <option value="RN">RN</option>
-
-                      <option value="LPT">LPT</option>
-
-                      <option value="MSN">MSN</option>
-
-                      <option value="RN/LPT">RN/LPT</option>
-
-                      <option value="RN/MSN">RN/MSN</option>
-
-                      <option value="MIT">MIT</option>
-
-                      <option value="DBM">DBM</option>
-
-                    </select>
-
-                  </div>
-
-                  <div className="form-group">
-
-                    <label>Sex</label>
-
-                    <select
-
-                      name="gender"
-
-                      value={editFormData.sex || editFormData.gender || ''}
-
-                      onChange={handleEditInputChange}
-
-                    >
-
-                      <option value="">Select Sex</option>
-
-                      <option value="Male">Male</option>
-
-                      <option value="Female">Female</option>
-
-                    </select>
-
-                  </div>
-
-                </>
-              )}
-
-
-
-
-              {editingUser?.userType === 'student' && (
-                <>
-                  <div className="form-group">
-
-                    <label>Sex</label>
-
-                    <select
-
-                      name="gender"
-
-                      value={editFormData.sex || editFormData.gender || ''}
-
-                      onChange={handleEditInputChange}
-
-                    >
-
-                      <option value="">Select Sex</option>
-
-                      <option value="Male">Male</option>
-
-                      <option value="Female">Female</option>
-
-                    </select>
-
-                  </div>
-
-                  <div className="form-group">
-
-                    <label>Researcher Type</label>
-
-                    <select
-
-                      name="researcherType"
-
-                      value={editFormData.researcherType || ''}
-
-                      onChange={handleEditResearcherTypeChange}
-
-                    >
-
-                      <option value="">Select Researcher Type</option>
-
-                      <option value="Faculty Researcher">Faculty Researcher</option>
-
-                      <option value="Staff Researcher">Staff Researcher</option>
-
-                      <option value="External Researcher">External Researcher</option>
-
-                      <option value="Student Researcher">Student Researcher</option>
-
-                    </select>
-
-                  </div>
-                </>
-              )}
-              <div className="form-group">
-
-                <label>Email Address</label>
-
-                <input
-
-                  type="email"
-
-                  name="email"
-
-                  value={editFormData.email || ''}
-
-                  onChange={handleEditInputChange}
-
-                  required
-
-                />
-
-              </div>
-
-
-
-              <div className="form-group">
-
-                <label>
-                  {(editFormData.affiliationType === 'Institution/Agency' || editFormData.affiliationType === 'Institution' || editFormData.affiliationType === 'Agency' || editFormData.department === 'Institution/Agency')
-                    ? 'Institution / Agency'
-                    : 'Faculty'}
-                </label>
-
-                <select
-
-                  name="department"
-
-                  value={editFormData.department || ''}
-
-                  onChange={handleEditInputChange}
-
-                  disabled={editFormData.researcherType === 'External Researcher'}
-
-                  required
-
-                >
-
-                  <option value="">Select Faculty</option>
-
-                  <option value="Institution/Agency">Institution/Agency</option>
-
-                  <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
-
-                  <option value="FTED">FTED- Faculty of Teacher Education</option>
-
-                  <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
-
-                  <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
-
-                  <option value="FBM">FBM-Faculty of Business Management</option>
-
-                  <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
-
-                  <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
-
-                  <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
-
-                  <option value="SIEC">SIEC- San Isidro Extension Campus</option>
-
-                  <option value="BEC">BEC-BanayBanay Extension Campus</option>
-
-                  <option value="CEC">CEC-Cateel Extension Campus</option>
-
-                  <option value="BGEC">BGEC-Baganga Extension Campus</option>
-
-                  <option value="TEC">TEC-Tarragona Extension Campus</option>
-
-                  <option value="NSTP">NSTP-National Service Training Program</option>
-
-                  <option value="ICS">ICS- Indigenous Community Studies</option>
-
-                  <option value="Community Representatives">Community Representatives</option>
-
-                  <option value="UREB Board">UREB Board - University Research Ethics Board</option>
-
-                </select>
-
-              </div>
-
-
-
-              {editingUser?.userType === 'student' && (
-                <>
-                  <div className="form-group">
-                    <label>Program</label>
-                    <input
-                      type="text"
-                      name="program"
-                      value={editFormData.program || ''}
-                      onChange={handleEditInputChange}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <label>Facebook URL</label>
-                      {editFormData.facebookLink && (
-                        <a
-                          href={editFormData.facebookLink.startsWith('http') ? editFormData.facebookLink : `https://${editFormData.facebookLink}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ fontSize: '0.75rem', color: '#0866FF', fontWeight: 600, textDecoration: 'none' }}
-                        >
-                          Visit Profile ↗
-                        </a>
-                      )}
-                    </div>
-                    <input
-                      type="url"
-                      name="facebookLink"
-                      value={editFormData.facebookLink || ''}
-                      onChange={handleEditInputChange}
-                      placeholder="https://facebook.com/profilename"
-                    />
-                  </div>
-                </>
-              )}
-
-
-
-              {editingUser?.userType === 'student' && (
-                <div className="form-group" style={{ marginTop: '1rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #e9ecef' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <label style={{ fontWeight: 600, color: '#495057', fontSize: '0.9rem', margin: 0 }}>
-                      Research Co-Members
-                    </label>
-                    {!showCoMemberForm && (
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        style={{ padding: '4px 10px', fontSize: '0.75rem' }}
-                        onClick={() => setShowCoMemberForm(true)}
-                      >
-                        + Add Member
-                      </button>
-                    )}
-                  </div>
-
-                  {showCoMemberForm && (
-                    <div style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                        <div className="form-group" style={{ margin: 0 }}>
-                          <label style={{ fontSize: '0.7rem' }}>Name</label>
-                          <input
-                            type="text"
-                            value={newCoMember.name}
-                            onChange={e => setNewCoMember(p => ({ ...p, name: e.target.value }))}
-                            placeholder="Full name"
-                            style={{ padding: '0.3rem', fontSize: '0.85rem' }}
-                          />
-                        </div>
-                        <div className="form-group" style={{ margin: 0 }}>
-                          <label style={{ fontSize: '0.7rem' }}>Email</label>
-                          <input
-                            type="email"
-                            value={newCoMember.email}
-                            onChange={e => setNewCoMember(p => ({ ...p, email: e.target.value }))}
-                            placeholder="Email address"
-                            style={{ padding: '0.3rem', fontSize: '0.85rem' }}
-                          />
-                        </div>
-                      </div>
-                      <div className="form-group" style={{ marginBottom: '0.75rem' }}>
-                        <label style={{ fontSize: '0.7rem' }}>Role</label>
-                        <input
-                          type="text"
-                          value={newCoMember.role}
-                          onChange={e => setNewCoMember(p => ({ ...p, role: e.target.value }))}
-                          placeholder="e.g. Co-Proponent"
-                          style={{ padding: '0.3rem', fontSize: '0.85rem' }}
-                        />
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                        <button type="button" className="btn-secondary" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={() => setShowCoMemberForm(false)}>Cancel</button>
-                        <button type="button" className="btn-primary" style={{ padding: '2px 12px', fontSize: '0.75rem' }} onClick={addCoMemberToEdit}>Add</button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                    {Array.isArray(editFormData?.coMembers) && editFormData.coMembers.length > 0 ? (
-                      editFormData.coMembers.map((m, idx) => (
-                        <div key={m.id || idx} style={{ padding: '0.75rem', background: '#fff', borderRadius: '6px', border: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
-                            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#2d3436' }}>{m.name}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#636e72', display: 'flex', gap: '0.5rem' }}>
-                              <span>{m.email}</span>
-                              {m.role && <span style={{ color: '#b2bec3' }}>•</span>}
-                              {m.role && <span>{m.role}</span>}
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            style={{ background: 'none', border: 'none', color: '#ff4d4f', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 500, padding: '4px' }}
-                            onClick={() => removeCoMemberFromEdit(m.id || idx)}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ))
-                    ) : (
-                      <div style={{ textAlign: 'center', padding: '1rem', color: '#adb5bd', fontSize: '0.85rem', fontStyle: 'italic', background: '#fff', borderRadius: '6px', border: '1px dashed #dee2e6' }}>
-                        No co-members listed
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-
-
-              {editingUser?.userType === 'admin' && (
+              <div className="edit-user-form-grid">
 
                 <div className="form-group">
 
-                  <label>Role</label>
+                  <label>First Name</label>
 
-                  <select
+                  <input
 
-                    name="role"
+                    type="text"
 
-                    value={editFormData.role || ''}
+                    name="firstName"
+
+                    value={editFormData.firstName || ''}
 
                     onChange={handleEditInputChange}
 
                     required
 
+                  />
+
+                </div>
+
+
+
+                <div className="form-group">
+
+                  <label>Middle Name (optional)</label>
+
+                  <input
+
+                    type="text"
+
+                    name="middleName"
+
+                    value={editFormData.middleName || ''}
+
+                    onChange={handleEditInputChange}
+
+                  />
+
+                </div>
+
+
+
+                <div className="form-group">
+
+                  <label>Last Name</label>
+
+                  <input
+
+                    type="text"
+
+                    name="lastName"
+
+                    value={editFormData.lastName || ''}
+
+                    onChange={handleEditInputChange}
+
+                    required
+
+                  />
+
+                </div>
+
+
+
+                <div className="form-group">
+
+                  <label>Suffix (optional)</label>
+
+                  <select
+
+                    name="suffix"
+
+                    value={editFormData.suffix || ''}
+
+                    onChange={handleEditInputChange}
+
                   >
 
-                    <option value="admin">Administrator</option>
+                    <option value="">None</option>
 
-                    <option value="superadmin">Super Administrator</option>
+                    <option value="Jr.">Jr.</option>
+
+                    <option value="Sr.">Sr.</option>
+
+                    <option value="II">II</option>
+
+                    <option value="III">III</option>
+
+                    <option value="IV">IV</option>
+
+                    <option value="V">V</option>
+
+                    <option value="VI">VI</option>
+
+                    <option value="Ph.D.">Ph.D.</option>
+
+                    <option value="Ed.D.">Ed.D.</option>
+
+                    <option value="M.D.">M.D.</option>
+
+                    <option value="M.S.">M.S.</option>
+
+                    <option value="M.A.">M.A.</option>
+
+                    <option value="CPA">CPA</option>
+
+                    <option value="Engr.">Engr.</option>
+
+                    <option value="RN">RN</option>
+
+                    <option value="LPT">LPT</option>
 
                   </select>
 
                 </div>
 
-              )}
+
+
+                {editingUser?.userType === 'reviewer' && (
+
+                  <>
+
+                    <div className="form-group">
+
+                      <label>Title (optional)</label>
+
+                      <select
+
+                        name="title"
+
+                        value={editFormData.title || ''}
+
+                        onChange={handleEditInputChange}
+
+                      >
+
+                        <option value="">None</option>
+
+                        <option value="Doctor">Doctor (Dr.)</option>
+
+                        <option value="Engineer">Engineer (Engr.)</option>
+
+                        <option value="Professor">Professor (Prof.)</option>
+
+                        <option value="RN">RN</option>
+
+                        <option value="LPT">LPT</option>
+
+                        <option value="MSN">MSN</option>
+
+                        <option value="RN/LPT">RN/LPT</option>
+
+                        <option value="RN/MSN">RN/MSN</option>
+
+                        <option value="MIT">MIT</option>
+
+                        <option value="DBM">DBM</option>
+
+                      </select>
+
+                    </div>
+
+                    <div className="form-group">
+
+                      <label>Sex</label>
+
+                      <select
+
+                        name="gender"
+
+                        value={editFormData.sex || editFormData.gender || ''}
+
+                        onChange={handleEditInputChange}
+
+                      >
+
+                        <option value="">Select Sex</option>
+
+                        <option value="Male">Male</option>
+
+                        <option value="Female">Female</option>
+
+                      </select>
+
+                    </div>
+
+                  </>
+
+                )}
 
 
 
-              <div className="modal-footer">
 
-                <button type="button" className="btn-secondary" onClick={closeEditModal}>
+                {editingUser?.userType === 'student' && (
 
-                  Cancel
+                  <>
 
-                </button>
+                    <div className="form-group">
 
-                <button type="submit" className="btn-primary" disabled={editLoading}>
+                      <label>Sex</label>
 
-                  {editLoading ? 'Saving...' : 'Save Changes'}
+                      <select
 
-                </button>
+                        name="gender"
+
+                        value={editFormData.sex || editFormData.gender || ''}
+
+                        onChange={handleEditInputChange}
+
+                      >
+
+                        <option value="">Select Sex</option>
+
+                        <option value="Male">Male</option>
+
+                        <option value="Female">Female</option>
+
+                      </select>
+
+                    </div>
+
+
+
+                    <div className="form-group">
+
+                      <label>Researcher Type</label>
+
+                      <select
+
+                        name="researcherType"
+
+                        value={editFormData.researcherType || ''}
+
+                        onChange={handleEditResearcherTypeChange}
+
+                      >
+
+                        <option value="">Select Researcher Type</option>
+
+                        <option value="Faculty Researcher">Faculty Researcher</option>
+
+                        <option value="Staff Researcher">Staff Researcher</option>
+
+                        <option value="External Researcher">External Researcher</option>
+
+                        <option value="Student Researcher">Student Researcher</option>
+
+                      </select>
+
+                    </div>
+
+                  </>
+
+                )}
+
+                <div className="form-group">
+
+                  <label>Email Address</label>
+
+                  <input
+
+                    type="email"
+
+                    name="email"
+
+                    value={editFormData.email || ''}
+
+                    onChange={handleEditInputChange}
+
+                    required
+
+                  />
+
+                </div>
+
+
+
+                <div className="form-group">
+
+                  <label>
+
+                    {(editFormData.affiliationType === 'Institution/Agency' || editFormData.affiliationType === 'Institution' || editFormData.affiliationType === 'Agency' || editFormData.department === 'Institution/Agency')
+
+                      ? 'Institution / Agency'
+
+                      : 'Faculty'}
+
+                  </label>
+
+                  <select
+
+                    name="department"
+
+                    value={editFormData.department || ''}
+
+                    onChange={handleEditInputChange}
+
+                    disabled={editFormData.researcherType === 'External Researcher'}
+
+                    required
+
+                  >
+
+                    <option value="">Select Faculty</option>
+
+                    <option value="Institution/Agency">Institution/Agency</option>
+
+                    <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
+
+                    <option value="FTED">FTED- Faculty of Teacher Education</option>
+
+                    <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
+
+                    <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
+
+                    <option value="FBM">FBM-Faculty of Business Management</option>
+
+                    <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
+
+                    <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
+
+                    <option value="FHUSOCOM">FHUSOCOM-Faculty of Humanities, Social Science & Communication</option>
+
+                    <option value="SIEC">SIEC- San Isidro Extension Campus</option>
+
+                    <option value="BEC">BEC-BanayBanay Extension Campus</option>
+
+                    <option value="CEC">CEC-Cateel Extension Campus</option>
+
+                    <option value="BGEC">BGEC-Baganga Extension Campus</option>
+
+                    <option value="TEC">TEC-Tarragona Extension Campus</option>
+
+                    <option value="NSTP">NSTP-National Service Training Program</option>
+
+                    <option value="ICS">ICS- Indigenous Community Studies</option>
+
+                    <option value="Community Representatives">Community Representatives</option>
+
+                    <option value="UREB Board">UREB Board - University Research Ethics Board</option>
+
+                  </select>
+
+                </div>
+
+
+
+                {editingUser?.userType === 'student' && (
+
+                  <>
+
+                    <div className="form-group">
+
+                      <label>Program</label>
+
+                      <input
+
+                        type="text"
+
+                        name="program"
+
+                        value={editFormData.program || ''}
+
+                        onChange={handleEditInputChange}
+
+                      />
+
+                    </div>
+
+                    <div className="form-group">
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+
+                        <label>Facebook URL</label>
+
+                        {editFormData.facebookLink && (
+
+                          <a
+
+                            href={editFormData.facebookLink.startsWith('http') ? editFormData.facebookLink : `https://${editFormData.facebookLink}`}
+
+                            target="_blank"
+
+                            rel="noopener noreferrer"
+
+                            style={{ fontSize: '0.75rem', color: '#0866FF', fontWeight: 600, textDecoration: 'none' }}
+
+                          >
+
+                            Visit Profile ↗
+
+                          </a>
+
+                        )}
+
+                      </div>
+
+                      <input
+
+                        type="url"
+
+                        name="facebookLink"
+
+                        value={editFormData.facebookLink || ''}
+
+                        onChange={handleEditInputChange}
+
+                        placeholder="https://facebook.com/profilename"
+
+                      />
+
+                    </div>
+
+                  </>
+
+                )}
+
+
+
+                {editingUser?.userType === 'student' && (
+
+                  <div className="form-group full-width" style={{ marginTop: '1rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #e9ecef' }}>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+
+                      <label style={{ fontWeight: 600, color: '#495057', fontSize: '0.9rem', margin: 0 }}>
+
+                        Research Co-Members
+
+                      </label>
+
+                      {!showCoMemberForm && (
+
+                        <button
+
+                          type="button"
+
+                          className="btn-secondary"
+
+                          style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+
+                          onClick={() => setShowCoMemberForm(true)}
+
+                        >
+
+                          + Add Member
+
+                        </button>
+
+                      )}
+
+                    </div>
+
+
+
+                    {showCoMemberForm && (
+
+                      <div style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+
+                          <div className="form-group" style={{ margin: 0 }}>
+
+                            <label style={{ fontSize: '0.7rem' }}>Name</label>
+
+                            <input
+
+                              type="text"
+
+                              value={newCoMember.name}
+
+                              onChange={e => setNewCoMember(p => ({ ...p, name: e.target.value }))}
+
+                              placeholder="Full name"
+
+                              style={{ padding: '0.3rem', fontSize: '0.85rem' }}
+
+                            />
+
+                          </div>
+
+                          <div className="form-group" style={{ margin: 0 }}>
+
+                            <label style={{ fontSize: '0.7rem' }}>Email</label>
+
+                            <input
+
+                              type="email"
+
+                              value={newCoMember.email}
+
+                              onChange={e => setNewCoMember(p => ({ ...p, email: e.target.value }))}
+
+                              placeholder="Email address"
+
+                              style={{ padding: '0.3rem', fontSize: '0.85rem' }}
+
+                            />
+
+                          </div>
+
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+
+                          <label style={{ fontSize: '0.7rem' }}>Role</label>
+
+                          <input
+
+                            type="text"
+
+                            value={newCoMember.role}
+
+                            onChange={e => setNewCoMember(p => ({ ...p, role: e.target.value }))}
+
+                            placeholder="e.g. Co-Proponent"
+
+                            style={{ padding: '0.3rem', fontSize: '0.85rem' }}
+
+                          />
+
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+
+                          <button type="button" className="btn-secondary" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={() => setShowCoMemberForm(false)}>Cancel</button>
+
+                          <button type="button" className="btn-primary" style={{ padding: '2px 12px', fontSize: '0.75rem' }} onClick={addCoMemberToEdit}>Add</button>
+
+                        </div>
+
+                      </div>
+
+                    )}
+
+
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+
+                      {Array.isArray(editFormData?.coMembers) && editFormData.coMembers.length > 0 ? (
+
+                        editFormData.coMembers.map((m, idx) => (
+
+                          <div key={m.id || idx} style={{ padding: '0.75rem', background: '#fff', borderRadius: '6px', border: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+
+                              <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#2d3436' }}>{m.name}</div>
+
+                              <div style={{ fontSize: '0.75rem', color: '#636e72', display: 'flex', gap: '0.5rem' }}>
+
+                                <span>{m.email}</span>
+
+                                {m.role && <span style={{ color: '#b2bec3' }}>•</span>}
+
+                                {m.role && <span>{m.role}</span>}
+
+                              </div>
+
+                            </div>
+
+                            <button
+
+                              type="button"
+
+                              style={{ background: 'none', border: 'none', color: '#ff4d4f', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 500, padding: '4px' }}
+
+                              onClick={() => removeCoMemberFromEdit(m.id || idx)}
+
+                            >
+
+                              Remove
+
+                            </button>
+
+                          </div>
+
+                        ))
+
+                      ) : (
+
+                        <div style={{ textAlign: 'center', padding: '1rem', color: '#adb5bd', fontSize: '0.85rem', fontStyle: 'italic', background: '#fff', borderRadius: '6px', border: '1px dashed #dee2e6' }}>
+
+                          No co-members listed
+
+                        </div>
+
+                      )}
+
+                    </div>
+
+                  </div>
+
+                )}
+
+
+
+                {editingUser?.userType === 'admin' && (
+
+                  <div className="form-group full-width">
+
+                    <label>Role</label>
+
+                    <select
+
+                      name="role"
+
+                      value={editFormData.role || ''}
+
+                      onChange={handleEditInputChange}
+
+                      required
+
+                    >
+
+                      <option value="admin">Administrator</option>
+
+                      <option value="superadmin">Super Administrator</option>
+
+                    </select>
+
+                  </div>
+
+                )}
+
+
+
+                <div className="modal-footer full-width">
+
+                  <button type="button" className="btn-secondary" onClick={closeEditModal}>
+
+                    Cancel
+
+                  </button>
+
+                  <button type="submit" className="btn-primary" disabled={editLoading}>
+
+                    {editLoading ? 'Saving...' : 'Save Changes'}
+
+                  </button>
+
+                </div>
 
               </div>
 

@@ -6970,11 +6970,53 @@
 
 .modal-container.large {
 
-
-
   max-width: 1000px;
 
+}
 
+.modal-container.edit-user-modal {
+
+  max-width: 850px;
+
+  width: 92%;
+
+  padding: 2.5rem;
+
+}
+
+.edit-user-form-grid {
+
+  display: grid;
+
+  grid-template-columns: 1fr 1fr;
+
+  gap: 1.25rem;
+
+}
+
+.edit-user-form-grid .full-width {
+
+  grid-column: 1 / -1;
+
+}
+
+@media (max-width: 768px) {
+
+  .modal-container.edit-user-modal {
+
+    width: 95%;
+
+    padding: 1.5rem;
+
+  }
+
+  .edit-user-form-grid {
+
+    grid-template-columns: 1fr;
+
+    gap: 1rem;
+
+  }
 
 }
 
@@ -6986,11 +7028,7 @@
 
 .modal-container.small {
 
-
-
   max-width: 400px;
-
-
 
 }
 
