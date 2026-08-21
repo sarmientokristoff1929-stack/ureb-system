@@ -5117,7 +5117,11 @@
 }
 
 .inbox-table-container {
-  overflow-x: auto;
+  /* Was overflow-x: auto, which surfaced a horizontal scrollbar once real
+     message content (long subjects/sender names) pushed the auto-layout
+     table wider than its container. table-layout: fixed below keeps every
+     column at its declared width instead, so nothing needs to scroll. */
+  overflow-x: hidden;
   flex: 1;
 }
 
@@ -5125,6 +5129,7 @@
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  table-layout: fixed;
 }
 
 .inbox-table th,
@@ -5132,6 +5137,9 @@
   padding: 0.9rem 1rem;
   border-bottom: 1px solid var(--soft-green);
   vertical-align: middle;
+  /* Without this, content wider than its fixed-width column spills visually
+     into the next column instead of being contained. */
+  overflow: hidden;
 }
 
 .inbox-table th {
@@ -16231,6 +16239,11 @@
   border-bottom: 1px solid #f1f5f9;
   color: #334155;
   vertical-align: middle;
+  /* Status pill and Mark Done/Reset button are fixed-size content sitting in
+     a table-layout: fixed column — without this, shrinking the window (or
+     the sidebar reopening) can squeeze the column thinner than that content,
+     and it spills into the next column instead of being contained. */
+  overflow: hidden;
 }
 
 .mcr-row:last-child td {
@@ -16278,12 +16291,17 @@
   width: 25%;
 }
 
+/* Fixed pixel widths (not %) for the columns holding a status pill / action
+   button — these are the columns that were getting squeezed too thin at
+   common window widths, forcing the button to overlap the next column. A
+   percentage of a table-layout: fixed table shrinks with the window; a
+   pixel width doesn't, so the button/pill always has room. */
 .mcr-col-status {
-  width: 10%;
+  width: 130px;
 }
 
 .mcr-col-action {
-  width: 10%;
+  width: 150px;
 }
 
 /* Preliminary view — no protocol column; redistribute title width */
@@ -16301,10 +16319,6 @@
 
 .mcr-table--preliminary .mcr-col-title {
   width: 32%;
-}
-
-.mcr-table--preliminary .mcr-col-status {
-  width: 11%;
 }
 
 .mcr-td-name,

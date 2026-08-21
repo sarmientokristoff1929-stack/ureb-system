@@ -3140,6 +3140,7 @@ const normalizeMcrStatus = (status) => {
 const getMcrRowKey = (row) => row.assignmentId || row.proposalId || row.protocolCode;
 
 const STUDENT_PROPOSAL_DEPARTMENTS = [
+  { value: 'Institution/Agency', label: 'Institution/Agency' },
   { value: 'FALS', label: 'FALS — Faculty of Agriculture and Life Sciences' },
   { value: 'FTED', label: 'FTED — Faculty of Teacher Education' },
   { value: 'FAIS', label: 'FAIS — Faculty of Advance and International Studies' },
@@ -3241,6 +3242,7 @@ function StudentProposalContent({ onNewCountChange, onPaginationChange }) {
   const [proposals, setProposals] = useState([]);
   const [reviewers, setReviewers] = useState([]);
   const [assignments, setAssignments] = useState([]);
+  const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProposalId, setSelectedProposalId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -3282,11 +3284,12 @@ function StudentProposalContent({ onNewCountChange, onPaginationChange }) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const { getAllProposals, getAllReviewers } = await import('../services/api.js');
+      const { getAllProposals, getAllReviewers, getAllStudents } = await import('../services/api.js');
       const API = import.meta.env.VITE_API_URL || '';
-      const [proposalsData, reviewersData, assignmentsRes] = await Promise.all([
+      const [proposalsData, reviewersData, studentsData, assignmentsRes] = await Promise.all([
         getAllProposals(),
         getAllReviewers(),
+        getAllStudents(),
         fetch(`${API}/api/assignments`).then((r) => (r.ok ? r.json() : [])).catch(() => []),
       ]);
       const list = Array.isArray(proposalsData) ? proposalsData : [];
@@ -3294,11 +3297,13 @@ function StudentProposalContent({ onNewCountChange, onPaginationChange }) {
       setProposals(studentOnly);
       onNewCountChange?.(studentOnly.filter(isStudentProposalNew).length);
       setReviewers(Array.isArray(reviewersData) ? reviewersData : []);
+      setStudents(Array.isArray(studentsData) ? studentsData : []);
       setAssignments(Array.isArray(assignmentsRes) ? assignmentsRes : []);
     } catch (err) {
       console.error('Error loading student proposals:', err);
       setProposals([]);
       setReviewers([]);
+      setStudents([]);
     } finally {
       setLoading(false);
     }
@@ -3369,6 +3374,66 @@ function StudentProposalContent({ onNewCountChange, onPaginationChange }) {
   }, [reviewers]);
 
   const [submissionTypeFilter, setSubmissionTypeFilter] = useState('all'); // 'all' | 'first' | 'resubmission'
+  const [facultyFilter, setFacultyFilter] = useState(''); // '' = all faculties
+  const [departmentFilter, setDepartmentFilter] = useState(''); // '' = all departments/programs
+  const [researcherFilter, setResearcherFilter] = useState(''); // '' = all researchers
+
+  // Map each student's email to their program/department (the specific unit
+  // within a faculty, e.g. "BS Computer Science" under FACET), so proposals
+  // — which only store the faculty — can be filtered by that sub-department.
+  const studentProgramByEmail = useMemo(() => {
+    const map = new Map();
+    students.forEach((s) => {
+      const email = String(s.email || '').trim().toLowerCase();
+      if (email) map.set(email, (s.program || '').trim());
+    });
+    return map;
+  }, [students]);
+
+  const getProposalProgram = useCallback((proposal) => {
+    const email = String(proposal.studentEmail || '').trim().toLowerCase();
+    return (email && studentProgramByEmail.get(email)) || proposal.program || '';
+  }, [studentProgramByEmail]);
+
+  // Only list faculties/departments that actually have submissions, so the
+  // dropdown stays short and relevant to this proposal list.
+  const facultyFilterOptions = useMemo(() => {
+    const present = new Set(proposals.map((p) => normalizeFacultyKey(p.department)));
+    return STUDENT_PROPOSAL_DEPARTMENTS.filter((d) => present.has(d.value));
+  }, [proposals]);
+
+  // Departments/programs, narrowed to the selected faculty (if any).
+  const departmentFilterOptions = useMemo(() => {
+    const scoped = facultyFilter
+      ? proposals.filter((p) => normalizeFacultyKey(p.department) === facultyFilter)
+      : proposals;
+    const names = new Set(scoped.map((p) => getProposalProgram(p).trim()).filter(Boolean));
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [proposals, facultyFilter, getProposalProgram]);
+
+  // Researcher names, narrowed to the selected faculty and department (if any),
+  // so picking those first shortens the researcher list.
+  const researcherFilterOptions = useMemo(() => {
+    let scoped = proposals;
+    if (facultyFilter) scoped = scoped.filter((p) => normalizeFacultyKey(p.department) === facultyFilter);
+    if (departmentFilter) scoped = scoped.filter((p) => getProposalProgram(p).trim() === departmentFilter);
+    const names = new Set(scoped.map((p) => (p.proponent || '').trim()).filter(Boolean));
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [proposals, facultyFilter, departmentFilter, getProposalProgram]);
+
+  // If the faculty filter changes and the currently selected department/
+  // researcher no longer applies under it, clear those filters.
+  useEffect(() => {
+    if (departmentFilter && !departmentFilterOptions.includes(departmentFilter)) {
+      setDepartmentFilter('');
+    }
+  }, [departmentFilterOptions, departmentFilter]);
+
+  useEffect(() => {
+    if (researcherFilter && !researcherFilterOptions.includes(researcherFilter)) {
+      setResearcherFilter('');
+    }
+  }, [researcherFilterOptions, researcherFilter]);
 
   const filteredProposals = useMemo(() => {
     let result = proposals;
@@ -3376,6 +3441,18 @@ function StudentProposalContent({ onNewCountChange, onPaginationChange }) {
       result = result.filter(p => !p.isResubmissionProposal && p.submissionType !== 'resubmission');
     } else if (submissionTypeFilter === 'resubmission') {
       result = result.filter(p => p.isResubmissionProposal === true || p.submissionType === 'resubmission');
+    }
+
+    if (facultyFilter) {
+      result = result.filter((p) => normalizeFacultyKey(p.department) === facultyFilter);
+    }
+
+    if (departmentFilter) {
+      result = result.filter((p) => getProposalProgram(p).trim() === departmentFilter);
+    }
+
+    if (researcherFilter) {
+      result = result.filter((p) => (p.proponent || '').trim() === researcherFilter);
     }
 
     if (!searchQuery.trim()) return result;
@@ -3387,7 +3464,7 @@ function StudentProposalContent({ onNewCountChange, onPaginationChange }) {
       const reviewer = (p.preliminaryReviewerName || p.preliminaryReviewer || '').toLowerCase();
       return title.includes(q) || student.includes(q) || dept.includes(q) || reviewer.includes(q);
     });
-  }, [proposals, searchQuery, submissionTypeFilter]);
+  }, [proposals, searchQuery, submissionTypeFilter, facultyFilter, departmentFilter, researcherFilter, getProposalProgram]);
 
   const firstSubmissionsCount = useMemo(() => proposals.filter(p => !p.isResubmissionProposal && p.submissionType !== 'resubmission').length, [proposals]);
   const resubmissionsCount = useMemo(() => proposals.filter(p => p.isResubmissionProposal === true || p.submissionType === 'resubmission').length, [proposals]);
@@ -3398,7 +3475,7 @@ function StudentProposalContent({ onNewCountChange, onPaginationChange }) {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, submissionTypeFilter]);
+  }, [searchQuery, submissionTypeFilter, facultyFilter, departmentFilter, researcherFilter]);
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
@@ -3836,21 +3913,58 @@ function StudentProposalContent({ onNewCountChange, onPaginationChange }) {
       </div>
 
       <div className="sp-toolbar">
-        <input
-          type="search"
-          className="sp-search"
-          placeholder="Search by title or researcher…"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <span className="sp-stat">
-          <strong>{proposals.length}</strong> submission{proposals.length !== 1 ? 's' : ''}
-        </span>
-        {newCount > 0 && (
-          <span className="sp-stat sp-stat--new">
-            <strong>{newCount}</strong> new submission{newCount !== 1 ? 's' : ''}
+        <div className="sp-filter-group">
+          <select
+            className="sp-select"
+            value={facultyFilter}
+            onChange={(e) => setFacultyFilter(e.target.value)}
+            aria-label="Filter by faculty"
+          >
+            <option value="">All Faculties</option>
+            {facultyFilterOptions.map((d) => (
+              <option key={d.value} value={d.value}>{d.label}</option>
+            ))}
+          </select>
+          <select
+            className="sp-select"
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+            aria-label="Filter by department"
+          >
+            <option value="">All Departments</option>
+            {departmentFilterOptions.map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+          <select
+            className="sp-select"
+            value={researcherFilter}
+            onChange={(e) => setResearcherFilter(e.target.value)}
+            aria-label="Filter by researcher name"
+          >
+            <option value="">All Researchers</option>
+            {researcherFilterOptions.map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="sp-search-row">
+          <input
+            type="search"
+            className="sp-search"
+            placeholder="Search by title or researcher…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <span className="sp-stat">
+            <strong>{proposals.length}</strong> submission{proposals.length !== 1 ? 's' : ''}
           </span>
-        )}
+          {newCount > 0 && (
+            <span className="sp-stat sp-stat--new">
+              <strong>{newCount}</strong> new submission{newCount !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
       </div>
 
       {loading ? (
@@ -3864,6 +3978,7 @@ function StudentProposalContent({ onNewCountChange, onPaginationChange }) {
               <col className="sp-col-indicator" />
               <col className="sp-col-title" />
               <col className="sp-col-student" />
+              <col className="sp-col-faculty" />
               <col className="sp-col-date" />
               <col className="sp-col-assign-status" />
               <col className="sp-col-actions" />
@@ -3873,6 +3988,7 @@ function StudentProposalContent({ onNewCountChange, onPaginationChange }) {
                 <th>Status</th>
                 <th>Proposal Title</th>
                 <th>Submitted By</th>
+                <th className="sp-th-faculty">Faculty</th>
                 <th>Submitted</th>
                 <th>Assignment</th>
                 <th>Actions</th>
@@ -3908,10 +4024,16 @@ function StudentProposalContent({ onNewCountChange, onPaginationChange }) {
                     <td>
                       <div className="sp-student-name" title={proposal.proponent || 'Unknown'}>
                         <span className="sp-cell-ellipsis">{proposal.proponent || 'Unknown'}</span>
+                        {proposal.department && (
+                          <span className="sp-faculty-inline">{normalizeFacultyKey(proposal.department)}</span>
+                        )}
                       </div>
                       <div className="sp-student-email" title={proposal.studentEmail}>
                         <span className="sp-cell-ellipsis">{proposal.studentEmail}</span>
                       </div>
+                    </td>
+                    <td className="sp-cell-faculty" title={getFacultyLabel(normalizeFacultyKey(proposal.department))}>
+                      <span className="sp-cell-ellipsis">{proposal.department ? normalizeFacultyKey(proposal.department) : '—'}</span>
                     </td>
                     <td className="sp-cell-date">{formatDate(proposal.submissionDate || proposal.createdAt)}</td>
                     <td className="sp-cell-assign-status">
@@ -11896,12 +12018,12 @@ function MessagesInboxContent({ onMessageRead, onPaginationChange }) {
                     <th style={{ width: '40px', textAlign: 'center' }}></th>
                     <th style={{ width: '110px' }}>Date</th>
                     <th style={{ width: '180px' }}>Sender</th>
-                    <th style={{ width: '100px' }}>Role</th>
-                    <th style={{ width: '100px' }}>Dept</th>
+                    <th style={{ width: '130px' }}>Role</th>
+                    <th style={{ width: '110px' }}>Dept</th>
                     <th style={{ width: '180px' }}>Subject</th>
                     <th>Message</th>
-                    <th style={{ width: '120px' }}>Files</th>
-                    <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
+                    <th style={{ width: '130px' }}>Files</th>
+                    <th style={{ width: '140px', textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -11924,23 +12046,29 @@ function MessagesInboxContent({ onMessageRead, onPaginationChange }) {
                             <div className="inbox-avatar" style={{ flexShrink: 0, width: '28px', height: '28px', fontSize: '0.8rem' }}>
                               {name.charAt(0).toUpperCase()}
                             </div>
-                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#374151' }}>{name}</div>
-                              <div style={{ fontSize: '0.75rem', color: '#9ca3af' }} title={message.senderEmail}>{message.senderEmail}</div>
+                            <div style={{ overflow: 'hidden', minWidth: 0 }}>
+                              <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
+                              <div style={{ fontSize: '0.75rem', color: '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={message.senderEmail}>{message.senderEmail}</div>
                             </div>
                           </div>
                         </td>
-                        <td>
+                        <td style={{ overflow: 'hidden' }}>
                           <span className={`inbox-table-badge ${type}`}>
                             {type === 'reviewer' ? 'Reviewer' : 'Researcher'}
                           </span>
                         </td>
-                        <td>
-                          <span style={{ fontSize: '0.8rem', fontWeight: 500, color: '#4b5563' }} title={DEPARTMENT_NAMES[department] || department}>
+                        <td style={{ overflow: 'hidden' }}>
+                          <span
+                            style={{ fontSize: '0.8rem', fontWeight: 500, color: '#4b5563', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                            title={DEPARTMENT_NAMES[department] || department}
+                          >
                             {department || 'N/A'}
                           </span>
                         </td>
-                        <td style={{ fontWeight: !message.read ? 600 : 400, color: '#1f2937', fontSize: '0.85rem' }}>
+                        <td
+                          style={{ fontWeight: !message.read ? 600 : 400, color: '#1f2937', fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          title={message.subject}
+                        >
                           {message.subject}
                         </td>
                         <td className="inbox-table-message-cell">
