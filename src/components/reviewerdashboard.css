@@ -2473,6 +2473,35 @@
   border-color: var(--primary-green);
 }
 
+.history-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  height: fit-content;
+}
+
+.msg-file-download {
+  display: flex;
+  align-items: center;
+  gap: 0.32rem;
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: var(--primary-green, #4a7c59);
+  background: #edf7ed;
+  border: 1px solid var(--soft-green, #7A9E7E);
+  border-radius: 7px;
+  padding: 0.3rem 0.65rem;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.14s;
+}
+
+.msg-file-download:hover {
+  background: #dff0df;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
   .stats-grid {

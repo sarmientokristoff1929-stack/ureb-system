@@ -4454,6 +4454,88 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
   const [sending, setSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
 
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [messageHistory, setMessageHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const [historySearch, setHistorySearch] = useState('');
+  const [historySearchInput, setHistorySearchInput] = useState('');
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [deletingHistoryId, setDeletingHistoryId] = useState('');
+  const [deleteHistoryTarget, setDeleteHistoryTarget] = useState(null);
+  const HISTORY_PAGE_SIZE = 20;
+
+  const fetchHistoryPage = async (page, search) => {
+    setHistoryLoading(true);
+    setHistoryError('');
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(HISTORY_PAGE_SIZE),
+        senderEmail: userInfo?.email || '',
+      });
+      if (search) params.set('search', search);
+      const response = await fetch(`${API_BASE}/messages/reviewer-to-admin/history?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch history');
+      const data = await response.json();
+      setMessageHistory(data.messages || []);
+      setHistoryPage(data.page || 1);
+      setHistoryTotalPages(data.totalPages || 1);
+      setHistoryTotal(data.total || 0);
+    } catch (err) {
+      console.error('Error fetching message history:', err);
+      setHistoryError('Failed to load message history');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const openHistoryModal = () => {
+    setIsHistoryModalOpen(true);
+    setHistorySearch('');
+    setHistorySearchInput('');
+    fetchHistoryPage(1, '');
+  };
+
+  const requestDeleteHistoryMessage = (msg) => setDeleteHistoryTarget(msg);
+  const cancelDeleteHistoryMessage = () => setDeleteHistoryTarget(null);
+
+  const confirmDeleteHistoryMessage = async () => {
+    const messageId = deleteHistoryTarget?._id || deleteHistoryTarget?.id;
+    if (!messageId) return;
+    setDeletingHistoryId(messageId);
+    try {
+      const result = await deleteMessage(messageId);
+      if (result && result.success !== false) {
+        setMessageHistory((prev) => prev.filter((m) => (m._id || m.id) !== messageId));
+        setHistoryTotal((prev) => Math.max(prev - 1, 0));
+        setDeleteHistoryTarget(null);
+      } else {
+        setHistoryError(result?.error || 'Failed to delete message');
+      }
+    } catch (err) {
+      console.error('Error deleting message:', err);
+      setHistoryError('Failed to delete message');
+    } finally {
+      setDeletingHistoryId('');
+    }
+  };
+
+  // Debounce search-as-you-type so we don't hit the server on every keystroke
+  useEffect(() => {
+    if (!isHistoryModalOpen) return;
+    if (historySearchInput === historySearch) return;
+    const timer = setTimeout(() => {
+      setHistorySearch(historySearchInput);
+      fetchHistoryPage(1, historySearchInput);
+    }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historySearchInput, isHistoryModalOpen]);
+
   const MAX_COMPOSE_ATTACHMENTS = 3;
   const MAX_COMPOSE_TOTAL_BYTES = 12 * 1024 * 1024; // 12MB combined, matches server-side check
   const COMPOSE_ATTACHMENT_TYPES = new Set([
@@ -4680,7 +4762,20 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
 
     <div className="content-section">
 
-      <h2>Messages</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '2rem' }}>
+        <h2 style={{ margin: 0 }}>Messages</h2>
+        <button
+          type="button"
+          className="btn-secondary history-btn"
+          onClick={openHistoryModal}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <polyline points="12 7 12 12 16 14" />
+          </svg>
+          History
+        </button>
+      </div>
 
       {messages.length === 0 ? (
         <div className="empty-state">No messages yet.</div>
@@ -4990,6 +5085,155 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
                 disabled={deleting}
               >
                 {deleting ? 'Deleting...' : 'Delete Message'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Message History Modal */}
+      {isHistoryModalOpen && (
+        <div className="mini-modal-overlay" onClick={() => setIsHistoryModalOpen(false)} style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', zIndex: 9999, padding: '1rem'
+        }}>
+          <div onClick={(e) => e.stopPropagation()} style={{
+            background: 'white', borderRadius: '12px', width: '100%', maxWidth: '640px',
+            maxHeight: '85vh', display: 'flex', flexDirection: 'column',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)'
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '1.25rem 1.5rem', borderBottom: '1px solid #e5e7eb'
+            }}>
+              <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Message History</h2>
+              <button
+                type="button"
+                onClick={() => setIsHistoryModalOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', display: 'flex' }}
+              >
+                <XIcon />
+              </button>
+            </div>
+
+            <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <input
+                type="text"
+                placeholder="Search by subject or message..."
+                value={historySearchInput}
+                onChange={(e) => setHistorySearchInput(e.target.value)}
+                style={{ flex: 1, padding: '0.6rem 0.75rem', border: '1px solid #ddd', borderRadius: '6px', fontSize: '0.9rem' }}
+              />
+              {historyTotal > 0 && (
+                <span style={{ color: '#666', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                  {historyTotal} message{historyTotal === 1 ? '' : 's'}
+                </span>
+              )}
+            </div>
+
+            <div style={{ padding: '1rem 1.5rem', overflowY: 'auto', flex: 1 }}>
+              {historyLoading && <p style={{ color: '#666' }}>Loading message history...</p>}
+              {!historyLoading && historyError && <p style={{ color: '#dc2626' }}>{historyError}</p>}
+              {!historyLoading && !historyError && messageHistory.length === 0 && (
+                <p style={{ color: '#666' }}>
+                  {historySearch ? `No messages found matching "${historySearch}".` : "You haven't sent any messages to the admin yet."}
+                </p>
+              )}
+              {!historyLoading && !historyError && messageHistory.map((msg) => (
+                <div key={msg._id} style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '1rem', marginBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
+                    <span style={{ fontWeight: 600 }}>{msg.subject || 'Message from Reviewer'}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{ color: '#666', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                        {msg.sentAt ? new Date(msg.sentAt).toLocaleString() : ''}
+                      </span>
+                      <button
+                        type="button"
+                        title="Delete message"
+                        disabled={deletingHistoryId === (msg._id || msg.id)}
+                        onClick={() => requestDeleteHistoryMessage(msg)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', display: 'flex' }}
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
+                  </div>
+                  <p style={{ margin: '0.5rem 0 0', color: '#333', whiteSpace: 'pre-wrap' }}>{msg.message}</p>
+                  {Array.isArray(msg.files) && msg.files.length > 0 && (
+                    <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      {msg.files.map((file, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '0.85rem', color: '#333', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.originalname || file.filename}</span>
+                          {file.filename && (
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button type="button" className="msg-file-download" onClick={() => viewFile(file.filename)}>
+                                View
+                              </button>
+                              <button type="button" className="msg-file-download" onClick={() => downloadReviewerFile(file.filename, file.originalname || file.filename)}>
+                                Download
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {!historyLoading && !historyError && historyTotalPages > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', padding: '1rem 1.5rem', borderTop: '1px solid #e5e7eb' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={historyPage <= 1}
+                  onClick={() => fetchHistoryPage(historyPage - 1, historySearch)}
+                >
+                  Previous
+                </button>
+                <span style={{ color: '#666', fontSize: '0.85rem' }}>Page {historyPage} of {historyTotalPages}</span>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={historyPage >= historyTotalPages}
+                  onClick={() => fetchHistoryPage(historyPage + 1, historySearch)}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete History Message Confirmation Modal */}
+      {deleteHistoryTarget && (
+        <div className="logout-modal-overlay" onClick={() => !deletingHistoryId && cancelDeleteHistoryMessage()}>
+          <div className="logout-modal-container" onClick={e => e.stopPropagation()}>
+            <div className="logout-modal-header">
+              <h2>Confirm Delete Message</h2>
+            </div>
+            <div className="logout-modal-body">
+              <p>Are you sure you want to delete this message from your history?</p>
+              <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#6b7280' }}>This action cannot be undone.</p>
+            </div>
+            <div className="logout-modal-footer">
+              <button
+                className="logout-modal-btn-secondary"
+                onClick={cancelDeleteHistoryMessage}
+                disabled={Boolean(deletingHistoryId)}
+              >
+                Cancel
+              </button>
+              <button
+                className="logout-modal-btn-primary"
+                style={{ backgroundColor: '#dc2626' }}
+                onClick={confirmDeleteHistoryMessage}
+                disabled={Boolean(deletingHistoryId)}
+              >
+                {deletingHistoryId ? 'Deleting...' : 'Delete Message'}
               </button>
             </div>
           </div>
