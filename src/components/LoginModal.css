@@ -67,7 +67,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
+  /* Must outrank every inner overlay. The .success-modal-overlay class is redefined
+     in several other dashboard CSS files (all bundled globally) with z-index up to
+     9999, so this needs real headroom — some inner overlays (e.g. the Sunday notice)
+     have no dismiss button of their own and rely on this to close the whole modal. */
+  z-index: 99999;
 }
 
 .login-modal-close:hover {
