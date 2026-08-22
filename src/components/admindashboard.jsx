@@ -1838,7 +1838,9 @@ const DashboardContent = () => {
 
         setStats({
           ...statsData,
-          totalProposals: studentProposalCount + reviewerSubmissionCount,
+          // Total Proposals mirrors the Researcher Proposals count so this
+          // stat card always matches the Researcher Proposals sidebar list.
+          totalProposals: studentProposalCount,
           studentProposals: studentProposalCount,
           reviewerProposals: reviewerSubmissionCount
         });

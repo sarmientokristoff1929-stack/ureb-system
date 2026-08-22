@@ -2651,24 +2651,51 @@ const AssignedProposalsContent = ({ setAssignedCount }) => {
                   const role = getReviewerRole(assignment, curEmail);
                   if (!role) return null;
                   const isChair = role === 'Chair';
+
+                  // The co-reviewer is whichever of Chair/Member isn't the current user.
+                  const coReviewerRole = isChair ? 'Member' : 'Chair';
+                  const coReviewerName = isChair
+                    ? (assignment.secondaryReviewer2Name || assignment.secondaryReviewer2)
+                    : (assignment.secondaryReviewer1Name || assignment.secondaryReviewer1);
+
                   return (
-                    <p style={{ margin: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#374151' }}>Assigned Reviewer Role:</span>
-                      <span style={{
-                        backgroundColor: isChair ? '#fef3c7' : '#e0e7ff',
-                        color: isChair ? '#92400e' : '#3730a3',
-                        padding: '2px 10px',
-                        borderRadius: '12px',
-                        fontSize: '0.8rem',
-                        fontWeight: '700',
-                        border: `1px solid ${isChair ? '#fde68a' : '#c7d2fe'}`,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}>
-                        {isChair ? 'Chair Reviewer' : 'Member Reviewer'}
-                      </span>
-                    </p>
+                    <>
+                      <p style={{ margin: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#374151' }}>Assigned Reviewer Role:</span>
+                        <span style={{
+                          backgroundColor: isChair ? '#fef3c7' : '#e0e7ff',
+                          color: isChair ? '#92400e' : '#3730a3',
+                          padding: '2px 10px',
+                          borderRadius: '12px',
+                          fontSize: '0.8rem',
+                          fontWeight: '700',
+                          border: `1px solid ${isChair ? '#fde68a' : '#c7d2fe'}`,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          {isChair ? 'Chair Reviewer' : 'Member Reviewer'}
+                        </span>
+                      </p>
+                      {coReviewerName && (
+                        <p style={{ margin: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#374151' }}>
+                            {coReviewerRole === 'Chair' ? 'Chair Reviewer:' : 'Member Reviewer:'}
+                          </span>
+                          <span style={{
+                            backgroundColor: coReviewerRole === 'Chair' ? '#fef3c7' : '#e0e7ff',
+                            color: coReviewerRole === 'Chair' ? '#92400e' : '#3730a3',
+                            padding: '2px 10px',
+                            borderRadius: '12px',
+                            fontSize: '0.8rem',
+                            fontWeight: '700',
+                            border: `1px solid ${coReviewerRole === 'Chair' ? '#fde68a' : '#c7d2fe'}`
+                          }}>
+                            {coReviewerName}
+                          </span>
+                        </p>
+                      )}
+                    </>
                   );
                 })()}
                 {(assignment.initialReviewDecision || assignment.proposal?.initialReviewDecision) && (

@@ -3926,6 +3926,29 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
       reviewerEmail: emailRegexFilter(reviewerEmail),
     }).sort({ createdAt: -1 }).toArray();
 
+    // Resolve co-reviewer (Chair/Member) display names so a reviewer can see who
+    // their counterpart is on each proposal, not just their own role badge.
+    const reviewersCollection = db.collection(collections.reviewers);
+    const coReviewerEmails = new Set();
+    assignmentList.forEach((a) => {
+      const sec1 = a.secondaryReviewer1 || a.proposal?.secondaryReviewer1 || a.reviewers?.reviewer2;
+      const sec2 = a.secondaryReviewer2 || a.proposal?.secondaryReviewer2 || a.reviewers?.reviewer3;
+      if (sec1) coReviewerEmails.add(String(sec1).toLowerCase().trim());
+      if (sec2) coReviewerEmails.add(String(sec2).toLowerCase().trim());
+    });
+    const coReviewerNameByEmail = new Map();
+    if (coReviewerEmails.size > 0) {
+      const coReviewerDocs = await reviewersCollection.find({
+        email: { $in: Array.from(coReviewerEmails).map((e) => emailRegexFilter(e)) },
+      }, { projection: { email: 1, name: 1, firstName: 1, middleName: 1, lastName: 1 } }).toArray();
+      coReviewerDocs.forEach((r) => {
+        const fullName = r.name
+          || [r.firstName, r.middleName, r.lastName].filter(Boolean).join(' ')
+          || r.email;
+        coReviewerNameByEmail.set(String(r.email).toLowerCase().trim(), fullName);
+      });
+    }
+
     assignmentList = assignmentList.map((a) => {
       const assignmentSource = inferAssignmentSource(a);
       const isStudent = assignmentSource === 'student';
@@ -3959,6 +3982,8 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
         reviewerRole,
         secondaryReviewer1: sec1,
         secondaryReviewer2: sec2,
+        secondaryReviewer1Name: sec1 ? (coReviewerNameByEmail.get(String(sec1).toLowerCase().trim()) || sec1) : null,
+        secondaryReviewer2Name: sec2 ? (coReviewerNameByEmail.get(String(sec2).toLowerCase().trim()) || sec2) : null,
         assignedFiles: sanitizedFiles,
         ...(isStudent ? { protocolCode: null } : {}),
       };
