@@ -5619,6 +5619,47 @@ app.get('/api/messages-to-reviewer/history', async (req, res) => {
   }
 });
 
+// History of messages a researcher has sent to the admin (newest first, paginated)
+app.get('/api/messages/student-to-admin/history', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+    const search = String(req.query.search || '').trim();
+    const senderEmail = String(req.query.senderEmail || '').trim();
+
+    if (!senderEmail) {
+      return res.status(400).json({ error: 'senderEmail is required' });
+    }
+
+    const query = { type: 'student_to_admin', senderEmail };
+    if (search) {
+      const searchRegex = { $regex: escapeRegexEmail(search), $options: 'i' };
+      query.$or = [{ subject: searchRegex }, { message: searchRegex }];
+    }
+
+    const total = await messages.countDocuments(query);
+    const results = await messages
+      .find(query)
+      .sort({ sentAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .toArray();
+
+    res.json({
+      messages: results,
+      total,
+      page,
+      totalPages: Math.max(Math.ceil(total / limit), 1),
+    });
+  } catch (error) {
+    console.error('Error fetching student-to-admin message history:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Send message to reviewer endpoint
 app.post('/api/send-message-to-reviewer', upload.any(), async (req, res) => {
   const { reviewerEmail, recipientName: clientRecipientName, message } = req.body;
