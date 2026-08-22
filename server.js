@@ -3938,15 +3938,19 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
     });
     const coReviewerNameByEmail = new Map();
     if (coReviewerEmails.size > 0) {
-      const coReviewerDocs = await reviewersCollection.find({
-        email: { $in: Array.from(coReviewerEmails).map((e) => emailRegexFilter(e)) },
-      }, { projection: { email: 1, name: 1, firstName: 1, middleName: 1, lastName: 1 } }).toArray();
-      coReviewerDocs.forEach((r) => {
-        const fullName = r.name
-          || [r.firstName, r.middleName, r.lastName].filter(Boolean).join(' ')
-          || r.email;
-        coReviewerNameByEmail.set(String(r.email).toLowerCase().trim(), fullName);
-      });
+      try {
+        const coReviewerDocs = await reviewersCollection.find({
+          $or: Array.from(coReviewerEmails).map((e) => ({ email: emailRegexFilter(e) })),
+        }, { projection: { email: 1, name: 1, firstName: 1, middleName: 1, lastName: 1 } }).toArray();
+        coReviewerDocs.forEach((r) => {
+          const fullName = r.name
+            || [r.firstName, r.middleName, r.lastName].filter(Boolean).join(' ')
+            || r.email;
+          coReviewerNameByEmail.set(String(r.email).toLowerCase().trim(), fullName);
+        });
+      } catch (lookupError) {
+        console.error('Error resolving co-reviewer names (non-fatal):', lookupError);
+      }
     }
 
     assignmentList = assignmentList.map((a) => {
