@@ -49,8 +49,6 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
   const [isRegistering, setIsRegistering] = useState(false);
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [showDisabledModal, setShowDisabledModal] = useState(false);
-  // Shown instead of logging in when Login is pressed on a Sunday — see handleLoginSubmit.
-  const [showSundayNotice, setShowSundayNotice] = useState(false);
   const [showPrivacyStep, setShowPrivacyStep] = useState(false);
   const [privacyChecked, setPrivacyChecked] = useState(false);
   const [pendingAuthResult, setPendingAuthResult] = useState(null);
@@ -330,18 +328,6 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
-
-    // No office hours on Sundays — block the login attempt entirely and show
-    // the notice instead. Only closing the whole Login modal dismisses it.
-    // Gated by hostname (not import.meta.env.PROD) so it only fires on the
-    // deployed site — this repo's local .env sets NODE_ENV=development, which
-    // Vite's env loader picks up even during `vite build` and silently flips
-    // PROD to false, so that flag can't be trusted here.
-    const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-    if (!isLocalHost && new Date().getDay() === 0) {
-      setShowSundayNotice(true);
-      return;
-    }
 
     setError('');
     setLoginErrorField(null);
@@ -1024,26 +1010,6 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
             >
               OK
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Sunday No Office Hours Notice */}
-      {showSundayNotice && (
-        <div className="success-modal-overlay">
-          <div className="success-modal-container" style={{ borderTop: '4px solid #2563eb' }}>
-            <div className="success-icon">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-                <line x1="8" y1="14" x2="16" y2="18" />
-                <line x1="16" y1="14" x2="8" y2="18" />
-              </svg>
-            </div>
-            <h2 style={{ color: '#1e40af' }}>No Office Hours Today</h2>
-            <p>Today is Sunday. The UREB office is closed and does not observe office hours. Logging in is unavailable today — please come back on the next business day.</p>
           </div>
         </div>
       )}
