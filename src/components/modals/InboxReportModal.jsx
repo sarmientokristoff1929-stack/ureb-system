@@ -1,13 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { downloadReviewerFile, viewFile } from '../services/api.js';
+import { downloadReviewerFile, viewFile } from '../../services/api.js';
 import {
   buildInboxAnalytics,
   buildInboxReportRows,
   exportInboxToExcel,
   exportInboxToPDF,
-} from '../utils/inboxReportUtils';
-import SubmissionAnalyticsPanel from './SubmissionAnalyticsPanel';
+} from '../../utils/inboxReportUtils';
+import SubmissionAnalyticsPanel from '../widgets/SubmissionAnalyticsPanel';
 import './InboxReportModal.css';
 
 const ReportIcon = () => (

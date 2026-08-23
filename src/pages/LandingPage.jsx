@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import LoginModal from './LoginModal';
-import TermsModal from './TermsModal';
-import PrivacyModal from './PrivacyModal';
-import FeedbackModal from './FeedbackModal';
-import HelpModal from './HelpModal';
+import LoginModal from '../components/modals/LoginModal';
+import TermsModal from '../components/modals/TermsModal';
+import PrivacyModal from '../components/modals/PrivacyModal';
+import FeedbackModal from '../components/modals/FeedbackModal';
+import HelpModal from '../components/modals/HelpModal';
 import { sendMessage } from '../services/api.js';
 import './LandingPage.css';
 

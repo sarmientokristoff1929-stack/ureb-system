@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { API_BASE_URL } from '../services/api';
-import TurnstileWidget from './TurnstileWidget';
+import { API_BASE_URL } from '../../services/api';
+import TurnstileWidget from '../widgets/TurnstileWidget';
 import './LoginModal.css';
 
 const ShieldIcon = () => (

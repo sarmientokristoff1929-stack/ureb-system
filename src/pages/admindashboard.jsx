@@ -6,7 +6,7 @@ import './admindashboard.css';
 import './admindashboard-sp.css';
 
 import './GenerateReportModal.css';
-import InboxReportModal from './InboxReportModal';
+import InboxReportModal from '../components/modals/InboxReportModal';
 
 
 
