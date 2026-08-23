@@ -2481,6 +2481,61 @@
   height: fit-content;
 }
 
+.rm-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.rm-cancel-btn {
+  background: var(--white);
+  color: var(--text-medium);
+  border: 1px solid var(--soft-green);
+  padding: 0.6rem 1.4rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rm-cancel-btn:hover:not(:disabled) {
+  background: var(--pale-green);
+  color: var(--primary-green);
+  border-color: var(--primary-green);
+}
+
+.rm-cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.rm-send-btn {
+  background: var(--primary-green);
+  color: var(--white);
+  border: none;
+  padding: 0.6rem 1.6rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rm-send-btn:hover:not(:disabled) {
+  background: var(--dark-green);
+  transform: translateY(-1px);
+}
+
+.rm-send-btn:disabled {
+  background: #b9c9bb;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .msg-file-download {
   display: flex;
   align-items: center;

@@ -11324,23 +11324,8 @@ function MessagesInboxContent({ onMessageRead, onPaginationChange }) {
     allReviewers.forEach(r => {
       if (r.email) {
         const emailKey = r.email.toLowerCase();
-        const firstName = r.firstName || '';
-        const middleName = r.middleName || '';
-        const lastName = r.lastName || '';
-        const title = r.title || '';
-        const baseName = [firstName, middleName, lastName].filter(Boolean).join(' ');
-        const fallbackName = r.name || baseName;
-        let formattedName = fallbackName;
-        if (title) {
-          const prefixMap = { Doctor: 'Dr.', Engineer: 'Engr.', Professor: 'Prof.' };
-          if (prefixMap[title]) {
-            formattedName = `${prefixMap[title]} ${fallbackName}`;
-          } else if (['RN', 'LPT', 'MSN', 'RN/LPT', 'RN/MSN', 'MIT'].includes(title)) {
-            formattedName = `${fallbackName}, ${title}`;
-          }
-        }
         map[emailKey] = {
-          name: formattedName,
+          name: formatReviewerName(r),
           department: r.department || ''
         };
       }
