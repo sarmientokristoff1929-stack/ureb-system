@@ -2748,11 +2748,11 @@ const AddReviewerContent = () => {
 
     const validDepartments = [
 
-      'FALS', 'FTED', 'FAIS', 'FNAS', 'FBM', 'FCJE', 'FACET',
+      'FALS', 'FTED', 'FAIS', 'FNAHS', 'FBM', 'FCJE', 'FACET',
 
       'FHUSOCOM', 'SIEC', 'BEC', 'CEC', 'BGEC', 'TEC',
 
-      'NSTP', 'ICS', 'Community Representatives'
+      'NSTP', 'ICS', 'Community Representatives', 'UREB Board'
 
     ];
 
@@ -2993,7 +2993,7 @@ const AddReviewerContent = () => {
 
                 <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
 
-                <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
+                <option value="FNAHS">FNAHS-Faculty of Nursing and Allied Health Science</option>
 
                 <option value="FBM">FBM-Faculty of Business Management</option>
 
@@ -3146,7 +3146,7 @@ const STUDENT_PROPOSAL_DEPARTMENTS = [
   { value: 'FALS', label: 'FALS — Faculty of Agriculture and Life Sciences' },
   { value: 'FTED', label: 'FTED — Faculty of Teacher Education' },
   { value: 'FAIS', label: 'FAIS — Faculty of Advance and International Studies' },
-  { value: 'FNAS', label: 'FNAS — Faculty of Nursing and Allied Health Science' },
+  { value: 'FNAHS', label: 'FNAHS — Faculty of Nursing and Allied Health Science' },
   { value: 'FBM', label: 'FBM — Faculty of Business Management' },
   { value: 'FCJE', label: 'FCJE — Faculty of Criminology Justice Education' },
   { value: 'FACET', label: 'FACET — Faculty of Computing, Engineering, Technology' },
@@ -9207,7 +9207,7 @@ const ManageUsersContent = ({ onPaginationChange }) => {
 
                     <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
 
-                    <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
+                    <option value="FNAHS">FNAHS-Faculty of Nursing and Allied Health Science</option>
 
                     <option value="FBM">FBM-Faculty of Business Management</option>
 
@@ -11232,7 +11232,7 @@ function MessagesInboxContent({ onMessageRead, onPaginationChange }) {
     'FALS': 'FALS-Faculty of Agriculture and Life Sciences',
     'FTED': 'FTED- Faculty of Teacher Education',
     'FAIS': 'FAIS-Faculty of Advance and International Studies',
-    'FNAS': 'FNAS-Faculty of Nursing and Allied Health Science',
+    'FNAHS': 'FNAHS-Faculty of Nursing and Allied Health Science',
     'FBM': 'FBM-Faculty of Business Management',
     'FCJE': 'FCJE-Faculty of Criminology Justice Education',
     'FACET': 'FACET-Faculty of Computing, Engineering, Technology',
@@ -11244,7 +11244,8 @@ function MessagesInboxContent({ onMessageRead, onPaginationChange }) {
     'TEC': 'TEC-Tarragona Extension Campus',
     'NSTP': 'NSTP-National Service Training Program',
     'ICS': 'ICS- Indigenous Community Studies',
-    'Community Representatives': 'Community Representatives'
+    'Community Representatives': 'Community Representatives',
+    'UREB Board': 'UREB Board - University Research Ethics Board'
   };
   const validDepartments = Object.keys(DEPARTMENT_NAMES);
 

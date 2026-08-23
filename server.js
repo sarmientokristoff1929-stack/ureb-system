@@ -138,14 +138,14 @@ connectToDatabase().then(async (db) => {
 
     // Migration: Normalize department codes (Old codes to New codes)
     const deptMap = {
-      'FNAHS': 'FNAS',
+      'FNAS': 'FNAHS',
       'SEIC': 'SIEC',
       'Faculty of Agriculture and Life Science': 'FALS',
       'Faculty of Agriculture and Life Sciences': 'FALS',
       'Faculty of Teacher Education': 'FTED',
       'Faculty of Advance and International Studies': 'FAIS',
-      'Faculty of Nursing and Allied Health Science': 'FNAS',
-      'Faculty of Nursing and Allied Health Sciences': 'FNAS',
+      'Faculty of Nursing and Allied Health Science': 'FNAHS',
+      'Faculty of Nursing and Allied Health Sciences': 'FNAHS',
       'Faculty of Business Management': 'FBM',
       'Faculty of Criminology Justice Education': 'FCJE',
       'Faculty of Computing, Engineering, Technology': 'FACET',

@@ -1625,7 +1625,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
                   <option value="FALS">FALS-Faculty of Agriculture and Life Sciences</option>
                   <option value="FTED">FTED- Faculty of Teacher Education</option>
                   <option value="FAIS">FAIS-Faculty of Advance and International Studies</option>
-                  <option value="FNAS">FNAS-Faculty of Nursing and Allied Health Science</option>
+                  <option value="FNAHS">FNAHS-Faculty of Nursing and Allied Health Science</option>
                   <option value="FBM">FBM-Faculty of Business Management</option>
                   <option value="FCJE">FCJE-Faculty of Criminology Justice Education</option>
                   <option value="FACET">FACET-Faculty of Computing, Engineering, Technology</option>
