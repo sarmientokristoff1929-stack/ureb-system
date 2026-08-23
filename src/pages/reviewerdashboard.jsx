@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-import './reviewerdashboard.css';
+import '../styles/reviewerdashboard.css';
 
 import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, resubmitReview, getCompletedReviews, getReviewerAssignments, downloadReviewerFile, deleteMessage, markMessageAsRead, changeReviewerPassword, getReviewerProfile, getUserNotifications, markNotificationAsRead, deleteNotification, viewFile } from '../services/api';
 

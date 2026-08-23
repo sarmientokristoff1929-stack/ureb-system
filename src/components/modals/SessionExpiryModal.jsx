@@ -1,5 +1,5 @@
 import React from 'react';
-import './SessionExpiryModal.css';
+import '../../styles/SessionExpiryModal.css';
 
 const SessionExpiryModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;

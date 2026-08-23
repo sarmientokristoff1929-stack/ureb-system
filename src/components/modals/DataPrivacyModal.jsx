@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import './DataPrivacyModal.css';
+import '../../styles/DataPrivacyModal.css';
 
 const DataPrivacyModal = ({ isOpen, onAccept, userRole }) => {
   const [isChecked, setIsChecked] = useState(false);

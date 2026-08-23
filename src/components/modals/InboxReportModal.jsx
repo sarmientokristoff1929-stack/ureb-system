@@ -8,7 +8,7 @@ import {
   exportInboxToPDF,
 } from '../../utils/inboxReportUtils';
 import SubmissionAnalyticsPanel from '../widgets/SubmissionAnalyticsPanel';
-import './InboxReportModal.css';
+import '../../styles/InboxReportModal.css';
 
 const ReportIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

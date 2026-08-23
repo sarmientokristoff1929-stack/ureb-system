@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import './TermsModal.css';
+import '../../styles/TermsModal.css';
 
 const TermsModal = ({ isOpen, onClose }) => {
   const [accepted, setAccepted] = useState(false);

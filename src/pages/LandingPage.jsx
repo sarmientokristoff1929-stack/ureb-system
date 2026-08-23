@@ -6,7 +6,7 @@ import PrivacyModal from '../components/modals/PrivacyModal';
 import FeedbackModal from '../components/modals/FeedbackModal';
 import HelpModal from '../components/modals/HelpModal';
 import { sendMessage } from '../services/api.js';
-import './LandingPage.css';
+import '../styles/LandingPage.css';
 
 const useScrollReveal = () => {
   useEffect(() => {

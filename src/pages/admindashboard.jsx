@@ -2,10 +2,10 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 
 
 
-import './admindashboard.css';
-import './admindashboard-sp.css';
+import '../styles/admindashboard.css';
+import '../styles/admindashboard-sp.css';
 
-import './GenerateReportModal.css';
+import '../styles/GenerateReportModal.css';
 import InboxReportModal from '../components/modals/InboxReportModal';
 
 

@@ -1,4 +1,4 @@
-import './SubmissionAnalyticsPanel.css';
+import '../../styles/SubmissionAnalyticsPanel.css';
 
 const SubmissionAnalyticsPanel = ({ analytics }) => {
   const { students, reviewers, studentPct, total, byRead, totalFiles } = analytics;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import './HelpModal.css';
+import '../../styles/HelpModal.css';
 
 const FAQ_ITEMS = [
   {

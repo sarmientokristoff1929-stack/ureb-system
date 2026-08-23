@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import './PrivacyModal.css';
+import '../../styles/PrivacyModal.css';
 
 const PrivacyModal = ({ isOpen, onClose }) => {
   const [accepted, setAccepted] = useState(false);

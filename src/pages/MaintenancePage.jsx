@@ -1,5 +1,5 @@
 import React from 'react';
-import './MaintenancePage.css';
+import '../styles/MaintenancePage.css';
 
 const MaintenancePage = () => {
   return (

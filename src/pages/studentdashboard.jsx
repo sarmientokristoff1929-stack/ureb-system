@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { API_BASE_URL, viewFile, downloadReviewerFile, sendStudentMessageToAdmin } from '../services/api';
-import './studentdashboard.css';
+import '../styles/studentdashboard.css';
 
 // localStorage helpers for deleted proposals (Render deployment workaround)
 const getDeletedProposalIds = () => {

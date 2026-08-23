@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { API_BASE_URL } from '../../services/api';
 import TurnstileWidget from '../widgets/TurnstileWidget';
-import './LoginModal.css';
+import '../../styles/LoginModal.css';
 
 const ShieldIcon = () => (
   <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

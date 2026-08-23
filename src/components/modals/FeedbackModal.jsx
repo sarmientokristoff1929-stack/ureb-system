@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import './FeedbackModal.css';
+import '../../styles/FeedbackModal.css';
 
 const FEELING_EMOJIS = [
   { emoji: '😡', label: 'Frustrated', value: 1 },
