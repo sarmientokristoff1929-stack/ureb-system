@@ -4788,16 +4788,15 @@ const MarkCompletedReviewContent = ({ onPaginationChange }) => {
     if (!silent) setLoading(true);
       try {
         const API = import.meta.env.VITE_API_URL;
-        const [reviewsRes, proposalsRes, reviewersRes, assignmentsRes] = await Promise.all([
+        const [reviewsRes, proposalsRes, allAccounts, assignmentsRes] = await Promise.all([
           fetch(`${API}/api/reviews`),
           fetch(`${API}/api/proposals`),
-          fetch(`${API}/api/reviewers`),
+          getAllReviewers(), // uses admin auth header — /api/reviewers 404s without it
           fetch(`${API}/api/assignments`),
         ]);
 
         const allReviews = reviewsRes.ok ? await reviewsRes.json() : [];
         const allProposals = proposalsRes.ok ? await proposalsRes.json() : [];
-        const allAccounts = reviewersRes.ok ? await reviewersRes.json() : [];
         const allAssignments = assignmentsRes.ok ? await assignmentsRes.json() : [];
 
         // Build proposals lookup
