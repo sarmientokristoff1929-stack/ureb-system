@@ -24,7 +24,7 @@ if (!SESSION_SECRET) {
 
 function signAuthToken(payload) {
   if (!SESSION_SECRET) return null;
-  return jwt.sign(payload, SESSION_SECRET, { expiresIn: '24h' });
+  return jwt.sign(payload, SESSION_SECRET, { expiresIn: '30d' });
 }
 
 // Blocks any request that isn't carrying a valid admin session token.
