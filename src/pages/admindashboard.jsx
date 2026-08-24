@@ -7,6 +7,7 @@ import '../styles/admindashboard-sp.css';
 
 import '../styles/GenerateReportModal.css';
 import InboxReportModal from '../components/modals/InboxReportModal';
+import { getAllStudents, getAllReviewers } from '../services/api';
 
 
 
@@ -5574,9 +5575,7 @@ const MessageResearcherContent = () => {
 
       try {
 
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/students`);
-
-        const data = await response.json();
+        const data = await getAllStudents();
 
         setStudents(data);
 
@@ -6600,9 +6599,7 @@ const MessageReviewerContent = () => {
 
       try {
 
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reviewers`);
-
-        const data = await response.json();
+        const data = await getAllReviewers();
 
         setReviewers(data);
 
