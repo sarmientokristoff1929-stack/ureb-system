@@ -36,7 +36,7 @@ const HEARTBEAT_INTERVAL_MS = 60 * 1000; // 60 seconds
 // previous localStorage behavior (persist across tabs/restarts).
 const getAuthStorage = (role) => (role === 'student' ? sessionStorage : localStorage);
 
-// Keep the Render free-tier server warm so OTP sending is always fast.
+// Keep the Render free-tier server warm so API calls don't hit a cold start.
 // Fires immediately on page load, then every 10 minutes while the tab is open.
 function pingServer() {
   fetch(`${API_BASE_URL}/check-gmail-exists`, {

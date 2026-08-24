@@ -4227,14 +4227,6 @@ app.post('/api/send-email', async (req, res) => {
   }
 });
 
-// OTP storage (in production, use Redis or database)
-const otpStore = new Map();
-
-// Generate OTP
-function generateOTP() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
 // Check if Email exists in system (supports institutional and standard emails)
 app.post('/api/check-gmail-exists', async (req, res) => {
   try {
@@ -4263,88 +4255,6 @@ app.post('/api/check-gmail-exists', async (req, res) => {
   } catch (error) {
     console.error('Error checking Gmail existence:', error);
     res.json({ exists: false });
-  }
-});
-
-// Send OTP endpoint
-app.post('/api/send-otp', (req, res) => {
-  const { gmail, email } = req.body;
-  const targetEmail = (email || gmail || '').trim().toLowerCase();
-
-  // Validate email address format (institutional or standard)
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  if (!emailRegex.test(targetEmail)) {
-    return res.json({ success: false, error: 'Invalid email address' });
-  }
-
-  // Generate and store OTP immediately
-  const otp = generateOTP();
-  const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-  otpStore.set(targetEmail, { otp, expiry });
-
-  // Respond to the client right away — do NOT wait for the email
-  res.json({ success: true, message: 'OTP sent to your email address' });
-
-  // Send the email in the background (fire-and-forget)
-  const mailOptions = {
-    from: `UREB System <${process.env.GMAIL_EMAIL}>`,
-    to: targetEmail,
-    subject: 'UREB System - Email Verification OTP',
-    text: `Your OTP for email verification is: ${otp}\n\nThis OTP will expire in 10 minutes.\n\nIf you didn't request this OTP, please ignore this email.`,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #7A9E7E;">UREB System - Email Verification</h2>
-        <p>Your One-Time Password (OTP) for email verification is:</p>
-        <div style="background: #f0f0f0; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
-          <span style="font-size: 32px; font-weight: bold; color: #333; letter-spacing: 5px;">${otp}</span>
-        </div>
-        <p>This OTP will expire in <strong>10 minutes</strong>.</p>
-        <p>If you didn't request this OTP, please ignore this email.</p>
-        <hr style="border: 1px solid #eee; margin: 30px 0;">
-        <p style="color: #666; font-size: 14px;">This is an automated message from the UREB System.</p>
-      </div>
-    `
-  };
-
-  transporter.sendMail(mailOptions)
-    .then(() => console.log(`OTP emailed to ${targetEmail}`))
-    .catch((err) => console.error(`Failed to email OTP to ${targetEmail}:`, err.message));
-});
-
-// Verify OTP endpoint
-app.post('/api/verify-otp', (req, res) => {
-  try {
-    const { gmail, email, otp } = req.body;
-    const targetEmail = (email || gmail || '').trim().toLowerCase();
-
-    // Get stored OTP
-    const storedData = otpStore.get(targetEmail);
-
-    if (!storedData) {
-      return res.json({ success: false, error: 'OTP not found or expired' });
-    }
-
-    // Check expiry
-    if (new Date() > storedData.expiry) {
-      otpStore.delete(targetEmail);
-      return res.json({ success: false, error: 'OTP expired' });
-    }
-
-    // Verify OTP
-    if (storedData.otp !== otp) {
-      return res.json({ success: false, error: 'Invalid OTP' });
-    }
-
-    // OTP is valid, remove it from store
-    otpStore.delete(gmail);
-
-    res.json({
-      success: true,
-      message: 'OTP verified successfully'
-    });
-  } catch (error) {
-    console.error('Error verifying OTP:', error);
-    res.status(500).json({ success: false, error: 'Failed to verify OTP' });
   }
 });
 
