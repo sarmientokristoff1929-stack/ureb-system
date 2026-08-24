@@ -7929,9 +7929,9 @@ const ManageUsersContent = ({ onPaginationChange }) => {
 
     { id: 'admins', label: 'Admin' },
 
-    { id: 'reviewers', label: 'Reviewer' },
+    { id: 'reviewers', label: 'Reviewers' },
 
-    { id: 'students', label: 'Researcher' }
+    { id: 'students', label: 'Researchers' }
 
   ];
 
@@ -8490,7 +8490,7 @@ const ManageUsersContent = ({ onPaginationChange }) => {
 
               <div style={{ marginLeft: 'auto', fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-medium, #4b5563)', whiteSpace: 'nowrap' }}>
 
-                Reviewer: {reviewers.length}
+                Reviewers: {reviewers.length}
 
               </div>
 
@@ -8703,7 +8703,7 @@ const ManageUsersContent = ({ onPaginationChange }) => {
 
               <div style={{ marginLeft: 'auto', fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-medium, #4b5563)', whiteSpace: 'nowrap' }}>
 
-                Researcher: {students.length}
+                Researchers: {students.length}
 
               </div>
 

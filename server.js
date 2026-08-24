@@ -7,12 +7,46 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import jwt from 'jsonwebtoken';
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5001;
+
+// Signs/verifies the admin session token issued at login (see /api/auth/login).
+// Reuses SESSION_SECRET, which already exists in .env for exactly this purpose.
+const SESSION_SECRET = process.env.SESSION_SECRET;
+if (!SESSION_SECRET) {
+  console.warn('[SECURITY] SESSION_SECRET is not set — admin-authenticated routes will reject every request until it is configured.');
+}
+
+function signAuthToken(payload) {
+  if (!SESSION_SECRET) return null;
+  return jwt.sign(payload, SESSION_SECRET, { expiresIn: '12h' });
+}
+
+// Blocks any request that isn't carrying a valid admin session token.
+// Responds like a route that doesn't exist at all, rather than 401/403,
+// so scanning/probing tools (or a stray Postman request) can't even tell
+// the endpoint is there.
+function requireAdminAuth(req, res, next) {
+  const notFound = () => res.status(404).type('text/plain').send(`Cannot ${req.method} ${req.originalUrl}`);
+
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!SESSION_SECRET || !token) return notFound();
+
+  try {
+    const payload = jwt.verify(token, SESSION_SECRET);
+    if (payload.role !== 'admin') return notFound();
+    req.authUser = payload;
+    next();
+  } catch {
+    notFound();
+  }
+}
 
 // Startup log to confirm server version
 console.log('******************************************');
@@ -1110,6 +1144,11 @@ app.post('/api/auth/login', async (req, res) => {
       console.log('[DEBUG] Login - Added admin profilePicture to response:', userResponse.profilePicture);
     }
 
+    // Admin session token — required by requireAdminAuth on admin-only bulk-data routes.
+    if (role === 'admin') {
+      userResponse.token = signAuthToken({ email: userResponse.email, role, userType });
+    }
+
     res.json({
       success: true,
       user: userResponse
@@ -1282,7 +1321,7 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 // User operations
-app.get('/api/users', async (req, res) => {
+app.get('/api/users', requireAdminAuth, async (req, res) => {
   try {
     const db = getDatabase();
     const users = db.collection(collections.users);
@@ -1299,7 +1338,7 @@ app.get('/api/users', async (req, res) => {
 });
 
 // Reviewers operations
-app.get('/api/reviewers', async (req, res) => {
+app.get('/api/reviewers', requireAdminAuth, async (req, res) => {
   try {
     const db = getDatabase();
     const reviewers = db.collection(collections.reviewers);
@@ -1336,7 +1375,7 @@ app.post('/api/reviewers', async (req, res) => {
 });
 
 // Students operations
-app.get('/api/students', async (req, res) => {
+app.get('/api/students', requireAdminAuth, async (req, res) => {
   try {
     const db = getDatabase();
     const students = db.collection(collections.students);

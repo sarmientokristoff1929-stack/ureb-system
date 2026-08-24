@@ -2,6 +2,19 @@
 const apiOrigin = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 export const API_BASE_URL = apiOrigin ? `${apiOrigin}/api` : '/api';
 
+// Admin session token, saved on the `user` object at login (see App.jsx commitLogin,
+// which persists the whole login response under 'ureb_user'). Needed for admin-only
+// bulk-data routes like /api/students, /api/reviewers, /api/users.
+const getAuthHeaders = () => {
+  try {
+    const raw = localStorage.getItem('ureb_user') || sessionStorage.getItem('ureb_user');
+    const token = raw ? JSON.parse(raw)?.token : null;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+};
+
 // Authentication
 export const authenticateUser = async (email, password, turnstileToken) => {
   try {
@@ -489,7 +502,7 @@ export const markAllMessagesAsRead = async (email) => {
 // Users
 export const getAllUsers = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/users`);
+    const response = await fetch(`${API_BASE_URL}/users`, { headers: getAuthHeaders() });
     const data = await response.json();
     return data;
   } catch (error) {
@@ -500,7 +513,7 @@ export const getAllUsers = async () => {
 
 export const getAllStudents = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/students`);
+    const response = await fetch(`${API_BASE_URL}/students`, { headers: getAuthHeaders() });
     const data = await response.json();
     return data;
   } catch (error) {
@@ -511,7 +524,7 @@ export const getAllStudents = async () => {
 
 export const getAllReviewers = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/reviewers`);
+    const response = await fetch(`${API_BASE_URL}/reviewers`, { headers: getAuthHeaders() });
     const data = await response.json();
     return data;
   } catch (error) {
