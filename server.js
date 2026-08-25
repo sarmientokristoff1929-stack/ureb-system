@@ -4898,16 +4898,21 @@ app.delete('/api/messages/:messageId', async (req, res) => {
   }
 });
 
-// Edit a message's text (used by the Messenger chat UIs — a sender editing their own message).
-// Only updates the text; attachments are left as-is.
-app.put('/api/messages/:messageId', async (req, res) => {
+// Edit a message's text and/or attachments (used by the Messenger chat UIs — a sender
+// editing their own already-sent message). Accepts multipart/form-data so new files can
+// be uploaded; `removeFiles` (JSON array of filename/path identifiers) drops existing ones.
+app.put('/api/messages/:messageId', upload.any(), async (req, res) => {
   try {
     const { messageId } = req.params;
-    const { message } = req.body;
-
-    if (!message || !String(message).trim()) {
-      return res.status(400).json({ success: false, error: 'Message text is required' });
+    const message = String(req.body.message || '').trim();
+    const newFiles = req.files || [];
+    let removeFiles = [];
+    try {
+      removeFiles = JSON.parse(req.body.removeFiles || '[]');
+    } catch (e) {
+      removeFiles = [];
     }
+    const removeSet = new Set(Array.isArray(removeFiles) ? removeFiles : []);
 
     let objectId;
     try {
@@ -4919,14 +4924,53 @@ app.put('/api/messages/:messageId', async (req, res) => {
     const db = getDatabase();
     const messages = db.collection(collections.messages);
 
+    const existing = await messages.findOne({ _id: objectId });
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Message not found' });
+    }
+
+    const existingFiles = Array.isArray(existing.files)
+      ? existing.files
+      : (existing.files ? Object.values(existing.files) : []);
+    const keptFiles = existingFiles.filter((f) => !removeSet.has(f.filename) && !removeSet.has(f.path));
+    const removedFiles = existingFiles.filter((f) => removeSet.has(f.filename) || removeSet.has(f.path));
+
+    const uploadedRecords = [];
+    for (const file of newFiles) {
+      try {
+        const gfsFilename = await uploadToGridFS(file, {
+          senderName: 'Admin',
+          source: 'message-edit',
+          recipientEmail: existing.recipientEmail,
+        });
+        uploadedRecords.push({
+          filename: gfsFilename,
+          originalname: file.originalname,
+          size: file.size,
+          mimetype: file.mimetype,
+          path: gfsFilename,
+        });
+      } catch (err) {
+        console.error('Failed to upload edited-message attachment to GridFS:', err.message);
+      }
+    }
+
+    const finalFiles = [...keptFiles, ...uploadedRecords];
+
+    if (!message && finalFiles.length === 0) {
+      return res.status(400).json({ success: false, error: 'Message text or at least one attachment is required' });
+    }
+
     const result = await messages.findOneAndUpdate(
       { _id: objectId },
-      { $set: { message: String(message).trim(), edited: true, editedAt: new Date() } },
+      { $set: { message, files: finalFiles, edited: true, editedAt: new Date() } },
       { returnDocument: 'after' }
     );
 
-    if (!result) {
-      return res.status(404).json({ success: false, error: 'Message not found' });
+    if (removedFiles.length > 0) {
+      Promise.all(
+        removedFiles.map((f) => deleteFromGridFS(f.path || f.filename).catch((e) => console.error('Error deleting edited-message attachment from GridFS:', e)))
+      ).catch(() => {});
     }
 
     res.json({ success: true, message: result });
@@ -5568,14 +5612,15 @@ app.get('/api/stats', async (req, res) => {
 
 // Send message to student endpoint
 app.post('/api/send-message-to-student', upload.any(), async (req, res) => {
-  const { studentEmail, recipientName: clientRecipientName, message } = req.body;
+  const { studentEmail, recipientName: clientRecipientName, message: rawMessage } = req.body;
+  const message = String(rawMessage || '').trim();
   const files = req.files || [];
 
-  // Validate required fields
-  if (!studentEmail || !message) {
+  // Validate required fields — either message text or at least one attachment
+  if (!studentEmail || (!message && files.length === 0)) {
     return res.status(400).json({
       success: false,
-      error: 'Student email and message are required'
+      error: 'Student email and a message or attachment are required'
     });
   }
 
@@ -6005,14 +6050,15 @@ app.put('/api/messages/reviewer-conversation/:email/mark-admin-read', async (req
 
 // Send message to reviewer endpoint
 app.post('/api/send-message-to-reviewer', upload.any(), async (req, res) => {
-  const { reviewerEmail, recipientName: clientRecipientName, message } = req.body;
+  const { reviewerEmail, recipientName: clientRecipientName, message: rawMessage } = req.body;
+  const message = String(rawMessage || '').trim();
   const files = req.files || [];
 
-  // Validate required fields
-  if (!reviewerEmail || !message) {
+  // Validate required fields — either message text or at least one attachment
+  if (!reviewerEmail || (!message && files.length === 0)) {
     return res.status(400).json({
       success: false,
-      error: 'Reviewer email and message are required'
+      error: 'Reviewer email and a message or attachment are required'
     });
   }
 

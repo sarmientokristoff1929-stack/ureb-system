@@ -5474,6 +5474,9 @@ const MessageResearcherContent = ({ onMessageRead }) => {
 
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingText, setEditingText] = useState('');
+  const [editingFiles, setEditingFiles] = useState([]);
+  const [editingRemovedKeys, setEditingRemovedKeys] = useState(new Set());
+  const [editingNewFiles, setEditingNewFiles] = useState([]);
   const [deleteConfirmMsg, setDeleteConfirmMsg] = useState(null);
 
   const sendingRef = useRef(false);
@@ -5687,7 +5690,7 @@ const MessageResearcherContent = ({ onMessageRead }) => {
 
   const handleSend = async () => {
     const text = messageText.trim();
-    if (!text || !selectedEmail || sending) return;
+    if ((!text && attachedFiles.length === 0) || !selectedEmail || sending) return;
 
     const student = students.find((s) => s.email === selectedEmail);
     const recipientName = student ? getDisplayName(student) : selectedEmail;
@@ -5746,23 +5749,85 @@ const MessageResearcherContent = ({ onMessageRead }) => {
   const startEditMessage = (msg) => {
     setEditingMessageId(msg._id);
     setEditingText(msg.message);
+    setEditingFiles(Array.isArray(msg.files) ? msg.files : []);
+    setEditingRemovedKeys(new Set());
+    setEditingNewFiles([]);
   };
 
   const cancelEditMessage = () => {
     setEditingMessageId(null);
     setEditingText('');
+    setEditingFiles([]);
+    setEditingRemovedKeys(new Set());
+    setEditingNewFiles([]);
+  };
+
+  const addValidatedEditFiles = (files) => {
+    const keptCount = editingFiles.filter((f) => !editingRemovedKeys.has(f.filename) && !editingRemovedKeys.has(f.path)).length;
+    const room = MAX_MESSAGE_ATTACHMENTS - keptCount - editingNewFiles.length;
+    if (room <= 0) {
+      setError(`You can attach up to ${MAX_MESSAGE_ATTACHMENTS} files per message`);
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+    let runningTotal = editingNewFiles.reduce((sum, f) => sum + f.size, 0);
+    const accepted = [];
+    let rejected = false;
+    for (const file of files) {
+      if (accepted.length >= room) { rejected = true; break; }
+      if (!MESSAGE_ATTACHMENT_TYPES.includes(file.type)) { rejected = true; continue; }
+      if (runningTotal + file.size > MAX_MESSAGE_TOTAL_BYTES) { rejected = true; break; }
+      runningTotal += file.size;
+      accepted.push(file);
+    }
+    if (accepted.length > 0) setEditingNewFiles((prev) => [...prev, ...accepted]);
+    if (rejected) {
+      setError(`Only PDF, DOC, and DOCX files are allowed, up to ${MAX_MESSAGE_ATTACHMENTS} files and 12MB combined`);
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  const handleEditFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    addValidatedEditFiles(files);
+    e.target.value = '';
+  };
+
+  const handleRemoveEditNewFile = (index) => {
+    setEditingNewFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const toggleRemoveExistingEditFile = (file) => {
+    const key = file.filename || file.path;
+    if (!key) return;
+    setEditingRemovedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
   };
 
   const saveEditMessage = async (msg) => {
     const text = editingText.trim();
-    if (!text || text === msg.message) {
+    const remainingKept = editingFiles.filter((f) => !editingRemovedKeys.has(f.filename) && !editingRemovedKeys.has(f.path));
+    const hasChanges = text !== (msg.message || '') || editingRemovedKeys.size > 0 || editingNewFiles.length > 0;
+    if (!hasChanges) {
       cancelEditMessage();
       return;
     }
+    if (!text && remainingKept.length === 0 && editingNewFiles.length === 0) {
+      setError('Message must have text or at least one attachment.');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
     try {
-      const result = await editMessage(msg._id, text);
+      const result = await editMessage(msg._id, text, {
+        files: editingNewFiles,
+        removeFiles: [...editingRemovedKeys],
+      });
       if (result?.success === false) throw new Error(result.error || 'Failed to edit message');
-      setThread((prev) => prev.map((m) => (m._id === msg._id ? { ...m, message: text, edited: true } : m)));
+      const fresh = await getStudentConversation(selectedEmail);
+      setThread(fresh);
       cancelEditMessage();
       const summaryList = await getStudentConversationsSummary();
       applySummary(summaryList);
@@ -5926,7 +5991,51 @@ const MessageResearcherContent = ({ onMessageRead }) => {
                               }}
                               autoFocus
                             />
+                            {(editingFiles.length > 0 || editingNewFiles.length > 0) && (
+                              <div className="chat-bubble-edit-files">
+                                {editingFiles.map((file, i) => {
+                                  const key = file.filename || file.path;
+                                  const displayName = file.originalname || file.filename;
+                                  const removed = editingRemovedKeys.has(key);
+                                  return (
+                                    <span key={`existing-${i}`} className={`chat-bubble-edit-file-chip${removed ? ' removed' : ''}`}>
+                                      {displayName}
+                                      <button
+                                        type="button"
+                                        className="remove-file-btn"
+                                        onClick={() => toggleRemoveExistingEditFile(file)}
+                                        title={removed ? 'Keep file' : 'Remove file'}
+                                      >
+                                        {removed ? '↺' : '×'}
+                                      </button>
+                                    </span>
+                                  );
+                                })}
+                                {editingNewFiles.map((file, i) => (
+                                  <span key={`new-${i}`} className="chat-bubble-edit-file-chip">
+                                    {file.name}
+                                    <button type="button" className="remove-file-btn" onClick={() => handleRemoveEditNewFile(i)}>×</button>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            <input
+                              type="file"
+                              multiple
+                              accept=".pdf,.doc,.docx"
+                              id={`edit-attach-input-${msg._id}`}
+                              style={{ display: 'none' }}
+                              onChange={handleEditFileChange}
+                            />
                             <div className="chat-bubble-edit-actions">
+                              <button
+                                type="button"
+                                className="chat-bubble-edit-attach-btn"
+                                title="Attach PDF, DOC, or DOCX"
+                                onClick={() => document.getElementById(`edit-attach-input-${msg._id}`).click()}
+                              >
+                                <ChatPaperclipIcon />
+                              </button>
                               <button type="button" className="chat-bubble-edit-cancel" onClick={cancelEditMessage}>Cancel</button>
                               <button type="button" className="chat-bubble-edit-save" onClick={() => saveEditMessage(msg)}>Save</button>
                             </div>
@@ -6021,7 +6130,7 @@ const MessageResearcherContent = ({ onMessageRead }) => {
                 type="button"
                 className="chat-composer-send-btn"
                 onClick={handleSend}
-                disabled={sending || !messageText.trim()}
+                disabled={sending || (!messageText.trim() && attachedFiles.length === 0)}
               >
                 <ChatSendIcon />
               </button>
@@ -6070,6 +6179,9 @@ const MessageReviewerContent = ({ onMessageRead }) => {
 
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingText, setEditingText] = useState('');
+  const [editingFiles, setEditingFiles] = useState([]);
+  const [editingRemovedKeys, setEditingRemovedKeys] = useState(new Set());
+  const [editingNewFiles, setEditingNewFiles] = useState([]);
   const [deleteConfirmMsg, setDeleteConfirmMsg] = useState(null);
 
   const sendingRef = useRef(false);
@@ -6284,7 +6396,7 @@ const MessageReviewerContent = ({ onMessageRead }) => {
 
   const handleSend = async () => {
     const text = messageText.trim();
-    if (!text || !selectedEmail || sending) return;
+    if ((!text && attachedFiles.length === 0) || !selectedEmail || sending) return;
 
     const reviewer = reviewers.find((r) => r.email === selectedEmail);
     const recipientName = reviewer ? getDisplayName(reviewer) : selectedEmail;
@@ -6343,23 +6455,85 @@ const MessageReviewerContent = ({ onMessageRead }) => {
   const startEditMessage = (msg) => {
     setEditingMessageId(msg._id);
     setEditingText(msg.message);
+    setEditingFiles(Array.isArray(msg.files) ? msg.files : []);
+    setEditingRemovedKeys(new Set());
+    setEditingNewFiles([]);
   };
 
   const cancelEditMessage = () => {
     setEditingMessageId(null);
     setEditingText('');
+    setEditingFiles([]);
+    setEditingRemovedKeys(new Set());
+    setEditingNewFiles([]);
+  };
+
+  const addValidatedEditFiles = (files) => {
+    const keptCount = editingFiles.filter((f) => !editingRemovedKeys.has(f.filename) && !editingRemovedKeys.has(f.path)).length;
+    const room = MAX_MESSAGE_ATTACHMENTS - keptCount - editingNewFiles.length;
+    if (room <= 0) {
+      setError(`You can attach up to ${MAX_MESSAGE_ATTACHMENTS} files per message`);
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+    let runningTotal = editingNewFiles.reduce((sum, f) => sum + f.size, 0);
+    const accepted = [];
+    let rejected = false;
+    for (const file of files) {
+      if (accepted.length >= room) { rejected = true; break; }
+      if (!MESSAGE_ATTACHMENT_TYPES.includes(file.type)) { rejected = true; continue; }
+      if (runningTotal + file.size > MAX_MESSAGE_TOTAL_BYTES) { rejected = true; break; }
+      runningTotal += file.size;
+      accepted.push(file);
+    }
+    if (accepted.length > 0) setEditingNewFiles((prev) => [...prev, ...accepted]);
+    if (rejected) {
+      setError(`Only PDF, DOC, and DOCX files are allowed, up to ${MAX_MESSAGE_ATTACHMENTS} files and 12MB combined`);
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  const handleEditFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    addValidatedEditFiles(files);
+    e.target.value = '';
+  };
+
+  const handleRemoveEditNewFile = (index) => {
+    setEditingNewFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const toggleRemoveExistingEditFile = (file) => {
+    const key = file.filename || file.path;
+    if (!key) return;
+    setEditingRemovedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
   };
 
   const saveEditMessage = async (msg) => {
     const text = editingText.trim();
-    if (!text || text === msg.message) {
+    const remainingKept = editingFiles.filter((f) => !editingRemovedKeys.has(f.filename) && !editingRemovedKeys.has(f.path));
+    const hasChanges = text !== (msg.message || '') || editingRemovedKeys.size > 0 || editingNewFiles.length > 0;
+    if (!hasChanges) {
       cancelEditMessage();
       return;
     }
+    if (!text && remainingKept.length === 0 && editingNewFiles.length === 0) {
+      setError('Message must have text or at least one attachment.');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
     try {
-      const result = await editMessage(msg._id, text);
+      const result = await editMessage(msg._id, text, {
+        files: editingNewFiles,
+        removeFiles: [...editingRemovedKeys],
+      });
       if (result?.success === false) throw new Error(result.error || 'Failed to edit message');
-      setThread((prev) => prev.map((m) => (m._id === msg._id ? { ...m, message: text, edited: true } : m)));
+      const fresh = await getReviewerConversation(selectedEmail);
+      setThread(fresh);
       cancelEditMessage();
       const summaryList = await getReviewerConversationsSummary();
       applySummary(summaryList);
@@ -6523,7 +6697,51 @@ const MessageReviewerContent = ({ onMessageRead }) => {
                               }}
                               autoFocus
                             />
+                            {(editingFiles.length > 0 || editingNewFiles.length > 0) && (
+                              <div className="chat-bubble-edit-files">
+                                {editingFiles.map((file, i) => {
+                                  const key = file.filename || file.path;
+                                  const displayName = file.originalname || file.filename;
+                                  const removed = editingRemovedKeys.has(key);
+                                  return (
+                                    <span key={`existing-${i}`} className={`chat-bubble-edit-file-chip${removed ? ' removed' : ''}`}>
+                                      {displayName}
+                                      <button
+                                        type="button"
+                                        className="remove-file-btn"
+                                        onClick={() => toggleRemoveExistingEditFile(file)}
+                                        title={removed ? 'Keep file' : 'Remove file'}
+                                      >
+                                        {removed ? '↺' : '×'}
+                                      </button>
+                                    </span>
+                                  );
+                                })}
+                                {editingNewFiles.map((file, i) => (
+                                  <span key={`new-${i}`} className="chat-bubble-edit-file-chip">
+                                    {file.name}
+                                    <button type="button" className="remove-file-btn" onClick={() => handleRemoveEditNewFile(i)}>×</button>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            <input
+                              type="file"
+                              multiple
+                              accept=".pdf,.doc,.docx"
+                              id={`edit-attach-input-${msg._id}`}
+                              style={{ display: 'none' }}
+                              onChange={handleEditFileChange}
+                            />
                             <div className="chat-bubble-edit-actions">
+                              <button
+                                type="button"
+                                className="chat-bubble-edit-attach-btn"
+                                title="Attach PDF, DOC, or DOCX"
+                                onClick={() => document.getElementById(`edit-attach-input-${msg._id}`).click()}
+                              >
+                                <ChatPaperclipIcon />
+                              </button>
                               <button type="button" className="chat-bubble-edit-cancel" onClick={cancelEditMessage}>Cancel</button>
                               <button type="button" className="chat-bubble-edit-save" onClick={() => saveEditMessage(msg)}>Save</button>
                             </div>
@@ -6618,7 +6836,7 @@ const MessageReviewerContent = ({ onMessageRead }) => {
                 type="button"
                 className="chat-composer-send-btn"
                 onClick={handleSend}
-                disabled={sending || !messageText.trim()}
+                disabled={sending || (!messageText.trim() && attachedFiles.length === 0)}
               >
                 <ChatSendIcon />
               </button>

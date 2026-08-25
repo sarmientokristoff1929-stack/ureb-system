@@ -654,13 +654,19 @@ export const deleteMessage = async (messageId) => {
   }
 };
 
-// Edit a message's text (Messenger chat UIs — editing your own already-sent message)
-export const editMessage = async (messageId, message) => {
+// Edit a message's text and/or attachments (Messenger chat UIs — editing your own already-sent
+// message). `files` are new attachments to add; `removeFiles` are filename/path identifiers of
+// existing attachments to drop.
+export const editMessage = async (messageId, message, { files = [], removeFiles = [] } = {}) => {
   try {
+    const formData = new FormData();
+    formData.append('message', message || '');
+    if (removeFiles.length > 0) formData.append('removeFiles', JSON.stringify(removeFiles));
+    files.forEach((file) => formData.append('files', file, file.name));
+
     const response = await fetch(`${API_BASE_URL}/messages/${messageId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message }),
+      body: formData,
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
