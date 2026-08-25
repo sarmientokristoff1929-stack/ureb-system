@@ -1284,6 +1284,27 @@ const ReviewerNotificationsContent = ({ userInfo, onNotifDeleted }) => {
   );
 };
 
+// Faculty display label mapping
+const FACULTY_MAP = {
+  'FALS': 'FALS - Faculty of Agriculture and Life Sciences',
+  'FTED': 'FTED - Faculty of Teacher Education',
+  'FAIS': 'FAIS - Faculty of Advance and International Studies',
+  'FNAHS': 'FNAHS - Faculty of Nursing and Allied Health Science',
+  'FBM': 'FBM - Faculty of Business Management',
+  'FCJE': 'FCJE - Faculty of Criminology Justice Education',
+  'FACET': 'FACET - Faculty of Computing, Engineering, Technology',
+  'FHUSOCOM': 'FHUSOCOM - Faculty of Humanities, Social Science & Communication',
+  'SIEC': 'SIEC - San Isidro Extension Campus',
+  'BEC': 'BEC - BanayBanay Extension Campus',
+  'CEC': 'CEC - Cateel Extension Campus',
+  'BGEC': 'BGEC - Baganga Extension Campus',
+  'TEC': 'TEC - Tarragona Extension Campus',
+  'NSTP': 'NSTP - National Service Training Program',
+  'ICS': 'ICS - Indigenous Community Studies',
+  'Community Representatives': 'Community Representatives',
+  'UREB Board': 'UREB Board - University Research Ethics Board'
+};
+
 // ── Reviewer Profile Settings Content ──
 const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -1319,19 +1340,22 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
       if (!userInfo?.email) return;
       try {
         const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
-        const listRes = await fetch(`${API_BASE}/reviewers`);
-        const reviewers = await listRes.json();
-        const reviewer = Array.isArray(reviewers)
-          ? reviewers.find(r => (r.email || '').toLowerCase() === (userInfo?.email || '').toLowerCase())
-          : null;
-        if (reviewer) {
-          // Add cache-busting timestamp to profile picture URL if it exists
-          if (reviewer.profilePicture) {
-            reviewer.profilePicture = `${reviewer.profilePicture}?t=${Date.now()}`;
-          }
-          setReviewerData(reviewer);
-          if (reviewer.department) {
-            setProfileData(prev => ({ ...prev, department: reviewer.department }));
+        // Try fetching specific reviewer by stored email first or list
+        const res = await fetch(`${API_BASE}/reviewers`);
+        if (res.ok) {
+          const reviewers = await res.json();
+          const reviewer = Array.isArray(reviewers)
+            ? reviewers.find(r => (r.email || '').toLowerCase() === (userInfo?.email || '').toLowerCase())
+            : null;
+          if (reviewer) {
+            // Add cache-busting timestamp to profile picture URL if it exists
+            if (reviewer.profilePicture) {
+              reviewer.profilePicture = `${reviewer.profilePicture}?t=${Date.now()}`;
+            }
+            setReviewerData(reviewer);
+            if (reviewer.department) {
+              setProfileData(prev => ({ ...prev, department: reviewer.department }));
+            }
           }
         }
       } catch (err) {
@@ -1348,12 +1372,14 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
       try {
         const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
         const listRes = await fetch(`${API_BASE}/reviewers`);
-        const reviewers = await listRes.json();
-        const reviewer = Array.isArray(reviewers)
-          ? reviewers.find(r => (r.email || '').toLowerCase() === (userInfo?.email || '').toLowerCase())
-          : null;
-        if (reviewer?.reviewerType) {
-          setReviewerType(reviewer.reviewerType);
+        if (listRes.ok) {
+          const reviewers = await listRes.json();
+          const reviewer = Array.isArray(reviewers)
+            ? reviewers.find(r => (r.email || '').toLowerCase() === (userInfo?.email || '').toLowerCase())
+            : null;
+          if (reviewer?.reviewerType) {
+            setReviewerType(reviewer.reviewerType);
+          }
         }
       } catch (err) {
         console.error('Error fetching reviewer type:', err);
@@ -1394,44 +1420,14 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
     try {
       const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
 
-      // Step 1: Fetch the reviewer record to get the MongoDB document ID
-      const listRes = await fetch(`${API_BASE}/reviewers`);
-      const reviewers = await listRes.json();
-      const reviewer = Array.isArray(reviewers)
-        ? reviewers.find(r => (r.email || '').toLowerCase() === (userInfo?.email || '').toLowerCase())
-        : null;
-
-      if (!reviewer) {
-        setError('Reviewer account not found on the server.');
-        setLoading(false);
-        return;
-      }
-
       const newEmail = profileData.email.trim().toLowerCase();
-      const currentEmail = (userInfo?.email || '').toLowerCase();
-
-      // Check if email is being changed and if it's already taken by another reviewer
-      if (newEmail !== currentEmail) {
-        const emailExists = reviewers.some(r =>
-          (r.email || '').toLowerCase() === newEmail &&
-          String(r._id) !== String(reviewer._id)
-        );
-        if (emailExists) {
-          setError('This email is already in use by another account.');
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Step 2: Use the standard update endpoint
-      const reviewerId = String(reviewer._id);
       const updateData = {
+        email: (userInfo?.email || '').toLowerCase(),
         name: profileData.name.trim(),
-        email: newEmail,
         department: profileData.department
       };
 
-      const updateRes = await fetch(`${API_BASE}/reviewers/${reviewerId}`, {
+      const updateRes = await fetch(`${API_BASE}/reviewers/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
@@ -1448,12 +1444,17 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
       } else {
         setError(result.error || 'Failed to update profile.');
       }
-    } catch {
-      setError('Failed to update profile. Check your connection.');
+    } catch (err) {
+      console.error('Error updating reviewer profile:', err);
+      setError('Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  const facultyDisplay = profileData.department
+    ? (FACULTY_MAP[profileData.department] || profileData.department)
+    : (userInfo?.department ? (FACULTY_MAP[userInfo.department] || userInfo.department) : '');
 
   const handlePasswordChange = async () => {
     setPwdError('');
@@ -1583,7 +1584,7 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
             {[
               { label: 'Full Name', value: fullName },
               { label: 'Email', value: userInfo?.email },
-              { label: 'Faculty', value: profileData.department },
+              { label: 'Faculty', value: facultyDisplay },
             ].map(({ label, value }) => (
               <div className="sp-info-row" key={label}>
                 <span className="sp-info-label">{label}</span>

@@ -1642,10 +1642,11 @@ app.put('/api/reviewers/profile', async (req, res) => {
   try {
     const db = getDatabase();
     const reviewers = db.collection(collections.reviewers);
-    const { email, name } = req.body;
+    const { email, name, department } = req.body;
 
     console.log('Extracted email:', email);
     console.log('Extracted name:', name);
+    console.log('Extracted department:', department);
 
     if (!email) {
       console.log('Email validation failed - email is missing');
@@ -1658,7 +1659,7 @@ app.put('/api/reviewers/profile', async (req, res) => {
     }
 
     console.log('Updating reviewer profile for email:', email);
-    console.log('Update data:', { name });
+    console.log('Update data:', { name, department });
 
     // Check if reviewer exists
     const existingReviewer = await reviewers.findOne({ email: email });
@@ -1669,9 +1670,14 @@ app.put('/api/reviewers/profile', async (req, res) => {
 
     console.log('Found reviewer:', existingReviewer);
 
+    const updateFields = { name: name, updatedAt: new Date() };
+    if (department !== undefined) {
+      updateFields.department = department;
+    }
+
     const result = await reviewers.updateOne(
       { email: email },
-      { $set: { name: name, updatedAt: new Date() } }
+      { $set: updateFields }
     );
 
     console.log('Update result:', result);
