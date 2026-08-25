@@ -22,7 +22,7 @@ const DataPrivacyModal = ({ isOpen, onAccept, userRole }) => {
 
         <div className="post-login-privacy-content">
           <p style={{ fontSize: '0.9rem', color: '#334155', lineHeight: '1.6', margin: '0 0 0.75rem 0' }}>
-            All information and protocol documents submitted through this online application system will be processed strictly for research ethics review, monitoring, and administrative record-keeping. In compliance with the Data Privacy Act of 2012 (Republic Act No. 10173) and the Philippine Health Research Ethics Board (PHREB) standards, all submitted data will be handled with strict confidentiality and stored securely. The Davao Oriental State University – Research Ethics Board (DOrSU-REB) functions as an independent ethics body responsible for evaluating research protocols to ensure the safety, welfare, and protection of research participants.
+            All information and protocol documents submitted through this online application system will be processed strictly for research ethics review, monitoring, and administrative record-keeping. In compliance with the Data Privacy Act of 2012 (Republic Act No. 10173) and the Philippine Health Research Ethics Board (PHREB) standards, all submitted data will be handled with strict confidentiality and stored securely. The Davao Oriental State University – Research Ethics Board (DOrSU-UREB) functions as an independent ethics body responsible for evaluating research protocols to ensure the safety, welfare, and protection of research participants.
           </p>
         </div>
 

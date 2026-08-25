@@ -1305,11 +1305,15 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
   // Only sync profileData from userInfo when NOT editing (prevents resetting while user types)
   useEffect(() => {
     if (!isEditing && userInfo?.name) {
-      setProfileData({ name: userInfo.name, email: userInfo.email || '', department: userInfo.department || '' });
+      setProfileData(prev => ({
+        name: userInfo.name,
+        email: userInfo.email || '',
+        department: prev.department || userInfo.department || ''
+      }));
     }
   }, [userInfo, isEditing]);
 
-  // Fetch reviewer data including profile picture
+  // Fetch reviewer data including profile picture and department assigned by admin
   useEffect(() => {
     const fetchReviewerData = async () => {
       if (!userInfo?.email) return;
@@ -1326,8 +1330,8 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
             reviewer.profilePicture = `${reviewer.profilePicture}?t=${Date.now()}`;
           }
           setReviewerData(reviewer);
-          if (!isEditing) {
-            setProfileData(prev => ({ ...prev, department: reviewer.department || '' }));
+          if (reviewer.department) {
+            setProfileData(prev => ({ ...prev, department: reviewer.department }));
           }
         }
       } catch (err) {

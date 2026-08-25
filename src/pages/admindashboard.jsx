@@ -13044,10 +13044,10 @@ function GenerateReportModal({ isOpen, onClose }) {
     try {
 
       // Fetch reviews, proposals, AND reviewers in parallel
-      const [reviewsRes, proposalsRes, reviewersRes] = await Promise.all([
+      const [reviewsRes, proposalsRes, allReviewerAccounts] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_URL}/api/reviews`),
         fetch(`${import.meta.env.VITE_API_URL}/api/proposals`),
-        fetch(`${import.meta.env.VITE_API_URL}/api/reviewers`),
+        getAllReviewers(), // uses admin auth header — /api/reviewers 404s without it
       ]);
 
       if (!reviewsRes.ok) {
@@ -13058,7 +13058,6 @@ function GenerateReportModal({ isOpen, onClose }) {
 
       const allReviews = await reviewsRes.json();
       const allProposals = proposalsRes.ok ? await proposalsRes.json() : [];
-      const allReviewerAccounts = reviewersRes.ok ? await reviewersRes.json() : [];
 
       if (!Array.isArray(allReviews)) {
         console.error('Unexpected reviews format:', allReviews);
