@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# User-uploaded content (legacy local avatar storage — new uploads go to GridFS).
+# Existing tracked files under uploads/ are left as-is; this only stops new ones
+# from being committed.
+uploads/
+
 # Environment variables
 .env
 .env.local
@@ -29,3 +34,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.originkit/

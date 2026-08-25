@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import LandingPage from './components/LandingPage'
-import AdminDashboard from './components/admindashboard'
-import ReviewerDashboard from './components/reviewerdashboard'
-import StudentDashboard from './components/studentdashboard'
-import DataPrivacyModal from './components/DataPrivacyModal'
-import SessionExpiryModal from './components/SessionExpiryModal'
-import MaintenancePage from './components/MaintenancePage'
+import LandingPage from './pages/LandingPage'
+import AdminDashboard from './pages/admindashboard'
+import ReviewerDashboard from './pages/reviewerdashboard'
+import StudentDashboard from './pages/studentdashboard'
+import DataPrivacyModal from './components/modals/DataPrivacyModal'
+import SessionExpiryModal from './components/modals/SessionExpiryModal'
+import MaintenancePage from './pages/MaintenancePage'
 import { IS_UNDER_MAINTENANCE } from './config/maintenance'
 import { authenticateUser, sendHeartbeat, sendSignOff, API_BASE_URL } from './services/api'
 
@@ -36,7 +36,7 @@ const HEARTBEAT_INTERVAL_MS = 60 * 1000; // 60 seconds
 // previous localStorage behavior (persist across tabs/restarts).
 const getAuthStorage = (role) => (role === 'student' ? sessionStorage : localStorage);
 
-// Keep the Render free-tier server warm so OTP sending is always fast.
+// Keep the Render free-tier server warm so API calls don't hit a cold start.
 // Fires immediately on page load, then every 10 minutes while the tab is open.
 function pingServer() {
   fetch(`${API_BASE_URL}/check-gmail-exists`, {

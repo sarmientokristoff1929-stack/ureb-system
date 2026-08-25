@@ -7,12 +7,46 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import jwt from 'jsonwebtoken';
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5001;
+
+// Signs/verifies the admin session token issued at login (see /api/auth/login).
+// Reuses SESSION_SECRET, which already exists in .env for exactly this purpose.
+const SESSION_SECRET = process.env.SESSION_SECRET;
+if (!SESSION_SECRET) {
+  console.warn('[SECURITY] SESSION_SECRET is not set — admin-authenticated routes will reject every request until it is configured.');
+}
+
+function signAuthToken(payload) {
+  if (!SESSION_SECRET) return null;
+  return jwt.sign(payload, SESSION_SECRET, { expiresIn: '30d' });
+}
+
+// Blocks any request that isn't carrying a valid admin session token.
+// Responds like a route that doesn't exist at all, rather than 401/403,
+// so scanning/probing tools (or a stray Postman request) can't even tell
+// the endpoint is there.
+function requireAdminAuth(req, res, next) {
+  const notFound = () => res.status(404).type('text/plain').send(`Cannot ${req.method} ${req.originalUrl}`);
+
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!SESSION_SECRET || !token) return notFound();
+
+  try {
+    const payload = jwt.verify(token, SESSION_SECRET);
+    if (payload.role !== 'admin') return notFound();
+    req.authUser = payload;
+    next();
+  } catch {
+    notFound();
+  }
+}
 
 // Startup log to confirm server version
 console.log('******************************************');
@@ -138,14 +172,14 @@ connectToDatabase().then(async (db) => {
 
     // Migration: Normalize department codes (Old codes to New codes)
     const deptMap = {
-      'FNAHS': 'FNAS',
+      'FNAS': 'FNAHS',
       'SEIC': 'SIEC',
       'Faculty of Agriculture and Life Science': 'FALS',
       'Faculty of Agriculture and Life Sciences': 'FALS',
       'Faculty of Teacher Education': 'FTED',
       'Faculty of Advance and International Studies': 'FAIS',
-      'Faculty of Nursing and Allied Health Science': 'FNAS',
-      'Faculty of Nursing and Allied Health Sciences': 'FNAS',
+      'Faculty of Nursing and Allied Health Science': 'FNAHS',
+      'Faculty of Nursing and Allied Health Sciences': 'FNAHS',
       'Faculty of Business Management': 'FBM',
       'Faculty of Criminology Justice Education': 'FCJE',
       'Faculty of Computing, Engineering, Technology': 'FACET',
@@ -470,10 +504,13 @@ const getAdminInboxRecipientEmails = (adminEmail) => {
   return Array.from(recipients).filter(Boolean);
 };
 
-// "reviewer_to_admin" messages (both the auto-generated "review submitted" notice and the
-// manual "Message Admin" compose) are addressed to admin only — they must never echo back into
-// the reviewer's own Messages inbox, which is meant to show admin's replies to them.
-const excludeReviewerToAdminEcho = { type: 'reviewer_to_admin' };
+// "reviewer_to_admin" messages (the auto-generated "review submitted"/"review resubmitted"
+// notices) and the "*_chat_to_admin" Messenger chat types (see below) are addressed to admin
+// only — they must never echo back into the sender's own Messages inbox, which is meant to
+// show admin's replies to them, not their own outgoing messages.
+const excludeReviewerToAdminEcho = {
+  type: { $in: ['reviewer_to_admin', 'reviewer_chat_to_admin', 'student_chat_to_admin'] },
+};
 
 const buildUserInboxQuery = (userEmail) => ({
   $and: [
@@ -486,6 +523,15 @@ const buildUserInboxQuery = (userEmail) => ({
     { $nor: [excludeReviewerToAdminEcho] },
   ],
 });
+
+// Messenger chat messages ("student_chat_to_admin"/"reviewer_chat_to_admin", written by the
+// admin<->researcher and admin<->reviewer chat send endpoints) are excluded here on purpose —
+// they live only in the new chat UI. "Files And Messages Submitted" keeps showing everything
+// else addressed to admin: the "student_to_admin"/"reviewer_to_admin" auto-generated notices
+// (review submitted/resubmitted, file resubmissions) that carry actual submitted files.
+const excludeChatOnlyTypesFromAdminInbox = {
+  type: { $in: ['student_chat_to_admin', 'reviewer_chat_to_admin'] },
+};
 
 const buildAdminInboxQuery = (adminEmail) => {
   const recipients = getAdminInboxRecipientEmails(adminEmail);
@@ -501,6 +547,7 @@ const buildAdminInboxQuery = (adminEmail) => {
       {
         $nor: recipients.map((r) => ({ senderEmail: emailRegexFilter(r) })),
       },
+      { $nor: [excludeChatOnlyTypesFromAdminInbox] },
     ],
   };
 };
@@ -1110,6 +1157,11 @@ app.post('/api/auth/login', async (req, res) => {
       console.log('[DEBUG] Login - Added admin profilePicture to response:', userResponse.profilePicture);
     }
 
+    // Admin session token — required by requireAdminAuth on admin-only bulk-data routes.
+    if (role === 'admin') {
+      userResponse.token = signAuthToken({ email: userResponse.email, role, userType });
+    }
+
     res.json({
       success: true,
       user: userResponse
@@ -1282,7 +1334,7 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 // User operations
-app.get('/api/users', async (req, res) => {
+app.get('/api/users', requireAdminAuth, async (req, res) => {
   try {
     const db = getDatabase();
     const users = db.collection(collections.users);
@@ -1299,7 +1351,7 @@ app.get('/api/users', async (req, res) => {
 });
 
 // Reviewers operations
-app.get('/api/reviewers', async (req, res) => {
+app.get('/api/reviewers', requireAdminAuth, async (req, res) => {
   try {
     const db = getDatabase();
     const reviewers = db.collection(collections.reviewers);
@@ -1307,6 +1359,28 @@ app.get('/api/reviewers', async (req, res) => {
     res.json(reviewerList.map(r => reviewerProfilePayload(r)));
   } catch (error) {
     console.error('Error fetching reviewers:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Public single-reviewer lookup by email — used by a reviewer's own dashboard
+// to load their profile (name, department, profile picture, reviewer type).
+// Unlike GET /api/reviewers this does not require admin auth, since it only
+// ever discloses one reviewer's already-non-sensitive profile fields (the
+// password is stripped by reviewerProfilePayload), not the full roster.
+app.get('/api/reviewers/by-email/:email', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const reviewers = db.collection(collections.reviewers);
+    const email = String(req.params.email || '').toLowerCase();
+    const escaped = email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const reviewer = await reviewers.findOne({ email: { $regex: `^${escaped}$`, $options: 'i' } });
+    if (!reviewer) {
+      return res.status(404).json({ error: 'Reviewer not found' });
+    }
+    res.json(reviewerProfilePayload(reviewer));
+  } catch (error) {
+    console.error('Error fetching reviewer by email:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -1336,7 +1410,7 @@ app.post('/api/reviewers', async (req, res) => {
 });
 
 // Students operations
-app.get('/api/students', async (req, res) => {
+app.get('/api/students', requireAdminAuth, async (req, res) => {
   try {
     const db = getDatabase();
     const students = db.collection(collections.students);
@@ -1603,10 +1677,11 @@ app.put('/api/reviewers/profile', async (req, res) => {
   try {
     const db = getDatabase();
     const reviewers = db.collection(collections.reviewers);
-    const { email, name } = req.body;
+    const { email, name, department } = req.body;
 
     console.log('Extracted email:', email);
     console.log('Extracted name:', name);
+    console.log('Extracted department:', department);
 
     if (!email) {
       console.log('Email validation failed - email is missing');
@@ -1619,7 +1694,7 @@ app.put('/api/reviewers/profile', async (req, res) => {
     }
 
     console.log('Updating reviewer profile for email:', email);
-    console.log('Update data:', { name });
+    console.log('Update data:', { name, department });
 
     // Check if reviewer exists
     const existingReviewer = await reviewers.findOne({ email: email });
@@ -1630,9 +1705,14 @@ app.put('/api/reviewers/profile', async (req, res) => {
 
     console.log('Found reviewer:', existingReviewer);
 
+    const updateFields = { name: name, updatedAt: new Date() };
+    if (department !== undefined) {
+      updateFields.department = department;
+    }
+
     const result = await reviewers.updateOne(
       { email: email },
-      { $set: { name: name, updatedAt: new Date() } }
+      { $set: updateFields }
     );
 
     console.log('Update result:', result);
@@ -3926,6 +4006,33 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
       reviewerEmail: emailRegexFilter(reviewerEmail),
     }).sort({ createdAt: -1 }).toArray();
 
+    // Resolve co-reviewer (Chair/Member) display names so a reviewer can see who
+    // their counterpart is on each proposal, not just their own role badge.
+    const reviewersCollection = db.collection(collections.reviewers);
+    const coReviewerEmails = new Set();
+    assignmentList.forEach((a) => {
+      const sec1 = a.secondaryReviewer1 || a.proposal?.secondaryReviewer1 || a.reviewers?.reviewer2;
+      const sec2 = a.secondaryReviewer2 || a.proposal?.secondaryReviewer2 || a.reviewers?.reviewer3;
+      if (sec1) coReviewerEmails.add(String(sec1).toLowerCase().trim());
+      if (sec2) coReviewerEmails.add(String(sec2).toLowerCase().trim());
+    });
+    const coReviewerNameByEmail = new Map();
+    if (coReviewerEmails.size > 0) {
+      try {
+        const coReviewerDocs = await reviewersCollection.find({
+          $or: Array.from(coReviewerEmails).map((e) => ({ email: emailRegexFilter(e) })),
+        }, { projection: { email: 1, name: 1, firstName: 1, middleName: 1, lastName: 1 } }).toArray();
+        coReviewerDocs.forEach((r) => {
+          const fullName = r.name
+            || [r.firstName, r.middleName, r.lastName].filter(Boolean).join(' ')
+            || r.email;
+          coReviewerNameByEmail.set(String(r.email).toLowerCase().trim(), fullName);
+        });
+      } catch (lookupError) {
+        console.error('Error resolving co-reviewer names (non-fatal):', lookupError);
+      }
+    }
+
     assignmentList = assignmentList.map((a) => {
       const assignmentSource = inferAssignmentSource(a);
       const isStudent = assignmentSource === 'student';
@@ -3959,6 +4066,8 @@ app.get('/api/assignments/:reviewerEmail', async (req, res) => {
         reviewerRole,
         secondaryReviewer1: sec1,
         secondaryReviewer2: sec2,
+        secondaryReviewer1Name: sec1 ? (coReviewerNameByEmail.get(String(sec1).toLowerCase().trim()) || sec1) : null,
+        secondaryReviewer2Name: sec2 ? (coReviewerNameByEmail.get(String(sec2).toLowerCase().trim()) || sec2) : null,
         assignedFiles: sanitizedFiles,
         ...(isStudent ? { protocolCode: null } : {}),
       };
@@ -4159,14 +4268,6 @@ app.post('/api/send-email', async (req, res) => {
   }
 });
 
-// OTP storage (in production, use Redis or database)
-const otpStore = new Map();
-
-// Generate OTP
-function generateOTP() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
 // Check if Email exists in system (supports institutional and standard emails)
 app.post('/api/check-gmail-exists', async (req, res) => {
   try {
@@ -4195,88 +4296,6 @@ app.post('/api/check-gmail-exists', async (req, res) => {
   } catch (error) {
     console.error('Error checking Gmail existence:', error);
     res.json({ exists: false });
-  }
-});
-
-// Send OTP endpoint
-app.post('/api/send-otp', (req, res) => {
-  const { gmail, email } = req.body;
-  const targetEmail = (email || gmail || '').trim().toLowerCase();
-
-  // Validate email address format (institutional or standard)
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  if (!emailRegex.test(targetEmail)) {
-    return res.json({ success: false, error: 'Invalid email address' });
-  }
-
-  // Generate and store OTP immediately
-  const otp = generateOTP();
-  const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-  otpStore.set(targetEmail, { otp, expiry });
-
-  // Respond to the client right away — do NOT wait for the email
-  res.json({ success: true, message: 'OTP sent to your email address' });
-
-  // Send the email in the background (fire-and-forget)
-  const mailOptions = {
-    from: `UREB System <${process.env.GMAIL_EMAIL}>`,
-    to: targetEmail,
-    subject: 'UREB System - Email Verification OTP',
-    text: `Your OTP for email verification is: ${otp}\n\nThis OTP will expire in 10 minutes.\n\nIf you didn't request this OTP, please ignore this email.`,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #7A9E7E;">UREB System - Email Verification</h2>
-        <p>Your One-Time Password (OTP) for email verification is:</p>
-        <div style="background: #f0f0f0; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
-          <span style="font-size: 32px; font-weight: bold; color: #333; letter-spacing: 5px;">${otp}</span>
-        </div>
-        <p>This OTP will expire in <strong>10 minutes</strong>.</p>
-        <p>If you didn't request this OTP, please ignore this email.</p>
-        <hr style="border: 1px solid #eee; margin: 30px 0;">
-        <p style="color: #666; font-size: 14px;">This is an automated message from the UREB System.</p>
-      </div>
-    `
-  };
-
-  transporter.sendMail(mailOptions)
-    .then(() => console.log(`OTP emailed to ${targetEmail}`))
-    .catch((err) => console.error(`Failed to email OTP to ${targetEmail}:`, err.message));
-});
-
-// Verify OTP endpoint
-app.post('/api/verify-otp', (req, res) => {
-  try {
-    const { gmail, email, otp } = req.body;
-    const targetEmail = (email || gmail || '').trim().toLowerCase();
-
-    // Get stored OTP
-    const storedData = otpStore.get(targetEmail);
-
-    if (!storedData) {
-      return res.json({ success: false, error: 'OTP not found or expired' });
-    }
-
-    // Check expiry
-    if (new Date() > storedData.expiry) {
-      otpStore.delete(targetEmail);
-      return res.json({ success: false, error: 'OTP expired' });
-    }
-
-    // Verify OTP
-    if (storedData.otp !== otp) {
-      return res.json({ success: false, error: 'Invalid OTP' });
-    }
-
-    // OTP is valid, remove it from store
-    otpStore.delete(gmail);
-
-    res.json({
-      success: true,
-      message: 'OTP verified successfully'
-    });
-  } catch (error) {
-    console.error('Error verifying OTP:', error);
-    res.status(500).json({ success: false, error: 'Failed to verify OTP' });
   }
 });
 
@@ -4561,7 +4580,7 @@ app.post('/api/messages/student-to-admin', upload.array('attachments', 3), async
       attachmentCount: fileRecords.length,
       sentAt: new Date(),
       createdAt: new Date(),
-      type: 'student_to_admin',
+      type: 'student_chat_to_admin',
       read: false,
     };
 
@@ -4650,7 +4669,7 @@ app.post('/api/messages/to-admin', upload.array('attachments', 3), async (req, r
       attachmentCount: fileRecords.length,
       sentAt: new Date(),
       createdAt: new Date(),
-      type: 'reviewer_to_admin',
+      type: 'reviewer_chat_to_admin',
       read: false
     };
 
@@ -4663,6 +4682,120 @@ app.post('/api/messages/to-admin', upload.array('attachments', 3), async (req, r
   } catch (error) {
     console.error('Error sending reviewer message:', error);
     res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Sidebar summary for the admin<->researcher chat UI: one row per researcher who has
+// exchanged messages with admin, with their last message and unread count.
+// Registered before the generic /api/messages/:userId route below, since that route
+// would otherwise treat "student-conversations-summary" as a literal userId and shadow this one.
+app.get('/api/messages/student-conversations-summary', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const pipeline = [
+      { $match: { type: { $in: ['admin_to_student', 'student_chat_to_admin'] } } },
+      {
+        $addFields: {
+          partnerEmail: {
+            $cond: [{ $eq: ['$type', 'student_chat_to_admin'] }, '$senderEmail', '$recipientEmail'],
+          },
+          sortDate: { $ifNull: ['$createdAt', '$sentAt'] },
+        },
+      },
+      { $match: { partnerEmail: { $nin: [null, ''] } } },
+      { $sort: { sortDate: 1 } },
+      {
+        $group: {
+          _id: { $toLower: '$partnerEmail' },
+          email: { $last: '$partnerEmail' },
+          lastMessage: { $last: '$message' },
+          lastMessageAt: { $last: '$sortDate' },
+          lastMessageFromAdmin: { $last: { $eq: ['$type', 'admin_to_student'] } },
+          unreadCount: {
+            $sum: {
+              $cond: [
+                { $and: [{ $eq: ['$type', 'student_chat_to_admin'] }, { $ne: ['$read', true] }] },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ];
+
+    const results = await messages.aggregate(pipeline).toArray();
+    res.json(
+      results.map((r) => ({
+        email: r.email,
+        lastMessage: r.lastMessage,
+        lastMessageAt: r.lastMessageAt,
+        lastMessageFromAdmin: r.lastMessageFromAdmin,
+        unreadCount: r.unreadCount,
+      }))
+    );
+  } catch (error) {
+    console.error('Error fetching student conversations summary:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Sidebar summary for the admin<->reviewer chat UI: one row per reviewer who has
+// exchanged messages with admin, with their last message and unread count.
+// Registered before the generic /api/messages/:userId route below for the same reason
+// as the student-conversations-summary route above.
+app.get('/api/messages/reviewer-conversations-summary', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const pipeline = [
+      { $match: { type: { $in: ['admin_to_reviewer', 'reviewer_chat_to_admin'] } } },
+      {
+        $addFields: {
+          partnerEmail: {
+            $cond: [{ $eq: ['$type', 'reviewer_chat_to_admin'] }, '$senderEmail', '$recipientEmail'],
+          },
+          sortDate: { $ifNull: ['$createdAt', '$sentAt'] },
+        },
+      },
+      { $match: { partnerEmail: { $nin: [null, ''] } } },
+      { $sort: { sortDate: 1 } },
+      {
+        $group: {
+          _id: { $toLower: '$partnerEmail' },
+          email: { $last: '$partnerEmail' },
+          lastMessage: { $last: '$message' },
+          lastMessageAt: { $last: '$sortDate' },
+          lastMessageFromAdmin: { $last: { $eq: ['$type', 'admin_to_reviewer'] } },
+          unreadCount: {
+            $sum: {
+              $cond: [
+                { $and: [{ $eq: ['$type', 'reviewer_chat_to_admin'] }, { $ne: ['$read', true] }] },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ];
+
+    const results = await messages.aggregate(pipeline).toArray();
+    res.json(
+      results.map((r) => ({
+        email: r.email,
+        lastMessage: r.lastMessage,
+        lastMessageAt: r.lastMessageAt,
+        lastMessageFromAdmin: r.lastMessageFromAdmin,
+        unreadCount: r.unreadCount,
+      }))
+    );
+  } catch (error) {
+    console.error('Error fetching reviewer conversations summary:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -4761,6 +4894,44 @@ app.delete('/api/messages/:messageId', async (req, res) => {
     res.json({ success: true, message: 'Message deleted successfully' });
   } catch (error) {
     console.error('Error deleting message:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Edit a message's text (used by the Messenger chat UIs — a sender editing their own message).
+// Only updates the text; attachments are left as-is.
+app.put('/api/messages/:messageId', async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { message } = req.body;
+
+    if (!message || !String(message).trim()) {
+      return res.status(400).json({ success: false, error: 'Message text is required' });
+    }
+
+    let objectId;
+    try {
+      objectId = new ObjectId(messageId);
+    } catch (error) {
+      return res.status(400).json({ success: false, error: 'Invalid message ID format' });
+    }
+
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const result = await messages.findOneAndUpdate(
+      { _id: objectId },
+      { $set: { message: String(message).trim(), edited: true, editedAt: new Date() } },
+      { returnDocument: 'after' }
+    );
+
+    if (!result) {
+      return res.status(404).json({ success: false, error: 'Message not found' });
+    }
+
+    res.json({ success: true, message: result });
+  } catch (error) {
+    console.error('Error editing message:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -5587,6 +5758,223 @@ app.get('/api/messages-to-reviewer/history', async (req, res) => {
   } catch (error) {
     console.error('Error fetching admin-to-reviewer message history:', error);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// History of messages a researcher has sent to the admin (newest first, paginated)
+app.get('/api/messages/student-to-admin/history', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+    const search = String(req.query.search || '').trim();
+    const senderEmail = String(req.query.senderEmail || '').trim();
+
+    if (!senderEmail) {
+      return res.status(400).json({ error: 'senderEmail is required' });
+    }
+
+    const query = { type: 'student_chat_to_admin', senderEmail };
+    if (search) {
+      const searchRegex = { $regex: escapeRegexEmail(search), $options: 'i' };
+      query.$or = [{ subject: searchRegex }, { message: searchRegex }];
+    }
+
+    const total = await messages.countDocuments(query);
+    const results = await messages
+      .find(query)
+      .sort({ sentAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .toArray();
+
+    res.json({
+      messages: results,
+      total,
+      page,
+      totalPages: Math.max(Math.ceil(total / limit), 1),
+    });
+  } catch (error) {
+    console.error('Error fetching student-to-admin message history:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// History of messages a reviewer has sent to the admin (newest first, paginated)
+app.get('/api/messages/reviewer-to-admin/history', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+    const search = String(req.query.search || '').trim();
+    const senderEmail = String(req.query.senderEmail || '').trim();
+
+    if (!senderEmail) {
+      return res.status(400).json({ error: 'senderEmail is required' });
+    }
+
+    const query = { type: 'reviewer_chat_to_admin', senderEmail };
+    if (search) {
+      const searchRegex = { $regex: escapeRegexEmail(search), $options: 'i' };
+      query.$or = [{ subject: searchRegex }, { message: searchRegex }];
+    }
+
+    const total = await messages.countDocuments(query);
+    const results = await messages
+      .find(query)
+      .sort({ sentAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .toArray();
+
+    res.json({
+      messages: results,
+      total,
+      page,
+      totalPages: Math.max(Math.ceil(total / limit), 1),
+    });
+  } catch (error) {
+    console.error('Error fetching reviewer-to-admin message history:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Full two-way conversation thread between admin and one researcher, oldest first.
+app.get('/api/messages/student-conversation/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    if (!email) {
+      return res.status(400).json({ error: 'email is required' });
+    }
+
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const query = {
+      $or: [
+        { type: 'admin_to_student', recipientEmail: emailRegexFilter(email) },
+        { type: 'student_chat_to_admin', senderEmail: emailRegexFilter(email) },
+      ],
+    };
+
+    const list = await messages.find(query).sort({ createdAt: 1, sentAt: 1, _id: 1 }).toArray();
+    const normalized = list.map((msg) => {
+      if (!msg.createdAt && msg.sentAt) msg.createdAt = msg.sentAt;
+      if (msg.read === undefined) msg.read = false;
+      return normalizeMessageAttachments(msg);
+    });
+
+    res.json(normalized);
+  } catch (error) {
+    console.error('Error fetching student conversation:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Bulk mark all of one researcher's messages to admin as read (used when the admin opens the thread).
+app.put('/api/messages/student-conversation/:email/read', async (req, res) => {
+  try {
+    const { email } = req.params;
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'email is required' });
+    }
+
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const result = await messages.updateMany(
+      { type: 'student_chat_to_admin', senderEmail: emailRegexFilter(email), read: { $ne: true } },
+      { $set: { read: true } }
+    );
+
+    res.json({ success: true, modifiedCount: result.modifiedCount });
+  } catch (error) {
+    console.error('Error marking student conversation as read:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Mirror of the route above, for the researcher's own side of the same conversation:
+// bulk marks all of admin's unread messages to this researcher as read (called when
+// the researcher opens their "Message Admin" chat).
+app.put('/api/messages/student-conversation/:email/mark-admin-read', async (req, res) => {
+  try {
+    const { email } = req.params;
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'email is required' });
+    }
+
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const result = await messages.updateMany(
+      { type: 'admin_to_student', recipientEmail: emailRegexFilter(email), read: { $ne: true } },
+      { $set: { read: true } }
+    );
+
+    res.json({ success: true, modifiedCount: result.modifiedCount });
+  } catch (error) {
+    console.error('Error marking admin messages as read:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Full two-way conversation thread between admin and one reviewer, oldest first.
+app.get('/api/messages/reviewer-conversation/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    if (!email) {
+      return res.status(400).json({ error: 'email is required' });
+    }
+
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const query = {
+      $or: [
+        { type: 'admin_to_reviewer', recipientEmail: emailRegexFilter(email) },
+        { type: 'reviewer_chat_to_admin', senderEmail: emailRegexFilter(email) },
+      ],
+    };
+
+    const list = await messages.find(query).sort({ createdAt: 1, sentAt: 1, _id: 1 }).toArray();
+    const normalized = list.map((msg) => {
+      if (!msg.createdAt && msg.sentAt) msg.createdAt = msg.sentAt;
+      if (msg.read === undefined) msg.read = false;
+      return normalizeMessageAttachments(msg);
+    });
+
+    res.json(normalized);
+  } catch (error) {
+    console.error('Error fetching reviewer conversation:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Bulk mark all of one reviewer's messages to admin as read (used when the admin opens the thread).
+app.put('/api/messages/reviewer-conversation/:email/read', async (req, res) => {
+  try {
+    const { email } = req.params;
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'email is required' });
+    }
+
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const result = await messages.updateMany(
+      { type: 'reviewer_chat_to_admin', senderEmail: emailRegexFilter(email), read: { $ne: true } },
+      { $set: { read: true } }
+    );
+
+    res.json({ success: true, modifiedCount: result.modifiedCount });
+  } catch (error) {
+    console.error('Error marking reviewer conversation as read:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
   }
 });
 

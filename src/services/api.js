@@ -2,6 +2,19 @@
 const apiOrigin = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 export const API_BASE_URL = apiOrigin ? `${apiOrigin}/api` : '/api';
 
+// Admin session token, saved on the `user` object at login (see App.jsx commitLogin,
+// which persists the whole login response under 'ureb_user'). Needed for admin-only
+// bulk-data routes like /api/students, /api/reviewers, /api/users.
+const getAuthHeaders = () => {
+  try {
+    const raw = localStorage.getItem('ureb_user') || sessionStorage.getItem('ureb_user');
+    const token = raw ? JSON.parse(raw)?.token : null;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+};
+
 // Authentication
 export const authenticateUser = async (email, password, turnstileToken) => {
   try {
@@ -426,6 +439,148 @@ export const sendStudentMessageToAdmin = async ({ senderEmail, senderName, subje
   }
 };
 
+// Admin -> Researcher chat: sidebar summary (last message + unread count per researcher)
+export const getStudentConversationsSummary = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/student-conversations-summary`);
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching student conversations summary:', error);
+    return [];
+  }
+};
+
+// Admin -> Researcher chat: full two-way thread with one researcher, oldest first
+export const getStudentConversation = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/student-conversation/${encodeURIComponent(email)}`);
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching student conversation:', error);
+    return [];
+  }
+};
+
+// Admin -> Researcher chat: mark all of a researcher's messages to admin as read
+export const markStudentConversationRead = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/student-conversation/${encodeURIComponent(email)}/read`, {
+      method: 'PUT',
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error marking student conversation as read:', error);
+    return { success: false, error: 'Failed to mark conversation as read' };
+  }
+};
+
+// Researcher -> Admin chat: mark all of admin's messages to me as read
+export const markAdminMessagesRead = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/student-conversation/${encodeURIComponent(email)}/mark-admin-read`, {
+      method: 'PUT',
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error marking admin messages as read:', error);
+    return { success: false, error: 'Failed to mark messages as read' };
+  }
+};
+
+// Admin -> Researcher chat: send a message (optionally with PDF/DOC/DOCX attachments)
+export const sendAdminMessageToStudent = async ({ studentEmail, recipientName, message, files = [] }) => {
+  try {
+    const formData = new FormData();
+    formData.append('studentEmail', studentEmail || '');
+    formData.append('recipientName', recipientName || '');
+    formData.append('message', message);
+    files.forEach((file, index) => {
+      formData.append(`file${index}`, file);
+    });
+
+    const response = await fetch(`${API_BASE_URL}/send-message-to-student`, {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, error: data.error || `Failed to send message (${response.status})` };
+    }
+    return data;
+  } catch (error) {
+    console.error('Error sending admin message to student:', error);
+    return { success: false, error: 'Failed to send message' };
+  }
+};
+
+// Admin -> Reviewer chat: sidebar summary (last message + unread count per reviewer)
+export const getReviewerConversationsSummary = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/reviewer-conversations-summary`);
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching reviewer conversations summary:', error);
+    return [];
+  }
+};
+
+// Admin -> Reviewer chat: full two-way thread with one reviewer, oldest first
+export const getReviewerConversation = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/reviewer-conversation/${encodeURIComponent(email)}`);
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching reviewer conversation:', error);
+    return [];
+  }
+};
+
+// Admin -> Reviewer chat: mark all of a reviewer's messages to admin as read
+export const markReviewerConversationRead = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/reviewer-conversation/${encodeURIComponent(email)}/read`, {
+      method: 'PUT',
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error marking reviewer conversation as read:', error);
+    return { success: false, error: 'Failed to mark conversation as read' };
+  }
+};
+
+// Admin -> Reviewer chat: send a message (optionally with PDF/DOC/DOCX attachments)
+export const sendAdminMessageToReviewer = async ({ reviewerEmail, recipientName, message, files = [] }) => {
+  try {
+    const formData = new FormData();
+    formData.append('reviewerEmail', reviewerEmail || '');
+    formData.append('recipientName', recipientName || '');
+    formData.append('message', message);
+    files.forEach((file, index) => {
+      formData.append(`file${index}`, file);
+    });
+
+    const response = await fetch(`${API_BASE_URL}/send-message-to-reviewer`, {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, error: data.error || `Failed to send message (${response.status})` };
+    }
+    return data;
+  } catch (error) {
+    console.error('Error sending admin message to reviewer:', error);
+    return { success: false, error: 'Failed to send message' };
+  }
+};
+
 export const sendEmail = async (emailData) => {
   try {
     const response = await fetch(`${API_BASE_URL}/send-email`, {
@@ -453,6 +608,25 @@ export const deleteMessage = async (messageId) => {
   } catch (error) {
     console.error('Error deleting message:', error);
     return { success: false, error: 'Failed to delete message' };
+  }
+};
+
+// Edit a message's text (Messenger chat UIs — editing your own already-sent message)
+export const editMessage = async (messageId, message) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, error: data.error || `Failed to edit message (${response.status})` };
+    }
+    return data;
+  } catch (error) {
+    console.error('Error editing message:', error);
+    return { success: false, error: 'Failed to edit message' };
   }
 };
 
@@ -489,7 +663,7 @@ export const markAllMessagesAsRead = async (email) => {
 // Users
 export const getAllUsers = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/users`);
+    const response = await fetch(`${API_BASE_URL}/users`, { headers: getAuthHeaders() });
     const data = await response.json();
     return data;
   } catch (error) {
@@ -500,7 +674,7 @@ export const getAllUsers = async () => {
 
 export const getAllStudents = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/students`);
+    const response = await fetch(`${API_BASE_URL}/students`, { headers: getAuthHeaders() });
     const data = await response.json();
     return data;
   } catch (error) {
@@ -511,7 +685,7 @@ export const getAllStudents = async () => {
 
 export const getAllReviewers = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/reviewers`);
+    const response = await fetch(`${API_BASE_URL}/reviewers`, { headers: getAuthHeaders() });
     const data = await response.json();
     return data;
   } catch (error) {
@@ -781,10 +955,10 @@ export const getUserNotifications = async (email) => {
 // Get a reviewer's profile (status, etc.) by email
 export const getReviewerProfile = async (email) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/reviewers`);
-    const data = await response.json();
-    if (!Array.isArray(data)) return null;
-    return data.find(r => (r.email || '').toLowerCase() === (email || '').toLowerCase()) || null;
+    if (!email) return null;
+    const response = await fetch(`${API_BASE_URL}/reviewers/by-email/${encodeURIComponent(email)}`);
+    if (!response.ok) return null;
+    return await response.json();
   } catch (error) {
     console.error('Error fetching reviewer profile:', error);
     return null;
