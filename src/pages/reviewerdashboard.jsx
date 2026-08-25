@@ -4513,6 +4513,9 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
     try {
       const data = await getReviewerConversation(myEmail);
       setThread(data);
+      if (data.some((m) => m.type === 'admin_to_reviewer' && !m.read)) {
+        markAdminMessagesReadForReviewer(myEmail).catch((err) => console.error('Error marking admin messages read:', err));
+      }
     } catch (err) {
       console.error('Error loading conversation with admin:', err);
     }

@@ -4334,6 +4334,9 @@ function MessageAdminContent({ userInfo }) {
     try {
       const data = await getStudentConversation(myEmail);
       setThread(data);
+      if (data.some((m) => m.type === 'admin_to_student' && !m.read)) {
+        markAdminMessagesRead(myEmail).catch((err) => console.error('Error marking admin messages read:', err));
+      }
     } catch (err) {
       console.error('Error loading conversation with admin:', err);
     }

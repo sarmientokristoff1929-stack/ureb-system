@@ -5606,6 +5606,11 @@ const MessageResearcherContent = ({ onMessageRead }) => {
       try {
         const data = await getStudentConversation(selectedEmail);
         setThread(data);
+        if (data.some((m) => m.type === 'student_chat_to_admin' && !m.read)) {
+          markStudentConversationRead(selectedEmail)
+            .then(() => { if (onMessageRead) onMessageRead(); })
+            .catch((err) => console.error('Error marking conversation read:', err));
+        }
       } catch (err) {
         console.error('Error refreshing conversation:', err);
       }
@@ -6336,6 +6341,11 @@ const MessageReviewerContent = ({ onMessageRead }) => {
       try {
         const data = await getReviewerConversation(selectedEmail);
         setThread(data);
+        if (data.some((m) => m.type === 'reviewer_chat_to_admin' && !m.read)) {
+          markReviewerConversationRead(selectedEmail)
+            .then(() => { if (onMessageRead) onMessageRead(); })
+            .catch((err) => console.error('Error marking conversation read:', err));
+        }
       } catch (err) {
         console.error('Error refreshing conversation:', err);
       }
