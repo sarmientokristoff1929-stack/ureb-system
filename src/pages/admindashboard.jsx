@@ -5856,7 +5856,7 @@ const MessageResearcherContent = ({ onMessageRead }) => {
     try {
       const result = await deleteMessage(msg._id);
       if (result?.success === false) throw new Error(result.error || 'Failed to delete message');
-      setThread((prev) => prev.filter((m) => m._id !== msg._id));
+      setThread((prev) => prev.map((m) => (m._id === msg._id ? { ...m, deleted: true, message: '', files: [] } : m)));
       setDeleteConfirmMsg(null);
       const summaryList = await getStudentConversationsSummary();
       applySummary(summaryList);
@@ -5877,6 +5877,7 @@ const MessageResearcherContent = ({ onMessageRead }) => {
         name: getDisplayName(student),
         lastMessage: summary?.lastMessage || '',
         lastMessageAt: summary?.lastMessageAt || null,
+        lastMessageDeleted: summary?.lastMessageDeleted || false,
         lastMessageFromAdmin: summary?.lastMessageFromAdmin,
         unreadCount: summary?.unreadCount || 0,
       };
@@ -5928,8 +5929,14 @@ const MessageResearcherContent = ({ onMessageRead }) => {
                 </div>
                 <div className="chat-sidebar-item-bottom">
                   <span className="chat-sidebar-item-preview">
-                    {item.lastMessageFromAdmin && item.lastMessage ? 'You: ' : ''}
-                    {truncateText(item.lastMessage)}
+                    {item.lastMessageDeleted
+                      ? (item.lastMessageFromAdmin ? 'You removed a message' : 'Message removed')
+                      : (
+                        <>
+                          {item.lastMessageFromAdmin && item.lastMessage ? 'You: ' : ''}
+                          {truncateText(item.lastMessage)}
+                        </>
+                      )}
                   </span>
                   {item.unreadCount > 0 && <span className="chat-unread-badge">{item.unreadCount}</span>}
                 </div>
@@ -5970,7 +5977,7 @@ const MessageResearcherContent = ({ onMessageRead }) => {
                 const showSeparator = dayKey && dayKey !== lastDayKey;
                 if (dayKey) lastDayKey = dayKey;
                 const isOut = msg.type === 'admin_to_student';
-                const canModify = isOut && !msg._pending && !msg._failed;
+                const canModify = isOut && !msg._pending && !msg._failed && !msg.deleted;
                 const isEditing = editingMessageId === msg._id;
 
                 return (
@@ -5987,7 +5994,7 @@ const MessageResearcherContent = ({ onMessageRead }) => {
                           </button>
                         </div>
                       )}
-                      <div className={`chat-bubble ${isOut ? 'out' : 'in'} ${msg._failed ? 'failed' : ''}`}>
+                      <div className={`chat-bubble ${isOut ? 'out' : 'in'} ${msg._failed ? 'failed' : ''} ${msg.deleted ? 'removed' : ''}`}>
                         {isEditing ? (
                           <div className="chat-bubble-edit">
                             <input
@@ -6050,6 +6057,10 @@ const MessageResearcherContent = ({ onMessageRead }) => {
                               <button type="button" className="chat-bubble-edit-save" onClick={() => saveEditMessage(msg)}>Save</button>
                             </div>
                           </div>
+                        ) : msg.deleted ? (
+                          <p className="chat-bubble-removed-text">
+                            {isOut ? 'You removed this message' : 'This message was removed'}
+                          </p>
                         ) : (
                           <>
                             <p>{msg.message}</p>
@@ -6572,7 +6583,7 @@ const MessageReviewerContent = ({ onMessageRead }) => {
     try {
       const result = await deleteMessage(msg._id);
       if (result?.success === false) throw new Error(result.error || 'Failed to delete message');
-      setThread((prev) => prev.filter((m) => m._id !== msg._id));
+      setThread((prev) => prev.map((m) => (m._id === msg._id ? { ...m, deleted: true, message: '', files: [] } : m)));
       setDeleteConfirmMsg(null);
       const summaryList = await getReviewerConversationsSummary();
       applySummary(summaryList);
@@ -6593,6 +6604,7 @@ const MessageReviewerContent = ({ onMessageRead }) => {
         name: getDisplayName(reviewer),
         lastMessage: summary?.lastMessage || '',
         lastMessageAt: summary?.lastMessageAt || null,
+        lastMessageDeleted: summary?.lastMessageDeleted || false,
         lastMessageFromAdmin: summary?.lastMessageFromAdmin,
         unreadCount: summary?.unreadCount || 0,
       };
@@ -6644,8 +6656,14 @@ const MessageReviewerContent = ({ onMessageRead }) => {
                 </div>
                 <div className="chat-sidebar-item-bottom">
                   <span className="chat-sidebar-item-preview">
-                    {item.lastMessageFromAdmin && item.lastMessage ? 'You: ' : ''}
-                    {truncateText(item.lastMessage)}
+                    {item.lastMessageDeleted
+                      ? (item.lastMessageFromAdmin ? 'You removed a message' : 'Message removed')
+                      : (
+                        <>
+                          {item.lastMessageFromAdmin && item.lastMessage ? 'You: ' : ''}
+                          {truncateText(item.lastMessage)}
+                        </>
+                      )}
                   </span>
                   {item.unreadCount > 0 && <span className="chat-unread-badge">{item.unreadCount}</span>}
                 </div>
@@ -6686,7 +6704,7 @@ const MessageReviewerContent = ({ onMessageRead }) => {
                 const showSeparator = dayKey && dayKey !== lastDayKey;
                 if (dayKey) lastDayKey = dayKey;
                 const isOut = msg.type === 'admin_to_reviewer';
-                const canModify = isOut && !msg._pending && !msg._failed;
+                const canModify = isOut && !msg._pending && !msg._failed && !msg.deleted;
                 const isEditing = editingMessageId === msg._id;
 
                 return (
@@ -6703,7 +6721,7 @@ const MessageReviewerContent = ({ onMessageRead }) => {
                           </button>
                         </div>
                       )}
-                      <div className={`chat-bubble ${isOut ? 'out' : 'in'} ${msg._failed ? 'failed' : ''}`}>
+                      <div className={`chat-bubble ${isOut ? 'out' : 'in'} ${msg._failed ? 'failed' : ''} ${msg.deleted ? 'removed' : ''}`}>
                         {isEditing ? (
                           <div className="chat-bubble-edit">
                             <input
@@ -6766,6 +6784,10 @@ const MessageReviewerContent = ({ onMessageRead }) => {
                               <button type="button" className="chat-bubble-edit-save" onClick={() => saveEditMessage(msg)}>Save</button>
                             </div>
                           </div>
+                        ) : msg.deleted ? (
+                          <p className="chat-bubble-removed-text">
+                            {isOut ? 'You removed this message' : 'This message was removed'}
+                          </p>
                         ) : (
                           <>
                             <p>{msg.message}</p>

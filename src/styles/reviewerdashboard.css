@@ -5728,6 +5728,19 @@
   color: #b91c1c;
 }
 
+.chat-bubble.removed {
+  background: transparent;
+  border: 1px solid var(--border-color, #d1d5db);
+  color: #6b7280;
+}
+
+.chat-bubble-removed-text {
+  margin: 0;
+  font-size: 0.82rem;
+  font-style: italic;
+  color: inherit;
+}
+
 .chat-bubble-files {
   display: flex;
   flex-direction: column;

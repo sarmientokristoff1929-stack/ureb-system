@@ -4714,6 +4714,7 @@ app.get('/api/messages/student-conversations-summary', async (req, res) => {
           email: { $last: '$partnerEmail' },
           lastMessage: { $last: '$message' },
           lastMessageAt: { $last: '$sortDate' },
+          lastMessageDeleted: { $last: { $eq: ['$deleted', true] } },
           lastMessageFromAdmin: { $last: { $eq: ['$type', 'admin_to_student'] } },
           unreadCount: {
             $sum: {
@@ -4734,6 +4735,7 @@ app.get('/api/messages/student-conversations-summary', async (req, res) => {
         email: r.email,
         lastMessage: r.lastMessage,
         lastMessageAt: r.lastMessageAt,
+        lastMessageDeleted: r.lastMessageDeleted,
         lastMessageFromAdmin: r.lastMessageFromAdmin,
         unreadCount: r.unreadCount,
       }))
@@ -4771,6 +4773,7 @@ app.get('/api/messages/reviewer-conversations-summary', async (req, res) => {
           email: { $last: '$partnerEmail' },
           lastMessage: { $last: '$message' },
           lastMessageAt: { $last: '$sortDate' },
+          lastMessageDeleted: { $last: { $eq: ['$deleted', true] } },
           lastMessageFromAdmin: { $last: { $eq: ['$type', 'admin_to_reviewer'] } },
           unreadCount: {
             $sum: {
@@ -4791,6 +4794,7 @@ app.get('/api/messages/reviewer-conversations-summary', async (req, res) => {
         email: r.email,
         lastMessage: r.lastMessage,
         lastMessageAt: r.lastMessageAt,
+        lastMessageDeleted: r.lastMessageDeleted,
         lastMessageFromAdmin: r.lastMessageFromAdmin,
         unreadCount: r.unreadCount,
       }))
@@ -4866,11 +4870,7 @@ app.delete('/api/messages/:messageId', async (req, res) => {
     }
 
     const message = await messages.findOne({ _id: objectId });
-
-    const result = await messages.deleteOne({ _id: objectId });
-    console.log('Delete result:', result);
-
-    if (result.deletedCount === 0) {
+    if (!message) {
       console.log('Message not found with ID:', messageId);
       return res.status(404).json({ success: false, error: 'Message not found' });
     }
@@ -4890,6 +4890,14 @@ app.delete('/api/messages/:messageId', async (req, res) => {
       [...attachedFilenames].map((filename) =>
         deleteFromGridFS(filename).catch((e) => console.error('Error deleting message attachment from GridFS:', filename, e))
       )
+    );
+
+    // Soft delete: keep the document (so it still holds its place in the thread and in
+    // sort order) but strip its content and mark it, so the chat UIs can render a
+    // Messenger-style "This message was removed" tombstone instead of the message vanishing.
+    await messages.updateOne(
+      { _id: objectId },
+      { $set: { deleted: true, deletedAt: new Date(), message: '', files: [] } }
     );
 
     console.log('Message deleted successfully:', messageId);
@@ -5682,6 +5690,7 @@ app.post('/api/send-message-to-student', upload.any(), async (req, res) => {
     message,
     files: fileRecords,
     sentAt: new Date(),
+    createdAt: new Date(),
     type: 'admin_to_student',
     status: 'sent'
   }).catch(err => console.error('Failed to save message to DB:', err.message));

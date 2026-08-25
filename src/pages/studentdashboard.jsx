@@ -4560,7 +4560,7 @@ function MessageAdminContent({ userInfo }) {
     try {
       const result = await deleteMessage(msg._id);
       if (result?.success === false) throw new Error(result.error || 'Failed to delete message');
-      setThread((prev) => prev.filter((m) => m._id !== msg._id));
+      setThread((prev) => prev.map((m) => (m._id === msg._id ? { ...m, deleted: true, message: '', files: [] } : m)));
       setDeleteConfirmMsg(null);
     } catch (err) {
       console.error('Error deleting message:', err);
@@ -4593,7 +4593,7 @@ function MessageAdminContent({ userInfo }) {
           const showSeparator = dayKey && dayKey !== lastDayKey;
           if (dayKey) lastDayKey = dayKey;
           const isOut = msg.type === 'student_chat_to_admin';
-          const canModify = isOut && !msg._pending && !msg._failed;
+          const canModify = isOut && !msg._pending && !msg._failed && !msg.deleted;
           const isEditing = editingMessageId === msg._id;
 
           return (
@@ -4610,7 +4610,7 @@ function MessageAdminContent({ userInfo }) {
                     </button>
                   </div>
                 )}
-                <div className={`chat-bubble ${isOut ? 'out' : 'in'} ${msg._failed ? 'failed' : ''}`}>
+                <div className={`chat-bubble ${isOut ? 'out' : 'in'} ${msg._failed ? 'failed' : ''} ${msg.deleted ? 'removed' : ''}`}>
                   {isEditing ? (
                     <div className="chat-bubble-edit">
                       <input
@@ -4673,6 +4673,10 @@ function MessageAdminContent({ userInfo }) {
                         <button type="button" className="chat-bubble-edit-save" onClick={() => saveEditMessage(msg)}>Save</button>
                       </div>
                     </div>
+                  ) : msg.deleted ? (
+                    <p className="chat-bubble-removed-text">
+                      {isOut ? 'You removed this message' : 'This message was removed'}
+                    </p>
                   ) : (
                     <>
                       <p>{msg.message}</p>
