@@ -6098,6 +6098,9 @@ const MessageResearcherContent = ({ onMessageRead }) => {
                             <span className="chat-bubble-time">
                               {msg._pending ? 'Sending…' : msg._failed ? 'Failed to send' : formatBubbleTime(dateVal)}
                               {!msg._pending && !msg._failed && msg.edited ? ' · edited' : ''}
+                              {isOut && !msg._pending && !msg._failed && (
+                                <span className={`chat-bubble-status ${msg.read ? 'seen' : 'sent'}`}> · {msg.read ? 'Seen' : 'Sent'}</span>
+                              )}
                             </span>
                           </>
                         )}
@@ -6825,6 +6828,9 @@ const MessageReviewerContent = ({ onMessageRead }) => {
                             <span className="chat-bubble-time">
                               {msg._pending ? 'Sending…' : msg._failed ? 'Failed to send' : formatBubbleTime(dateVal)}
                               {!msg._pending && !msg._failed && msg.edited ? ' · edited' : ''}
+                              {isOut && !msg._pending && !msg._failed && (
+                                <span className={`chat-bubble-status ${msg.read ? 'seen' : 'sent'}`}> · {msg.read ? 'Seen' : 'Sent'}</span>
+                              )}
                             </span>
                           </>
                         )}

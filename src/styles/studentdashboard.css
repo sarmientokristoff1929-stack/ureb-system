@@ -5517,6 +5517,14 @@
   text-align: right;
 }
 
+.chat-bubble-status {
+  font-weight: 600;
+}
+
+.chat-bubble-status.seen {
+  opacity: 1;
+}
+
 .chat-bubble-actions {
   display: flex;
   align-items: center;
