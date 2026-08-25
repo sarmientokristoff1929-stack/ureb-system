@@ -4875,29 +4875,13 @@ app.delete('/api/messages/:messageId', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Message not found' });
     }
 
-    // Purge the message's attachments from GridFS — attachment records store the
-    // GridFS filename under either `filename` or `path` depending on which endpoint
-    // created them, so check both (deleteFromGridFS is a safe no-op if nothing matches).
-    const attachedFiles = Array.isArray(message?.files)
-      ? message.files
-      : (message?.files ? Object.values(message.files) : []);
-    const attachedFilenames = new Set();
-    attachedFiles.forEach((f) => {
-      if (f?.filename) attachedFilenames.add(f.filename);
-      if (f?.path) attachedFilenames.add(f.path);
-    });
-    await Promise.all(
-      [...attachedFilenames].map((filename) =>
-        deleteFromGridFS(filename).catch((e) => console.error('Error deleting message attachment from GridFS:', filename, e))
-      )
-    );
-
-    // Soft delete: keep the document (so it still holds its place in the thread and in
-    // sort order) but strip its content and mark it, so the chat UIs can render a
-    // Messenger-style "This message was removed" tombstone instead of the message vanishing.
+    // Soft delete: keep the document AND its original text/attachments untouched (so an
+    // admin can still audit what was actually sent) — only flag it as deleted. The chat
+    // UIs key off `deleted` to render a Messenger-style "This message was removed"
+    // tombstone instead of the real content, without the underlying data ever being erased.
     await messages.updateOne(
       { _id: objectId },
-      { $set: { deleted: true, deletedAt: new Date(), message: '', files: [] } }
+      { $set: { deleted: true, deletedAt: new Date() } }
     );
 
     console.log('Message deleted successfully:', messageId);
