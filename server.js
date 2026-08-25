@@ -1350,6 +1350,28 @@ app.get('/api/reviewers', requireAdminAuth, async (req, res) => {
   }
 });
 
+// Public single-reviewer lookup by email — used by a reviewer's own dashboard
+// to load their profile (name, department, profile picture, reviewer type).
+// Unlike GET /api/reviewers this does not require admin auth, since it only
+// ever discloses one reviewer's already-non-sensitive profile fields (the
+// password is stripped by reviewerProfilePayload), not the full roster.
+app.get('/api/reviewers/by-email/:email', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const reviewers = db.collection(collections.reviewers);
+    const email = String(req.params.email || '').toLowerCase();
+    const escaped = email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const reviewer = await reviewers.findOne({ email: { $regex: `^${escaped}$`, $options: 'i' } });
+    if (!reviewer) {
+      return res.status(404).json({ error: 'Reviewer not found' });
+    }
+    res.json(reviewerProfilePayload(reviewer));
+  } catch (error) {
+    console.error('Error fetching reviewer by email:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 app.post('/api/reviewers', async (req, res) => {
   try {
     const db = getDatabase();

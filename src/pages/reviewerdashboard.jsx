@@ -466,11 +466,8 @@ const ReviewerDashboard = ({ onLogout }) => {
       const user = JSON.parse(savedUser);
       try {
         const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
-        const listRes = await fetch(`${API_BASE}/reviewers`);
-        const reviewers = await listRes.json();
-        const reviewer = Array.isArray(reviewers)
-          ? reviewers.find(r => (r.email || '').toLowerCase() === (user?.email || '').toLowerCase())
-          : null;
+        const listRes = await fetch(`${API_BASE}/reviewers/by-email/${encodeURIComponent(user?.email || '')}`);
+        const reviewer = listRes.ok ? await listRes.json() : null;
 
         if (reviewer?.reviewerType) {
           setReviewerType(reviewer.reviewerType);
@@ -1340,13 +1337,9 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
       if (!userInfo?.email) return;
       try {
         const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
-        // Try fetching specific reviewer by stored email first or list
-        const res = await fetch(`${API_BASE}/reviewers`);
+        const res = await fetch(`${API_BASE}/reviewers/by-email/${encodeURIComponent(userInfo.email)}`);
         if (res.ok) {
-          const reviewers = await res.json();
-          const reviewer = Array.isArray(reviewers)
-            ? reviewers.find(r => (r.email || '').toLowerCase() === (userInfo?.email || '').toLowerCase())
-            : null;
+          const reviewer = await res.json();
           if (reviewer) {
             // Add cache-busting timestamp to profile picture URL if it exists
             if (reviewer.profilePicture) {
@@ -1371,12 +1364,9 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
       if (!userInfo?.email) return;
       try {
         const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
-        const listRes = await fetch(`${API_BASE}/reviewers`);
+        const listRes = await fetch(`${API_BASE}/reviewers/by-email/${encodeURIComponent(userInfo.email)}`);
         if (listRes.ok) {
-          const reviewers = await listRes.json();
-          const reviewer = Array.isArray(reviewers)
-            ? reviewers.find(r => (r.email || '').toLowerCase() === (userInfo?.email || '').toLowerCase())
-            : null;
+          const reviewer = await listRes.json();
           if (reviewer?.reviewerType) {
             setReviewerType(reviewer.reviewerType);
           }
@@ -1452,9 +1442,16 @@ const ReviewerProfileContent = ({ userInfo, setUserInfo }) => {
     }
   };
 
-  const facultyDisplay = profileData.department
-    ? (FACULTY_MAP[profileData.department] || profileData.department)
-    : (userInfo?.department ? (FACULTY_MAP[userInfo.department] || userInfo.department) : '');
+  const getFacultyLabel = (deptKey) => {
+    if (!deptKey) return '';
+    const key = String(deptKey).trim();
+    if (FACULTY_MAP[key]) return FACULTY_MAP[key];
+    const upperKey = key.toUpperCase();
+    const mapMatchKey = Object.keys(FACULTY_MAP).find(k => k.toUpperCase() === upperKey);
+    return mapMatchKey ? FACULTY_MAP[mapMatchKey] : key;
+  };
+
+  const facultyDisplay = getFacultyLabel(profileData.department || reviewerData?.department || userInfo?.department);
 
   const handlePasswordChange = async () => {
     setPwdError('');
