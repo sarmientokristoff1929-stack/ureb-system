@@ -7,7 +7,18 @@ import '../styles/admindashboard-sp.css';
 
 import '../styles/GenerateReportModal.css';
 import InboxReportModal from '../components/modals/InboxReportModal';
-import { getAllStudents, getAllReviewers } from '../services/api';
+import {
+  getAllStudents,
+  getAllReviewers,
+  getStudentConversationsSummary,
+  getStudentConversation,
+  markStudentConversationRead,
+  sendAdminMessageToStudent,
+  getReviewerConversationsSummary,
+  getReviewerConversation,
+  markReviewerConversationRead,
+  sendAdminMessageToReviewer,
+} from '../services/api';
 
 
 
@@ -5378,1325 +5389,688 @@ const AssignFileContent = () => null;
 
 
 
+// --- Small inline icons used only by the researcher chat UI ---
+const ChatSearchIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="7" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+  </svg>
+);
+
+const ChatBackIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+);
+
+const ChatPaperclipIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+  </svg>
+);
+
+const ChatSendIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M2.5 12L21 3l-6 18-4-7-8-2z" />
+  </svg>
+);
+
+// Admin <-> Researcher Messenger-style chat
 const MessageResearcherContent = () => {
-
   const [students, setStudents] = useState([]);
-
   const [filteredStudents, setFilteredStudents] = useState([]);
-
-  const [selectedStudent, setSelectedStudent] = useState('');
-
   const [searchQuery, setSearchQuery] = useState('');
+  const [summaryMap, setSummaryMap] = useState({});
 
-  const [message, setMessage] = useState('');
+  const [selectedEmail, setSelectedEmail] = useState('');
+  const [thread, setThread] = useState([]);
+  const [threadLoading, setThreadLoading] = useState(false);
+  const [mobileView, setMobileView] = useState('list'); // 'list' | 'chat'
 
+  const [messageText, setMessageText] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
-
-  const [loading, setLoading] = useState(false);
-
-  const [success, setSuccess] = useState('');
-
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
 
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  const [isMessageSuccessModalOpen, setIsMessageSuccessModalOpen] = useState(false);
-
-  const [messageSuccessRecipient, setMessageSuccessRecipient] = useState('');
-
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-
-  const [messageHistory, setMessageHistory] = useState([]);
-
-  const [historyLoading, setHistoryLoading] = useState(false);
-
-  const [historyError, setHistoryError] = useState('');
-
-  const [historySearch, setHistorySearch] = useState('');
-
-  const [historySearchInput, setHistorySearchInput] = useState('');
-
-  const [historyPage, setHistoryPage] = useState(1);
-
-  const [historyTotalPages, setHistoryTotalPages] = useState(1);
-
-  const [historyTotal, setHistoryTotal] = useState(0);
-
-  const [deletingMessageId, setDeletingMessageId] = useState('');
-
-  const [deleteConfirmMsg, setDeleteConfirmMsg] = useState(null);
-
-  const HISTORY_PAGE_SIZE = 20;
-
-
-
-  const fetchHistoryPage = async (page, search) => {
-
-    setHistoryLoading(true);
-
-    setHistoryError('');
-
-    try {
-
-      const params = new URLSearchParams({ page: String(page), limit: String(HISTORY_PAGE_SIZE) });
-
-      if (search) params.set('search', search);
-
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/messages-to-student/history?${params.toString()}`);
-
-      if (!response.ok) throw new Error('Failed to fetch history');
-
-      const data = await response.json();
-
-      setMessageHistory(data.messages || []);
-
-      setHistoryPage(data.page || 1);
-
-      setHistoryTotalPages(data.totalPages || 1);
-
-      setHistoryTotal(data.total || 0);
-
-    } catch (err) {
-
-      console.error('Error fetching message history:', err);
-
-      setHistoryError('Failed to load message history');
-
-    } finally {
-
-      setHistoryLoading(false);
-
-    }
-
-  };
-
-
-
-  const openHistoryModal = () => {
-
-    setIsHistoryModalOpen(true);
-
-    setHistorySearch('');
-
-    setHistorySearchInput('');
-
-    fetchHistoryPage(1, '');
-
-  };
-
-
-
-  const requestDeleteMessage = (msg) => {
-
-    setDeleteConfirmMsg(msg);
-
-  };
-
-
-
-  const cancelDeleteMessage = () => {
-
-    setDeleteConfirmMsg(null);
-
-  };
-
-
-
-  const confirmDeleteMessage = async () => {
-
-    const messageId = deleteConfirmMsg?._id;
-
-    if (!messageId) return;
-
-    setDeletingMessageId(messageId);
-
-    try {
-
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/messages/${messageId}`, {
-
-        method: 'DELETE',
-
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok || data.success === false) throw new Error(data.error || 'Failed to delete message');
-
-      setMessageHistory(prev => prev.filter(m => m._id !== messageId));
-
-      setHistoryTotal(prev => Math.max(prev - 1, 0));
-
-      setDeleteConfirmMsg(null);
-
-    } catch (err) {
-
-      console.error('Error deleting message:', err);
-
-      setHistoryError('Failed to delete message');
-
-    } finally {
-
-      setDeletingMessageId('');
-
-    }
-
-  };
-
-
-
-  // Debounce search-as-you-type so we don't hit the server on every keystroke
-
-  useEffect(() => {
-
-    if (!isHistoryModalOpen) return;
-
-    if (historySearchInput === historySearch) return;
-
-    const timer = setTimeout(() => {
-
-      setHistorySearch(historySearchInput);
-
-      fetchHistoryPage(1, historySearchInput);
-
-    }, 400);
-
-    return () => clearTimeout(timer);
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-
-  }, [historySearchInput, isHistoryModalOpen]);
-
-
-
-  useEffect(() => {
-
-    const fetchStudents = async () => {
-
-      try {
-
-        const data = await getAllStudents();
-
-        setStudents(data);
-
-        setFilteredStudents(data);
-
-      } catch (error) {
-
-        console.error('Error fetching students:', error);
-
-        setError('Failed to fetch researchers');
-
-      }
-
-    };
-
-    fetchStudents();
-
-  }, []);
-
-
-
-  // Filter students
-
-  useEffect(() => {
-
-    let filtered = students.filter(student => {
-
-      const searchLower = searchQuery.toLowerCase();
-
-      const name = (student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim()).toLowerCase();
-
-      const email = (student.email || '').toLowerCase();
-
-      const department = (student.department || '').toLowerCase();
-
-      return name.includes(searchLower) ||
-
-        email.includes(searchLower) ||
-
-        department.includes(searchLower);
-
-    });
-
-
-
-    setFilteredStudents(filtered);
-
-  }, [students, searchQuery]);
-
-
-
-  const handleSubmit = (e) => {
-
-    e.preventDefault();
-
-
-
-    if (!selectedStudent || !message) {
-
-      setError('Please select a researcher and enter a message');
-
-      return;
-
-    }
-
-    setError('');
-
-    const selectedStudentObj = students.find(s => s.email === selectedStudent);
-    const recipientName = selectedStudentObj
-      ? (selectedStudentObj.name || `${selectedStudentObj.firstName || ''} ${selectedStudentObj.lastName || ''}`.trim())
-      : '';
-
-    // Show success immediately — don't wait for file upload
-    setMessageSuccessRecipient(recipientName || 'researcher');
-    setIsMessageSuccessModalOpen(true);
-
-    // Capture values before resetting form
-    const studentEmail = selectedStudent;
-    const messageText = message;
-    const filesToSend = [...attachedFiles];
-
-    // Reset form immediately
-    setSelectedStudent('');
-    setMessage('');
-    setAttachedFiles([]);
-
-    // Upload in background (fire-and-forget from client)
-    const formDataToSend = new FormData();
-    formDataToSend.append('studentEmail', studentEmail);
-    formDataToSend.append('recipientName', recipientName);
-    formDataToSend.append('message', messageText);
-    filesToSend.forEach((file, index) => {
-      formDataToSend.append(`file${index}`, file);
-    });
-
-    fetch(`${import.meta.env.VITE_API_URL}/api/send-message-to-student`, {
-      method: 'POST',
-      body: formDataToSend,
-    }).catch(err => console.error('Message send failed:', err));
-  };
-
-
+  const sendingRef = useRef(false);
+  const threadBodyRef = useRef(null);
+  const threadEndRef = useRef(null);
 
   const MAX_MESSAGE_ATTACHMENTS = 3;
-
   const MAX_MESSAGE_TOTAL_BYTES = 12 * 1024 * 1024;
-
   const MESSAGE_ATTACHMENT_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 
-  const addValidatedFiles = (files) => {
-
-    const room = MAX_MESSAGE_ATTACHMENTS - attachedFiles.length;
-
-    if (room <= 0) {
-
-      setError(`You can attach up to ${MAX_MESSAGE_ATTACHMENTS} files per message`);
-
-      setTimeout(() => setError(''), 3000);
-
-      return;
-
-    }
-
-    let runningTotal = attachedFiles.reduce((sum, f) => sum + f.size, 0);
-
-    const accepted = [];
-
-    let rejected = false;
-
-    for (const file of files) {
-
-      if (accepted.length >= room) { rejected = true; break; }
-
-      if (!MESSAGE_ATTACHMENT_TYPES.includes(file.type)) { rejected = true; continue; }
-
-      if (runningTotal + file.size > MAX_MESSAGE_TOTAL_BYTES) { rejected = true; break; }
-
-      runningTotal += file.size;
-
-      accepted.push(file);
-
-    }
-
-    if (accepted.length > 0) {
-
-      setAttachedFiles(prev => [...prev, ...accepted]);
-
-    }
-
-    if (rejected) {
-
-      setError(`Only PDF, DOC, and DOCX files are allowed, up to ${MAX_MESSAGE_ATTACHMENTS} files and 12MB combined`);
-
-      setTimeout(() => setError(''), 3000);
-
-    }
-
+  const getDisplayName = (student) => {
+    if (!student) return '';
+    return student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || student.email;
   };
 
+  const getInitials = (name) => {
+    const clean = (name || '').trim();
+    if (!clean) return '?';
+    const parts = clean.split(/\s+/);
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
 
+  const truncateText = (text, max = 46) => {
+    const clean = (text || '').replace(/\s+/g, ' ').trim();
+    if (!clean) return 'No messages yet';
+    if (clean.length <= max) return clean;
+    return `${clean.slice(0, max - 1).trimEnd()}…`;
+  };
+
+  const formatSidebarTime = (dateVal) => {
+    if (!dateVal) return '';
+    const date = new Date(dateVal);
+    if (isNaN(date.getTime())) return '';
+    const now = new Date();
+    if (date.toDateString() === now.toDateString()) {
+      return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    const sameYear = date.getFullYear() === now.getFullYear();
+    return date.toLocaleDateString([], sameYear ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const formatBubbleTime = (dateVal) => {
+    const date = new Date(dateVal);
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
+
+  const formatDaySeparator = (dateVal) => {
+    const date = new Date(dateVal);
+    if (isNaN(date.getTime())) return '';
+    const now = new Date();
+    if (date.toDateString() === now.toDateString()) return 'Today';
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    const sameYear = date.getFullYear() === now.getFullYear();
+    return date.toLocaleDateString([], sameYear ? { month: 'long', day: 'numeric' } : { month: 'long', day: 'numeric', year: 'numeric' });
+  };
+
+  const applySummary = (list) => {
+    const map = {};
+    (Array.isArray(list) ? list : []).forEach((item) => {
+      if (!item?.email) return;
+      map[item.email.toLowerCase()] = item;
+    });
+    setSummaryMap(map);
+  };
+
+  // Initial load: researcher roster + sidebar summary, then keep the summary fresh
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadInitial = async () => {
+      try {
+        const [studentList, summaryList] = await Promise.all([
+          getAllStudents(),
+          getStudentConversationsSummary(),
+        ]);
+        if (cancelled) return;
+        setStudents(Array.isArray(studentList) ? studentList : []);
+        applySummary(summaryList);
+      } catch (err) {
+        console.error('Error loading researchers:', err);
+        if (!cancelled) setError('Failed to load researchers');
+      }
+    };
+
+    loadInitial();
+
+    const summaryInterval = setInterval(async () => {
+      try {
+        const summaryList = await getStudentConversationsSummary();
+        if (!cancelled) applySummary(summaryList);
+      } catch (err) {
+        console.error('Error refreshing conversation summaries:', err);
+      }
+    }, 15000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(summaryInterval);
+    };
+  }, []);
+
+  // Filter the sidebar roster (name/email/department), same fields the old dropdown searched
+  useEffect(() => {
+    const q = searchQuery.toLowerCase();
+    const filtered = students.filter((student) => {
+      const name = getDisplayName(student).toLowerCase();
+      const email = (student.email || '').toLowerCase();
+      const department = (student.department || '').toLowerCase();
+      return name.includes(q) || email.includes(q) || department.includes(q);
+    });
+    setFilteredStudents(filtered);
+  }, [students, searchQuery]);
+
+  // Poll the open conversation for new researcher replies
+  useEffect(() => {
+    if (!selectedEmail) return undefined;
+
+    const threadInterval = setInterval(async () => {
+      if (sendingRef.current) return;
+      try {
+        const data = await getStudentConversation(selectedEmail);
+        setThread(data);
+      } catch (err) {
+        console.error('Error refreshing conversation:', err);
+      }
+    }, 5000);
+
+    return () => clearInterval(threadInterval);
+  }, [selectedEmail]);
+
+  // Auto-scroll to the newest message
+  useEffect(() => {
+    if (threadEndRef.current) {
+      threadEndRef.current.scrollIntoView({ block: 'end' });
+    }
+  }, [thread, selectedEmail]);
+
+  const handleSelectResearcher = async (email) => {
+    setSelectedEmail(email);
+    setMobileView('chat');
+    setThread([]);
+    setThreadLoading(true);
+    setError('');
+    setMessageText('');
+    setAttachedFiles([]);
+
+    try {
+      const data = await getStudentConversation(email);
+      setThread(data);
+    } catch (err) {
+      console.error('Error loading conversation:', err);
+      setError('Failed to load conversation history');
+    } finally {
+      setThreadLoading(false);
+    }
+
+    const key = email.toLowerCase();
+    setSummaryMap((prev) => ({
+      ...prev,
+      [key]: { ...(prev[key] || { email }), unreadCount: 0 },
+    }));
+    markStudentConversationRead(email).catch((err) => console.error('Error marking conversation read:', err));
+  };
+
+  const handleBackToList = () => {
+    setMobileView('list');
+  };
+
+  const addValidatedFiles = (files) => {
+    const room = MAX_MESSAGE_ATTACHMENTS - attachedFiles.length;
+    if (room <= 0) {
+      setError(`You can attach up to ${MAX_MESSAGE_ATTACHMENTS} files per message`);
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+    let runningTotal = attachedFiles.reduce((sum, f) => sum + f.size, 0);
+    const accepted = [];
+    let rejected = false;
+    for (const file of files) {
+      if (accepted.length >= room) { rejected = true; break; }
+      if (!MESSAGE_ATTACHMENT_TYPES.includes(file.type)) { rejected = true; continue; }
+      if (runningTotal + file.size > MAX_MESSAGE_TOTAL_BYTES) { rejected = true; break; }
+      runningTotal += file.size;
+      accepted.push(file);
+    }
+    if (accepted.length > 0) setAttachedFiles((prev) => [...prev, ...accepted]);
+    if (rejected) {
+      setError(`Only PDF, DOC, and DOCX files are allowed, up to ${MAX_MESSAGE_ATTACHMENTS} files and 12MB combined`);
+      setTimeout(() => setError(''), 3000);
+    }
+  };
 
   const handleFileChange = (e) => {
-
     const files = Array.from(e.target.files);
-
     addValidatedFiles(files);
-
     e.target.value = '';
-
   };
-
-
 
   const handleRemoveFile = (index) => {
-
-    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
-
+    setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleSend = async () => {
+    const text = messageText.trim();
+    if (!text || !selectedEmail || sending) return;
 
+    const student = students.find((s) => s.email === selectedEmail);
+    const recipientName = student ? getDisplayName(student) : selectedEmail;
+    const tempId = `temp-${Date.now()}`;
+    const filesToSend = [...attachedFiles];
 
-  const handleDragOver = (e) => {
+    const optimisticMsg = {
+      _id: tempId,
+      type: 'admin_to_student',
+      message: text,
+      senderEmail: 'admin',
+      recipientEmail: selectedEmail,
+      recipientName,
+      createdAt: new Date().toISOString(),
+      files: filesToSend.map((f) => ({ originalname: f.name, filename: f.name, size: f.size })),
+      _pending: true,
+    };
 
-    e.preventDefault();
+    setThread((prev) => [...prev, optimisticMsg]);
+    setMessageText('');
+    setAttachedFiles([]);
+    setError('');
+    sendingRef.current = true;
+    setSending(true);
 
-    setIsDragOver(true);
+    try {
+      const result = await sendAdminMessageToStudent({
+        studentEmail: selectedEmail,
+        recipientName,
+        message: text,
+        files: filesToSend,
+      });
+      if (result?.success === false) throw new Error(result.error || 'Failed to send message');
 
+      const fresh = await getStudentConversation(selectedEmail);
+      setThread(fresh);
+      const summaryList = await getStudentConversationsSummary();
+      applySummary(summaryList);
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setThread((prev) => prev.map((m) => (m._id === tempId ? { ...m, _pending: false, _failed: true } : m)));
+      setError('Failed to send message. Please try again.');
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+    }
   };
 
-
-
-  const handleDragLeave = (e) => {
-
-    e.preventDefault();
-
-    setIsDragOver(false);
-
+  const handleInputKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
+  const sidebarItems = filteredStudents
+    .map((student) => {
+      const email = student.email || '';
+      const summary = summaryMap[email.toLowerCase()];
+      return {
+        student,
+        email,
+        name: getDisplayName(student),
+        lastMessage: summary?.lastMessage || '',
+        lastMessageAt: summary?.lastMessageAt || null,
+        lastMessageFromAdmin: summary?.lastMessageFromAdmin,
+        unreadCount: summary?.unreadCount || 0,
+      };
+    })
+    .sort((a, b) => {
+      if (!a.lastMessageAt && !b.lastMessageAt) return a.name.localeCompare(b.name);
+      if (!a.lastMessageAt) return 1;
+      if (!b.lastMessageAt) return -1;
+      return new Date(b.lastMessageAt) - new Date(a.lastMessageAt);
+    });
 
+  const selectedStudent = students.find((s) => s.email === selectedEmail);
+  const selectedName = selectedStudent ? getDisplayName(selectedStudent) : selectedEmail;
 
-  const handleDrop = (e) => {
-
-    e.preventDefault();
-
-    setIsDragOver(false);
-
-
-
-    const files = Array.from(e.dataTransfer.files);
-
-    addValidatedFiles(files);
-
-  };
-
-
+  let lastDayKey = null;
 
   return (
-
-    <div className="form-content full-width">
-
-      <div className="form-card">
-
-        <div className="form-card-header-row">
-
-          <h2>Message Researcher</h2>
-
-          <button
-
-            type="button"
-
-            className="btn-secondary history-btn"
-
-            onClick={openHistoryModal}
-
-          >
-
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-
-              <circle cx="12" cy="12" r="9" />
-
-              <polyline points="12 7 12 12 16 14" />
-
-            </svg>
-
-            History
-
-          </button>
-
+    <div className="chat-layout" data-mobile-view={mobileView}>
+      <aside className="chat-sidebar">
+        <div className="chat-sidebar-search">
+          <ChatSearchIcon />
+          <input
+            type="text"
+            placeholder="Search researchers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
 
-        <form className="message-form" onSubmit={handleSubmit}>
-
-          <div className="form-group">
-
-            <label>Select Researcher</label>
-
-            <div className="student-selector">
-
-              <div className="student-controls">
-
-                <input
-
-                  type="text"
-
-                  placeholder="Search by name, email, or department..."
-
-                  value={searchQuery}
-
-                  onChange={(e) => setSearchQuery(e.target.value)}
-
-                  className="student-search"
-
-                />
-
-              </div>
-
-
-
-              {searchQuery && (
-
-                <div className="search-results-info">
-
-                  Found <span className="results-count">{filteredStudents.length}</span> researchers matching "{searchQuery}"
-
-                  {filteredStudents.length === 0 && " - Try different keywords"}
-
-                </div>
-
-              )}
-
-
-
-              <div className="student-dropdown">
-
-                <select
-
-                  value={selectedStudent}
-
-                  onChange={(e) => setSelectedStudent(e.target.value)}
-
-                  required
-
-                  className="student-select"
-
-                >
-
-                  <option value="">
-
-                    {filteredStudents.length === 0
-
-                      ? 'No researchers found - adjust your search'
-
-                      : `Select a researcher (${filteredStudents.length} available)`
-
-                    }
-
-                  </option>
-
-                  {filteredStudents.map((student) => (
-
-                    <option key={student._id} value={student.email}>
-
-                      {student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || student.email}
-
-                      {student.department && ` - ${student.department}`}
-
-                    </option>
-
-                  ))}
-
-                </select>
-
-              </div>
-
-            </div>
-
-          </div>
-
-
-
-          <div className="form-group">
-
-            <label>Attached Files</label>
-
-            <div
-
-              className={`file-upload-area ${isDragOver ? 'dragover' : ''}`}
-
-              onDragOver={handleDragOver}
-
-              onDragLeave={handleDragLeave}
-
-              onDrop={handleDrop}
-
-              onClick={() => document.getElementById('message-file-upload').click()}
-
-            >
-
-              <input
-
-                type="file"
-
-                multiple
-
-                onChange={handleFileChange}
-
-                accept=".pdf,.doc,.docx"
-
-                style={{ display: 'none' }}
-
-                id="message-file-upload"
-
-              />
-
-              <div className="file-upload-label">
-
-                <FilePlusIcon />
-
-                <p>{isDragOver ? 'Drop files here' : 'Click to upload files or drag and drop'}</p>
-
-                <span>PDF, DOC, DOCX (MAX. 3 files, 12MB total)</span>
-
-              </div>
-
-            </div>
-
-          </div>
-
-
-
-          {attachedFiles.length > 0 && (
-
-            <div className="uploaded-files">
-
-              <h4>Attached Files:</h4>
-
-              <ul>
-
-                {attachedFiles.map((file, index) => (
-
-                  <li key={index}>
-
-                    <span>{file.name}</span>
-
-                    <span>({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-
-                    <button
-
-                      type="button"
-
-                      className="remove-file-btn"
-
-                      onClick={() => handleRemoveFile(index)}
-
-                    >
-
-                      ×
-
-                    </button>
-
-                  </li>
-
-                ))}
-
-              </ul>
-
-            </div>
-
+        <div className="chat-sidebar-list">
+          {sidebarItems.length === 0 && (
+            <p className="chat-sidebar-empty">
+              {searchQuery ? `No researchers match "${searchQuery}"` : 'No researchers found'}
+            </p>
           )}
 
-
-
-          <div className="form-group">
-
-            <label>Message</label>
-
-            <textarea
-
-              value={message}
-
-              onChange={(e) => setMessage(e.target.value)}
-
-              placeholder="Enter your message here..."
-
-              rows="6"
-
-              required
-
-            />
-
-          </div>
-
-
-
-          {error && <div className="error-message">{error}</div>}
-
-
-
-          <div className="form-actions">
-
-            <button type="submit" className="btn-primary" disabled={loading}>
-
-              {loading ? 'Sending...' : 'Send Message'}
-
-            </button>
-
+          {sidebarItems.map((item) => (
             <button
-
               type="button"
-
-              className="btn-secondary"
-
-              onClick={() => {
-
-                setSelectedStudent('');
-
-                setSearchQuery('');
-
-                setMessage('');
-
-                setAttachedFiles([]);
-
-                setIsDragOver(false);
-
-                setError('');
-
-                setSuccess('');
-
-              }}
-
+              key={item.student._id || item.email}
+              className={`chat-sidebar-item ${item.email === selectedEmail ? 'active' : ''} ${item.unreadCount > 0 ? 'unread' : ''}`}
+              onClick={() => handleSelectResearcher(item.email)}
             >
-
-              Clear
-
-            </button>
-
-          </div>
-
-        </form>
-
-      </div>
-
-      {/* Message Sent Success Modal */}
-
-      {isMessageSuccessModalOpen && (
-
-        <div className="success-modal-overlay" onClick={() => setIsMessageSuccessModalOpen(false)}>
-
-          <div className="success-modal-container minimal" onClick={(e) => e.stopPropagation()}>
-
-            <div className="success-content minimal">
-
-              <div className="success-icon-minimal">
-
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-
-                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-
-                  <polyline points="22 4 12 14.01 9 11.01" />
-
-                </svg>
-
-              </div>
-
-              <h2>Message Sent</h2>
-
-              <p>Your message was sent successfully to <strong>{messageSuccessRecipient}</strong>.</p>
-
-              <div className="success-actions minimal">
-
-                <button
-
-                  className="success-btn-done"
-
-                  onClick={() => setIsMessageSuccessModalOpen(false)}
-
-                >
-
-                  Done
-
-                </button>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      )}
-
-      {/* Message History Modal */}
-
-      {isHistoryModalOpen && (
-
-        <div className="success-modal-overlay" onClick={() => setIsHistoryModalOpen(false)}>
-
-          <div className="history-modal-container" onClick={(e) => e.stopPropagation()}>
-
-            <div className="history-modal-header">
-
-              <h2>Message History</h2>
-
-              <button
-
-                type="button"
-
-                className="history-modal-close"
-
-                onClick={() => setIsHistoryModalOpen(false)}
-
-              >
-
-                <XIcon />
-
-              </button>
-
-            </div>
-
-            <div className="history-modal-search">
-
-              <input
-
-                type="text"
-
-                placeholder="Search by researcher name or email..."
-
-                value={historySearchInput}
-
-                onChange={(e) => setHistorySearchInput(e.target.value)}
-
-                className="student-search"
-
-              />
-
-              {historyTotal > 0 && (
-
-                <span className="history-total-count">{historyTotal} message{historyTotal === 1 ? '' : 's'}</span>
-
-              )}
-
-            </div>
-
-            <div className="history-modal-body">
-
-              {historyLoading && <p className="history-empty-note">Loading message history...</p>}
-
-              {!historyLoading && historyError && <p className="error-message">{historyError}</p>}
-
-              {!historyLoading && !historyError && messageHistory.length === 0 && (
-
-                <p className="history-empty-note">
-
-                  {historySearch ? `No messages found matching "${historySearch}".` : 'No messages have been sent to researchers yet.'}
-
-                </p>
-
-              )}
-
-              {!historyLoading && !historyError && messageHistory.map((msg) => (
-
-                <div key={msg._id} className="history-item">
-
-                  <div className="history-item-header">
-
-                    <span className="history-item-recipient">To: {msg.recipientName || msg.recipientEmail}</span>
-
-                    <div className="history-item-meta">
-
-                      <span className="history-item-date">
-
-                        {msg.sentAt ? new Date(msg.sentAt).toLocaleString() : ''}
-
-                      </span>
-
-                      <button
-
-                        type="button"
-
-                        className="history-item-delete"
-
-                        title="Delete message"
-
-                        disabled={deletingMessageId === msg._id}
-
-                        onClick={() => requestDeleteMessage(msg)}
-
-                      >
-
-                        <TrashIcon />
-
-                      </button>
-
-                    </div>
-
-                  </div>
-
-                  <p className="history-item-message">{msg.message}</p>
-
-                  {Array.isArray(msg.files) && msg.files.length > 0 && (
-
-                    <div className="history-item-files">
-
-                      {msg.files.map((file, i) => (
-
-                        <div key={i} className="history-item-file">
-
-                          <span className="history-item-file-name">{file.filename}</span>
-
-                          {file.path && (
-
-                            <div style={{ display: 'flex', gap: '8px' }}>
-
-                              <button
-
-                                type="button"
-
-                                className="msg-file-download"
-
-                                onClick={() => {
-
-                                  import('../services/api.js').then(({ viewFile }) => {
-
-                                    viewFile(file.path);
-
-                                  });
-
-                                }}
-
-                              >
-
-                                View
-
-                              </button>
-
-                              <button
-
-                                type="button"
-
-                                className="msg-file-download"
-
-                                onClick={() => {
-
-                                  import('../services/api.js').then(({ downloadReviewerFile }) => {
-
-                                    downloadReviewerFile(file.path, file.filename);
-
-                                  });
-
-                                }}
-
-                              >
-
-                                Download
-
-                              </button>
-
-                            </div>
-
-                          )}
-
-                        </div>
-
-                      ))}
-
-                    </div>
-
-                  )}
-
+              <div className="inbox-avatar chat-sidebar-avatar">{getInitials(item.name)}</div>
+              <div className="chat-sidebar-item-info">
+                <div className="chat-sidebar-item-top">
+                  <span className="chat-sidebar-item-name">{item.name}</span>
+                  <span className="chat-sidebar-item-time">{formatSidebarTime(item.lastMessageAt)}</span>
                 </div>
+                <div className="chat-sidebar-item-bottom">
+                  <span className="chat-sidebar-item-preview">
+                    {item.lastMessageFromAdmin && item.lastMessage ? 'You: ' : ''}
+                    {truncateText(item.lastMessage)}
+                  </span>
+                  {item.unreadCount > 0 && <span className="chat-unread-badge">{item.unreadCount}</span>}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </aside>
 
-              ))}
-
+      <section className="chat-thread-pane">
+        {!selectedEmail ? (
+          <div className="chat-empty-state">
+            <MessageIcon />
+            <p>Select a researcher to start messaging</p>
+          </div>
+        ) : (
+          <>
+            <div className="chat-thread-header">
+              <button type="button" className="chat-back-btn" onClick={handleBackToList} aria-label="Back to researcher list">
+                <ChatBackIcon />
+              </button>
+              <div className="inbox-avatar chat-thread-avatar">{getInitials(selectedName)}</div>
+              <div className="chat-thread-header-info">
+                <span className="chat-thread-header-name">{selectedName}</span>
+                <span className="chat-thread-header-email">{selectedEmail}</span>
+              </div>
             </div>
 
-            {!historyLoading && !historyError && historyTotalPages > 1 && (
+            <div className="chat-thread-body" ref={threadBodyRef}>
+              {threadLoading && <p className="chat-thread-status">Loading conversation...</p>}
+              {!threadLoading && thread.length === 0 && (
+                <p className="chat-thread-status">No messages yet. Say hello to {selectedName.split(' ')[0]}!</p>
+              )}
 
-              <div className="history-modal-pagination">
+              {!threadLoading && thread.map((msg) => {
+                const dateVal = msg.createdAt || msg.sentAt;
+                const dayKey = dateVal ? new Date(dateVal).toDateString() : null;
+                const showSeparator = dayKey && dayKey !== lastDayKey;
+                if (dayKey) lastDayKey = dayKey;
+                const isOut = msg.type === 'admin_to_student';
 
-                <button
+                return (
+                  <div key={msg._id}>
+                    {showSeparator && <div className="chat-day-separator"><span>{formatDaySeparator(dateVal)}</span></div>}
+                    <div className={`chat-bubble-row ${isOut ? 'out' : 'in'}`}>
+                      <div className={`chat-bubble ${isOut ? 'out' : 'in'} ${msg._failed ? 'failed' : ''}`}>
+                        <p>{msg.message}</p>
+                        {Array.isArray(msg.files) && msg.files.length > 0 && (
+                          <div className="chat-bubble-files">
+                            {msg.files.map((file, i) => (
+                              <span key={i} className="chat-bubble-file">{file.originalname || file.filename}</span>
+                            ))}
+                          </div>
+                        )}
+                        <span className="chat-bubble-time">
+                          {msg._pending ? 'Sending…' : msg._failed ? 'Failed to send' : formatBubbleTime(dateVal)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={threadEndRef} />
+            </div>
 
-                  type="button"
+            {error && <div className="chat-error-message">{error}</div>}
 
-                  className="btn-secondary"
-
-                  disabled={historyPage <= 1}
-
-                  onClick={() => fetchHistoryPage(historyPage - 1, historySearch)}
-
-                >
-
-                  Previous
-
-                </button>
-
-                <span className="history-page-indicator">Page {historyPage} of {historyTotalPages}</span>
-
-                <button
-
-                  type="button"
-
-                  className="btn-secondary"
-
-                  disabled={historyPage >= historyTotalPages}
-
-                  onClick={() => fetchHistoryPage(historyPage + 1, historySearch)}
-
-                >
-
-                  Next
-
-                </button>
-
+            {attachedFiles.length > 0 && (
+              <div className="chat-composer-files">
+                {attachedFiles.map((file, index) => (
+                  <span key={index} className="chat-composer-file-chip">
+                    {file.name}
+                    <button type="button" className="remove-file-btn" onClick={() => handleRemoveFile(index)}>×</button>
+                  </span>
+                ))}
               </div>
-
             )}
 
-          </div>
-
-        </div>
-
-      )}
-
-      {/* Delete Message Confirmation Modal */}
-      {deleteConfirmMsg && (
-        <div className="mini-modal-overlay delete-msg-modal-overlay" onClick={cancelDeleteMessage}>
-          <div className="mini-modal" onClick={e => e.stopPropagation()}>
-            <div className="mini-modal-icon mini-modal-icon--danger">
-              <TrashIcon />
-            </div>
-            <h4 className="mini-modal-title">Delete Message</h4>
-            <p className="mini-modal-text">
-              Are you sure you want to delete this message to <strong>{deleteConfirmMsg.recipientName || deleteConfirmMsg.recipientEmail}</strong>? This action cannot be undone.
-            </p>
-            <div className="mini-modal-actions">
+            <div className="chat-composer">
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx"
+                id="chat-attach-input"
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+              />
               <button
                 type="button"
-                className="mini-modal-btn mini-modal-btn--ghost"
-                onClick={cancelDeleteMessage}
-                disabled={deletingMessageId === deleteConfirmMsg._id}
+                className="chat-composer-attach-btn"
+                title="Attach PDF, DOC, or DOCX"
+                onClick={() => document.getElementById('chat-attach-input').click()}
               >
-                Cancel
+                <ChatPaperclipIcon />
               </button>
+              <input
+                type="text"
+                className="chat-composer-input"
+                placeholder="Type a message..."
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                onKeyDown={handleInputKeyDown}
+              />
               <button
                 type="button"
-                className="mini-modal-btn mini-modal-btn--danger"
-                onClick={confirmDeleteMessage}
-                disabled={deletingMessageId === deleteConfirmMsg._id}
+                className="chat-composer-send-btn"
+                onClick={handleSend}
+                disabled={sending || !messageText.trim()}
               >
-                {deletingMessageId === deleteConfirmMsg._id ? 'Deleting...' : 'Delete'}
+                <ChatSendIcon />
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
+          </>
+        )}
+      </section>
     </div>
-
   );
-
 };
 
 
 
 // Message Reviewer Content Component
 const MessageReviewerContent = () => {
-
   const [reviewers, setReviewers] = useState([]);
-
   const [filteredReviewers, setFilteredReviewers] = useState([]);
-
-  const [selectedReviewer, setSelectedReviewer] = useState('');
-
   const [searchQuery, setSearchQuery] = useState('');
+  const [summaryMap, setSummaryMap] = useState({});
 
-  const [message, setMessage] = useState('');
+  const [selectedEmail, setSelectedEmail] = useState('');
+  const [thread, setThread] = useState([]);
+  const [threadLoading, setThreadLoading] = useState(false);
+  const [mobileView, setMobileView] = useState('list'); // 'list' | 'chat'
 
+  const [messageText, setMessageText] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
-
-  const [loading, setLoading] = useState(false);
-
-  const [success, setSuccess] = useState('');
-
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
 
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  const [isMessageSuccessModalOpen, setIsMessageSuccessModalOpen] = useState(false);
-
-  const [messageSuccessRecipient, setMessageSuccessRecipient] = useState('');
-
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-
-  const [messageHistory, setMessageHistory] = useState([]);
-
-  const [historyLoading, setHistoryLoading] = useState(false);
-
-  const [historyError, setHistoryError] = useState('');
-
-  const [historySearch, setHistorySearch] = useState('');
-
-  const [historySearchInput, setHistorySearchInput] = useState('');
-
-  const [historyPage, setHistoryPage] = useState(1);
-
-  const [historyTotalPages, setHistoryTotalPages] = useState(1);
-
-  const [historyTotal, setHistoryTotal] = useState(0);
-
-  const [deletingMessageId, setDeletingMessageId] = useState('');
-
-  const [deleteConfirmMsg, setDeleteConfirmMsg] = useState(null);
-
-  const HISTORY_PAGE_SIZE = 20;
-
-
-
-  const fetchHistoryPage = async (page, search) => {
-
-    setHistoryLoading(true);
-
-    setHistoryError('');
-
-    try {
-
-      const params = new URLSearchParams({ page: String(page), limit: String(HISTORY_PAGE_SIZE) });
-
-      if (search) params.set('search', search);
-
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/messages-to-reviewer/history?${params.toString()}`);
-
-      if (!response.ok) throw new Error('Failed to fetch history');
-
-      const data = await response.json();
-
-      setMessageHistory(data.messages || []);
-
-      setHistoryPage(data.page || 1);
-
-      setHistoryTotalPages(data.totalPages || 1);
-
-      setHistoryTotal(data.total || 0);
-
-    } catch (err) {
-
-      console.error('Error fetching message history:', err);
-
-      setHistoryError('Failed to load message history');
-
-    } finally {
-
-      setHistoryLoading(false);
-
-    }
-
-  };
-
-
-
-  const openHistoryModal = () => {
-
-    setIsHistoryModalOpen(true);
-
-    setHistorySearch('');
-
-    setHistorySearchInput('');
-
-    fetchHistoryPage(1, '');
-
-  };
-
-
-
-  const requestDeleteMessage = (msg) => {
-
-    setDeleteConfirmMsg(msg);
-
-  };
-
-
-
-  const cancelDeleteMessage = () => {
-
-    setDeleteConfirmMsg(null);
-
-  };
-
-
-
-  const confirmDeleteMessage = async () => {
-
-    const messageId = deleteConfirmMsg?._id;
-
-    if (!messageId) return;
-
-    setDeletingMessageId(messageId);
-
-    try {
-
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/messages/${messageId}`, {
-
-        method: 'DELETE',
-
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok || data.success === false) throw new Error(data.error || 'Failed to delete message');
-
-      setMessageHistory(prev => prev.filter(m => m._id !== messageId));
-
-      setHistoryTotal(prev => Math.max(prev - 1, 0));
-
-      setDeleteConfirmMsg(null);
-
-    } catch (err) {
-
-      console.error('Error deleting message:', err);
-
-      setHistoryError('Failed to delete message');
-
-    } finally {
-
-      setDeletingMessageId('');
-
-    }
-
-  };
-
-
-
-  // Debounce search-as-you-type so we don't hit the server on every keystroke
-
-  useEffect(() => {
-
-    if (!isHistoryModalOpen) return;
-
-    if (historySearchInput === historySearch) return;
-
-    const timer = setTimeout(() => {
-
-      setHistorySearch(historySearchInput);
-
-      fetchHistoryPage(1, historySearchInput);
-
-    }, 400);
-
-    return () => clearTimeout(timer);
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-
-  }, [historySearchInput, isHistoryModalOpen]);
-
-
-
-  useEffect(() => {
-
-    const fetchReviewers = async () => {
-
-      try {
-
-        const data = await getAllReviewers();
-
-        setReviewers(data);
-
-        setFilteredReviewers(data);
-
-      } catch (error) {
-
-        console.error('Error fetching reviewers:', error);
-
-        setError('Failed to fetch reviewers');
-
-      }
-
-    };
-
-    fetchReviewers();
-
-  }, []);
-
-
-
-  // Filter reviewers
-
-  useEffect(() => {
-
-    let filtered = reviewers.filter(reviewer => {
-
-      const searchLower = searchQuery.toLowerCase();
-
-      const name = (reviewer.name || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim()).toLowerCase();
-
-      const email = (reviewer.email || '').toLowerCase();
-
-      const department = (reviewer.department || '').toLowerCase();
-
-      const expertise = (reviewer.expertise || '').toLowerCase();
-
-      return name.includes(searchLower) ||
-
-        email.includes(searchLower) ||
-
-        department.includes(searchLower) ||
-
-        expertise.includes(searchLower);
-
-    });
-
-    setFilteredReviewers(filtered);
-
-  }, [reviewers, searchQuery]);
-
-
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!selectedReviewer || !message) {
-      setError('Please select a reviewer and enter a message');
-      return;
-    }
-
-    setError('');
-    const selectedReviewerObj = reviewers.find(r => r.email === selectedReviewer);
-    const recipientName = selectedReviewerObj
-      ? (selectedReviewerObj.name || `${selectedReviewerObj.firstName || ''} ${selectedReviewerObj.lastName || ''}`.trim())
-      : '';
-
-    // Show success immediately
-    setMessageSuccessRecipient(recipientName || 'reviewer');
-    setIsMessageSuccessModalOpen(true);
-
-    // Capture values before resetting form
-    const reviewerEmail = selectedReviewer;
-    const messageText = message;
-    const filesToSend = [...attachedFiles];
-
-    // Reset form immediately
-    setSelectedReviewer('');
-    setMessage('');
-    setAttachedFiles([]);
-
-    // Upload in background via FormData
-    const formDataToSend = new FormData();
-    formDataToSend.append('reviewerEmail', reviewerEmail);
-    formDataToSend.append('recipientName', recipientName);
-    formDataToSend.append('message', messageText);
-    filesToSend.forEach((file, index) => {
-      formDataToSend.append(`file${index}`, file);
-    });
-
-    fetch(`${import.meta.env.VITE_API_URL}/api/send-message-to-reviewer`, {
-      method: 'POST',
-      body: formDataToSend,
-    }).catch(err => console.error('Message send failed:', err));
-  };
+  const sendingRef = useRef(false);
+  const threadBodyRef = useRef(null);
+  const threadEndRef = useRef(null);
 
   const MAX_MESSAGE_ATTACHMENTS = 3;
   const MAX_MESSAGE_TOTAL_BYTES = 12 * 1024 * 1024;
   const MESSAGE_ATTACHMENT_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+  const getDisplayName = (reviewer) => {
+    if (!reviewer) return '';
+    return reviewer.name || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim() || reviewer.email;
+  };
+
+  const getInitials = (name) => {
+    const clean = (name || '').trim();
+    if (!clean) return '?';
+    const parts = clean.split(/\s+/);
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
+
+  const truncateText = (text, max = 46) => {
+    const clean = (text || '').replace(/\s+/g, ' ').trim();
+    if (!clean) return 'No messages yet';
+    if (clean.length <= max) return clean;
+    return `${clean.slice(0, max - 1).trimEnd()}…`;
+  };
+
+  const formatSidebarTime = (dateVal) => {
+    if (!dateVal) return '';
+    const date = new Date(dateVal);
+    if (isNaN(date.getTime())) return '';
+    const now = new Date();
+    if (date.toDateString() === now.toDateString()) {
+      return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    const sameYear = date.getFullYear() === now.getFullYear();
+    return date.toLocaleDateString([], sameYear ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const formatBubbleTime = (dateVal) => {
+    const date = new Date(dateVal);
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
+
+  const formatDaySeparator = (dateVal) => {
+    const date = new Date(dateVal);
+    if (isNaN(date.getTime())) return '';
+    const now = new Date();
+    if (date.toDateString() === now.toDateString()) return 'Today';
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    const sameYear = date.getFullYear() === now.getFullYear();
+    return date.toLocaleDateString([], sameYear ? { month: 'long', day: 'numeric' } : { month: 'long', day: 'numeric', year: 'numeric' });
+  };
+
+  const applySummary = (list) => {
+    const map = {};
+    (Array.isArray(list) ? list : []).forEach((item) => {
+      if (!item?.email) return;
+      map[item.email.toLowerCase()] = item;
+    });
+    setSummaryMap(map);
+  };
+
+  // Initial load: reviewer roster + sidebar summary, then keep the summary fresh
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadInitial = async () => {
+      try {
+        const [reviewerList, summaryList] = await Promise.all([
+          getAllReviewers(),
+          getReviewerConversationsSummary(),
+        ]);
+        if (cancelled) return;
+        setReviewers(Array.isArray(reviewerList) ? reviewerList : []);
+        applySummary(summaryList);
+      } catch (err) {
+        console.error('Error loading reviewers:', err);
+        if (!cancelled) setError('Failed to load reviewers');
+      }
+    };
+
+    loadInitial();
+
+    const summaryInterval = setInterval(async () => {
+      try {
+        const summaryList = await getReviewerConversationsSummary();
+        if (!cancelled) applySummary(summaryList);
+      } catch (err) {
+        console.error('Error refreshing conversation summaries:', err);
+      }
+    }, 15000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(summaryInterval);
+    };
+  }, []);
+
+  // Filter the sidebar roster (name/email/department/expertise), same fields the old dropdown searched
+  useEffect(() => {
+    const q = searchQuery.toLowerCase();
+    const filtered = reviewers.filter((reviewer) => {
+      const name = getDisplayName(reviewer).toLowerCase();
+      const email = (reviewer.email || '').toLowerCase();
+      const department = (reviewer.department || '').toLowerCase();
+      const expertise = (reviewer.expertise || '').toLowerCase();
+      return name.includes(q) || email.includes(q) || department.includes(q) || expertise.includes(q);
+    });
+    setFilteredReviewers(filtered);
+  }, [reviewers, searchQuery]);
+
+  // Poll the open conversation for new reviewer replies
+  useEffect(() => {
+    if (!selectedEmail) return undefined;
+
+    const threadInterval = setInterval(async () => {
+      if (sendingRef.current) return;
+      try {
+        const data = await getReviewerConversation(selectedEmail);
+        setThread(data);
+      } catch (err) {
+        console.error('Error refreshing conversation:', err);
+      }
+    }, 5000);
+
+    return () => clearInterval(threadInterval);
+  }, [selectedEmail]);
+
+  // Auto-scroll to the newest message
+  useEffect(() => {
+    if (threadEndRef.current) {
+      threadEndRef.current.scrollIntoView({ block: 'end' });
+    }
+  }, [thread, selectedEmail]);
+
+  const handleSelectReviewer = async (email) => {
+    setSelectedEmail(email);
+    setMobileView('chat');
+    setThread([]);
+    setThreadLoading(true);
+    setError('');
+    setMessageText('');
+    setAttachedFiles([]);
+
+    try {
+      const data = await getReviewerConversation(email);
+      setThread(data);
+    } catch (err) {
+      console.error('Error loading conversation:', err);
+      setError('Failed to load conversation history');
+    } finally {
+      setThreadLoading(false);
+    }
+
+    const key = email.toLowerCase();
+    setSummaryMap((prev) => ({
+      ...prev,
+      [key]: { ...(prev[key] || { email }), unreadCount: 0 },
+    }));
+    markReviewerConversationRead(email).catch((err) => console.error('Error marking conversation read:', err));
+  };
+
+  const handleBackToList = () => {
+    setMobileView('list');
+  };
 
   const addValidatedFiles = (files) => {
     const room = MAX_MESSAGE_ATTACHMENTS - attachedFiles.length;
@@ -6705,7 +6079,6 @@ const MessageReviewerContent = () => {
       setTimeout(() => setError(''), 3000);
       return;
     }
-
     let runningTotal = attachedFiles.reduce((sum, f) => sum + f.size, 0);
     const accepted = [];
     let rejected = false;
@@ -6716,10 +6089,7 @@ const MessageReviewerContent = () => {
       runningTotal += file.size;
       accepted.push(file);
     }
-
-    if (accepted.length > 0) {
-      setAttachedFiles(prev => [...prev, ...accepted]);
-    }
+    if (accepted.length > 0) setAttachedFiles((prev) => [...prev, ...accepted]);
     if (rejected) {
       setError(`Only PDF, DOC, and DOCX files are allowed, up to ${MAX_MESSAGE_ATTACHMENTS} files and 12MB combined`);
       setTimeout(() => setError(''), 3000);
@@ -6733,380 +6103,247 @@ const MessageReviewerContent = () => {
   };
 
   const handleRemoveFile = (index) => {
-    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+    setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragOver(true);
+  const handleSend = async () => {
+    const text = messageText.trim();
+    if (!text || !selectedEmail || sending) return;
+
+    const reviewer = reviewers.find((r) => r.email === selectedEmail);
+    const recipientName = reviewer ? getDisplayName(reviewer) : selectedEmail;
+    const tempId = `temp-${Date.now()}`;
+    const filesToSend = [...attachedFiles];
+
+    const optimisticMsg = {
+      _id: tempId,
+      type: 'admin_to_reviewer',
+      message: text,
+      senderEmail: 'admin',
+      recipientEmail: selectedEmail,
+      recipientName,
+      createdAt: new Date().toISOString(),
+      files: filesToSend.map((f) => ({ originalname: f.name, filename: f.name, size: f.size })),
+      _pending: true,
+    };
+
+    setThread((prev) => [...prev, optimisticMsg]);
+    setMessageText('');
+    setAttachedFiles([]);
+    setError('');
+    sendingRef.current = true;
+    setSending(true);
+
+    try {
+      const result = await sendAdminMessageToReviewer({
+        reviewerEmail: selectedEmail,
+        recipientName,
+        message: text,
+        files: filesToSend,
+      });
+      if (result?.success === false) throw new Error(result.error || 'Failed to send message');
+
+      const fresh = await getReviewerConversation(selectedEmail);
+      setThread(fresh);
+      const summaryList = await getReviewerConversationsSummary();
+      applySummary(summaryList);
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setThread((prev) => prev.map((m) => (m._id === tempId ? { ...m, _pending: false, _failed: true } : m)));
+      setError('Failed to send message. Please try again.');
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+    }
   };
 
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragOver(false);
+  const handleInputKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragOver(false);
+  const sidebarItems = filteredReviewers
+    .map((reviewer) => {
+      const email = reviewer.email || '';
+      const summary = summaryMap[email.toLowerCase()];
+      return {
+        reviewer,
+        email,
+        name: getDisplayName(reviewer),
+        lastMessage: summary?.lastMessage || '',
+        lastMessageAt: summary?.lastMessageAt || null,
+        lastMessageFromAdmin: summary?.lastMessageFromAdmin,
+        unreadCount: summary?.unreadCount || 0,
+      };
+    })
+    .sort((a, b) => {
+      if (!a.lastMessageAt && !b.lastMessageAt) return a.name.localeCompare(b.name);
+      if (!a.lastMessageAt) return 1;
+      if (!b.lastMessageAt) return -1;
+      return new Date(b.lastMessageAt) - new Date(a.lastMessageAt);
+    });
 
-    const files = Array.from(e.dataTransfer.files);
-    addValidatedFiles(files);
-  };
+  const selectedReviewer = reviewers.find((r) => r.email === selectedEmail);
+  const selectedName = selectedReviewer ? getDisplayName(selectedReviewer) : selectedEmail;
+
+  let lastDayKey = null;
 
   return (
-    <div className="form-content full-width">
-      <div className="form-card">
-        <div className="form-card-header-row">
-          <h2>Message Reviewer</h2>
-          <button
-            type="button"
-            className="btn-secondary history-btn"
-            onClick={openHistoryModal}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="9" />
-              <polyline points="12 7 12 12 16 14" />
-            </svg>
-            History
-          </button>
+    <div className="chat-layout" data-mobile-view={mobileView}>
+      <aside className="chat-sidebar">
+        <div className="chat-sidebar-search">
+          <ChatSearchIcon />
+          <input
+            type="text"
+            placeholder="Search reviewers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
-        <form className="message-form" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Select Reviewer</label>
-            <div className="student-selector">
-              <div className="student-controls">
-                <input
-                  type="text"
-                  placeholder="Search by name, email, department, or expertise..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="student-search"
-                />
-              </div>
 
-              {searchQuery && (
-                <div className="search-results-info">
-                  Found <span className="results-count">{filteredReviewers.length}</span> reviewers matching "{searchQuery}"
-                  {filteredReviewers.length === 0 && " - Try different keywords"}
+        <div className="chat-sidebar-list">
+          {sidebarItems.length === 0 && (
+            <p className="chat-sidebar-empty">
+              {searchQuery ? `No reviewers match "${searchQuery}"` : 'No reviewers found'}
+            </p>
+          )}
+
+          {sidebarItems.map((item) => (
+            <button
+              type="button"
+              key={item.reviewer._id || item.email}
+              className={`chat-sidebar-item ${item.email === selectedEmail ? 'active' : ''} ${item.unreadCount > 0 ? 'unread' : ''}`}
+              onClick={() => handleSelectReviewer(item.email)}
+            >
+              <div className="inbox-avatar chat-sidebar-avatar">{getInitials(item.name)}</div>
+              <div className="chat-sidebar-item-info">
+                <div className="chat-sidebar-item-top">
+                  <span className="chat-sidebar-item-name">{item.name}</span>
+                  <span className="chat-sidebar-item-time">{formatSidebarTime(item.lastMessageAt)}</span>
                 </div>
-              )}
+                <div className="chat-sidebar-item-bottom">
+                  <span className="chat-sidebar-item-preview">
+                    {item.lastMessageFromAdmin && item.lastMessage ? 'You: ' : ''}
+                    {truncateText(item.lastMessage)}
+                  </span>
+                  {item.unreadCount > 0 && <span className="chat-unread-badge">{item.unreadCount}</span>}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </aside>
 
-              <div className="student-dropdown">
-                <select
-                  value={selectedReviewer}
-                  onChange={(e) => setSelectedReviewer(e.target.value)}
-                  required
-                  className="student-select"
-                >
-                  <option value="">
-                    {filteredReviewers.length === 0
-                      ? 'No reviewers found - adjust your search'
-                      : `Select a reviewer (${filteredReviewers.length} available)`
-                    }
-                  </option>
-                  {filteredReviewers.map((reviewer) => (
-                    <option key={reviewer._id} value={reviewer.email}>
-                      {reviewer.name || `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim() || reviewer.email}
-                      {reviewer.department && ` - ${reviewer.department}`}
-                      {reviewer.expertise && ` - ${reviewer.expertise}`}
-                    </option>
-                  ))}
-                </select>
+      <section className="chat-thread-pane">
+        {!selectedEmail ? (
+          <div className="chat-empty-state">
+            <MessageIcon />
+            <p>Select a reviewer to start messaging</p>
+          </div>
+        ) : (
+          <>
+            <div className="chat-thread-header">
+              <button type="button" className="chat-back-btn" onClick={handleBackToList} aria-label="Back to reviewer list">
+                <ChatBackIcon />
+              </button>
+              <div className="inbox-avatar chat-thread-avatar">{getInitials(selectedName)}</div>
+              <div className="chat-thread-header-info">
+                <span className="chat-thread-header-name">{selectedName}</span>
+                <span className="chat-thread-header-email">{selectedEmail}</span>
               </div>
             </div>
-          </div>
 
-          <div className="form-group">
-            <label>Attached Files</label>
-            <div
-              className={`file-upload-area ${isDragOver ? 'dragover' : ''}`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => document.getElementById('message-reviewer-file-upload').click()}
-            >
+            <div className="chat-thread-body" ref={threadBodyRef}>
+              {threadLoading && <p className="chat-thread-status">Loading conversation...</p>}
+              {!threadLoading && thread.length === 0 && (
+                <p className="chat-thread-status">No messages yet. Say hello to {selectedName.split(' ')[0]}!</p>
+              )}
+
+              {!threadLoading && thread.map((msg) => {
+                const dateVal = msg.createdAt || msg.sentAt;
+                const dayKey = dateVal ? new Date(dateVal).toDateString() : null;
+                const showSeparator = dayKey && dayKey !== lastDayKey;
+                if (dayKey) lastDayKey = dayKey;
+                const isOut = msg.type === 'admin_to_reviewer';
+
+                return (
+                  <div key={msg._id}>
+                    {showSeparator && <div className="chat-day-separator"><span>{formatDaySeparator(dateVal)}</span></div>}
+                    <div className={`chat-bubble-row ${isOut ? 'out' : 'in'}`}>
+                      <div className={`chat-bubble ${isOut ? 'out' : 'in'} ${msg._failed ? 'failed' : ''}`}>
+                        <p>{msg.message}</p>
+                        {Array.isArray(msg.files) && msg.files.length > 0 && (
+                          <div className="chat-bubble-files">
+                            {msg.files.map((file, i) => (
+                              <span key={i} className="chat-bubble-file">{file.originalname || file.filename}</span>
+                            ))}
+                          </div>
+                        )}
+                        <span className="chat-bubble-time">
+                          {msg._pending ? 'Sending…' : msg._failed ? 'Failed to send' : formatBubbleTime(dateVal)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={threadEndRef} />
+            </div>
+
+            {error && <div className="chat-error-message">{error}</div>}
+
+            {attachedFiles.length > 0 && (
+              <div className="chat-composer-files">
+                {attachedFiles.map((file, index) => (
+                  <span key={index} className="chat-composer-file-chip">
+                    {file.name}
+                    <button type="button" className="remove-file-btn" onClick={() => handleRemoveFile(index)}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="chat-composer">
               <input
                 type="file"
                 multiple
-                onChange={handleFileChange}
                 accept=".pdf,.doc,.docx"
+                id="chat-attach-input-reviewer"
                 style={{ display: 'none' }}
-                id="message-reviewer-file-upload"
+                onChange={handleFileChange}
               />
-              <div className="file-upload-label">
-                <FilePlusIcon />
-                <p>{isDragOver ? 'Drop files here' : 'Click to upload files or drag and drop'}</p>
-                <span>PDF, DOC, DOCX (MAX. 3 files, 12MB total)</span>
-              </div>
-            </div>
-          </div>
-
-          {attachedFiles.length > 0 && (
-            <div className="uploaded-files">
-              <h4>Attached Files:</h4>
-              <ul>
-                {attachedFiles.map((file, index) => (
-                  <li key={index}>
-                    <span>{file.name}</span>
-                    <span>({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                    <button
-                      type="button"
-                      className="remove-file-btn"
-                      onClick={() => handleRemoveFile(index)}
-                    >
-                      ×
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <div className="form-group">
-            <label>Message</label>
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Enter your message here..."
-              rows="6"
-              required
-            />
-          </div>
-
-          {error && <div className="error-message">{error}</div>}
-
-          <div className="form-actions">
-            <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? 'Sending...' : 'Send Message'}
-            </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => {
-                setSelectedReviewer('');
-                setSearchQuery('');
-                setMessage('');
-                setAttachedFiles([]);
-                setIsDragOver(false);
-                setError('');
-                setSuccess('');
-              }}
-            >
-              Clear
-            </button>
-          </div>
-
-        </form>
-
-      </div>
-
-
-
-      {/* Message Sent Success Modal */}
-
-      {isMessageSuccessModalOpen && (
-
-        <div className="success-modal-overlay" onClick={() => setIsMessageSuccessModalOpen(false)}>
-
-          <div className="success-modal-container minimal" onClick={(e) => e.stopPropagation()}>
-
-            <div className="success-content minimal">
-
-              <div className="success-icon-minimal">
-
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-
-                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-
-                  <polyline points="22 4 12 14.01 9 11.01" />
-
-                </svg>
-
-              </div>
-
-              <h2>Message Sent</h2>
-
-              <p>Your message was sent successfully to <strong>{messageSuccessRecipient}</strong>.</p>
-
-              <div className="success-actions minimal">
-
-                <button
-
-                  className="success-btn-done"
-
-                  onClick={() => setIsMessageSuccessModalOpen(false)}
-
-                >
-
-                  Done
-
-                </button>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      )}
-
-      {/* Message History Modal */}
-      {isHistoryModalOpen && (
-        <div className="success-modal-overlay" onClick={() => setIsHistoryModalOpen(false)}>
-          <div className="history-modal-container" onClick={(e) => e.stopPropagation()}>
-            <div className="history-modal-header">
-              <h2>Message History</h2>
               <button
                 type="button"
-                className="history-modal-close"
-                onClick={() => setIsHistoryModalOpen(false)}
+                className="chat-composer-attach-btn"
+                title="Attach PDF, DOC, or DOCX"
+                onClick={() => document.getElementById('chat-attach-input-reviewer').click()}
               >
-                <XIcon />
+                <ChatPaperclipIcon />
               </button>
-            </div>
-            <div className="history-modal-search">
               <input
                 type="text"
-                placeholder="Search by reviewer name or email..."
-                value={historySearchInput}
-                onChange={(e) => setHistorySearchInput(e.target.value)}
-                className="student-search"
+                className="chat-composer-input"
+                placeholder="Type a message..."
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                onKeyDown={handleInputKeyDown}
               />
-              {historyTotal > 0 && (
-                <span className="history-total-count">{historyTotal} message{historyTotal === 1 ? '' : 's'}</span>
-              )}
-            </div>
-            <div className="history-modal-body">
-              {historyLoading && <p className="history-empty-note">Loading message history...</p>}
-              {!historyLoading && historyError && <p className="error-message">{historyError}</p>}
-              {!historyLoading && !historyError && messageHistory.length === 0 && (
-                <p className="history-empty-note">
-                  {historySearch ? `No messages found matching "${historySearch}".` : 'No messages have been sent to reviewers yet.'}
-                </p>
-              )}
-              {!historyLoading && !historyError && messageHistory.map((msg) => (
-                <div key={msg._id} className="history-item">
-                  <div className="history-item-header">
-                    <span className="history-item-recipient">To: {msg.recipientName || msg.recipientEmail}</span>
-                    <div className="history-item-meta">
-                      <span className="history-item-date">
-                        {msg.sentAt ? new Date(msg.sentAt).toLocaleString() : ''}
-                      </span>
-                      <button
-                        type="button"
-                        className="history-item-delete"
-                        title="Delete message"
-                        disabled={deletingMessageId === msg._id}
-                        onClick={() => requestDeleteMessage(msg)}
-                      >
-                        <TrashIcon />
-                      </button>
-                    </div>
-                  </div>
-                  <p className="history-item-message">{msg.message}</p>
-                  {Array.isArray(msg.files) && msg.files.length > 0 && (
-                    <div className="history-item-files">
-                      {msg.files.map((file, i) => (
-                        <div key={i} className="history-item-file">
-                          <span className="history-item-file-name">{file.filename}</span>
-                          {file.path && (
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button
-                                type="button"
-                                className="msg-file-download"
-                                onClick={() => {
-                                  import('../services/api.js').then(({ viewFile }) => {
-                                    viewFile(file.path);
-                                  });
-                                }}
-                              >
-                                View
-                              </button>
-                              <button
-                                type="button"
-                                className="msg-file-download"
-                                onClick={() => {
-                                  import('../services/api.js').then(({ downloadReviewerFile }) => {
-                                    downloadReviewerFile(file.path, file.filename);
-                                  });
-                                }}
-                              >
-                                Download
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-            {!historyLoading && !historyError && historyTotalPages > 1 && (
-              <div className="history-modal-pagination">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={historyPage <= 1}
-                  onClick={() => fetchHistoryPage(historyPage - 1, historySearch)}
-                >
-                  Previous
-                </button>
-                <span className="history-page-indicator">Page {historyPage} of {historyTotalPages}</span>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={historyPage >= historyTotalPages}
-                  onClick={() => fetchHistoryPage(historyPage + 1, historySearch)}
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Delete Message Confirmation Modal */}
-      {deleteConfirmMsg && (
-        <div className="mini-modal-overlay delete-msg-modal-overlay" onClick={cancelDeleteMessage}>
-          <div className="mini-modal" onClick={e => e.stopPropagation()}>
-            <div className="mini-modal-icon mini-modal-icon--danger">
-              <TrashIcon />
-            </div>
-            <h4 className="mini-modal-title">Delete Message</h4>
-            <p className="mini-modal-text">
-              Are you sure you want to delete this message to <strong>{deleteConfirmMsg.recipientName || deleteConfirmMsg.recipientEmail}</strong>? This action cannot be undone.
-            </p>
-            <div className="mini-modal-actions">
               <button
                 type="button"
-                className="mini-modal-btn mini-modal-btn--ghost"
-                onClick={cancelDeleteMessage}
-                disabled={deletingMessageId === deleteConfirmMsg._id}
+                className="chat-composer-send-btn"
+                onClick={handleSend}
+                disabled={sending || !messageText.trim()}
               >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="mini-modal-btn mini-modal-btn--danger"
-                onClick={confirmDeleteMessage}
-                disabled={deletingMessageId === deleteConfirmMsg._id}
-              >
-                {deletingMessageId === deleteConfirmMsg._id ? 'Deleting...' : 'Delete'}
+                <ChatSendIcon />
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
+          </>
+        )}
+      </section>
     </div>
-
   );
-
 };
 
 

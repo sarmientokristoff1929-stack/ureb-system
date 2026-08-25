@@ -439,6 +439,148 @@ export const sendStudentMessageToAdmin = async ({ senderEmail, senderName, subje
   }
 };
 
+// Admin -> Researcher chat: sidebar summary (last message + unread count per researcher)
+export const getStudentConversationsSummary = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/student-conversations-summary`);
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching student conversations summary:', error);
+    return [];
+  }
+};
+
+// Admin -> Researcher chat: full two-way thread with one researcher, oldest first
+export const getStudentConversation = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/student-conversation/${encodeURIComponent(email)}`);
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching student conversation:', error);
+    return [];
+  }
+};
+
+// Admin -> Researcher chat: mark all of a researcher's messages to admin as read
+export const markStudentConversationRead = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/student-conversation/${encodeURIComponent(email)}/read`, {
+      method: 'PUT',
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error marking student conversation as read:', error);
+    return { success: false, error: 'Failed to mark conversation as read' };
+  }
+};
+
+// Researcher -> Admin chat: mark all of admin's messages to me as read
+export const markAdminMessagesRead = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/student-conversation/${encodeURIComponent(email)}/mark-admin-read`, {
+      method: 'PUT',
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error marking admin messages as read:', error);
+    return { success: false, error: 'Failed to mark messages as read' };
+  }
+};
+
+// Admin -> Researcher chat: send a message (optionally with PDF/DOC/DOCX attachments)
+export const sendAdminMessageToStudent = async ({ studentEmail, recipientName, message, files = [] }) => {
+  try {
+    const formData = new FormData();
+    formData.append('studentEmail', studentEmail || '');
+    formData.append('recipientName', recipientName || '');
+    formData.append('message', message);
+    files.forEach((file, index) => {
+      formData.append(`file${index}`, file);
+    });
+
+    const response = await fetch(`${API_BASE_URL}/send-message-to-student`, {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, error: data.error || `Failed to send message (${response.status})` };
+    }
+    return data;
+  } catch (error) {
+    console.error('Error sending admin message to student:', error);
+    return { success: false, error: 'Failed to send message' };
+  }
+};
+
+// Admin -> Reviewer chat: sidebar summary (last message + unread count per reviewer)
+export const getReviewerConversationsSummary = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/reviewer-conversations-summary`);
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching reviewer conversations summary:', error);
+    return [];
+  }
+};
+
+// Admin -> Reviewer chat: full two-way thread with one reviewer, oldest first
+export const getReviewerConversation = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/reviewer-conversation/${encodeURIComponent(email)}`);
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching reviewer conversation:', error);
+    return [];
+  }
+};
+
+// Admin -> Reviewer chat: mark all of a reviewer's messages to admin as read
+export const markReviewerConversationRead = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/reviewer-conversation/${encodeURIComponent(email)}/read`, {
+      method: 'PUT',
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error marking reviewer conversation as read:', error);
+    return { success: false, error: 'Failed to mark conversation as read' };
+  }
+};
+
+// Admin -> Reviewer chat: send a message (optionally with PDF/DOC/DOCX attachments)
+export const sendAdminMessageToReviewer = async ({ reviewerEmail, recipientName, message, files = [] }) => {
+  try {
+    const formData = new FormData();
+    formData.append('reviewerEmail', reviewerEmail || '');
+    formData.append('recipientName', recipientName || '');
+    formData.append('message', message);
+    files.forEach((file, index) => {
+      formData.append(`file${index}`, file);
+    });
+
+    const response = await fetch(`${API_BASE_URL}/send-message-to-reviewer`, {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, error: data.error || `Failed to send message (${response.status})` };
+    }
+    return data;
+  } catch (error) {
+    console.error('Error sending admin message to reviewer:', error);
+    return { success: false, error: 'Failed to send message' };
+  }
+};
+
 export const sendEmail = async (emailData) => {
   try {
     const response = await fetch(`${API_BASE_URL}/send-email`, {

@@ -504,10 +504,13 @@ const getAdminInboxRecipientEmails = (adminEmail) => {
   return Array.from(recipients).filter(Boolean);
 };
 
-// "reviewer_to_admin" messages (both the auto-generated "review submitted" notice and the
-// manual "Message Admin" compose) are addressed to admin only — they must never echo back into
-// the reviewer's own Messages inbox, which is meant to show admin's replies to them.
-const excludeReviewerToAdminEcho = { type: 'reviewer_to_admin' };
+// "reviewer_to_admin" messages (the auto-generated "review submitted"/"review resubmitted"
+// notices) and the "*_chat_to_admin" Messenger chat types (see below) are addressed to admin
+// only — they must never echo back into the sender's own Messages inbox, which is meant to
+// show admin's replies to them, not their own outgoing messages.
+const excludeReviewerToAdminEcho = {
+  type: { $in: ['reviewer_to_admin', 'reviewer_chat_to_admin', 'student_chat_to_admin'] },
+};
 
 const buildUserInboxQuery = (userEmail) => ({
   $and: [
@@ -520,6 +523,15 @@ const buildUserInboxQuery = (userEmail) => ({
     { $nor: [excludeReviewerToAdminEcho] },
   ],
 });
+
+// Messenger chat messages ("student_chat_to_admin"/"reviewer_chat_to_admin", written by the
+// admin<->researcher and admin<->reviewer chat send endpoints) are excluded here on purpose —
+// they live only in the new chat UI. "Files And Messages Submitted" keeps showing everything
+// else addressed to admin: the "student_to_admin"/"reviewer_to_admin" auto-generated notices
+// (review submitted/resubmitted, file resubmissions) that carry actual submitted files.
+const excludeChatOnlyTypesFromAdminInbox = {
+  type: { $in: ['student_chat_to_admin', 'reviewer_chat_to_admin'] },
+};
 
 const buildAdminInboxQuery = (adminEmail) => {
   const recipients = getAdminInboxRecipientEmails(adminEmail);
@@ -535,6 +547,7 @@ const buildAdminInboxQuery = (adminEmail) => {
       {
         $nor: recipients.map((r) => ({ senderEmail: emailRegexFilter(r) })),
       },
+      { $nor: [excludeChatOnlyTypesFromAdminInbox] },
     ],
   };
 };
@@ -4567,7 +4580,7 @@ app.post('/api/messages/student-to-admin', upload.array('attachments', 3), async
       attachmentCount: fileRecords.length,
       sentAt: new Date(),
       createdAt: new Date(),
-      type: 'student_to_admin',
+      type: 'student_chat_to_admin',
       read: false,
     };
 
@@ -4656,7 +4669,7 @@ app.post('/api/messages/to-admin', upload.array('attachments', 3), async (req, r
       attachmentCount: fileRecords.length,
       sentAt: new Date(),
       createdAt: new Date(),
-      type: 'reviewer_to_admin',
+      type: 'reviewer_chat_to_admin',
       read: false
     };
 
@@ -4669,6 +4682,120 @@ app.post('/api/messages/to-admin', upload.array('attachments', 3), async (req, r
   } catch (error) {
     console.error('Error sending reviewer message:', error);
     res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Sidebar summary for the admin<->researcher chat UI: one row per researcher who has
+// exchanged messages with admin, with their last message and unread count.
+// Registered before the generic /api/messages/:userId route below, since that route
+// would otherwise treat "student-conversations-summary" as a literal userId and shadow this one.
+app.get('/api/messages/student-conversations-summary', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const pipeline = [
+      { $match: { type: { $in: ['admin_to_student', 'student_chat_to_admin'] } } },
+      {
+        $addFields: {
+          partnerEmail: {
+            $cond: [{ $eq: ['$type', 'student_chat_to_admin'] }, '$senderEmail', '$recipientEmail'],
+          },
+          sortDate: { $ifNull: ['$createdAt', '$sentAt'] },
+        },
+      },
+      { $match: { partnerEmail: { $nin: [null, ''] } } },
+      { $sort: { sortDate: 1 } },
+      {
+        $group: {
+          _id: { $toLower: '$partnerEmail' },
+          email: { $last: '$partnerEmail' },
+          lastMessage: { $last: '$message' },
+          lastMessageAt: { $last: '$sortDate' },
+          lastMessageFromAdmin: { $last: { $eq: ['$type', 'admin_to_student'] } },
+          unreadCount: {
+            $sum: {
+              $cond: [
+                { $and: [{ $eq: ['$type', 'student_chat_to_admin'] }, { $ne: ['$read', true] }] },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ];
+
+    const results = await messages.aggregate(pipeline).toArray();
+    res.json(
+      results.map((r) => ({
+        email: r.email,
+        lastMessage: r.lastMessage,
+        lastMessageAt: r.lastMessageAt,
+        lastMessageFromAdmin: r.lastMessageFromAdmin,
+        unreadCount: r.unreadCount,
+      }))
+    );
+  } catch (error) {
+    console.error('Error fetching student conversations summary:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Sidebar summary for the admin<->reviewer chat UI: one row per reviewer who has
+// exchanged messages with admin, with their last message and unread count.
+// Registered before the generic /api/messages/:userId route below for the same reason
+// as the student-conversations-summary route above.
+app.get('/api/messages/reviewer-conversations-summary', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const pipeline = [
+      { $match: { type: { $in: ['admin_to_reviewer', 'reviewer_chat_to_admin'] } } },
+      {
+        $addFields: {
+          partnerEmail: {
+            $cond: [{ $eq: ['$type', 'reviewer_chat_to_admin'] }, '$senderEmail', '$recipientEmail'],
+          },
+          sortDate: { $ifNull: ['$createdAt', '$sentAt'] },
+        },
+      },
+      { $match: { partnerEmail: { $nin: [null, ''] } } },
+      { $sort: { sortDate: 1 } },
+      {
+        $group: {
+          _id: { $toLower: '$partnerEmail' },
+          email: { $last: '$partnerEmail' },
+          lastMessage: { $last: '$message' },
+          lastMessageAt: { $last: '$sortDate' },
+          lastMessageFromAdmin: { $last: { $eq: ['$type', 'admin_to_reviewer'] } },
+          unreadCount: {
+            $sum: {
+              $cond: [
+                { $and: [{ $eq: ['$type', 'reviewer_chat_to_admin'] }, { $ne: ['$read', true] }] },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ];
+
+    const results = await messages.aggregate(pipeline).toArray();
+    res.json(
+      results.map((r) => ({
+        email: r.email,
+        lastMessage: r.lastMessage,
+        lastMessageAt: r.lastMessageAt,
+        lastMessageFromAdmin: r.lastMessageFromAdmin,
+        unreadCount: r.unreadCount,
+      }))
+    );
+  } catch (error) {
+    console.error('Error fetching reviewer conversations summary:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -5611,7 +5738,7 @@ app.get('/api/messages/student-to-admin/history', async (req, res) => {
       return res.status(400).json({ error: 'senderEmail is required' });
     }
 
-    const query = { type: 'student_to_admin', senderEmail };
+    const query = { type: 'student_chat_to_admin', senderEmail };
     if (search) {
       const searchRegex = { $regex: escapeRegexEmail(search), $options: 'i' };
       query.$or = [{ subject: searchRegex }, { message: searchRegex }];
@@ -5652,7 +5779,7 @@ app.get('/api/messages/reviewer-to-admin/history', async (req, res) => {
       return res.status(400).json({ error: 'senderEmail is required' });
     }
 
-    const query = { type: 'reviewer_to_admin', senderEmail };
+    const query = { type: 'reviewer_chat_to_admin', senderEmail };
     if (search) {
       const searchRegex = { $regex: escapeRegexEmail(search), $options: 'i' };
       query.$or = [{ subject: searchRegex }, { message: searchRegex }];
@@ -5675,6 +5802,141 @@ app.get('/api/messages/reviewer-to-admin/history', async (req, res) => {
   } catch (error) {
     console.error('Error fetching reviewer-to-admin message history:', error);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Full two-way conversation thread between admin and one researcher, oldest first.
+app.get('/api/messages/student-conversation/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    if (!email) {
+      return res.status(400).json({ error: 'email is required' });
+    }
+
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const query = {
+      $or: [
+        { type: 'admin_to_student', recipientEmail: emailRegexFilter(email) },
+        { type: 'student_chat_to_admin', senderEmail: emailRegexFilter(email) },
+      ],
+    };
+
+    const list = await messages.find(query).sort({ createdAt: 1, sentAt: 1, _id: 1 }).toArray();
+    const normalized = list.map((msg) => {
+      if (!msg.createdAt && msg.sentAt) msg.createdAt = msg.sentAt;
+      if (msg.read === undefined) msg.read = false;
+      return normalizeMessageAttachments(msg);
+    });
+
+    res.json(normalized);
+  } catch (error) {
+    console.error('Error fetching student conversation:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Bulk mark all of one researcher's messages to admin as read (used when the admin opens the thread).
+app.put('/api/messages/student-conversation/:email/read', async (req, res) => {
+  try {
+    const { email } = req.params;
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'email is required' });
+    }
+
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const result = await messages.updateMany(
+      { type: 'student_chat_to_admin', senderEmail: emailRegexFilter(email), read: { $ne: true } },
+      { $set: { read: true } }
+    );
+
+    res.json({ success: true, modifiedCount: result.modifiedCount });
+  } catch (error) {
+    console.error('Error marking student conversation as read:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Mirror of the route above, for the researcher's own side of the same conversation:
+// bulk marks all of admin's unread messages to this researcher as read (called when
+// the researcher opens their "Message Admin" chat).
+app.put('/api/messages/student-conversation/:email/mark-admin-read', async (req, res) => {
+  try {
+    const { email } = req.params;
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'email is required' });
+    }
+
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const result = await messages.updateMany(
+      { type: 'admin_to_student', recipientEmail: emailRegexFilter(email), read: { $ne: true } },
+      { $set: { read: true } }
+    );
+
+    res.json({ success: true, modifiedCount: result.modifiedCount });
+  } catch (error) {
+    console.error('Error marking admin messages as read:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Full two-way conversation thread between admin and one reviewer, oldest first.
+app.get('/api/messages/reviewer-conversation/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    if (!email) {
+      return res.status(400).json({ error: 'email is required' });
+    }
+
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const query = {
+      $or: [
+        { type: 'admin_to_reviewer', recipientEmail: emailRegexFilter(email) },
+        { type: 'reviewer_chat_to_admin', senderEmail: emailRegexFilter(email) },
+      ],
+    };
+
+    const list = await messages.find(query).sort({ createdAt: 1, sentAt: 1, _id: 1 }).toArray();
+    const normalized = list.map((msg) => {
+      if (!msg.createdAt && msg.sentAt) msg.createdAt = msg.sentAt;
+      if (msg.read === undefined) msg.read = false;
+      return normalizeMessageAttachments(msg);
+    });
+
+    res.json(normalized);
+  } catch (error) {
+    console.error('Error fetching reviewer conversation:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Bulk mark all of one reviewer's messages to admin as read (used when the admin opens the thread).
+app.put('/api/messages/reviewer-conversation/:email/read', async (req, res) => {
+  try {
+    const { email } = req.params;
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'email is required' });
+    }
+
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const result = await messages.updateMany(
+      { type: 'reviewer_chat_to_admin', senderEmail: emailRegexFilter(email), read: { $ne: true } },
+      { $set: { read: true } }
+    );
+
+    res.json({ success: true, modifiedCount: result.modifiedCount });
+  } catch (error) {
+    console.error('Error marking reviewer conversation as read:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
   }
 });
 

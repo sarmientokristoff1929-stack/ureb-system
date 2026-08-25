@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { API_BASE_URL, viewFile, downloadReviewerFile, sendStudentMessageToAdmin } from '../services/api';
+import {
+  API_BASE_URL,
+  viewFile,
+  downloadReviewerFile,
+  sendStudentMessageToAdmin,
+  getStudentConversation,
+  markAdminMessagesRead,
+} from '../services/api';
 import '../styles/studentdashboard.css';
 
 // localStorage helpers for deleted proposals (Render deployment workaround)
@@ -4268,726 +4275,281 @@ const isValidMessageAttachment = (file) =>
   && MESSAGE_ATTACHMENT_TYPES.has(file.type)
   && file.size > 0;
 
-const createMessageUploadZone = () => ({
-  id: `zone-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-  file: null,
-});
+// --- Small inline icons used only by the researcher <-> admin chat UI ---
+const ChatPaperclipIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+  </svg>
+);
 
-function MessageUploadDropZone({ zone, showRemoveZone, onFileSet, onRemoveZone, onInvalidFile }) {
-  const [isDragOver, setIsDragOver] = useState(false);
-  const inputId = `msg-admin-upload-${zone.id}`;
+const ChatSendIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M2.5 12L21 3l-6 18-4-7-8-2z" />
+  </svg>
+);
 
-  const applyFile = (file) => {
-    if (!file) return;
-    if (!isValidMessageAttachment(file)) {
-      onInvalidFile();
-      return;
-    }
-    onFileSet(zone.id, file);
-  };
-
-  return (
-    <div style={{ marginBottom: '1rem', position: 'relative' }}>
-      {showRemoveZone && (
-        <button
-          type="button"
-          onClick={() => onRemoveZone(zone.id)}
-          style={{
-            position: 'absolute',
-            top: '0.5rem',
-            right: '0.5rem',
-            zIndex: 1,
-            padding: '0.25rem 0.6rem',
-            fontSize: '0.75rem',
-            background: '#fff',
-            border: '1px solid #d1d5db',
-            borderRadius: '6px',
-            color: '#6b7280',
-            cursor: 'pointer',
-          }}
-        >
-          Remove
-        </button>
-      )}
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDragOver(true);
-        }}
-        onDragLeave={(e) => {
-          e.preventDefault();
-          setIsDragOver(false);
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          setIsDragOver(false);
-          const file = e.dataTransfer.files?.[0];
-          if (file) applyFile(file);
-        }}
-        style={{
-          border: `2px dashed ${isDragOver ? '#4a7c59' : '#ddd'}`,
-          borderRadius: '8px',
-          padding: '2rem',
-          textAlign: 'center',
-          background: isDragOver ? '#f0fdf4' : '#fafafa',
-          transition: 'all 0.2s',
-        }}
-      >
-        {zone.file ? (
-          <>
-            <FileIcon />
-            <p style={{ color: '#374151', margin: '0.5rem 0', fontWeight: 500 }}>
-              {zone.file.name}
-            </p>
-            <p style={{ color: '#999', fontSize: '0.85rem', margin: '0 0 0.75rem' }}>
-              ({(zone.file.size / 1024 / 1024).toFixed(2)} MB)
-            </p>
-            <button
-              type="button"
-              onClick={() => onFileSet(zone.id, null)}
-              style={{
-                marginRight: '0.5rem',
-                padding: '0.4rem 0.75rem',
-                background: '#fff',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                color: '#6b7280',
-                cursor: 'pointer',
-                fontSize: '0.85rem',
-              }}
-            >
-              Clear file
-            </button>
-            <label
-              htmlFor={inputId}
-              style={{ color: '#4a7c59', cursor: 'pointer', textDecoration: 'underline', fontSize: '0.9rem' }}
-            >
-              Replace
-            </label>
-          </>
-        ) : (
-          <>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="1.5" style={{ marginBottom: '0.5rem' }}>
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-            <p style={{ color: '#666', margin: '0.5rem 0' }}>
-              Drag and drop files here, or{' '}
-              <label
-                htmlFor={inputId}
-                style={{ color: '#4a7c59', cursor: 'pointer', textDecoration: 'underline' }}
-              >
-                browse
-              </label>
-            </p>
-            <p style={{ color: '#999', fontSize: '0.85rem', margin: 0 }}>
-              Up to {MAX_MESSAGE_ATTACHMENTS} files, 12MB total. PDF, DOC, DOCX
-            </p>
-          </>
-        )}
-        <input
-          type="file"
-          id={inputId}
-          accept=".pdf,.doc,.docx"
-          onChange={(e) => {
-            applyFile(e.target.files?.[0]);
-            e.target.value = '';
-          }}
-          style={{ display: 'none' }}
-        />
-      </div>
-    </div>
-  );
-};
-
+// Researcher <-> Admin Messenger-style chat: a single conversation with the UREB admin
 function MessageAdminContent({ userInfo }) {
-  const [subject, setSubject] = useState('');
-  const [message, setMessage] = useState('');
-  const [uploadZones, setUploadZones] = useState([createMessageUploadZone()]);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [sentAttachmentCount, setSentAttachmentCount] = useState(0);
+  const [thread, setThread] = useState([]);
+  const [threadLoading, setThreadLoading] = useState(true);
+  const [messageText, setMessageText] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState([]);
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
 
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [messageHistory, setMessageHistory] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyError, setHistoryError] = useState('');
-  const [historySearch, setHistorySearch] = useState('');
-  const [historySearchInput, setHistorySearchInput] = useState('');
-  const [historyPage, setHistoryPage] = useState(1);
-  const [historyTotalPages, setHistoryTotalPages] = useState(1);
-  const [historyTotal, setHistoryTotal] = useState(0);
-  const [deletingMessageId, setDeletingMessageId] = useState('');
-  const [deleteConfirmMsg, setDeleteConfirmMsg] = useState(null);
-  const HISTORY_PAGE_SIZE = 20;
+  const sendingRef = useRef(false);
+  const threadEndRef = useRef(null);
 
-  const fetchHistoryPage = async (page, search) => {
-    setHistoryLoading(true);
-    setHistoryError('');
+  const myEmail = userInfo?.email || '';
+
+  const formatBubbleTime = (dateVal) => {
+    const date = new Date(dateVal);
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
+
+  const formatDaySeparator = (dateVal) => {
+    const date = new Date(dateVal);
+    if (isNaN(date.getTime())) return '';
+    const now = new Date();
+    if (date.toDateString() === now.toDateString()) return 'Today';
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    const sameYear = date.getFullYear() === now.getFullYear();
+    return date.toLocaleDateString([], sameYear ? { month: 'long', day: 'numeric' } : { month: 'long', day: 'numeric', year: 'numeric' });
+  };
+
+  const loadThread = async () => {
+    if (!myEmail) return;
     try {
-      const params = new URLSearchParams({
-        page: String(page),
-        limit: String(HISTORY_PAGE_SIZE),
-        senderEmail: userInfo?.email || '',
-      });
-      if (search) params.set('search', search);
-      const response = await fetch(`${API_BASE_URL}/messages/student-to-admin/history?${params.toString()}`);
-      if (!response.ok) throw new Error('Failed to fetch history');
-      const data = await response.json();
-      setMessageHistory(data.messages || []);
-      setHistoryPage(data.page || 1);
-      setHistoryTotalPages(data.totalPages || 1);
-      setHistoryTotal(data.total || 0);
+      const data = await getStudentConversation(myEmail);
+      setThread(data);
     } catch (err) {
-      console.error('Error fetching message history:', err);
-      setHistoryError('Failed to load message history');
-    } finally {
-      setHistoryLoading(false);
+      console.error('Error loading conversation with admin:', err);
     }
   };
 
-  const openHistoryModal = () => {
-    setIsHistoryModalOpen(true);
-    setHistorySearch('');
-    setHistorySearchInput('');
-    fetchHistoryPage(1, '');
-  };
-
-  const requestDeleteMessage = (msg) => setDeleteConfirmMsg(msg);
-  const cancelDeleteMessage = () => setDeleteConfirmMsg(null);
-
-  const confirmDeleteMessage = async () => {
-    const messageId = deleteConfirmMsg?._id;
-    if (!messageId) return;
-    setDeletingMessageId(messageId);
-    try {
-      const response = await fetch(`${API_BASE_URL}/messages/${messageId}`, { method: 'DELETE' });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data.success === false) throw new Error(data.error || 'Failed to delete message');
-      setMessageHistory((prev) => prev.filter((m) => m._id !== messageId));
-      setHistoryTotal((prev) => Math.max(prev - 1, 0));
-      setDeleteConfirmMsg(null);
-    } catch (err) {
-      console.error('Error deleting message:', err);
-      setHistoryError('Failed to delete message');
-    } finally {
-      setDeletingMessageId('');
-    }
-  };
-
-  // Debounce search-as-you-type so we don't hit the server on every keystroke
+  // Initial load + mark admin's messages as read
   useEffect(() => {
-    if (!isHistoryModalOpen) return;
-    if (historySearchInput === historySearch) return;
-    const timer = setTimeout(() => {
-      setHistorySearch(historySearchInput);
-      fetchHistoryPage(1, historySearchInput);
-    }, 400);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [historySearchInput, isHistoryModalOpen]);
+    if (!myEmail) return undefined;
+    let cancelled = false;
 
-  const attachedFiles = uploadZones
-    .map((z) => z.file)
-    .filter((file) => file instanceof File);
-  const canAddMoreZones = uploadZones.length < MAX_MESSAGE_ATTACHMENTS;
-
-  const showInvalidFileError = () => {
-    setError('Invalid file type. Only PDF, DOC, and DOCX files are allowed.');
-    setTimeout(() => setError(''), 4000);
-  };
-
-  const showTotalSizeError = () => {
-    setError('Combined attachment size cannot exceed 12MB');
-    setTimeout(() => setError(''), 4000);
-  };
-
-  const setZoneFile = (zoneId, file) => {
-    if (file) {
-      const otherZonesTotal = uploadZones
-        .filter((zone) => zone.id !== zoneId)
-        .reduce((sum, zone) => sum + (zone.file?.size || 0), 0);
-      if (otherZonesTotal + file.size > MAX_MESSAGE_TOTAL_BYTES) {
-        showTotalSizeError();
-        return;
+    const init = async () => {
+      setThreadLoading(true);
+      try {
+        const data = await getStudentConversation(myEmail);
+        if (!cancelled) setThread(data);
+      } catch (err) {
+        console.error('Error loading conversation with admin:', err);
+      } finally {
+        if (!cancelled) setThreadLoading(false);
       }
-    }
-    setUploadZones((prev) =>
-      prev.map((zone) => (zone.id === zoneId ? { ...zone, file } : zone))
-    );
-  };
+      markAdminMessagesRead(myEmail).catch((err) => console.error('Error marking admin messages read:', err));
+    };
 
-  const addUploadZone = () => {
-    if (!canAddMoreZones) {
+    init();
+
+    const pollInterval = setInterval(() => {
+      if (sendingRef.current) return;
+      loadThread();
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(pollInterval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myEmail]);
+
+  useEffect(() => {
+    if (threadEndRef.current) {
+      threadEndRef.current.scrollIntoView({ block: 'end' });
+    }
+  }, [thread]);
+
+  const addValidatedFiles = (files) => {
+    const room = MAX_MESSAGE_ATTACHMENTS - attachedFiles.length;
+    if (room <= 0) {
       setError(`You can attach up to ${MAX_MESSAGE_ATTACHMENTS} files per message`);
-      setTimeout(() => setError(''), 4000);
-      return;
-    }
-    setUploadZones((prev) => [...prev, createMessageUploadZone()]);
-  };
-
-  const removeUploadZone = (zoneId) => {
-    setUploadZones((prev) => {
-      const next = prev.filter((z) => z.id !== zoneId);
-      return next.length > 0 ? next : [createMessageUploadZone()];
-    });
-  };
-
-  const resetUploadZones = () => setUploadZones([createMessageUploadZone()]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!message.trim()) {
-      setError('Please enter a message');
       setTimeout(() => setError(''), 3000);
       return;
     }
+    let runningTotal = attachedFiles.reduce((sum, f) => sum + f.size, 0);
+    const accepted = [];
+    let rejected = false;
+    for (const file of files) {
+      if (accepted.length >= room) { rejected = true; break; }
+      if (!isValidMessageAttachment(file)) { rejected = true; continue; }
+      if (runningTotal + file.size > MAX_MESSAGE_TOTAL_BYTES) { rejected = true; break; }
+      runningTotal += file.size;
+      accepted.push(file);
+    }
+    if (accepted.length > 0) setAttachedFiles((prev) => [...prev, ...accepted]);
+    if (rejected) {
+      setError(`Only PDF, DOC, and DOCX files are allowed, up to ${MAX_MESSAGE_ATTACHMENTS} files and 12MB combined`);
+      setTimeout(() => setError(''), 3000);
+    }
+  };
 
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    addValidatedFiles(files);
+    e.target.value = '';
+  };
+
+  const handleRemoveFile = (index) => {
+    setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSend = async () => {
+    const text = messageText.trim();
+    if (!text || sending || !myEmail) return;
+
+    const tempId = `temp-${Date.now()}`;
+    const filesToSend = [...attachedFiles];
+
+    const optimisticMsg = {
+      _id: tempId,
+      type: 'student_chat_to_admin',
+      message: text,
+      senderEmail: myEmail,
+      senderName: userInfo?.name || 'Student',
+      createdAt: new Date().toISOString(),
+      files: filesToSend.map((f) => ({ originalname: f.name, filename: f.name, size: f.size })),
+      _pending: true,
+    };
+
+    setThread((prev) => [...prev, optimisticMsg]);
+    setMessageText('');
+    setAttachedFiles([]);
     setError('');
+    sendingRef.current = true;
     setSending(true);
 
     try {
       const result = await sendStudentMessageToAdmin({
-        senderEmail: userInfo?.email || '',
+        senderEmail: myEmail,
         senderName: userInfo?.name || 'Student',
-        subject: subject || 'Message from Student',
-        message,
-        attachments: attachedFiles,
+        message: text,
+        attachments: filesToSend,
       });
+      if (result?.success === false) throw new Error(result.error || 'Failed to send message');
 
-      if (result.success) {
-        const received = Number(result.filesReceived ?? 0);
-        if (attachedFiles.length > 0 && received !== attachedFiles.length) {
-          setError(
-            `Only ${received} of ${attachedFiles.length} file(s) were saved. Please try sending again.`
-          );
-          return;
-        }
-        setSentAttachmentCount(received);
-        setSuccess(true);
-        setSubject('');
-        setMessage('');
-        resetUploadZones();
-        setTimeout(() => setSuccess(false), 4000);
-      } else {
-        setError(result.error || 'Failed to send message');
-      }
+      await loadThread();
     } catch (err) {
-      console.error('Error sending message:', err);
+      console.error('Error sending message to admin:', err);
+      setThread((prev) => prev.map((m) => (m._id === tempId ? { ...m, _pending: false, _failed: true } : m)));
       setError('Failed to send message. Please try again.');
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   };
 
+  const handleInputKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  let lastDayKey = null;
+
   return (
-    <div className="content-section" style={{ padding: '1rem' }}>
-      <div className="form-card" style={{ marginLeft: '0.5rem', width: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-          <h2 style={{ margin: 0 }}>Message Admin</h2>
-          <button
-            type="button"
-            className="btn-secondary history-btn"
-            onClick={openHistoryModal}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="9" />
-              <polyline points="12 7 12 12 16 14" />
-            </svg>
-            History
-          </button>
+    <div className="content-section msg-chat-section">
+      <div className="msg-chat-header">
+        <div className="sm-avatar msg-chat-avatar">A</div>
+        <div className="msg-chat-header-info">
+          <span className="msg-chat-header-name">UREB Administrator</span>
+          <span className="msg-chat-header-sub">University Research Ethics Board</span>
         </div>
-        <p style={{ color: '#666', marginBottom: '1.5rem' }}>
-          Send a message directly to the UREB admin. You can attach multiple files if needed.
-        </p>
-
-        {/* Success Modal */}
-        {success && (
-          <div className="mini-modal-overlay" onClick={() => setSuccess(false)} style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999
-          }}>
-            <div className="mini-modal" onClick={e => e.stopPropagation()} style={{
-              background: 'white',
-              borderRadius: '12px',
-              padding: '2rem',
-              maxWidth: '400px',
-              width: '90%',
-              textAlign: 'center',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)'
-            }}>
-              <div style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '50%',
-                background: '#f0fdf4',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 1rem'
-              }}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#166534" strokeWidth="2.5">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-              <h3 style={{ margin: '0 0 0.5rem', color: '#166534', fontSize: '1.25rem' }}>
-                Message Sent!
-              </h3>
-              <p style={{ margin: '0 0 1.5rem', color: '#666' }}>
-                Your message has been sent to the admin successfully.
-                {sentAttachmentCount > 0 && (
-                  <> {sentAttachmentCount} attachment{sentAttachmentCount === 1 ? '' : 's'} were received.</>
-                )}
-              </p>
-              <button
-                onClick={() => setSuccess(false)}
-                style={{
-                  padding: '0.75rem 2rem',
-                  background: '#4a7c59',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '1rem',
-                  cursor: 'pointer'
-                }}
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <div className="error-banner" style={{
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '8px',
-            padding: '1rem',
-            marginBottom: '1rem',
-            color: '#dc2626'
-          }}>
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div className="form-group" style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-              Subject (Optional)
-            </label>
-            <input
-              type="text"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="Enter message subject..."
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                fontSize: '1rem'
-              }}
-            />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-              Message <span style={{ color: '#dc2626' }}>*</span>
-            </label>
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Type your message here..."
-              required
-              rows={6}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                fontSize: '1rem',
-                resize: 'vertical'
-              }}
-            />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-              Attach Files (Optional)
-            </label>
-
-            {uploadZones.map((zone, index) => (
-              <MessageUploadDropZone
-                key={zone.id}
-                zone={zone}
-                showRemoveZone={uploadZones.length > 1}
-                onFileSet={setZoneFile}
-                onRemoveZone={removeUploadZone}
-                onInvalidFile={showInvalidFileError}
-              />
-            ))}
-
-            {canAddMoreZones && (
-              <button
-                type="button"
-                onClick={addUploadZone}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.65rem 1.25rem',
-                  background: '#f0fdf4',
-                  border: '1px solid #4a7c59',
-                  borderRadius: '8px',
-                  color: '#4a7c59',
-                  fontSize: '0.95rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                Add Another Attachment
-              </button>
-            )}
-          </div>
-
-          <div className="form-actions" style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-            <button
-              type="button"
-              onClick={() => {
-                setSubject('');
-                setMessage('');
-                resetUploadZones();
-                setError('');
-              }}
-              disabled={sending}
-              style={{
-                padding: '0.75rem 1.5rem',
-                background: '#f0f0f0',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: sending ? 'not-allowed' : 'pointer',
-                fontSize: '1rem',
-                color: '#666'
-              }}
-            >
-              Clear
-            </button>
-            <button
-              type="submit"
-              disabled={sending}
-              style={{
-                padding: '0.75rem 1.5rem',
-                background: sending ? '#ccc' : '#4a7c59',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: sending ? 'not-allowed' : 'pointer',
-                fontSize: '1rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              {sending ? (
-                <>
-                  <span className="spinner" style={{
-                    width: '16px',
-                    height: '16px',
-                    border: '2px solid rgba(255,255,255,0.3)',
-                    borderTopColor: 'white',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite'
-                  }} />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="22" y1="2" x2="11" y2="13" />
-                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                  </svg>
-                  Send Message
-                </>
-              )}
-            </button>
-          </div>
-        </form>
       </div>
 
-      {/* Message History Modal */}
-      {isHistoryModalOpen && (
-        <div className="mini-modal-overlay" onClick={() => setIsHistoryModalOpen(false)} style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', zIndex: 9999, padding: '1rem'
-        }}>
-          <div onClick={(e) => e.stopPropagation()} style={{
-            background: 'white', borderRadius: '12px', width: '100%', maxWidth: '640px',
-            maxHeight: '85vh', display: 'flex', flexDirection: 'column',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)'
-          }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '1.25rem 1.5rem', borderBottom: '1px solid #e5e7eb'
-            }}>
-              <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Message History</h2>
-              <button
-                type="button"
-                onClick={() => setIsHistoryModalOpen(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', display: 'flex' }}
-              >
-                <XIcon />
-              </button>
-            </div>
+      <div className="msg-chat-body">
+        {threadLoading && <p className="msg-chat-status">Loading conversation...</p>}
+        {!threadLoading && thread.length === 0 && (
+          <p className="msg-chat-status">No messages yet. Send the admin a message to get started.</p>
+        )}
 
-            <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <input
-                type="text"
-                placeholder="Search by subject or message..."
-                value={historySearchInput}
-                onChange={(e) => setHistorySearchInput(e.target.value)}
-                style={{ flex: 1, padding: '0.6rem 0.75rem', border: '1px solid #ddd', borderRadius: '6px', fontSize: '0.9rem' }}
-              />
-              {historyTotal > 0 && (
-                <span style={{ color: '#666', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
-                  {historyTotal} message{historyTotal === 1 ? '' : 's'}
-                </span>
-              )}
-            </div>
+        {!threadLoading && thread.map((msg) => {
+          const dateVal = msg.createdAt || msg.sentAt;
+          const dayKey = dateVal ? new Date(dateVal).toDateString() : null;
+          const showSeparator = dayKey && dayKey !== lastDayKey;
+          if (dayKey) lastDayKey = dayKey;
+          const isOut = msg.type === 'student_chat_to_admin';
 
-            <div style={{ padding: '1rem 1.5rem', overflowY: 'auto', flex: 1 }}>
-              {historyLoading && <p style={{ color: '#666' }}>Loading message history...</p>}
-              {!historyLoading && historyError && <p style={{ color: '#dc2626' }}>{historyError}</p>}
-              {!historyLoading && !historyError && messageHistory.length === 0 && (
-                <p style={{ color: '#666' }}>
-                  {historySearch ? `No messages found matching "${historySearch}".` : "You haven't sent any messages to the admin yet."}
-                </p>
-              )}
-              {!historyLoading && !historyError && messageHistory.map((msg) => (
-                <div key={msg._id} style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '1rem', marginBottom: '0.75rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
-                    <span style={{ fontWeight: 600 }}>{msg.subject || 'Message from Student'}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <span style={{ color: '#666', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                        {msg.sentAt ? new Date(msg.sentAt).toLocaleString() : ''}
-                      </span>
-                      <button
-                        type="button"
-                        title="Delete message"
-                        disabled={deletingMessageId === msg._id}
-                        onClick={() => requestDeleteMessage(msg)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', display: 'flex' }}
-                      >
-                        <TrashIcon />
-                      </button>
-                    </div>
-                  </div>
-                  <p style={{ margin: '0.5rem 0 0', color: '#333', whiteSpace: 'pre-wrap' }}>{msg.message}</p>
+          return (
+            <div key={msg._id}>
+              {showSeparator && <div className="chat-day-separator"><span>{formatDaySeparator(dateVal)}</span></div>}
+              <div className={`chat-bubble-row ${isOut ? 'out' : 'in'}`}>
+                <div className={`chat-bubble ${isOut ? 'out' : 'in'} ${msg._failed ? 'failed' : ''}`}>
+                  <p>{msg.message}</p>
                   {Array.isArray(msg.files) && msg.files.length > 0 && (
-                    <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <div className="chat-bubble-files">
                       {msg.files.map((file, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                          <span style={{ fontSize: '0.85rem', color: '#333', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.originalname || file.filename}</span>
-                          {file.filename && (
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button type="button" className="msg-file-download" onClick={() => viewFile(file.filename)}>
-                                View
-                              </button>
-                              <button type="button" className="msg-file-download" onClick={() => downloadReviewerFile(file.filename, file.originalname || file.filename)}>
-                                Download
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                        <span key={i} className="chat-bubble-file">{file.originalname || file.filename}</span>
                       ))}
                     </div>
                   )}
+                  <span className="chat-bubble-time">
+                    {msg._pending ? 'Sending…' : msg._failed ? 'Failed to send' : formatBubbleTime(dateVal)}
+                  </span>
                 </div>
-              ))}
-            </div>
-
-            {!historyLoading && !historyError && historyTotalPages > 1 && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', padding: '1rem 1.5rem', borderTop: '1px solid #e5e7eb' }}>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={historyPage <= 1}
-                  onClick={() => fetchHistoryPage(historyPage - 1, historySearch)}
-                >
-                  Previous
-                </button>
-                <span style={{ color: '#666', fontSize: '0.85rem' }}>Page {historyPage} of {historyTotalPages}</span>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={historyPage >= historyTotalPages}
-                  onClick={() => fetchHistoryPage(historyPage + 1, historySearch)}
-                >
-                  Next
-                </button>
               </div>
-            )}
-          </div>
+            </div>
+          );
+        })}
+        <div ref={threadEndRef} />
+      </div>
+
+      {error && <div className="chat-error-message">{error}</div>}
+
+      {attachedFiles.length > 0 && (
+        <div className="chat-composer-files">
+          {attachedFiles.map((file, index) => (
+            <span key={index} className="chat-composer-file-chip">
+              {file.name}
+              <button type="button" className="remove-file-btn" onClick={() => handleRemoveFile(index)}>×</button>
+            </span>
+          ))}
         </div>
       )}
 
-      {/* Delete Message Confirmation Modal */}
-      {deleteConfirmMsg && (
-        <div className="mini-modal-overlay" onClick={cancelDeleteMessage} style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', zIndex: 10000, padding: '1rem'
-        }}>
-          <div className="mini-modal" onClick={(e) => e.stopPropagation()} style={{
-            background: 'white', borderRadius: '12px', padding: '2rem', maxWidth: '400px',
-            width: '90%', textAlign: 'center', boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)'
-          }}>
-            <div style={{
-              width: '64px', height: '64px', borderRadius: '50%', background: '#fef2f2',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem', color: '#dc2626'
-            }}>
-              <TrashIcon />
-            </div>
-            <h4 style={{ margin: '0 0 0.5rem' }}>Delete Message</h4>
-            <p style={{ margin: '0 0 1.5rem', color: '#666' }}>
-              Are you sure you want to delete this message? This action cannot be undone.
-            </p>
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-              <button
-                type="button"
-                onClick={cancelDeleteMessage}
-                disabled={deletingMessageId === deleteConfirmMsg._id}
-                style={{ padding: '0.65rem 1.5rem', background: '#f0f0f0', border: 'none', borderRadius: '6px', cursor: 'pointer', color: '#333' }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmDeleteMessage}
-                disabled={deletingMessageId === deleteConfirmMsg._id}
-                style={{ padding: '0.65rem 1.5rem', background: '#dc2626', border: 'none', borderRadius: '6px', cursor: 'pointer', color: 'white' }}
-              >
-                {deletingMessageId === deleteConfirmMsg._id ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="chat-composer">
+        <input
+          type="file"
+          multiple
+          accept=".pdf,.doc,.docx"
+          id="msg-admin-attach-input"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+        />
+        <button
+          type="button"
+          className="chat-composer-attach-btn"
+          title="Attach PDF, DOC, or DOCX"
+          onClick={() => document.getElementById('msg-admin-attach-input').click()}
+        >
+          <ChatPaperclipIcon />
+        </button>
+        <input
+          type="text"
+          className="chat-composer-input"
+          placeholder="Type a message..."
+          value={messageText}
+          onChange={(e) => setMessageText(e.target.value)}
+          onKeyDown={handleInputKeyDown}
+        />
+        <button
+          type="button"
+          className="chat-composer-send-btn"
+          onClick={handleSend}
+          disabled={sending || !messageText.trim()}
+        >
+          <ChatSendIcon />
+        </button>
+      </div>
     </div>
   );
 };
