@@ -72,6 +72,54 @@ const XIcon = () => (
   </svg>
 );
 
+const ZapIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </svg>
+);
+
+const HelpCircleIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+    <line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+);
+
+const FileTextIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
+    <line x1="10" y1="9" x2="8" y2="9" />
+  </svg>
+);
+
+const LayersIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+    <polyline points="2 17 12 22 22 17" />
+    <polyline points="2 12 12 17 22 12" />
+  </svg>
+);
+
+const MessageSquareIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+  </svg>
+);
+
+const WorkflowIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="14" width="7" height="7" rx="1" />
+    <path d="M10 6.5h4" />
+    <path d="M17.5 10v4" />
+  </svg>
+);
+
 const MobileBottomNav = ({ onLoginClick }) => {
   const mobileLinks = [
     {
@@ -431,24 +479,109 @@ const About = () => {
 const Process = () => {
   const steps = [
     {
+      number: 'A',
+      title: 'No Human Participants',
+      description: 'If there are no human participants (primary or secondary data), the preliminary reviewer evaluates the proposal and issues a Certificate of No Human Participants. (1 week)',
+    },
+    {
+      number: 'B',
+      title: 'Certificate Received',
+      description: 'Upon receipt of the Certificate of No Human Participants, the study can be conducted.',
+    },
+    {
       number: '01',
-      title: 'Submit Application',
-      description: 'Complete our online application form with your research protocol and supporting documents.',
+      title: 'Register & Upload',
+      description: 'Study with human participants: register and upload required documents to the UREB database. (1 week)',
     },
     {
       number: '02',
-      title: 'Initial Review',
-      description: 'Our team conducts a preliminary review to ensure all required materials are included.',
+      title: 'Preliminary Review',
+      description: 'UREB preliminary reviewer evaluates completeness of submission, conducts preliminary review, and forwards to UREB. (1 week)',
     },
     {
       number: '03',
-      title: 'Board Review',
-      description: 'The full board or designated reviewer evaluates your protocol for ethical compliance.',
+      title: "Director's Evaluation",
+      description: 'UREB Director evaluates the result of preliminary review. If no ethical issues, UREB releases a Certificate of Exemption from Review and the study can be conducted. (1 week)',
     },
     {
       number: '04',
-      title: 'Decision & Feedback',
-      description: 'Receive approval, conditional approval, or revision requests with detailed guidance.',
+      title: 'Panel Assignment',
+      description: 'For Expedite Review, the UREB Director assigns a review panel per study, and UREB staff forwards documents to the review panel. (3 days)',
+    },
+    {
+      number: '05',
+      title: 'Panel Review',
+      description: 'Review Panel reviews the documents, meets, and makes a report. (2 weeks)',
+    },
+    {
+      number: '06',
+      title: 'Deliberation',
+      description: 'Deliberation of the study is conducted during UREB regular meetings (2nd Friday of the month). Studies for Full Review are deliberated by all UREB Members. (1 day)',
+    },
+    {
+      number: '07',
+      title: 'Notification Letter',
+      description: 'UREB Staff sends a Notification letter to the researcher. (1 day)',
+    },
+    {
+      number: '08',
+      title: 'Revisions',
+      description: 'Upon receipt of the Notification letter, the researcher accomplishes required revisions. (Depends on the researcher)',
+    },
+    {
+      number: '09',
+      title: 'Resubmission',
+      description: 'Researcher submits the revised proposal and other documents.',
+    },
+    {
+      number: '10',
+      title: 'Recheck',
+      description: 'UREB Staff receives the revised proposal and forwards it to the review panel for checking. (1 day)',
+    },
+    {
+      number: '11',
+      title: 'Ethical Clearance',
+      description: 'UREB sends the Ethical Clearance to the researcher. (1 day)',
+    },
+    {
+      number: '12',
+      title: 'Study Conducted',
+      description: 'Upon receipt of the Ethical Clearance, the study can be conducted.',
+    },
+    {
+      number: '13',
+      title: 'Protocol Amendment',
+      description: 'During the conduct of the study, if revision of methodology or other parts is necessary, an application for protocol amendment must be lodged at UREB.',
+    },
+    {
+      number: '14',
+      title: 'Emergency Reporting',
+      description: 'During the conduct of the study, if emergencies arise, UREB must be immediately informed. (1 day)',
+    },
+    {
+      number: '15',
+      title: 'Final Manuscript',
+      description: 'Researcher submits the final manuscript (Chapters 1 to 5), Informed Consent, and other documents.',
+    },
+    {
+      number: '16',
+      title: 'Manuscript Forwarded',
+      description: 'UREB Staff receives the final manuscript and other documents, and forwards them to the Review Panel.',
+    },
+    {
+      number: '17',
+      title: 'Manuscript Evaluation',
+      description: 'Review Panel evaluates the final manuscript and other documents.',
+    },
+    {
+      number: '18',
+      title: 'Certificate Issuance',
+      description: 'UREB Staff sends the Certificate of Completed Ethical Review.',
+    },
+    {
+      number: '19',
+      title: 'Completion',
+      description: 'Researcher receives the Certificate of Completed Ethical Review, a requirement for final defense and publication.',
     },
   ];
 
@@ -744,6 +877,121 @@ const ThankYouModal = ({ isOpen, onClose }) => {
   );
 };
 
+const WorkflowModal = ({ isOpen, onClose }) => {
+  const [hasScrolled, setHasScrolled] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      setHasScrolled(false);
+      return () => { document.body.style.overflow = ''; };
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleScroll = (e) => {
+    if (e.currentTarget.scrollTop > 24 && !hasScrolled) {
+      setHasScrolled(true);
+    }
+  };
+
+  return createPortal(
+    <div
+      className="workflow-modal-overlay"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="workflow-modal-top-fade" aria-hidden="true"></div>
+      <button
+        className="workflow-modal-close"
+        onClick={onClose}
+        aria-label="Close workflow"
+      >
+        <XIcon />
+      </button>
+      <div className="workflow-modal-scroll" onScroll={handleScroll}>
+        <img
+          src="/workflow.png"
+          alt="UREB Workflow"
+          className="workflow-modal-image"
+        />
+      </div>
+      <div className={`workflow-scroll-indicator${hasScrolled ? ' is-hidden' : ''}`} aria-hidden="true">
+        <div className="workflow-scroll-indicator-mouse">
+          <div className="workflow-scroll-indicator-dot"></div>
+        </div>
+        <span>Scroll down</span>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+const QuickAccessDock = ({ onHelpClick, onTermsClick, onFeedbackClick, onWorkflowClick }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dockRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickAway = (e) => {
+      if (dockRef.current && !dockRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickAway);
+    return () => document.removeEventListener('mousedown', handleClickAway);
+  }, [isOpen]);
+
+  const items = [
+    { key: 'workflow', label: 'Workflow', icon: <WorkflowIcon />, onClick: onWorkflowClick },
+    { key: 'services', label: 'Services', icon: <LayersIcon />, href: '#services' },
+    { key: 'feedback', label: 'Feedback', icon: <MessageSquareIcon />, onClick: onFeedbackClick },
+    { key: 'terms', label: 'Terms', icon: <FileTextIcon />, onClick: onTermsClick },
+    { key: 'help', label: 'Help', icon: <HelpCircleIcon />, onClick: onHelpClick },
+  ];
+
+  return (
+    <div className={`quick-access${isOpen ? ' is-open' : ''}`} ref={dockRef}>
+      <div className="quick-access-items">
+        {items.map((item, index) => (
+          item.href ? (
+            <a
+              key={item.key}
+              href={item.href}
+              className="quick-access-item"
+              style={{ transitionDelay: isOpen ? `${index * 40}ms` : '0ms' }}
+              onClick={() => setIsOpen(false)}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </a>
+          ) : (
+            <button
+              key={item.key}
+              type="button"
+              className="quick-access-item"
+              style={{ transitionDelay: isOpen ? `${index * 40}ms` : '0ms' }}
+              onClick={() => { setIsOpen(false); item.onClick(); }}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          )
+        ))}
+      </div>
+      <button
+        type="button"
+        className="quick-access-toggle"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-label={isOpen ? 'Close quick access menu' : 'Open quick access menu'}
+        aria-expanded={isOpen}
+      >
+        {isOpen ? <XIcon /> : <ZapIcon />}
+      </button>
+    </div>
+  );
+};
+
 const LandingPage = ({ onLogin, onRegister, onCommitLogin }) => {
   useScrollReveal();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -753,6 +1001,7 @@ const LandingPage = ({ onLogin, onRegister, onCommitLogin }) => {
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
 
   const openLoginModal = () => setIsLoginModalOpen(true);
   const closeLoginModal = () => setIsLoginModalOpen(false);
@@ -773,6 +1022,9 @@ const LandingPage = ({ onLogin, onRegister, onCommitLogin }) => {
   const openHelpModal = () => setIsHelpModalOpen(true);
   const closeHelpModal = () => setIsHelpModalOpen(false);
 
+  const openWorkflowModal = () => setIsWorkflowModalOpen(true);
+  const closeWorkflowModal = () => setIsWorkflowModalOpen(false);
+
   return (
     <div className="landing-page">
       <Navbar onLoginClick={openLoginModal} />
@@ -784,6 +1036,8 @@ const LandingPage = ({ onLogin, onRegister, onCommitLogin }) => {
         <Contact onMessageClick={openMessageModal} />
       </main>
       <Footer onTermsClick={openTermsModal} onPrivacyClick={openPrivacyModal} onFeedbackClick={openFeedbackModal} onHelpClick={openHelpModal} />
+      <QuickAccessDock onHelpClick={openHelpModal} onTermsClick={openTermsModal} onFeedbackClick={openFeedbackModal} onWorkflowClick={openWorkflowModal} />
+      <WorkflowModal isOpen={isWorkflowModalOpen} onClose={closeWorkflowModal} />
       <LoginModal isOpen={isLoginModalOpen} onClose={closeLoginModal} onLogin={onLogin} onRegister={onRegister} onCommitLogin={onCommitLogin} />
       <MessageModal isOpen={isMessageModalOpen} onClose={closeMessageModal} setIsSuccessModalOpen={setIsSuccessModalOpen} />
       <ThankYouModal isOpen={isSuccessModalOpen} onClose={closeThankYouModal} />
