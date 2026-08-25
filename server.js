@@ -4511,11 +4511,12 @@ const normalizeMessageAttachments = (msg) => {
 const STUDENT_MESSAGE_MAX_TOTAL_BYTES = 12 * 1024 * 1024;
 app.post('/api/messages/student-to-admin', upload.array('attachments', 3), async (req, res) => {
   try {
-    const { senderEmail, senderName, subject, message } = req.body;
+    const { senderEmail, senderName, subject } = req.body;
+    const message = String(req.body.message || '').trim();
     const uploadFiles = Array.isArray(req.files) ? req.files : [];
 
-    if (!senderEmail || !message) {
-      return res.status(400).json({ success: false, error: 'Sender email and message are required' });
+    if (!senderEmail || (!message && uploadFiles.length === 0)) {
+      return res.status(400).json({ success: false, error: 'Sender email and a message or attachment are required' });
     }
 
     const totalBytes = uploadFiles.reduce((sum, f) => sum + f.size, 0);
@@ -4608,11 +4609,12 @@ app.post('/api/messages/student-to-admin', upload.array('attachments', 3), async
 const REVIEWER_MESSAGE_MAX_TOTAL_BYTES = 12 * 1024 * 1024;
 app.post('/api/messages/to-admin', upload.array('attachments', 3), async (req, res) => {
   try {
-    const { senderEmail, senderName, subject, message } = req.body;
+    const { senderEmail, senderName, subject } = req.body;
+    const message = String(req.body.message || '').trim();
     const uploadFiles = Array.isArray(req.files) ? req.files : [];
 
-    if (!senderEmail || !message) {
-      return res.status(400).json({ success: false, error: 'Sender email and message are required' });
+    if (!senderEmail || (!message && uploadFiles.length === 0)) {
+      return res.status(400).json({ success: false, error: 'Sender email and a message or attachment are required' });
     }
 
     const totalBytes = uploadFiles.reduce((sum, f) => sum + f.size, 0);
@@ -4939,7 +4941,8 @@ app.put('/api/messages/:messageId', upload.any(), async (req, res) => {
     for (const file of newFiles) {
       try {
         const gfsFilename = await uploadToGridFS(file, {
-          senderName: 'Admin',
+          senderName: existing.senderName || 'Admin',
+          senderEmail: existing.senderEmail,
           source: 'message-edit',
           recipientEmail: existing.recipientEmail,
         });

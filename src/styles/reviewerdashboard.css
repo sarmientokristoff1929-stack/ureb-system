@@ -5839,8 +5839,42 @@
   border-color: rgba(255, 255, 255, 0.6);
 }
 
+.chat-bubble-edit-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.chat-bubble-edit-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(0, 0, 0, 0.08);
+  color: inherit;
+  font-size: 0.72rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 12px;
+  max-width: 160px;
+}
+
+.chat-bubble-edit-file-chip.removed {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.chat-bubble-edit-file-chip .remove-file-btn {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0;
+}
+
 .chat-bubble-edit-actions {
   display: flex;
+  align-items: center;
   gap: 0.4rem;
   justify-content: flex-end;
 }
@@ -5851,6 +5885,30 @@
   padding: 0.25rem 0.6rem;
   font-size: 0.75rem;
   cursor: pointer;
+}
+
+.chat-bubble-edit-attach-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.85;
+  cursor: pointer;
+  margin-right: auto;
+}
+
+.chat-bubble-edit-attach-btn:hover {
+  opacity: 1;
+}
+
+.chat-bubble-edit-attach-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .chat-bubble-edit-save {
