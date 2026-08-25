@@ -5614,9 +5614,19 @@ const MessageResearcherContent = ({ onMessageRead }) => {
     return () => clearInterval(threadInterval);
   }, [selectedEmail]);
 
-  // Auto-scroll to the newest message
+  // Auto-scroll to the newest message — but only when the reader is already at the
+  // bottom (or just switched conversations). Otherwise a 5s poll refresh would yank
+  // them back down while they're scrolled up reading older messages.
+  const prevSelectedEmailRef = useRef(null);
   useEffect(() => {
-    if (threadEndRef.current) {
+    const conversationChanged = prevSelectedEmailRef.current !== selectedEmail;
+    prevSelectedEmailRef.current = selectedEmail;
+    if (!threadEndRef.current) return;
+
+    const el = threadBodyRef.current;
+    const nearBottom = !el || (el.scrollHeight - el.scrollTop - el.clientHeight < 120);
+
+    if (conversationChanged || nearBottom) {
       threadEndRef.current.scrollIntoView({ block: 'end' });
     }
   }, [thread, selectedEmail]);
@@ -6320,9 +6330,19 @@ const MessageReviewerContent = ({ onMessageRead }) => {
     return () => clearInterval(threadInterval);
   }, [selectedEmail]);
 
-  // Auto-scroll to the newest message
+  // Auto-scroll to the newest message — but only when the reader is already at the
+  // bottom (or just switched conversations). Otherwise a 5s poll refresh would yank
+  // them back down while they're scrolled up reading older messages.
+  const prevSelectedEmailRef = useRef(null);
   useEffect(() => {
-    if (threadEndRef.current) {
+    const conversationChanged = prevSelectedEmailRef.current !== selectedEmail;
+    prevSelectedEmailRef.current = selectedEmail;
+    if (!threadEndRef.current) return;
+
+    const el = threadBodyRef.current;
+    const nearBottom = !el || (el.scrollHeight - el.scrollTop - el.clientHeight < 120);
+
+    if (conversationChanged || nearBottom) {
       threadEndRef.current.scrollIntoView({ block: 'end' });
     }
   }, [thread, selectedEmail]);
