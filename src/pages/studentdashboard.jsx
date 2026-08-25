@@ -6,6 +6,8 @@ import {
   sendStudentMessageToAdmin,
   getStudentConversation,
   markAdminMessagesRead,
+  deleteMessage,
+  editMessage,
 } from '../services/api';
 import '../styles/studentdashboard.css';
 
@@ -4297,6 +4299,10 @@ function MessageAdminContent({ userInfo }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
 
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingText, setEditingText] = useState('');
+  const [deleteConfirmMsg, setDeleteConfirmMsg] = useState(null);
+
   const sendingRef = useRef(false);
   const threadEndRef = useRef(null);
 
@@ -4454,6 +4460,51 @@ function MessageAdminContent({ userInfo }) {
     }
   };
 
+  const startEditMessage = (msg) => {
+    setEditingMessageId(msg._id);
+    setEditingText(msg.message);
+  };
+
+  const cancelEditMessage = () => {
+    setEditingMessageId(null);
+    setEditingText('');
+  };
+
+  const saveEditMessage = async (msg) => {
+    const text = editingText.trim();
+    if (!text || text === msg.message) {
+      cancelEditMessage();
+      return;
+    }
+    try {
+      const result = await editMessage(msg._id, text);
+      if (result?.success === false) throw new Error(result.error || 'Failed to edit message');
+      setThread((prev) => prev.map((m) => (m._id === msg._id ? { ...m, message: text, edited: true } : m)));
+      cancelEditMessage();
+    } catch (err) {
+      console.error('Error editing message:', err);
+      setError('Failed to edit message. Please try again.');
+    }
+  };
+
+  const requestDeleteMessage = (msg) => setDeleteConfirmMsg(msg);
+  const cancelDeleteMessage = () => setDeleteConfirmMsg(null);
+
+  const confirmDeleteMessage = async () => {
+    const msg = deleteConfirmMsg;
+    if (!msg) return;
+    try {
+      const result = await deleteMessage(msg._id);
+      if (result?.success === false) throw new Error(result.error || 'Failed to delete message');
+      setThread((prev) => prev.filter((m) => m._id !== msg._id));
+      setDeleteConfirmMsg(null);
+    } catch (err) {
+      console.error('Error deleting message:', err);
+      setError('Failed to delete message. Please try again.');
+      setDeleteConfirmMsg(null);
+    }
+  };
+
   let lastDayKey = null;
 
   return (
@@ -4478,23 +4529,58 @@ function MessageAdminContent({ userInfo }) {
           const showSeparator = dayKey && dayKey !== lastDayKey;
           if (dayKey) lastDayKey = dayKey;
           const isOut = msg.type === 'student_chat_to_admin';
+          const canModify = isOut && !msg._pending && !msg._failed;
+          const isEditing = editingMessageId === msg._id;
 
           return (
             <div key={msg._id}>
               {showSeparator && <div className="chat-day-separator"><span>{formatDaySeparator(dateVal)}</span></div>}
               <div className={`chat-bubble-row ${isOut ? 'out' : 'in'}`}>
+                {canModify && !isEditing && (
+                  <div className="chat-bubble-actions">
+                    <button type="button" className="chat-bubble-action-btn" onClick={() => startEditMessage(msg)} title="Edit message">
+                      <EditIcon />
+                    </button>
+                    <button type="button" className="chat-bubble-action-btn" onClick={() => requestDeleteMessage(msg)} title="Delete message">
+                      <TrashIcon />
+                    </button>
+                  </div>
+                )}
                 <div className={`chat-bubble ${isOut ? 'out' : 'in'} ${msg._failed ? 'failed' : ''}`}>
-                  <p>{msg.message}</p>
-                  {Array.isArray(msg.files) && msg.files.length > 0 && (
-                    <div className="chat-bubble-files">
-                      {msg.files.map((file, i) => (
-                        <span key={i} className="chat-bubble-file">{file.originalname || file.filename}</span>
-                      ))}
+                  {isEditing ? (
+                    <div className="chat-bubble-edit">
+                      <input
+                        type="text"
+                        className="chat-bubble-edit-input"
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); saveEditMessage(msg); }
+                          if (e.key === 'Escape') cancelEditMessage();
+                        }}
+                        autoFocus
+                      />
+                      <div className="chat-bubble-edit-actions">
+                        <button type="button" className="chat-bubble-edit-cancel" onClick={cancelEditMessage}>Cancel</button>
+                        <button type="button" className="chat-bubble-edit-save" onClick={() => saveEditMessage(msg)}>Save</button>
+                      </div>
                     </div>
+                  ) : (
+                    <>
+                      <p>{msg.message}</p>
+                      {Array.isArray(msg.files) && msg.files.length > 0 && (
+                        <div className="chat-bubble-files">
+                          {msg.files.map((file, i) => (
+                            <span key={i} className="chat-bubble-file">{file.originalname || file.filename}</span>
+                          ))}
+                        </div>
+                      )}
+                      <span className="chat-bubble-time">
+                        {msg._pending ? 'Sending…' : msg._failed ? 'Failed to send' : formatBubbleTime(dateVal)}
+                        {!msg._pending && !msg._failed && msg.edited ? ' · edited' : ''}
+                      </span>
+                    </>
                   )}
-                  <span className="chat-bubble-time">
-                    {msg._pending ? 'Sending…' : msg._failed ? 'Failed to send' : formatBubbleTime(dateVal)}
-                  </span>
                 </div>
               </div>
             </div>
@@ -4550,6 +4636,22 @@ function MessageAdminContent({ userInfo }) {
           <ChatSendIcon />
         </button>
       </div>
+
+      {deleteConfirmMsg && (
+        <div className="mini-modal-overlay delete-msg-modal-overlay" onClick={cancelDeleteMessage}>
+          <div className="mini-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="mini-modal-icon mini-modal-icon--danger">
+              <TrashIcon />
+            </div>
+            <h4 className="mini-modal-title">Delete Message</h4>
+            <p className="mini-modal-text">Are you sure you want to delete this message? This action cannot be undone.</p>
+            <div className="mini-modal-actions">
+              <button type="button" className="mini-modal-btn mini-modal-btn--ghost" onClick={cancelDeleteMessage}>Cancel</button>
+              <button type="button" className="mini-modal-btn mini-modal-btn--danger" onClick={confirmDeleteMessage}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -611,6 +611,25 @@ export const deleteMessage = async (messageId) => {
   }
 };
 
+// Edit a message's text (Messenger chat UIs — editing your own already-sent message)
+export const editMessage = async (messageId, message) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, error: data.error || `Failed to edit message (${response.status})` };
+    }
+    return data;
+  } catch (error) {
+    console.error('Error editing message:', error);
+    return { success: false, error: 'Failed to edit message' };
+  }
+};
+
 export const markMessageAsRead = async (messageId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/messages/${messageId}/read`, {

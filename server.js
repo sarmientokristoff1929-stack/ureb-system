@@ -4898,6 +4898,44 @@ app.delete('/api/messages/:messageId', async (req, res) => {
   }
 });
 
+// Edit a message's text (used by the Messenger chat UIs — a sender editing their own message).
+// Only updates the text; attachments are left as-is.
+app.put('/api/messages/:messageId', async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { message } = req.body;
+
+    if (!message || !String(message).trim()) {
+      return res.status(400).json({ success: false, error: 'Message text is required' });
+    }
+
+    let objectId;
+    try {
+      objectId = new ObjectId(messageId);
+    } catch (error) {
+      return res.status(400).json({ success: false, error: 'Invalid message ID format' });
+    }
+
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const result = await messages.findOneAndUpdate(
+      { _id: objectId },
+      { $set: { message: String(message).trim(), edited: true, editedAt: new Date() } },
+      { returnDocument: 'after' }
+    );
+
+    if (!result) {
+      return res.status(404).json({ success: false, error: 'Message not found' });
+    }
+
+    res.json({ success: true, message: result });
+  } catch (error) {
+    console.error('Error editing message:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // Mark a single message as read
 app.put('/api/messages/:id/read', async (req, res) => {
   try {
