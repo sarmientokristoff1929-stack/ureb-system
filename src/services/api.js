@@ -555,6 +555,49 @@ export const markReviewerConversationRead = async (email) => {
   }
 };
 
+// Reviewer -> Admin chat: mark all of admin's messages to me as read
+export const markAdminMessagesReadForReviewer = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/reviewer-conversation/${encodeURIComponent(email)}/mark-admin-read`, {
+      method: 'PUT',
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error marking admin messages as read:', error);
+    return { success: false, error: 'Failed to mark messages as read' };
+  }
+};
+
+// Reviewer -> Admin chat: send a message (optionally with PDF/DOC/DOCX attachments)
+export const sendReviewerMessageToAdmin = async ({ senderEmail, senderName, subject, message, attachments = [] }) => {
+  try {
+    const formData = new FormData();
+    formData.append('senderEmail', senderEmail || '');
+    formData.append('senderName', senderName || 'Reviewer');
+    formData.append('subject', subject || 'Message from Reviewer');
+    formData.append('message', message);
+    const files = attachments.filter((file) => file instanceof File);
+    formData.append('attachmentCount', String(files.length));
+    files.forEach((file) => {
+      formData.append('attachments', file, file.name);
+    });
+
+    const response = await fetch(`${API_BASE_URL}/messages/to-admin`, {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, error: data.error || `Failed to send message (${response.status})`, filesReceived: data.filesReceived ?? 0 };
+    }
+    return data;
+  } catch (error) {
+    console.error('Error sending reviewer message to admin:', error);
+    return { success: false, error: 'Failed to send message' };
+  }
+};
+
 // Admin -> Reviewer chat: send a message (optionally with PDF/DOC/DOCX attachments)
 export const sendAdminMessageToReviewer = async ({ reviewerEmail, recipientName, message, files = [] }) => {
   try {

@@ -5978,6 +5978,31 @@ app.put('/api/messages/reviewer-conversation/:email/read', async (req, res) => {
   }
 });
 
+// Mirror of the route above, for the reviewer's own side of the same conversation:
+// bulk marks all of admin's unread messages to this reviewer as read (called when
+// the reviewer opens their "Messages" chat).
+app.put('/api/messages/reviewer-conversation/:email/mark-admin-read', async (req, res) => {
+  try {
+    const { email } = req.params;
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'email is required' });
+    }
+
+    const db = getDatabase();
+    const messages = db.collection(collections.messages);
+
+    const result = await messages.updateMany(
+      { type: 'admin_to_reviewer', recipientEmail: emailRegexFilter(email), read: { $ne: true } },
+      { $set: { read: true } }
+    );
+
+    res.json({ success: true, modifiedCount: result.modifiedCount });
+  } catch (error) {
+    console.error('Error marking admin messages as read:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // Send message to reviewer endpoint
 app.post('/api/send-message-to-reviewer', upload.any(), async (req, res) => {
   const { reviewerEmail, recipientName: clientRecipientName, message } = req.body;

@@ -4570,9 +4570,21 @@ function MessageAdminContent({ userInfo }) {
                       <p>{msg.message}</p>
                       {Array.isArray(msg.files) && msg.files.length > 0 && (
                         <div className="chat-bubble-files">
-                          {msg.files.map((file, i) => (
-                            <span key={i} className="chat-bubble-file">{file.originalname || file.filename}</span>
-                          ))}
+                          {msg.files.map((file, i) => {
+                            const storedName = file.filename || file.path;
+                            const displayName = file.originalname || file.filename;
+                            return (
+                              <div key={i} className="chat-bubble-file">
+                                <span className="chat-bubble-file-name" title={displayName}>{displayName}</span>
+                                {!msg._pending && storedName && (
+                                  <span className="chat-bubble-file-actions">
+                                    <button type="button" className="chat-bubble-file-action" onClick={() => viewFile(storedName)}>View</button>
+                                    <button type="button" className="chat-bubble-file-action" onClick={() => downloadReviewerFile(storedName, displayName)}>Download</button>
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                       <span className="chat-bubble-time">

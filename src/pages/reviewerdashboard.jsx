@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 import '../styles/reviewerdashboard.css';
 
-import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, resubmitReview, getCompletedReviews, getReviewerAssignments, downloadReviewerFile, deleteMessage, markMessageAsRead, changeReviewerPassword, getReviewerProfile, getUserNotifications, markNotificationAsRead, deleteNotification, viewFile } from '../services/api';
+import { getProposalsByReviewer, getReviewsByReviewer, getMessagesByUser, submitReview, resubmitReview, getCompletedReviews, getReviewerAssignments, downloadReviewerFile, deleteMessage, editMessage, markMessageAsRead, changeReviewerPassword, getReviewerProfile, getUserNotifications, markNotificationAsRead, deleteNotification, viewFile, getReviewerConversation, markAdminMessagesReadForReviewer, sendReviewerMessageToAdmin } from '../services/api';
 
 const formatAssignmentStatus = (status) => {
   if (!status) return 'Under Review';
@@ -4434,838 +4434,420 @@ const SubmitSecondaryFileContent = ({ onShowSuccessModal, onNavigateToSubmitted 
 
 const TrashIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="3 6 5 6 21 6" />
-    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-    <path d="M10 11v6" />
-    <path d="M14 11v6" />
-    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    <path d="M3 6h18" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
   </svg>
 );
 
+// --- Small inline icons used only by the reviewer <-> admin chat UI ---
+const ChatEditIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+);
+
+const ChatPaperclipIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+  </svg>
+);
+
+const ChatSendIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M2.5 12L21 3l-6 18-4-7-8-2z" />
+  </svg>
+);
+
+// Reviewer <-> Admin Messenger-style chat: a single conversation with the UREB admin
 const MessagesContent = ({ onMessageRead, userInfo }) => {
-
-  const [messages, setMessages] = useState([]);
-  const [viewingFile, setViewingFile] = useState(null);
-
-  const [loading, setLoading] = useState(true);
-  const [composeOpen, setComposeOpen] = useState(false);
-  const [composeMessage, setComposeMessage] = useState('');
-  const [composeSubject, setComposeSubject] = useState('');
-  const [composeFiles, setComposeFiles] = useState([]);
-  const [composeFileError, setComposeFileError] = useState('');
+  const [thread, setThread] = useState([]);
+  const [threadLoading, setThreadLoading] = useState(true);
+  const [messageText, setMessageText] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState([]);
   const [sending, setSending] = useState(false);
-  const [sendSuccess, setSendSuccess] = useState(false);
+  const [error, setError] = useState('');
 
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [messageHistory, setMessageHistory] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyError, setHistoryError] = useState('');
-  const [historySearch, setHistorySearch] = useState('');
-  const [historySearchInput, setHistorySearchInput] = useState('');
-  const [historyPage, setHistoryPage] = useState(1);
-  const [historyTotalPages, setHistoryTotalPages] = useState(1);
-  const [historyTotal, setHistoryTotal] = useState(0);
-  const [deletingHistoryId, setDeletingHistoryId] = useState('');
-  const [deleteHistoryTarget, setDeleteHistoryTarget] = useState(null);
-  const HISTORY_PAGE_SIZE = 20;
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingText, setEditingText] = useState('');
+  const [deleteConfirmMsg, setDeleteConfirmMsg] = useState(null);
 
-  const fetchHistoryPage = async (page, search) => {
-    setHistoryLoading(true);
-    setHistoryError('');
-    try {
-      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
-      const params = new URLSearchParams({
-        page: String(page),
-        limit: String(HISTORY_PAGE_SIZE),
-        senderEmail: userInfo?.email || '',
-      });
-      if (search) params.set('search', search);
-      const response = await fetch(`${API_BASE}/messages/reviewer-to-admin/history?${params.toString()}`);
-      if (!response.ok) throw new Error('Failed to fetch history');
-      const data = await response.json();
-      setMessageHistory(data.messages || []);
-      setHistoryPage(data.page || 1);
-      setHistoryTotalPages(data.totalPages || 1);
-      setHistoryTotal(data.total || 0);
-    } catch (err) {
-      console.error('Error fetching message history:', err);
-      setHistoryError('Failed to load message history');
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
+  const sendingRef = useRef(false);
+  const threadEndRef = useRef(null);
 
-  const openHistoryModal = () => {
-    setIsHistoryModalOpen(true);
-    setHistorySearch('');
-    setHistorySearchInput('');
-    fetchHistoryPage(1, '');
-  };
+  const myEmail = userInfo?.email || '';
 
-  const requestDeleteHistoryMessage = (msg) => setDeleteHistoryTarget(msg);
-  const cancelDeleteHistoryMessage = () => setDeleteHistoryTarget(null);
-
-  const confirmDeleteHistoryMessage = async () => {
-    const messageId = deleteHistoryTarget?._id || deleteHistoryTarget?.id;
-    if (!messageId) return;
-    setDeletingHistoryId(messageId);
-    try {
-      const result = await deleteMessage(messageId);
-      if (result && result.success !== false) {
-        setMessageHistory((prev) => prev.filter((m) => (m._id || m.id) !== messageId));
-        setHistoryTotal((prev) => Math.max(prev - 1, 0));
-        setDeleteHistoryTarget(null);
-      } else {
-        setHistoryError(result?.error || 'Failed to delete message');
-      }
-    } catch (err) {
-      console.error('Error deleting message:', err);
-      setHistoryError('Failed to delete message');
-    } finally {
-      setDeletingHistoryId('');
-    }
-  };
-
-  // Debounce search-as-you-type so we don't hit the server on every keystroke
-  useEffect(() => {
-    if (!isHistoryModalOpen) return;
-    if (historySearchInput === historySearch) return;
-    const timer = setTimeout(() => {
-      setHistorySearch(historySearchInput);
-      fetchHistoryPage(1, historySearchInput);
-    }, 400);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [historySearchInput, isHistoryModalOpen]);
-
-  const MAX_COMPOSE_ATTACHMENTS = 3;
-  const MAX_COMPOSE_TOTAL_BYTES = 12 * 1024 * 1024; // 12MB combined, matches server-side check
-  const COMPOSE_ATTACHMENT_TYPES = new Set([
+  const MAX_MESSAGE_ATTACHMENTS = 3;
+  const MAX_MESSAGE_TOTAL_BYTES = 12 * 1024 * 1024;
+  const MESSAGE_ATTACHMENT_TYPES = new Set([
     'application/pdf',
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   ]);
 
-  const handleComposeFileSelect = (e) => {
-    const picked = Array.from(e.target.files || []);
-    e.target.value = '';
-    if (!picked.length) return;
-
-    setComposeFileError('');
-    setComposeFiles((prev) => {
-      const room = MAX_COMPOSE_ATTACHMENTS - prev.length;
-      if (room <= 0) {
-        setComposeFileError(`You can attach up to ${MAX_COMPOSE_ATTACHMENTS} files per message`);
-        return prev;
-      }
-
-      const invalidType = picked.find((f) => !COMPOSE_ATTACHMENT_TYPES.has(f.type));
-      if (invalidType) {
-        setComposeFileError(`"${invalidType.name}" is not a supported file type. Only PDF, DOC, and DOCX are allowed.`);
-      }
-
-      let runningTotal = prev.reduce((sum, f) => sum + f.size, 0);
-      const accepted = [];
-      for (const f of picked) {
-        if (!COMPOSE_ATTACHMENT_TYPES.has(f.type)) continue;
-        if (accepted.length + prev.length >= MAX_COMPOSE_ATTACHMENTS) break;
-        if (runningTotal + f.size > MAX_COMPOSE_TOTAL_BYTES) {
-          setComposeFileError('Combined attachment size cannot exceed 12MB');
-          break;
-        }
-        runningTotal += f.size;
-        accepted.push(f);
-      }
-      return [...prev, ...accepted];
-    });
+  const formatBubbleTime = (dateVal) => {
+    const date = new Date(dateVal);
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   };
 
-  const removeComposeFile = (index) => {
-    setComposeFiles((prev) => prev.filter((_, i) => i !== index));
+  const formatDaySeparator = (dateVal) => {
+    const date = new Date(dateVal);
+    if (isNaN(date.getTime())) return '';
+    const now = new Date();
+    if (date.toDateString() === now.toDateString()) return 'Today';
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    const sameYear = date.getFullYear() === now.getFullYear();
+    return date.toLocaleDateString([], sameYear ? { month: 'long', day: 'numeric' } : { month: 'long', day: 'numeric', year: 'numeric' });
   };
 
+  const loadThread = async () => {
+    if (!myEmail) return;
+    try {
+      const data = await getReviewerConversation(myEmail);
+      setThread(data);
+    } catch (err) {
+      console.error('Error loading conversation with admin:', err);
+    }
+  };
 
+  // Initial load + mark admin's messages as read
+  useEffect(() => {
+    if (!myEmail) return undefined;
+    let cancelled = false;
+
+    const init = async () => {
+      setThreadLoading(true);
+      try {
+        const data = await getReviewerConversation(myEmail);
+        if (!cancelled) setThread(data);
+      } catch (err) {
+        console.error('Error loading conversation with admin:', err);
+      } finally {
+        if (!cancelled) setThreadLoading(false);
+      }
+      markAdminMessagesReadForReviewer(myEmail).catch((err) => console.error('Error marking admin messages read:', err));
+      if (onMessageRead) onMessageRead();
+    };
+
+    init();
+
+    const pollInterval = setInterval(() => {
+      if (sendingRef.current) return;
+      loadThread();
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(pollInterval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myEmail]);
 
   useEffect(() => {
-
-    const savedUser = localStorage.getItem('ureb_user');
-
-    if (savedUser) {
-
-      const user = JSON.parse(savedUser);
-
-      fetchMessages(user.email);
-
+    if (threadEndRef.current) {
+      threadEndRef.current.scrollIntoView({ block: 'end' });
     }
+  }, [thread]);
 
-  }, []);
-
-
-
-  const fetchMessages = async (userEmail) => {
-
-    if (!userEmail) return;
-
-    setLoading(true);
-
-    try {
-
-      const data = await getMessagesByUser(userEmail);
-
-      setMessages(data);
-
-    } catch (error) {
-
-      console.error('Error fetching messages:', error);
-
-    } finally {
-
-      setLoading(false);
-
+  const addValidatedFiles = (files) => {
+    const room = MAX_MESSAGE_ATTACHMENTS - attachedFiles.length;
+    if (room <= 0) {
+      setError(`You can attach up to ${MAX_MESSAGE_ATTACHMENTS} files per message`);
+      setTimeout(() => setError(''), 3000);
+      return;
     }
-
-  };
-
-  const [deleteTargetMessage, setDeleteTargetMessage] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-
-  const handlePromptDeleteMessage = (message) => {
-    setDeleteTargetMessage(message);
-  };
-
-  const confirmDeleteMessage = async () => {
-    if (!deleteTargetMessage) return;
-    const messageId = deleteTargetMessage._id || deleteTargetMessage.id;
-    setDeleting(true);
-    try {
-      const result = await deleteMessage(messageId);
-      if (result && result.success !== false) {
-        setMessages(prev => prev.filter(m => (m._id || m.id) !== messageId));
-      }
-    } catch (err) {
-      console.error('Error deleting message:', err);
-    } finally {
-      setDeleting(false);
-      setDeleteTargetMessage(null);
+    let runningTotal = attachedFiles.reduce((sum, f) => sum + f.size, 0);
+    const accepted = [];
+    let rejected = false;
+    for (const file of files) {
+      if (accepted.length >= room) { rejected = true; break; }
+      if (!MESSAGE_ATTACHMENT_TYPES.has(file.type)) { rejected = true; continue; }
+      if (runningTotal + file.size > MAX_MESSAGE_TOTAL_BYTES) { rejected = true; break; }
+      runningTotal += file.size;
+      accepted.push(file);
+    }
+    if (accepted.length > 0) setAttachedFiles((prev) => [...prev, ...accepted]);
+    if (rejected) {
+      setError(`Only PDF, DOC, and DOCX files are allowed, up to ${MAX_MESSAGE_ATTACHMENTS} files and 12MB combined`);
+      setTimeout(() => setError(''), 3000);
     }
   };
 
-  const handleMarkAsRead = async (messageId) => {
-    const result = await markMessageAsRead(messageId);
-    if (result && result.success !== false) {
-      setMessages(prev => prev.map(m => (m._id || m.id) === messageId ? { ...m, read: true } : m));
-      if (onMessageRead) {
-        onMessageRead();
-      }
-    }
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    addValidatedFiles(files);
+    e.target.value = '';
   };
 
-  const openCompose = () => {
-    setComposeOpen(true);
-    setComposeMessage('');
-    setComposeSubject('');
-    setComposeFiles([]);
-    setComposeFileError('');
-    setSendSuccess(false);
+  const handleRemoveFile = (index) => {
+    setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const closeCompose = () => {
-    if (sending) return;
-    setComposeOpen(false);
-  };
+  const handleSend = async () => {
+    const text = messageText.trim();
+    if (!text || !myEmail || sending) return;
 
-  const handleSendMessage = async () => {
-    if (!composeMessage.trim()) return;
+    const tempId = `temp-${Date.now()}`;
+    const filesToSend = [...attachedFiles];
+
+    const optimisticMsg = {
+      _id: tempId,
+      type: 'reviewer_chat_to_admin',
+      message: text,
+      senderEmail: myEmail,
+      senderName: userInfo?.name || 'Reviewer',
+      createdAt: new Date().toISOString(),
+      files: filesToSend.map((f) => ({ originalname: f.name, filename: f.name, size: f.size })),
+      _pending: true,
+    };
+
+    setThread((prev) => [...prev, optimisticMsg]);
+    setMessageText('');
+    setAttachedFiles([]);
+    setError('');
+    sendingRef.current = true;
     setSending(true);
+
     try {
-      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
-
-      const formData = new FormData();
-      formData.append('senderEmail', userInfo?.email || '');
-      formData.append('senderName', userInfo?.name || 'Reviewer');
-      formData.append('subject', composeSubject);
-      formData.append('message', composeMessage);
-      formData.append('attachmentCount', String(composeFiles.length));
-      composeFiles.forEach((file) => {
-        formData.append('attachments', file, file.name);
+      const result = await sendReviewerMessageToAdmin({
+        senderEmail: myEmail,
+        senderName: userInfo?.name || 'Reviewer',
+        message: text,
+        attachments: filesToSend,
       });
+      if (result?.success === false) throw new Error(result.error || 'Failed to send message');
 
-      const response = await fetch(`${API_BASE}/messages/to-admin`, {
-        method: 'POST',
-        body: formData
-      });
-      const data = await response.json();
-      if (data.success) {
-        const received = Number(data.filesReceived ?? 0);
-        if (composeFiles.length > 0 && received !== composeFiles.length) {
-          alert(`Only ${received} of ${composeFiles.length} file(s) were saved. Please try sending again.`);
-          return;
-        }
-        setSendSuccess(true);
-        setTimeout(() => {
-          closeCompose();
-        }, 1500);
-      } else {
-        alert(data.error || 'Failed to send message. Please try again.');
-      }
+      await loadThread();
     } catch (err) {
-      console.error('Send message error:', err);
-      alert('Failed to send message. Please try again.');
+      console.error('Error sending message to admin:', err);
+      setThread((prev) => prev.map((m) => (m._id === tempId ? { ...m, _pending: false, _failed: true } : m)));
+      setError('Failed to send message. Please try again.');
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   };
 
-  const formatTimeAgo = (dateString) => {
-
-    if (!dateString) return 'Unknown';
-
-    const date = new Date(dateString);
-
-    const now = new Date();
-
-    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
-
-
-
-    if (diffInHours < 1) return 'Just now';
-
-    if (diffInHours < 24) return `${diffInHours} hours ago`;
-
-    const diffInDays = Math.floor(diffInHours / 24);
-
-    if (diffInDays === 1) return '1 day ago';
-
-    return `${diffInDays} days ago`;
-
+  const handleInputKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
+  const startEditMessage = (msg) => {
+    setEditingMessageId(msg._id);
+    setEditingText(msg.message);
+  };
 
+  const cancelEditMessage = () => {
+    setEditingMessageId(null);
+    setEditingText('');
+  };
 
-  if (loading) {
+  const saveEditMessage = async (msg) => {
+    const text = editingText.trim();
+    if (!text || text === msg.message) {
+      cancelEditMessage();
+      return;
+    }
+    try {
+      const result = await editMessage(msg._id, text);
+      if (result?.success === false) throw new Error(result.error || 'Failed to edit message');
+      setThread((prev) => prev.map((m) => (m._id === msg._id ? { ...m, message: text, edited: true } : m)));
+      cancelEditMessage();
+    } catch (err) {
+      console.error('Error editing message:', err);
+      setError('Failed to edit message. Please try again.');
+    }
+  };
 
-    return (
+  const requestDeleteMessage = (msg) => setDeleteConfirmMsg(msg);
+  const cancelDeleteMessage = () => setDeleteConfirmMsg(null);
 
-      <div className="content-section">
+  const confirmDeleteMessage = async () => {
+    const msg = deleteConfirmMsg;
+    if (!msg) return;
+    try {
+      const result = await deleteMessage(msg._id);
+      if (result?.success === false) throw new Error(result.error || 'Failed to delete message');
+      setThread((prev) => prev.filter((m) => m._id !== msg._id));
+      setDeleteConfirmMsg(null);
+    } catch (err) {
+      console.error('Error deleting message:', err);
+      setError('Failed to delete message. Please try again.');
+      setDeleteConfirmMsg(null);
+    }
+  };
 
-        <h2>Messages</h2>
-
-        <div className="loading-state">Loading messages...</div>
-
-      </div>
-
-    );
-
-  }
-
-
+  let lastDayKey = null;
 
   return (
-
-    <div className="content-section">
-
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '2rem' }}>
-        <h2 style={{ margin: 0 }}>Messages</h2>
-        <button
-          type="button"
-          className="btn-secondary history-btn"
-          onClick={openHistoryModal}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="9" />
-            <polyline points="12 7 12 12 16 14" />
-          </svg>
-          History
-        </button>
+    <div className="content-section msg-chat-section">
+      <div className="msg-chat-header">
+        <div className="sender-avatar msg-chat-avatar">A</div>
+        <div className="msg-chat-header-info">
+          <span className="msg-chat-header-name">UREB Administrator</span>
+          <span className="msg-chat-header-sub">University Research Ethics Board</span>
+        </div>
       </div>
 
-      {messages.length === 0 ? (
-        <div className="empty-state">No messages yet.</div>
-      ) : (
-        <div className="messages-list">
+      <div className="msg-chat-body">
+        {threadLoading && <p className="msg-chat-status">Loading conversation...</p>}
+        {!threadLoading && thread.length === 0 && (
+          <p className="msg-chat-status">No messages yet. Send the admin a message to get started.</p>
+        )}
 
-          {messages.map((message) => (
+        {!threadLoading && thread.map((msg) => {
+          const dateVal = msg.createdAt || msg.sentAt;
+          const dayKey = dateVal ? new Date(dateVal).toDateString() : null;
+          const showSeparator = dayKey && dayKey !== lastDayKey;
+          if (dayKey) lastDayKey = dayKey;
+          const isOut = msg.type === 'reviewer_chat_to_admin';
+          const canModify = isOut && !msg._pending && !msg._failed;
+          const isEditing = editingMessageId === msg._id;
 
-            <div className={`message-item ${!message.read ? 'unread' : ''}`} key={message._id || message.id}>
-
-              <div className="message-header">
-
-                <div className="message-sender">
-
-                  <div className="sender-avatar">
-
-                    {(message.senderName || (message.type === 'admin_to_reviewer' ? 'Administrator' : message.senderEmail) || 'U').charAt(0).toUpperCase()}
-
+          return (
+            <div key={msg._id}>
+              {showSeparator && <div className="chat-day-separator"><span>{formatDaySeparator(dateVal)}</span></div>}
+              <div className={`chat-bubble-row ${isOut ? 'out' : 'in'}`}>
+                {canModify && !isEditing && (
+                  <div className="chat-bubble-actions">
+                    <button type="button" className="chat-bubble-action-btn" onClick={() => startEditMessage(msg)} title="Edit message">
+                      <ChatEditIcon />
+                    </button>
+                    <button type="button" className="chat-bubble-action-btn" onClick={() => requestDeleteMessage(msg)} title="Delete message">
+                      <TrashIcon />
+                    </button>
                   </div>
-
-                  <div className="sender-info">
-
-                    <h4>{message.senderName || (message.type === 'admin_to_reviewer' ? 'UREB Administrator' : message.senderEmail) || 'Unknown'}</h4>
-
-                    <span>{formatTimeAgo(message.sentAt || message.createdAt)}</span>
-
-                  </div>
-
-                </div>
-
-                <div className="message-header-right">
-                  {!message.read && <span className="unread-badge">New</span>}
-                  <button
-                    className="message-delete-btn"
-                    onClick={() => handlePromptDeleteMessage(message)}
-                    title="Delete message"
-                  >
-                    <TrashIcon />
-                  </button>
-                </div>
-
-              </div>
-
-              <div className="message-content">
-
-                {message.subject && <h4>{message.subject}</h4>}
-
-                <p>{message.message || 'No content'}</p>
-
-                {message.files && message.files.length > 0 && (
-                  <div className="message-attachments" style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #e5e7eb' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#374151', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}>
-                      📎 Attachments ({message.files.length})
-                    </span>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      {message.files.map((file, i) => {
-                        const storedName = file.filename || (file.path ? (file.path.startsWith('uploads/') || file.path.startsWith('uploads\\') ? file.path.split(/[/\\]/).pop() : file.path) : null);
-                        const displayName = file.originalname || file.filename || 'attachment';
-                        const apiBaseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-                        const downloadUrl = storedName ? `${apiBaseUrl}/api/download/${encodeURIComponent(storedName)}?name=${encodeURIComponent(displayName)}` : null;
-                        const viewUrl = storedName ? `${apiBaseUrl}/api/view/${encodeURIComponent(storedName)}` : null;
-                        return (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.5rem 0.85rem', borderRadius: '6px', fontSize: '0.85rem', width: '100%' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0, overflow: 'hidden' }}>
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" style={{ flexShrink: 0 }}>
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                <polyline points="14 2 14 8 20 8" />
-                              </svg>
-                              <span style={{ fontWeight: 500, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName}</span>
-                              {file.size && <span style={{ color: '#64748b', fontSize: '0.75rem', flexShrink: 0 }}>({(file.size / 1024).toFixed(1)} KB)</span>}
-                            </div>
-                            {storedName && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, marginLeft: '0.75rem' }}>
-                                {storedName && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setViewingFile({
-                                      filename: storedName,
-                                      originalname: displayName,
-                                      path: storedName,
-                                      size: file.size,
-                                      mimetype: file.mimetype
-                                    })}
-                                    style={{ background: '#3b82f6', color: '#ffffff', border: 'none', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
-                                  >
-                                    View
-                                  </button>
-                                )}
-                                {downloadUrl && (
-                                  <button
-                                    type="button"
-                                    onClick={async () => {
-                                      const result = await downloadReviewerFile(storedName, displayName);
-                                      if (!result?.success) {
-                                        alert(`Could not download "${displayName}". The file may no longer be available.`);
-                                      }
-                                    }}
-                                    style={{ background: '#10b981', color: '#ffffff', border: 'none', textDecoration: 'none', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
-                                  >
-                                    Download
-                                  </button>
+                )}
+                <div className={`chat-bubble ${isOut ? 'out' : 'in'} ${msg._failed ? 'failed' : ''}`}>
+                  {isEditing ? (
+                    <div className="chat-bubble-edit">
+                      <input
+                        type="text"
+                        className="chat-bubble-edit-input"
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); saveEditMessage(msg); }
+                          if (e.key === 'Escape') cancelEditMessage();
+                        }}
+                        autoFocus
+                      />
+                      <div className="chat-bubble-edit-actions">
+                        <button type="button" className="chat-bubble-edit-cancel" onClick={cancelEditMessage}>Cancel</button>
+                        <button type="button" className="chat-bubble-edit-save" onClick={() => saveEditMessage(msg)}>Save</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p>{msg.message}</p>
+                      {Array.isArray(msg.files) && msg.files.length > 0 && (
+                        <div className="chat-bubble-files">
+                          {msg.files.map((file, i) => {
+                            const storedName = file.filename || file.path;
+                            const displayName = file.originalname || file.filename;
+                            return (
+                              <div key={i} className="chat-bubble-file">
+                                <span className="chat-bubble-file-name" title={displayName}>{displayName}</span>
+                                {!msg._pending && storedName && (
+                                  <span className="chat-bubble-file-actions">
+                                    <button type="button" className="chat-bubble-file-action" onClick={() => viewFile(storedName)}>View</button>
+                                    <button type="button" className="chat-bubble-file-action" onClick={() => downloadReviewerFile(storedName, displayName)}>Download</button>
+                                  </span>
                                 )}
                               </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
+                            );
+                          })}
+                        </div>
+                      )}
+                      <span className="chat-bubble-time">
+                        {msg._pending ? 'Sending…' : msg._failed ? 'Failed to send' : formatBubbleTime(dateVal)}
+                        {!msg._pending && !msg._failed && msg.edited ? ' · edited' : ''}
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
-
-              <div className="message-actions">
-
-                {!message.read && (
-
-                  <button
-                    className="btn-secondary"
-                    onClick={() => handleMarkAsRead(message._id || message.id)}
-                  >
-                    Mark as Read
-                  </button>
-
-                )}
-
-              </div>
-
             </div>
+          );
+        })}
+        <div ref={threadEndRef} />
+      </div>
 
+      {error && <div className="chat-error-message">{error}</div>}
+
+      {attachedFiles.length > 0 && (
+        <div className="chat-composer-files">
+          {attachedFiles.map((file, index) => (
+            <span key={index} className="chat-composer-file-chip">
+              {file.name}
+              <button type="button" className="remove-file-btn" onClick={() => handleRemoveFile(index)}>×</button>
+            </span>
           ))}
-
         </div>
       )}
 
-      <div className="message-compose-section" style={{ marginTop: '2rem', padding: '1rem', borderTop: '1px solid #e5e7eb' }}>
+      <div className="chat-composer">
+        <input
+          type="file"
+          multiple
+          accept=".pdf,.doc,.docx"
+          id="msg-reviewer-attach-input"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+        />
         <button
-          className="btn-primary"
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', fontSize: '1rem' }}
-          onClick={openCompose}
+          type="button"
+          className="chat-composer-attach-btn"
+          title="Attach PDF, DOC, or DOCX"
+          onClick={() => document.getElementById('msg-reviewer-attach-input').click()}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-            <polyline points="22,6 12,13 2,6"></polyline>
-          </svg>
-          Message Admin
+          <ChatPaperclipIcon />
+        </button>
+        <input
+          type="text"
+          className="chat-composer-input"
+          placeholder="Type a message..."
+          value={messageText}
+          onChange={(e) => setMessageText(e.target.value)}
+          onKeyDown={handleInputKeyDown}
+        />
+        <button
+          type="button"
+          className="chat-composer-send-btn"
+          onClick={handleSend}
+          disabled={sending || !messageText.trim()}
+        >
+          <ChatSendIcon />
         </button>
       </div>
 
-      {/* Compose Modal */}
-      {composeOpen && (
-        <div className="rm-overlay" onClick={(e) => { if (e.target.classList.contains('rm-overlay')) closeCompose(); }}>
-          <div className="rm-container">
-            <div className="rm-header">
-              <div className="rm-header-left">
-                <div className="rm-header-icon">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                    <polyline points="22,6 12,13 2,6"></polyline>
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="rm-title">Message Administrator</h3>
-                  <p className="rm-subtitle">Send a message directly to the UREB Admin</p>
-                </div>
-              </div>
-              <button className="rm-close" onClick={closeCompose} disabled={sending}>✕</button>
-            </div>
-
-            <div className="rm-body">
-              {sendSuccess ? (
-                <div style={{ textAlign: 'center', padding: '2rem' }}>
-                  <div style={{ width: '60px', height: '60px', background: '#22c55e', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  </div>
-                  <h3 style={{ color: '#22c55e', marginBottom: '0.5rem' }}>Message Sent!</h3>
-                  <p style={{ color: '#6b7280' }}>Your message has been sent to the administrator.</p>
-                </div>
-              ) : (
-                <>
-                  <div className="rm-field">
-                    <label className="rm-label">Subject (optional)</label>
-                    <input
-                      type="text"
-                      value={composeSubject}
-                      onChange={(e) => setComposeSubject(e.target.value)}
-                      placeholder="Enter subject..."
-                      className="rm-input"
-                      disabled={sending}
-                    />
-                  </div>
-                  <div className="rm-field">
-                    <label className="rm-label">Message</label>
-                    <textarea
-                      value={composeMessage}
-                      onChange={(e) => setComposeMessage(e.target.value)}
-                      placeholder="Type your message here..."
-                      rows="6"
-                      className="rm-textarea"
-                      disabled={sending}
-                    />
-                  </div>
-                  <div className="rm-field">
-                    <label className="rm-label">Attachments (optional)</label>
-                    <label
-                      htmlFor="reviewer-compose-file-input"
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-                        padding: '0.55rem 1rem', border: '1px dashed #7A9E7E', borderRadius: '8px',
-                        color: '#4a7c59', fontSize: '0.85rem', fontWeight: 600, cursor: sending ? 'not-allowed' : 'pointer',
-                        opacity: sending ? 0.6 : 1,
-                      }}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"></path>
-                      </svg>
-                      Attach files
-                    </label>
-                    <input
-                      id="reviewer-compose-file-input"
-                      type="file"
-                      multiple
-                      accept=".pdf,.doc,.docx"
-                      onChange={handleComposeFileSelect}
-                      disabled={sending}
-                      style={{ display: 'none' }}
-                    />
-                    <p style={{ color: '#9ca3af', fontSize: '0.75rem', margin: '0.35rem 0 0' }}>
-                      Up to {MAX_COMPOSE_ATTACHMENTS} files, 12MB total. PDF, DOC, DOCX
-                    </p>
-                    {composeFileError && (
-                      <p style={{ color: '#dc2626', fontSize: '0.78rem', margin: '0.35rem 0 0' }}>{composeFileError}</p>
-                    )}
-                    {composeFiles.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.6rem' }}>
-                        {composeFiles.map((file, i) => (
-                          <div
-                            key={`${file.name}-${i}`}
-                            style={{
-                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                              background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px',
-                              padding: '0.4rem 0.7rem', fontSize: '0.8rem',
-                            }}
-                          >
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: '0.5rem' }}>
-                              {file.name} <span style={{ color: '#94a3b8' }}>({(file.size / 1024).toFixed(1)} KB)</span>
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => removeComposeFile(i)}
-                              disabled={sending}
-                              title="Remove file"
-                              style={{ background: 'none', border: 'none', color: '#dc2626', cursor: sending ? 'not-allowed' : 'pointer', fontSize: '1rem', lineHeight: 1, padding: '0 0.2rem' }}
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {!sendSuccess && (
-              <div className="rm-footer">
-                <button className="rm-cancel-btn" onClick={closeCompose} disabled={sending}>Cancel</button>
-                <button
-                  className="rm-send-btn"
-                  onClick={handleSendMessage}
-                  disabled={sending || !composeMessage.trim()}
-                >
-                  {sending ? 'Sending...' : 'Send Message'}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {deleteTargetMessage && (
-        <div className="logout-modal-overlay" onClick={() => !deleting && setDeleteTargetMessage(null)}>
-          <div className="logout-modal-container" onClick={e => e.stopPropagation()}>
+      {deleteConfirmMsg && (
+        <div className="logout-modal-overlay" onClick={cancelDeleteMessage}>
+          <div className="logout-modal-container" onClick={(e) => e.stopPropagation()}>
             <div className="logout-modal-header">
               <h2>Confirm Delete Message</h2>
             </div>
             <div className="logout-modal-body">
-              <p>Are you sure you want to delete this message from <strong>{deleteTargetMessage.senderName || (deleteTargetMessage.type === 'admin_to_reviewer' ? 'UREB Administrator' : deleteTargetMessage.senderEmail) || 'Admin'}</strong>?</p>
-              <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#6b7280' }}>This action cannot be undone.</p>
+              <p>Are you sure you want to delete this message? This action cannot be undone.</p>
             </div>
             <div className="logout-modal-footer">
-              <button
-                className="logout-modal-btn-secondary"
-                onClick={() => setDeleteTargetMessage(null)}
-                disabled={deleting}
-              >
-                Cancel
-              </button>
-              <button
-                className="logout-modal-btn-primary"
-                style={{ backgroundColor: '#dc2626' }}
-                onClick={confirmDeleteMessage}
-                disabled={deleting}
-              >
-                {deleting ? 'Deleting...' : 'Delete Message'}
-              </button>
+              <button className="logout-modal-btn-secondary" onClick={cancelDeleteMessage}>Cancel</button>
+              <button className="logout-modal-btn-primary" onClick={confirmDeleteMessage}>Delete</button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Message History Modal */}
-      {isHistoryModalOpen && (
-        <div className="mini-modal-overlay" onClick={() => setIsHistoryModalOpen(false)} style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', zIndex: 9999, padding: '1rem'
-        }}>
-          <div onClick={(e) => e.stopPropagation()} style={{
-            background: 'white', borderRadius: '12px', width: '100%', maxWidth: '640px',
-            maxHeight: '85vh', display: 'flex', flexDirection: 'column',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)'
-          }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '1.25rem 1.5rem', borderBottom: '1px solid #e5e7eb'
-            }}>
-              <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Message History</h2>
-              <button
-                type="button"
-                onClick={() => setIsHistoryModalOpen(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', display: 'flex' }}
-              >
-                <XIcon />
-              </button>
-            </div>
-
-            <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <input
-                type="text"
-                placeholder="Search by subject or message..."
-                value={historySearchInput}
-                onChange={(e) => setHistorySearchInput(e.target.value)}
-                style={{ flex: 1, padding: '0.6rem 0.75rem', border: '1px solid #ddd', borderRadius: '6px', fontSize: '0.9rem' }}
-              />
-              {historyTotal > 0 && (
-                <span style={{ color: '#666', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
-                  {historyTotal} message{historyTotal === 1 ? '' : 's'}
-                </span>
-              )}
-            </div>
-
-            <div style={{ padding: '1rem 1.5rem', overflowY: 'auto', flex: 1 }}>
-              {historyLoading && <p style={{ color: '#666' }}>Loading message history...</p>}
-              {!historyLoading && historyError && <p style={{ color: '#dc2626' }}>{historyError}</p>}
-              {!historyLoading && !historyError && messageHistory.length === 0 && (
-                <p style={{ color: '#666' }}>
-                  {historySearch ? `No messages found matching "${historySearch}".` : "You haven't sent any messages to the admin yet."}
-                </p>
-              )}
-              {!historyLoading && !historyError && messageHistory.map((msg) => (
-                <div key={msg._id} style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '1rem', marginBottom: '0.75rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
-                    <span style={{ fontWeight: 600 }}>{msg.subject || 'Message from Reviewer'}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <span style={{ color: '#666', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                        {msg.sentAt ? new Date(msg.sentAt).toLocaleString() : ''}
-                      </span>
-                      <button
-                        type="button"
-                        title="Delete message"
-                        disabled={deletingHistoryId === (msg._id || msg.id)}
-                        onClick={() => requestDeleteHistoryMessage(msg)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', display: 'flex' }}
-                      >
-                        <TrashIcon />
-                      </button>
-                    </div>
-                  </div>
-                  <p style={{ margin: '0.5rem 0 0', color: '#333', whiteSpace: 'pre-wrap' }}>{msg.message}</p>
-                  {Array.isArray(msg.files) && msg.files.length > 0 && (
-                    <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      {msg.files.map((file, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                          <span style={{ fontSize: '0.85rem', color: '#333', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.originalname || file.filename}</span>
-                          {file.filename && (
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button type="button" className="msg-file-download" onClick={() => viewFile(file.filename)}>
-                                View
-                              </button>
-                              <button type="button" className="msg-file-download" onClick={() => downloadReviewerFile(file.filename, file.originalname || file.filename)}>
-                                Download
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {!historyLoading && !historyError && historyTotalPages > 1 && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', padding: '1rem 1.5rem', borderTop: '1px solid #e5e7eb' }}>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={historyPage <= 1}
-                  onClick={() => fetchHistoryPage(historyPage - 1, historySearch)}
-                >
-                  Previous
-                </button>
-                <span style={{ color: '#666', fontSize: '0.85rem' }}>Page {historyPage} of {historyTotalPages}</span>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={historyPage >= historyTotalPages}
-                  onClick={() => fetchHistoryPage(historyPage + 1, historySearch)}
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Delete History Message Confirmation Modal */}
-      {deleteHistoryTarget && (
-        <div className="logout-modal-overlay" onClick={() => !deletingHistoryId && cancelDeleteHistoryMessage()}>
-          <div className="logout-modal-container" onClick={e => e.stopPropagation()}>
-            <div className="logout-modal-header">
-              <h2>Confirm Delete Message</h2>
-            </div>
-            <div className="logout-modal-body">
-              <p>Are you sure you want to delete this message from your history?</p>
-              <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#6b7280' }}>This action cannot be undone.</p>
-            </div>
-            <div className="logout-modal-footer">
-              <button
-                className="logout-modal-btn-secondary"
-                onClick={cancelDeleteHistoryMessage}
-                disabled={Boolean(deletingHistoryId)}
-              >
-                Cancel
-              </button>
-              <button
-                className="logout-modal-btn-primary"
-                style={{ backgroundColor: '#dc2626' }}
-                onClick={confirmDeleteHistoryMessage}
-                disabled={Boolean(deletingHistoryId)}
-              >
-                {deletingHistoryId ? 'Deleting...' : 'Delete Message'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* File Viewer Modal */}
-      {viewingFile && (
-        <FileViewerModal
-          viewingFile={viewingFile}
-          onClose={() => setViewingFile(null)}
-          onDownload={() => {
-            const apiBaseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-            const downloadUrl = `${apiBaseUrl}/api/download/${encodeURIComponent(viewingFile.filename)}?name=${encodeURIComponent(viewingFile.originalname || viewingFile.filename)}`;
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.download = viewingFile.originalname || viewingFile.filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          }}
-        />
-      )}
-
     </div>
-
   );
-
 };
-
 const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
   if (!isOpen) return null;
 

@@ -8557,7 +8557,7 @@
   height: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: var(--primary-green);
+  background: #ef4444;
   color: var(--white);
   font-size: 0.7rem;
   font-weight: 700;
@@ -8731,9 +8731,40 @@
 }
 
 .chat-bubble-file {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 0.75rem;
-  text-decoration: underline;
+}
+
+.chat-bubble-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
   opacity: 0.9;
+}
+
+.chat-bubble-file-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.chat-bubble-file-action {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.chat-bubble-file-action:hover {
+  opacity: 1;
 }
 
 .chat-bubble-time {

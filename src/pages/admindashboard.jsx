@@ -834,6 +834,8 @@ const AdminDashboard = ({ onLogout }) => {
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
 
   const [messageCount, setMessageCount] = useState(0);
+  const [messageResearcherUnreadCount, setMessageResearcherUnreadCount] = useState(0);
+  const [messageReviewerUnreadCount, setMessageReviewerUnreadCount] = useState(0);
 
   const [notifCount, setNotifCount] = useState(0);
   const [studentProposalNewCount, setStudentProposalNewCount] = useState(0);
@@ -952,6 +954,31 @@ const AdminDashboard = ({ onLogout }) => {
     }
   };
 
+  // Fetch total unread counts for the "Message Researcher"/"Message Reviewer" chat nav badges
+  const refreshMessageResearcherUnreadCount = async () => {
+    try {
+      const { getStudentConversationsSummary } = await import('../services/api.js');
+      const summaryList = await getStudentConversationsSummary();
+      const total = (Array.isArray(summaryList) ? summaryList : []).reduce((sum, s) => sum + (s.unreadCount || 0), 0);
+      setMessageResearcherUnreadCount(total);
+    } catch (error) {
+      console.error('Error fetching researcher chat unread count:', error);
+      setMessageResearcherUnreadCount(0);
+    }
+  };
+
+  const refreshMessageReviewerUnreadCount = async () => {
+    try {
+      const { getReviewerConversationsSummary } = await import('../services/api.js');
+      const summaryList = await getReviewerConversationsSummary();
+      const total = (Array.isArray(summaryList) ? summaryList : []).reduce((sum, s) => sum + (s.unreadCount || 0), 0);
+      setMessageReviewerUnreadCount(total);
+    } catch (error) {
+      console.error('Error fetching reviewer chat unread count:', error);
+      setMessageReviewerUnreadCount(0);
+    }
+  };
+
   const refreshNotifCount = async () => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/notifications`);
@@ -985,10 +1012,14 @@ const AdminDashboard = ({ onLogout }) => {
 
   useEffect(() => {
     refreshMessageCount();
+    refreshMessageResearcherUnreadCount();
+    refreshMessageReviewerUnreadCount();
     refreshNotifCount();
     refreshStudentProposalNewCount();
     const interval = setInterval(() => {
       refreshMessageCount();
+      refreshMessageResearcherUnreadCount();
+      refreshMessageReviewerUnreadCount();
       refreshNotifCount();
       refreshStudentProposalNewCount();
     }, 10000);
@@ -1028,9 +1059,9 @@ const AdminDashboard = ({ onLogout }) => {
 
     { id: 'manage-users', label: 'Manage Users', icon: <UsersIcon /> },
 
-    { id: 'message-reviewer', label: 'Message Reviewer', icon: <MessageIcon /> },
+    { id: 'message-reviewer', label: 'Message Reviewer', icon: <MessageIcon />, badge: messageReviewerUnreadCount > 0 ? messageReviewerUnreadCount : null },
 
-    { id: 'message-researcher', label: 'Message Researcher', icon: <MessageIcon /> },
+    { id: 'message-researcher', label: 'Message Researcher', icon: <MessageIcon />, badge: messageResearcherUnreadCount > 0 ? messageResearcherUnreadCount : null },
 
     { id: 'notification', label: 'Notifications', icon: <NotificationIcon />, badge: notifCount > 0 ? notifCount : null },
     { id: 'profile', label: 'Admin Settings', icon: <SettingsIcon /> },
@@ -1254,7 +1285,7 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
-        return <MessageResearcherContent />;
+        return <MessageResearcherContent onMessageRead={refreshMessageResearcherUnreadCount} />;
 
 
 
@@ -1262,7 +1293,7 @@ const AdminDashboard = ({ onLogout }) => {
 
 
 
-        return <MessageReviewerContent />;
+        return <MessageReviewerContent onMessageRead={refreshMessageReviewerUnreadCount} />;
 
 
 
@@ -5425,7 +5456,7 @@ const ChatEditIcon = () => (
 );
 
 // Admin <-> Researcher Messenger-style chat
-const MessageResearcherContent = () => {
+const MessageResearcherContent = ({ onMessageRead }) => {
   const [students, setStudents] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -5611,7 +5642,9 @@ const MessageResearcherContent = () => {
       ...prev,
       [key]: { ...(prev[key] || { email }), unreadCount: 0 },
     }));
-    markStudentConversationRead(email).catch((err) => console.error('Error marking conversation read:', err));
+    markStudentConversationRead(email)
+      .then(() => { if (onMessageRead) onMessageRead(); })
+      .catch((err) => console.error('Error marking conversation read:', err));
   };
 
   const handleBackToList = () => {
@@ -5903,9 +5936,33 @@ const MessageResearcherContent = () => {
                             <p>{msg.message}</p>
                             {Array.isArray(msg.files) && msg.files.length > 0 && (
                               <div className="chat-bubble-files">
-                                {msg.files.map((file, i) => (
-                                  <span key={i} className="chat-bubble-file">{file.originalname || file.filename}</span>
-                                ))}
+                                {msg.files.map((file, i) => {
+                                  const storedName = file.filename || file.path;
+                                  const displayName = file.originalname || file.filename;
+                                  return (
+                                    <div key={i} className="chat-bubble-file">
+                                      <span className="chat-bubble-file-name" title={displayName}>{displayName}</span>
+                                      {!msg._pending && storedName && (
+                                        <span className="chat-bubble-file-actions">
+                                          <button
+                                            type="button"
+                                            className="chat-bubble-file-action"
+                                            onClick={() => import('../services/api.js').then(({ viewFile }) => viewFile(storedName))}
+                                          >
+                                            View
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="chat-bubble-file-action"
+                                            onClick={() => import('../services/api.js').then(({ downloadReviewerFile }) => downloadReviewerFile(storedName, displayName))}
+                                          >
+                                            Download
+                                          </button>
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             )}
                             <span className="chat-bubble-time">
@@ -5995,7 +6052,7 @@ const MessageResearcherContent = () => {
 
 
 // Message Reviewer Content Component
-const MessageReviewerContent = () => {
+const MessageReviewerContent = ({ onMessageRead }) => {
   const [reviewers, setReviewers] = useState([]);
   const [filteredReviewers, setFilteredReviewers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -6182,7 +6239,9 @@ const MessageReviewerContent = () => {
       ...prev,
       [key]: { ...(prev[key] || { email }), unreadCount: 0 },
     }));
-    markReviewerConversationRead(email).catch((err) => console.error('Error marking conversation read:', err));
+    markReviewerConversationRead(email)
+      .then(() => { if (onMessageRead) onMessageRead(); })
+      .catch((err) => console.error('Error marking conversation read:', err));
   };
 
   const handleBackToList = () => {
@@ -6474,9 +6533,33 @@ const MessageReviewerContent = () => {
                             <p>{msg.message}</p>
                             {Array.isArray(msg.files) && msg.files.length > 0 && (
                               <div className="chat-bubble-files">
-                                {msg.files.map((file, i) => (
-                                  <span key={i} className="chat-bubble-file">{file.originalname || file.filename}</span>
-                                ))}
+                                {msg.files.map((file, i) => {
+                                  const storedName = file.filename || file.path;
+                                  const displayName = file.originalname || file.filename;
+                                  return (
+                                    <div key={i} className="chat-bubble-file">
+                                      <span className="chat-bubble-file-name" title={displayName}>{displayName}</span>
+                                      {!msg._pending && storedName && (
+                                        <span className="chat-bubble-file-actions">
+                                          <button
+                                            type="button"
+                                            className="chat-bubble-file-action"
+                                            onClick={() => import('../services/api.js').then(({ viewFile }) => viewFile(storedName))}
+                                          >
+                                            View
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="chat-bubble-file-action"
+                                            onClick={() => import('../services/api.js').then(({ downloadReviewerFile }) => downloadReviewerFile(storedName, displayName))}
+                                          >
+                                            Download
+                                          </button>
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             )}
                             <span className="chat-bubble-time">
