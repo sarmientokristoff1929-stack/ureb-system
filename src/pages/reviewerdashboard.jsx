@@ -505,7 +505,7 @@ const ReviewerDashboard = ({ onLogout }) => {
     { id: 'submitted-reviews', label: 'Submitted Reviews', icon: <CheckIcon /> },
     { id: 'resubmission', label: 'Resubmission', icon: <ResubmissionIcon /> },
     { id: 'file-templates', label: 'File Templates', icon: <FileTemplatesIcon /> },
-    { id: 'messages', label: 'Messages', icon: <MessageIcon />, badge: messageCount > 0 ? messageCount : null },
+    { id: 'messages', label: 'Message', icon: <MessageIcon />, badge: messageCount > 0 ? messageCount : null },
     { id: 'notifications', label: 'Notifications', icon: <BellIcon />, badge: notifCount > 0 ? notifCount : null },
     { id: 'profile-settings', label: 'Profile Settings', icon: <ProfileIcon /> }
   ];
@@ -4479,6 +4479,7 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
 
   const sendingRef = useRef(false);
   const threadEndRef = useRef(null);
+  const threadBodyRef = useRef(null);
 
   const myEmail = userInfo?.email || '';
 
@@ -4554,8 +4555,14 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myEmail]);
 
+  // Auto-scroll to the newest message — but only when the reader is already at the
+  // bottom. Otherwise a 5s poll refresh would yank them back down while they're
+  // scrolled up reading older messages.
   useEffect(() => {
-    if (threadEndRef.current) {
+    if (!threadEndRef.current) return;
+    const el = threadBodyRef.current;
+    const nearBottom = !el || (el.scrollHeight - el.scrollTop - el.clientHeight < 120);
+    if (nearBottom) {
       threadEndRef.current.scrollIntoView({ block: 'end' });
     }
   }, [thread]);
@@ -4764,7 +4771,7 @@ const MessagesContent = ({ onMessageRead, userInfo }) => {
         </div>
       </div>
 
-      <div className="msg-chat-body">
+      <div className="msg-chat-body" ref={threadBodyRef}>
         {threadLoading && <p className="msg-chat-status">Loading conversation...</p>}
         {!threadLoading && thread.length === 0 && (
           <p className="msg-chat-status">No messages yet. Send the admin a message to get started.</p>
