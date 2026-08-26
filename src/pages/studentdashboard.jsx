@@ -126,13 +126,6 @@ const ProfileIcon = () => (
   </svg>
 );
 
-const MailIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="4" width="20" height="16" rx="2" />
-    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-  </svg>
-);
-
 const TrashIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M3 6h18" />
@@ -166,15 +159,6 @@ const FileTemplatesIcon = () => (
   </svg>
 );
 
-const ReplyIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-    <path d="M12 12v.01" />
-    <path d="M8 12h8" />
-    <path d="M12 8l4 4-4 4" />
-  </svg>
-);
-
 const CheckIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="20 6 9 17 4 12" />
@@ -200,7 +184,6 @@ const StudentDashboard = ({ onLogout }) => {
   const [submittedFiles, setSubmittedFiles] = useState([]);
   const [userInfo, setUserInfo] = useState(null);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-  const [messageCount, setMessageCount] = useState(0);
 
   useEffect(() => {
     const savedUser = sessionStorage.getItem('ureb_user');
@@ -249,34 +232,12 @@ const StudentDashboard = ({ onLogout }) => {
     return () => document.removeEventListener('keydown', blockShortcutKeys);
   }, []);
 
-  // Fetch message count for badge
-  useEffect(() => {
-    const fetchMessageCount = async () => {
-      if (!userInfo?.email) return;
-      try {
-        const response = await fetch(`${API_BASE_URL}/messages/${encodeURIComponent(userInfo.email)}`);
-        const data = await response.json();
-        const unreadAdminMessages = data.filter((m) =>
-          m.recipientEmail === userInfo.email &&
-          m.type === 'admin_to_student' &&
-          !m.read
-        );
-        setMessageCount(unreadAdminMessages.length);
-      } catch (error) {
-        console.error('Error fetching message count:', error);
-        setMessageCount(0);
-      }
-    };
-    fetchMessageCount();
-  }, [userInfo]);
-
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     { id: 'add-files', label: 'Add Files', icon: <FilePlusIcon /> },
     { id: 'resubmission', label: 'Resubmission', icon: <ResubmissionIcon /> },
     { id: 'file-templates', label: 'File Templates', icon: <FileTemplatesIcon /> },
-    { id: 'messages', label: 'Messages', icon: <MailIcon />, badge: messageCount > 0 ? messageCount : null },
-    { id: 'message-admin', label: 'Message Admin', icon: <MessageIcon /> },
+    { id: 'message-admin', label: 'Message', icon: <MessageIcon /> },
     { id: 'notifications', label: 'Notifications', icon: <BellIcon /> },
     { id: 'history', label: 'History', icon: <HistoryIcon /> },
     { id: 'profile', label: 'Profile', icon: <ProfileIcon /> },
@@ -347,8 +308,6 @@ const StudentDashboard = ({ onLogout }) => {
         );
       case 'file-templates':
         return <FileTemplatesContent />;
-      case 'messages':
-        return <MessagesContent userInfo={userInfo} onMessageRead={refreshMessageCount} />;
       case 'message-admin':
         return <MessageAdminContent userInfo={userInfo} />;
       case 'history':
@@ -362,22 +321,6 @@ const StudentDashboard = ({ onLogout }) => {
 
   const getFirstName = () => {
     return userInfo?.name ? userInfo.name.split(' ')[0] : 'Student';
-  };
-
-  const refreshMessageCount = async () => {
-    if (!userInfo?.email) return;
-    try {
-      const response = await fetch(`${API_BASE_URL}/messages/${encodeURIComponent(userInfo.email)}`);
-      const data = await response.json();
-      const unreadAdminMessages = data.filter((m) =>
-        m.recipientEmail === userInfo.email &&
-        m.type === 'admin_to_student' &&
-        !m.read
-      );
-      setMessageCount(unreadAdminMessages.length);
-    } catch (error) {
-      console.error('Error refreshing message count:', error);
-    }
   };
 
   return (
@@ -3478,410 +3421,6 @@ const FileIcon = () => (
     <polyline points="14 2 14 8 20 8" />
   </svg>
 );
-
-function MessagesContent({ userInfo, onMessageRead }) {
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [replyModalOpen, setReplyModalOpen] = useState(false);
-  const [replyTargetMsg, setReplyTargetMsg] = useState(null);
-  const [replyText, setReplyText] = useState('');
-  const [replyFiles, setReplyFiles] = useState([]);
-  const [isDragging, setIsDragging] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [successModalOpen, setSuccessModalOpen] = useState(false);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deleteTargetId, setDeleteTargetId] = useState(null);
-  const [isDeletingMessage, setIsDeletingMessage] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
-  const fileInputRef = useRef(null);
-
-  useEffect(() => {
-    const fetchMessages = async () => {
-      if (!userInfo?.email) return;
-      try {
-        const response = await fetch(`${API_BASE_URL}/messages/${encodeURIComponent(userInfo.email)}`);
-        const data = await response.json();
-        const adminMessages = data
-          .filter((m) => m.recipientEmail === userInfo.email && m.type === 'admin_to_student')
-          .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));
-        setMessages(adminMessages);
-      } catch (error) {
-        console.error('Error fetching messages:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchMessages();
-  }, [userInfo]);
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-      + ' · '
-      + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const getStoredFilename = (filePath) => {
-    if (!filePath) return null;
-    return filePath.split(/[\\/]/).pop();
-  };
-
-  const openDeleteModal = (messageId) => {
-    setDeleteTargetId(messageId);
-    setDeleteModalOpen(true);
-  };
-
-  const closeDeleteModal = () => {
-    if (isDeletingMessage) return;
-    setDeleteTargetId(null);
-    setDeleteModalOpen(false);
-    setDeleteError('');
-  };
-
-  const confirmDelete = async () => {
-    setDeleteError('');
-    setIsDeletingMessage(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/messages/${deleteTargetId}`, { method: 'DELETE' });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data.success === false) {
-        throw new Error(data.error || 'Failed to delete message');
-      }
-      // Deleted from the database — now safe to reflect the removal in the UI.
-      setMessages(prev => prev.filter(msg => msg._id !== deleteTargetId));
-      setDeleteTargetId(null);
-      setDeleteModalOpen(false);
-    } catch (error) {
-      console.error('Error deleting message:', error);
-      setDeleteError('Could not delete this message. Please try again.');
-    } finally {
-      setIsDeletingMessage(false);
-    }
-  };
-
-  const markAsRead = async (messageId) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/messages/${messageId}/read`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (response.ok) {
-        setMessages(prev => prev.map(msg =>
-          msg._id === messageId ? { ...msg, read: true } : msg
-        ));
-        // Call the callback to refresh message count in sidebar
-        if (onMessageRead) {
-          onMessageRead();
-        }
-      }
-    } catch (error) {
-      console.error('Error marking message as read:', error);
-    }
-  };
-
-  const handleReply = (message) => {
-    setReplyTargetMsg(message);
-    setReplyText('');
-    setReplyFiles([]);
-    setReplyModalOpen(true);
-  };
-
-  const closeReplyModal = () => {
-    if (submitting) return;
-    setReplyModalOpen(false);
-    setReplyTargetMsg(null);
-    setReplyText('');
-    setReplyFiles([]);
-  };
-
-  const addFiles = (newFiles) => {
-    const arr = Array.from(newFiles);
-    setReplyFiles(prev => {
-      const existing = new Set(prev.map(f => f.name + f.size));
-      return [...prev, ...arr.filter(f => !existing.has(f.name + f.size))];
-    });
-  };
-
-  const removeReplyFile = (index) => {
-    setReplyFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
-  const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
-  };
-
-  const handleReplySubmit = async () => {
-    if (replyFiles.length === 0) return;
-    setSubmitting(true);
-    try {
-      const formData = new FormData();
-      formData.append('senderEmail', userInfo.email);
-      formData.append('senderName', userInfo.name || userInfo.email);
-      formData.append('message', 'File attachment(s)');
-      if (replyTargetMsg?._id) formData.append('replyToMessageId', replyTargetMsg._id);
-      replyFiles.forEach(f => formData.append('files', f));
-
-      const res = await fetch(`${API_BASE_URL}/messages/reply`, { method: 'POST', body: formData });
-      const data = await res.json();
-      if (data.success) {
-        closeReplyModal();
-        setSuccessModalOpen(true);
-      } else {
-        alert('Failed to send reply. Please try again.');
-      }
-    } catch (err) {
-      console.error('Reply error:', err);
-      alert('Failed to send reply. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="content-section">
-        <div className="sm-loading">
-          <div className="sm-loading-spinner" />
-          <span>Loading messages...</span>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="content-section">
-      <div className="sm-page-header">
-        <div>
-          <h2 className="sm-page-title">Messages</h2>
-          <p className="sm-page-subtitle">Messages received from the UREB Administrator</p>
-        </div>
-        {messages.length > 0 && (
-          <span className="sm-count-badge">{messages.length} message{messages.length !== 1 ? 's' : ''}</span>
-        )}
-      </div>
-
-      {messages.length === 0 ? (
-        <div className="sm-empty">
-          <div className="sm-empty-icon"><MailIcon /></div>
-          <h3>No messages yet</h3>
-          <p>When the administrator sends you a message, it will appear here.</p>
-        </div>
-      ) : (
-        <div className="sm-list">
-          {messages.map((msg) => (
-            <div key={msg._id} className="sm-card">
-              <div className="sm-card-top">
-                <div className="sm-avatar">A</div>
-                <div className="sm-sender-info">
-                  <span className="sm-sender-name">UREB Administrator</span>
-                  <span className="sm-sender-date">{formatDate(msg.sentAt)}</span>
-                </div>
-                <div className="sm-card-actions">
-                  {!msg.read && (
-                    <button
-                      className="sm-action-btn sm-mark-read-btn"
-                      onClick={() => markAsRead(msg._id)}
-                      title="Mark as read"
-                    >
-                      <CheckIcon />
-                      Read
-                    </button>
-                  )}
-                  <button
-                    className="sm-action-btn sm-trash-btn"
-                    onClick={() => openDeleteModal(msg._id)}
-                    title="Delete message"
-                  >
-                    <TrashIcon />
-                    Trash
-                  </button>
-                </div>
-              </div>
-
-              <div className="sm-card-body">
-                <p className="sm-message-text">{msg.message}</p>
-              </div>
-
-              {msg.files && msg.files.length > 0 && (
-                <div className="sm-attachments">
-                  <span className="sm-attachments-label">
-                    <FileIcon /> Attachments ({msg.files.length})
-                  </span>
-                  <div className="sm-attachments-list">
-                    {msg.files.map((file, i) => {
-                      const storedName = getStoredFilename(file.path);
-                      const downloadUrl = storedName
-                        ? `${API_BASE_URL}/download/${storedName}?name=${encodeURIComponent(file.filename)}`
-                        : null;
-                      return (
-                        <div key={i} className="sm-file-chip">
-                          <FileIcon />
-                          <span className="sm-file-name">{file.filename}</span>
-                          <span className="sm-file-size">({(file.size / 1024).toFixed(1)} KB)</span>
-                          {storedName ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
-                              <button
-                                onClick={() => {
-                                  import('../services/api.js').then(({ viewFile }) => {
-                                    viewFile(storedName);
-                                  });
-                                }}
-                                title="View file"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600, padding: '0.3rem 0.7rem', borderRadius: '6px', whiteSpace: 'nowrap' }}
-                              >
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                                  <circle cx="12" cy="12" r="3" />
-                                </svg>
-                                View
-                              </button>
-                              <a
-                                href={downloadUrl}
-                                download={file.filename}
-                                title="Download file"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#7A9E7E', color: '#fff', fontSize: '0.78rem', fontWeight: 600, padding: '0.3rem 0.7rem', borderRadius: '6px', textDecoration: 'none', whiteSpace: 'nowrap' }}
-                              >
-                                <DownloadIcon />
-                                Download
-                              </a>
-                            </div>
-                          ) : (
-                            <span style={{ color: '#999', fontSize: '0.75rem', marginLeft: 'auto', fontStyle: 'italic' }}>No file access</span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {replyModalOpen && (
-        <div className="rm-overlay" onClick={(e) => { if (e.target.classList.contains('rm-overlay')) closeReplyModal(); }}>
-          <div className="rm-container">
-
-            {/* Header */}
-            <div className="rm-header">
-              <div className="rm-header-left">
-                <div className="rm-header-icon"><ReplyIcon /></div>
-                <div>
-                  <h3 className="rm-title">Reply to Administrator</h3>
-                  <p className="rm-subtitle">Your reply will be sent directly to the UREB Admin</p>
-                </div>
-              </div>
-              <button className="rm-close" onClick={closeReplyModal} disabled={submitting}>✕</button>
-            </div>
-
-            {/* Scrollable body */}
-            <div className="rm-body">
-
-              {/* Original message quote */}
-              {replyTargetMsg && (
-                <div className="rm-quote">
-                  <span className="rm-quote-label">Replying to:</span>
-                  <p className="rm-quote-text">{replyTargetMsg.message}</p>
-                </div>
-              )}
-
-              {/* Drag & drop zone */}
-              <div className="rm-field">
-                <label className="rm-label">Attachments</label>
-                <div
-                  className={`rm-dropzone${isDragging ? ' rm-dropzone--active' : ''}`}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <div className="rm-dropzone-icon"><UploadIcon /></div>
-                  <p className="rm-dropzone-text">
-                    Drag &amp; drop files here, or <span className="rm-dropzone-link">browse</span>
-                  </p>
-                  <p className="rm-dropzone-hint">PDF, DOC, DOCX, images — up to 10 MB each</p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    className="rm-file-input"
-                    onChange={e => { if (e.target.files.length) addFiles(e.target.files); e.target.value = ''; }}
-                    disabled={submitting}
-                  />
-                </div>
-              </div>
-
-              {/* Attached file list */}
-              {replyFiles.length > 0 && (
-                <div className="rm-file-list">
-                  {replyFiles.map((f, i) => (
-                    <div key={i} className="rm-file-item">
-                      <FileIcon />
-                      <span className="rm-file-name">{f.name}</span>
-                      <span className="rm-file-size">{(f.size / 1024).toFixed(1)} KB</span>
-                      <button className="rm-file-remove" onClick={() => removeReplyFile(i)} disabled={submitting}>✕</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="rm-footer">
-              <button className="rm-btn rm-btn-cancel" onClick={closeReplyModal} disabled={submitting}>Cancel</button>
-              <button
-                className="rm-btn rm-btn-submit"
-                onClick={handleReplySubmit}
-                disabled={submitting || replyFiles.length === 0}
-              >
-                {submitting ? 'Sending…' : 'Send Reply'}
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* Success modal */}
-      {successModalOpen && (
-        <div className="mini-modal-overlay" onClick={() => setSuccessModalOpen(false)}>
-          <div className="mini-modal" onClick={e => e.stopPropagation()}>
-            <div className="mini-modal-icon mini-modal-icon--success">✓</div>
-            <h4 className="mini-modal-title">Reply Sent!</h4>
-            <p className="mini-modal-text">Your reply has been sent to the UREB Administrator.</p>
-            <button className="mini-modal-btn mini-modal-btn--primary" onClick={() => setSuccessModalOpen(false)}>Done</button>
-          </div>
-        </div>
-      )}
-
-      {/* Delete confirmation modal */}
-      {deleteModalOpen && (
-        <div className="mini-modal-overlay" onClick={closeDeleteModal}>
-          <div className="mini-modal" onClick={e => e.stopPropagation()}>
-            <div className="mini-modal-icon mini-modal-icon--danger">
-              <TrashIcon />
-            </div>
-            <h4 className="mini-modal-title">Delete Message?</h4>
-            <p className="mini-modal-text">This message will be permanently removed.</p>
-            {deleteError && <p className="mini-modal-text" style={{ color: '#dc2626' }}>{deleteError}</p>}
-            <div className="mini-modal-actions">
-              <button className="mini-modal-btn mini-modal-btn--ghost" disabled={isDeletingMessage} onClick={closeDeleteModal}>Cancel</button>
-              <button className="mini-modal-btn mini-modal-btn--danger" disabled={isDeletingMessage} onClick={confirmDelete}>
-                {isDeletingMessage ? 'Deleting…' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 const HISTORY_HIDDEN_KEY = 'ureb_hidden_history';
 const getHiddenHistoryIds = () => {
