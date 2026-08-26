@@ -1415,10 +1415,16 @@ app.get('/api/students', requireAdminAuth, async (req, res) => {
     const db = getDatabase();
     const students = db.collection(collections.students);
     const studentList = await students.find({}).toArray();
-    // Only remove sensitive fields like password
+    // Remove sensitive fields, and resolve profilePicture the same way
+    // studentProfilePayload does — a current profilePictureGridFS must win
+    // over a stale legacy profilePicture field, or old records show broken/missing photos.
     const sanitized = studentList.map((student) => {
       const { password, ...rest } = student;
-      return rest;
+      let profilePicture = rest.profilePicture || null;
+      if (rest.profilePictureGridFS) {
+        profilePicture = `/api/student/profile/picture/${rest.profilePictureGridFS}`;
+      }
+      return { ...rest, profilePicture };
     });
     res.json(sanitized);
   } catch (error) {

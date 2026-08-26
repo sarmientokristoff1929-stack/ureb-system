@@ -3926,6 +3926,15 @@ function MessageAdminContent({ userInfo }) {
     }
   }, [thread]);
 
+  // Auto-grow the composer textarea to fit its content, up to the CSS max-height.
+  const composerInputRef = useRef(null);
+  useEffect(() => {
+    const el = composerInputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [messageText]);
+
   const addValidatedFiles = (files) => {
     const room = MAX_MESSAGE_ATTACHMENTS - attachedFiles.length;
     if (room <= 0) {
@@ -4006,7 +4015,7 @@ function MessageAdminContent({ userInfo }) {
   };
 
   const handleInputKeyDown = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -4295,13 +4304,14 @@ function MessageAdminContent({ userInfo }) {
         >
           <ChatPaperclipIcon />
         </button>
-        <input
-          type="text"
+        <textarea
+          ref={composerInputRef}
           className="chat-composer-input"
           placeholder="Type a message..."
           value={messageText}
           onChange={(e) => setMessageText(e.target.value)}
           onKeyDown={handleInputKeyDown}
+          rows={1}
         />
         <button
           type="button"

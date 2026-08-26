@@ -5461,6 +5461,7 @@ const MessageResearcherContent = ({ onMessageRead }) => {
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [summaryMap, setSummaryMap] = useState({});
+  const [brokenAvatars, setBrokenAvatars] = useState(() => new Set());
 
   const [selectedEmail, setSelectedEmail] = useState('');
   const [thread, setThread] = useState([]);
@@ -5498,6 +5499,13 @@ const MessageResearcherContent = ({ onMessageRead }) => {
     const parts = clean.split(/\s+/);
     if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
+
+  const getAvatarUrl = (student) => {
+    if (!student) return null;
+    if (student.profilePicture) return getProfilePicUrl(student.profilePicture);
+    if (student.profilePictureGridFS) return getProfilePicUrl(`/api/student/profile/picture/${student.profilePictureGridFS}`);
+    return null;
   };
 
   const truncateText = (text, max = 46) => {
@@ -5636,6 +5644,15 @@ const MessageResearcherContent = ({ onMessageRead }) => {
     }
   }, [thread, selectedEmail]);
 
+  // Auto-grow the composer textarea to fit its content, up to the CSS max-height.
+  const composerInputRef = useRef(null);
+  useEffect(() => {
+    const el = composerInputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [messageText]);
+
   const handleSelectResearcher = async (email) => {
     setSelectedEmail(email);
     setMobileView('chat');
@@ -5755,7 +5772,7 @@ const MessageResearcherContent = ({ onMessageRead }) => {
   };
 
   const handleInputKeyDown = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -5927,7 +5944,17 @@ const MessageResearcherContent = ({ onMessageRead }) => {
               className={`chat-sidebar-item ${item.email === selectedEmail ? 'active' : ''} ${item.unreadCount > 0 ? 'unread' : ''}`}
               onClick={() => handleSelectResearcher(item.email)}
             >
-              <div className="inbox-avatar chat-sidebar-avatar">{getInitials(item.name)}</div>
+              <div className="inbox-avatar chat-sidebar-avatar">
+                {getAvatarUrl(item.student) && !brokenAvatars.has(item.email) ? (
+                  <img
+                    src={getAvatarUrl(item.student)}
+                    alt={item.name}
+                    onError={() => setBrokenAvatars((prev) => new Set(prev).add(item.email))}
+                  />
+                ) : (
+                  getInitials(item.name)
+                )}
+              </div>
               <div className="chat-sidebar-item-info">
                 <div className="chat-sidebar-item-top">
                   <span className="chat-sidebar-item-name">{item.name}</span>
@@ -5964,7 +5991,17 @@ const MessageResearcherContent = ({ onMessageRead }) => {
               <button type="button" className="chat-back-btn" onClick={handleBackToList} aria-label="Back to researcher list">
                 <ChatBackIcon />
               </button>
-              <div className="inbox-avatar chat-thread-avatar">{getInitials(selectedName)}</div>
+              <div className="inbox-avatar chat-thread-avatar">
+                {getAvatarUrl(selectedStudent) && !brokenAvatars.has(selectedEmail) ? (
+                  <img
+                    src={getAvatarUrl(selectedStudent)}
+                    alt={selectedName}
+                    onError={() => setBrokenAvatars((prev) => new Set(prev).add(selectedEmail))}
+                  />
+                ) : (
+                  getInitials(selectedName)
+                )}
+              </div>
               <div className="chat-thread-header-info">
                 <span className="chat-thread-header-name">{selectedName}</span>
                 <span className="chat-thread-header-email">{selectedEmail}</span>
@@ -6148,13 +6185,14 @@ const MessageResearcherContent = ({ onMessageRead }) => {
               >
                 <ChatPaperclipIcon />
               </button>
-              <input
-                type="text"
+              <textarea
+                ref={composerInputRef}
                 className="chat-composer-input"
                 placeholder="Type a message..."
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
                 onKeyDown={handleInputKeyDown}
+                rows={1}
               />
               <button
                 type="button"
@@ -6196,6 +6234,7 @@ const MessageReviewerContent = ({ onMessageRead }) => {
   const [filteredReviewers, setFilteredReviewers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [summaryMap, setSummaryMap] = useState({});
+  const [brokenAvatars, setBrokenAvatars] = useState(() => new Set());
 
   const [selectedEmail, setSelectedEmail] = useState('');
   const [thread, setThread] = useState([]);
@@ -6233,6 +6272,13 @@ const MessageReviewerContent = ({ onMessageRead }) => {
     const parts = clean.split(/\s+/);
     if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
+
+  const getAvatarUrl = (reviewer) => {
+    if (!reviewer) return null;
+    if (reviewer.profilePicture) return getProfilePicUrl(reviewer.profilePicture);
+    if (reviewer.profilePictureGridFS) return getProfilePicUrl(`/api/reviewer/profile/picture/${reviewer.profilePictureGridFS}`);
+    return null;
   };
 
   const truncateText = (text, max = 46) => {
@@ -6372,6 +6418,15 @@ const MessageReviewerContent = ({ onMessageRead }) => {
     }
   }, [thread, selectedEmail]);
 
+  // Auto-grow the composer textarea to fit its content, up to the CSS max-height.
+  const composerInputRef = useRef(null);
+  useEffect(() => {
+    const el = composerInputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [messageText]);
+
   const handleSelectReviewer = async (email) => {
     setSelectedEmail(email);
     setMobileView('chat');
@@ -6491,7 +6546,7 @@ const MessageReviewerContent = ({ onMessageRead }) => {
   };
 
   const handleInputKeyDown = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -6663,7 +6718,17 @@ const MessageReviewerContent = ({ onMessageRead }) => {
               className={`chat-sidebar-item ${item.email === selectedEmail ? 'active' : ''} ${item.unreadCount > 0 ? 'unread' : ''}`}
               onClick={() => handleSelectReviewer(item.email)}
             >
-              <div className="inbox-avatar chat-sidebar-avatar">{getInitials(item.name)}</div>
+              <div className="inbox-avatar chat-sidebar-avatar">
+                {getAvatarUrl(item.reviewer) && !brokenAvatars.has(item.email) ? (
+                  <img
+                    src={getAvatarUrl(item.reviewer)}
+                    alt={item.name}
+                    onError={() => setBrokenAvatars((prev) => new Set(prev).add(item.email))}
+                  />
+                ) : (
+                  getInitials(item.name)
+                )}
+              </div>
               <div className="chat-sidebar-item-info">
                 <div className="chat-sidebar-item-top">
                   <span className="chat-sidebar-item-name">{item.name}</span>
@@ -6700,7 +6765,17 @@ const MessageReviewerContent = ({ onMessageRead }) => {
               <button type="button" className="chat-back-btn" onClick={handleBackToList} aria-label="Back to reviewer list">
                 <ChatBackIcon />
               </button>
-              <div className="inbox-avatar chat-thread-avatar">{getInitials(selectedName)}</div>
+              <div className="inbox-avatar chat-thread-avatar">
+                {getAvatarUrl(selectedReviewer) && !brokenAvatars.has(selectedEmail) ? (
+                  <img
+                    src={getAvatarUrl(selectedReviewer)}
+                    alt={selectedName}
+                    onError={() => setBrokenAvatars((prev) => new Set(prev).add(selectedEmail))}
+                  />
+                ) : (
+                  getInitials(selectedName)
+                )}
+              </div>
               <div className="chat-thread-header-info">
                 <span className="chat-thread-header-name">{selectedName}</span>
                 <span className="chat-thread-header-email">{selectedEmail}</span>
@@ -6884,13 +6959,14 @@ const MessageReviewerContent = ({ onMessageRead }) => {
               >
                 <ChatPaperclipIcon />
               </button>
-              <input
-                type="text"
+              <textarea
+                ref={composerInputRef}
                 className="chat-composer-input"
                 placeholder="Type a message..."
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
                 onKeyDown={handleInputKeyDown}
+                rows={1}
               />
               <button
                 type="button"
