@@ -8445,6 +8445,15 @@
   flex-shrink: 0;
 }
 
+.chat-sidebar-count {
+  padding: 0.6rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-light);
+  border-bottom: 1px solid var(--soft-green);
+  flex-shrink: 0;
+}
+
 .chat-sidebar-search input {
   flex: 1;
   border: 1px solid var(--soft-green);

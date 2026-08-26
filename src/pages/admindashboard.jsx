@@ -5911,6 +5911,7 @@ const MessageResearcherContent = ({ onMessageRead }) => {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+        <div className="chat-sidebar-count">{students.length} Researcher{students.length === 1 ? '' : 's'}</div>
 
         <div className="chat-sidebar-list">
           {sidebarItems.length === 0 && (
@@ -6646,6 +6647,7 @@ const MessageReviewerContent = ({ onMessageRead }) => {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+        <div className="chat-sidebar-count">{reviewers.length} Reviewer{reviewers.length === 1 ? '' : 's'}</div>
 
         <div className="chat-sidebar-list">
           {sidebarItems.length === 0 && (
