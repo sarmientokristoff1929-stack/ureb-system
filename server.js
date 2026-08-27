@@ -15,6 +15,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
+// Deployed behind Vercel's edge proxy — trust its X-Forwarded-For header so
+// req.ip reflects the actual client IP (used for login rate limiting below)
+// instead of the proxy's own address.
+app.set('trust proxy', 1);
+
 // Signs/verifies the admin session token issued at login (see /api/auth/login).
 // Reuses SESSION_SECRET, which already exists in .env for exactly this purpose.
 const SESSION_SECRET = process.env.SESSION_SECRET;
@@ -117,23 +122,26 @@ const rejectIfTurnstileInvalid = async (req, res) => {
   return false;
 };
 
-// Login rate limiting — locks an account out after 3 consecutive failed
-// attempts (incorrect email or incorrect password) to slow down brute-force /
-// credential-stuffing attempts. Keyed by normalized email rather than IP, so
-// the lockout protects the targeted account no matter where the requests
-// come from. Resets automatically once the lockout window elapses, and
-// immediately on any successful login.
+// Login rate limiting — locks out after 3 total failed login attempts, no
+// matter the reason (incorrect email, incorrect password, or a mix of both),
+// to slow down brute-force / credential-stuffing attempts. Keyed by the
+// requesting client (IP), not by which email string was typed, so trying a
+// few different emails then a few different passwords still adds up to one
+// shared count of 3 — it doesn't reset the counter just because the input
+// changed. Resets automatically once the lockout window elapses, and
+// immediately on any successful login from that client.
 const MAX_LOGIN_ATTEMPTS = 3;
 const LOGIN_LOCKOUT_MS = 4 * 60 * 60 * 1000; // 4 hours
-const loginAttempts = new Map(); // normalized email -> { count, lockUntil }
+const loginAttempts = new Map(); // client key -> { count, lockUntil }
 
-const normalizeLoginKey = (email) => (email || '').trim().toLowerCase();
+// Prefer the real client IP when behind a reverse proxy (Render, etc.) —
+// falls back to the raw socket address otherwise.
+const getLoginRateLimitKey = (req) => req.ip || req.socket?.remoteAddress || 'unknown';
 
-// Returns whether the account is currently locked out, and for how much
+// Returns whether the client is currently locked out, and for how much
 // longer. Clears expired lockouts as a side effect so the map doesn't hold
 // stale entries forever.
-const getLoginLockStatus = (email) => {
-  const key = normalizeLoginKey(email);
+const getLoginLockStatus = (key) => {
   const entry = loginAttempts.get(key);
   if (!entry) return { locked: false };
   if (entry.lockUntil && entry.lockUntil > Date.now()) {
@@ -145,10 +153,9 @@ const getLoginLockStatus = (email) => {
   return { locked: false };
 };
 
-// Records a failed attempt and locks the account once the threshold is hit.
-// Returns the number of attempts remaining before lockout (0 if now locked).
-const registerFailedLoginAttempt = (email) => {
-  const key = normalizeLoginKey(email);
+// Records a failed attempt and locks the client out once the threshold is
+// hit. Returns the number of attempts remaining before lockout (0 if now locked).
+const registerFailedLoginAttempt = (key) => {
   const entry = loginAttempts.get(key) || { count: 0, lockUntil: null };
   entry.count += 1;
   if (entry.count >= MAX_LOGIN_ATTEMPTS) {
@@ -158,8 +165,8 @@ const registerFailedLoginAttempt = (email) => {
   return Math.max(0, MAX_LOGIN_ATTEMPTS - entry.count);
 };
 
-const clearLoginAttempts = (email) => {
-  loginAttempts.delete(normalizeLoginKey(email));
+const clearLoginAttempts = (key) => {
+  loginAttempts.delete(key);
 };
 
 const formatLockoutMessage = (retryAfterMs) => {
@@ -1097,9 +1104,10 @@ app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     console.log(`[AUTH] Login attempt for email: ${email}`);
 
-    const lockStatus = getLoginLockStatus(email);
+    const rateLimitKey = getLoginRateLimitKey(req);
+    const lockStatus = getLoginLockStatus(rateLimitKey);
     if (lockStatus.locked) {
-      console.log(`[AUTH] Login blocked — account locked: ${email}`);
+      console.log(`[AUTH] Login blocked — too many failed attempts from: ${rateLimitKey}`);
       return res.status(429).json({ success: false, error: formatLockoutMessage(lockStatus.retryAfterMs), locked: true });
     }
 
@@ -1138,32 +1146,24 @@ app.post('/api/auth/login', async (req, res) => {
 
     if (!user) {
       console.log(`User not found: ${email}`);
-      const remaining = registerFailedLoginAttempt(email);
+      const remaining = registerFailedLoginAttempt(rateLimitKey);
       if (remaining === 0) {
         return res.status(429).json({ success: false, error: formatLockoutMessage(LOGIN_LOCKOUT_MS), field: 'email', locked: true });
       }
-      return res.json({
-        success: false,
-        error: `Incorrect email. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before your account is temporarily locked.`,
-        field: 'email',
-      });
+      return res.json({ success: false, error: 'Incorrect email', field: 'email' });
     }
 
     if (user.password !== password) {
       console.log(`Password mismatch for: ${email}`);
-      const remaining = registerFailedLoginAttempt(email);
+      const remaining = registerFailedLoginAttempt(rateLimitKey);
       if (remaining === 0) {
         return res.status(429).json({ success: false, error: formatLockoutMessage(LOGIN_LOCKOUT_MS), field: 'password', locked: true });
       }
-      return res.json({
-        success: false,
-        error: `Incorrect password. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before your account is temporarily locked.`,
-        field: 'password',
-      });
+      return res.json({ success: false, error: 'Incorrect password', field: 'password' });
     }
 
     // Successful credential check — clear any prior failed-attempt history.
-    clearLoginAttempts(email);
+    clearLoginAttempts(rateLimitKey);
 
     // Check if student account is disabled
     if (userType === 'student' && user.disabled === true) {
