@@ -117,6 +117,56 @@ const rejectIfTurnstileInvalid = async (req, res) => {
   return false;
 };
 
+// Login rate limiting — locks an account out after 3 consecutive failed
+// attempts (incorrect email or incorrect password) to slow down brute-force /
+// credential-stuffing attempts. Keyed by normalized email rather than IP, so
+// the lockout protects the targeted account no matter where the requests
+// come from. Resets automatically once the lockout window elapses, and
+// immediately on any successful login.
+const MAX_LOGIN_ATTEMPTS = 3;
+const LOGIN_LOCKOUT_MS = 4 * 60 * 60 * 1000; // 4 hours
+const loginAttempts = new Map(); // normalized email -> { count, lockUntil }
+
+const normalizeLoginKey = (email) => (email || '').trim().toLowerCase();
+
+// Returns whether the account is currently locked out, and for how much
+// longer. Clears expired lockouts as a side effect so the map doesn't hold
+// stale entries forever.
+const getLoginLockStatus = (email) => {
+  const key = normalizeLoginKey(email);
+  const entry = loginAttempts.get(key);
+  if (!entry) return { locked: false };
+  if (entry.lockUntil && entry.lockUntil > Date.now()) {
+    return { locked: true, retryAfterMs: entry.lockUntil - Date.now() };
+  }
+  if (entry.lockUntil) {
+    loginAttempts.delete(key);
+  }
+  return { locked: false };
+};
+
+// Records a failed attempt and locks the account once the threshold is hit.
+// Returns the number of attempts remaining before lockout (0 if now locked).
+const registerFailedLoginAttempt = (email) => {
+  const key = normalizeLoginKey(email);
+  const entry = loginAttempts.get(key) || { count: 0, lockUntil: null };
+  entry.count += 1;
+  if (entry.count >= MAX_LOGIN_ATTEMPTS) {
+    entry.lockUntil = Date.now() + LOGIN_LOCKOUT_MS;
+  }
+  loginAttempts.set(key, entry);
+  return Math.max(0, MAX_LOGIN_ATTEMPTS - entry.count);
+};
+
+const clearLoginAttempts = (email) => {
+  loginAttempts.delete(normalizeLoginKey(email));
+};
+
+const formatLockoutMessage = (retryAfterMs) => {
+  const hours = Math.max(1, Math.ceil(retryAfterMs / (60 * 60 * 1000)));
+  return `Too many failed login attempts. Please try again after ${hours} hour${hours === 1 ? '' : 's'}.`;
+};
+
 // MongoDB connection
 const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/ureb_system';
 let client;
@@ -1047,6 +1097,12 @@ app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     console.log(`[AUTH] Login attempt for email: ${email}`);
 
+    const lockStatus = getLoginLockStatus(email);
+    if (lockStatus.locked) {
+      console.log(`[AUTH] Login blocked — account locked: ${email}`);
+      return res.status(429).json({ success: false, error: formatLockoutMessage(lockStatus.retryAfterMs), locked: true });
+    }
+
     if (await rejectIfTurnstileInvalid(req, res)) return;
 
     const db = getDatabase();
@@ -1082,13 +1138,32 @@ app.post('/api/auth/login', async (req, res) => {
 
     if (!user) {
       console.log(`User not found: ${email}`);
-      return res.json({ success: false, error: 'Incorrect email', field: 'email' });
+      const remaining = registerFailedLoginAttempt(email);
+      if (remaining === 0) {
+        return res.status(429).json({ success: false, error: formatLockoutMessage(LOGIN_LOCKOUT_MS), field: 'email', locked: true });
+      }
+      return res.json({
+        success: false,
+        error: `Incorrect email. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before your account is temporarily locked.`,
+        field: 'email',
+      });
     }
 
     if (user.password !== password) {
       console.log(`Password mismatch for: ${email}`);
-      return res.json({ success: false, error: 'Incorrect password', field: 'password' });
+      const remaining = registerFailedLoginAttempt(email);
+      if (remaining === 0) {
+        return res.status(429).json({ success: false, error: formatLockoutMessage(LOGIN_LOCKOUT_MS), field: 'password', locked: true });
+      }
+      return res.json({
+        success: false,
+        error: `Incorrect password. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before your account is temporarily locked.`,
+        field: 'password',
+      });
     }
+
+    // Successful credential check — clear any prior failed-attempt history.
+    clearLoginAttempts(email);
 
     // Check if student account is disabled
     if (userType === 'student' && user.disabled === true) {

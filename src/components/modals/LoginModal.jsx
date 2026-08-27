@@ -49,6 +49,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
   const [isRegistering, setIsRegistering] = useState(false);
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [showDisabledModal, setShowDisabledModal] = useState(false);
+  const [lockoutMessage, setLockoutMessage] = useState('');
   const [showPrivacyStep, setShowPrivacyStep] = useState(false);
   const [privacyChecked, setPrivacyChecked] = useState(false);
   const [pendingAuthResult, setPendingAuthResult] = useState(null);
@@ -311,6 +312,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
     setConfirmPassword('');
     setError('');
     setLoginErrorField(null);
+    setLockoutMessage('');
     setPasswordError('');
     setPasswordTouched(false);
     setShowSuccessModal(false);
@@ -372,6 +374,9 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
         }
       } else if (result.error === 'disabled') {
         setShowDisabledModal(true);
+        resetTurnstile();
+      } else if (result.locked) {
+        setLockoutMessage(result.error || 'Too many failed login attempts. Please try again after 4 hours.');
         resetTurnstile();
       } else {
         setError(result.error || 'Invalid email or password');
@@ -1007,6 +1012,29 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
               className="login-btn-primary login-modal-submit"
               style={{ marginTop: '1.25rem', background: '#d97706' }}
               onClick={() => setShowDisabledModal(false)}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Too Many Failed Attempts Modal */}
+      {lockoutMessage && (
+        <div className="success-modal-overlay">
+          <div className="success-modal-container" style={{ borderTop: '4px solid #d97706' }}>
+            <div className="success-icon">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
+            <h2 style={{ color: '#92400e' }}>Too Many Failed Attempts</h2>
+            <p>{lockoutMessage}</p>
+            <button
+              className="login-btn-primary login-modal-submit"
+              style={{ marginTop: '1.25rem', background: '#d97706' }}
+              onClick={() => setLockoutMessage('')}
             >
               OK
             </button>

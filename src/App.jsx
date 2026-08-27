@@ -123,7 +123,7 @@ function App() {
         return { success: true, user: result.user };
       }
       // Return error message to be displayed in modal
-      return { success: false, error: result.error || 'Login failed', field: result.field };
+      return { success: false, error: result.error || 'Login failed', field: result.field, locked: result.locked };
     } catch (error) {
       console.error('Login error:', error);
       // Return error message to be displayed in modal
