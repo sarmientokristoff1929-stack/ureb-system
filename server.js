@@ -129,7 +129,9 @@ const rejectIfTurnstileInvalid = async (req, res) => {
 // few different emails then a few different passwords still adds up to one
 // shared count of 3 — it doesn't reset the counter just because the input
 // changed. Resets automatically once the lockout window elapses, and
-// immediately on any successful login from that client.
+// immediately on any successful login from that client. Applied only to
+// Researcher (student) logins — see isRateLimitedRole in /api/auth/login —
+// Admin and Reviewer accounts are exempt.
 const MAX_LOGIN_ATTEMPTS = 3;
 const LOGIN_LOCKOUT_MS = 4 * 60 * 60 * 1000; // 4 hours
 const loginAttempts = new Map(); // client key -> { count, lockUntil }
@@ -1104,13 +1106,6 @@ app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     console.log(`[AUTH] Login attempt for email: ${email}`);
 
-    const rateLimitKey = getLoginRateLimitKey(req);
-    const lockStatus = getLoginLockStatus(rateLimitKey);
-    if (lockStatus.locked) {
-      console.log(`[AUTH] Login blocked — too many failed attempts from: ${rateLimitKey}`);
-      return res.status(429).json({ success: false, error: formatLockoutMessage(lockStatus.retryAfterMs), locked: true });
-    }
-
     if (await rejectIfTurnstileInvalid(req, res)) return;
 
     const db = getDatabase();
@@ -1144,6 +1139,21 @@ app.post('/api/auth/login', async (req, res) => {
       }
     }
 
+    // Rate limiting (3 failed attempts -> temporary lock) applies only to
+    // Researcher (student) logins, plus emails that don't resolve to any
+    // account — most public traffic on this form is researchers, not staff.
+    // Admin and Reviewer accounts are exempt and can retry without limit.
+    const isRateLimitedRole = !user || userType === 'student';
+    const rateLimitKey = getLoginRateLimitKey(req);
+
+    if (isRateLimitedRole) {
+      const lockStatus = getLoginLockStatus(rateLimitKey);
+      if (lockStatus.locked) {
+        console.log(`[AUTH] Login blocked — too many failed attempts from: ${rateLimitKey}`);
+        return res.status(429).json({ success: false, error: formatLockoutMessage(lockStatus.retryAfterMs), locked: true });
+      }
+    }
+
     if (!user) {
       console.log(`User not found: ${email}`);
       const remaining = registerFailedLoginAttempt(rateLimitKey);
@@ -1155,15 +1165,19 @@ app.post('/api/auth/login', async (req, res) => {
 
     if (user.password !== password) {
       console.log(`Password mismatch for: ${email}`);
-      const remaining = registerFailedLoginAttempt(rateLimitKey);
-      if (remaining === 0) {
-        return res.status(429).json({ success: false, error: formatLockoutMessage(LOGIN_LOCKOUT_MS), field: 'password', locked: true });
+      if (isRateLimitedRole) {
+        const remaining = registerFailedLoginAttempt(rateLimitKey);
+        if (remaining === 0) {
+          return res.status(429).json({ success: false, error: formatLockoutMessage(LOGIN_LOCKOUT_MS), field: 'password', locked: true });
+        }
       }
       return res.json({ success: false, error: 'Incorrect password', field: 'password' });
     }
 
     // Successful credential check — clear any prior failed-attempt history.
-    clearLoginAttempts(rateLimitKey);
+    if (isRateLimitedRole) {
+      clearLoginAttempts(rateLimitKey);
+    }
 
     // Check if student account is disabled
     if (userType === 'student' && user.disabled === true) {
