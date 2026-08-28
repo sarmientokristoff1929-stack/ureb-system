@@ -15,11 +15,6 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// Deployed behind Vercel's edge proxy — trust its X-Forwarded-For header so
-// req.ip reflects the actual client IP (used for login rate limiting below)
-// instead of the proxy's own address.
-app.set('trust proxy', 1);
-
 // Signs/verifies the admin session token issued at login (see /api/auth/login).
 // Reuses SESSION_SECRET, which already exists in .env for exactly this purpose.
 const SESSION_SECRET = process.env.SESSION_SECRET;
@@ -120,60 +115,6 @@ const rejectIfTurnstileInvalid = async (req, res) => {
     return true;
   }
   return false;
-};
-
-// Login rate limiting — locks out after 3 total failed login attempts, no
-// matter the reason (incorrect email, incorrect password, or a mix of both),
-// to slow down brute-force / credential-stuffing attempts. Keyed by the
-// requesting client (IP), not by which email string was typed, so trying a
-// few different emails then a few different passwords still adds up to one
-// shared count of 3 — it doesn't reset the counter just because the input
-// changed. Resets automatically once the lockout window elapses, and
-// immediately on any successful login from that client. Applied only to
-// Researcher (student) logins — see isRateLimitedRole in /api/auth/login —
-// Admin and Reviewer accounts are exempt.
-const MAX_LOGIN_ATTEMPTS = 3;
-const LOGIN_LOCKOUT_MS = 4 * 60 * 60 * 1000; // 4 hours
-const loginAttempts = new Map(); // client key -> { count, lockUntil }
-
-// Prefer the real client IP when behind a reverse proxy (Render, etc.) —
-// falls back to the raw socket address otherwise.
-const getLoginRateLimitKey = (req) => req.ip || req.socket?.remoteAddress || 'unknown';
-
-// Returns whether the client is currently locked out, and for how much
-// longer. Clears expired lockouts as a side effect so the map doesn't hold
-// stale entries forever.
-const getLoginLockStatus = (key) => {
-  const entry = loginAttempts.get(key);
-  if (!entry) return { locked: false };
-  if (entry.lockUntil && entry.lockUntil > Date.now()) {
-    return { locked: true, retryAfterMs: entry.lockUntil - Date.now() };
-  }
-  if (entry.lockUntil) {
-    loginAttempts.delete(key);
-  }
-  return { locked: false };
-};
-
-// Records a failed attempt and locks the client out once the threshold is
-// hit. Returns the number of attempts remaining before lockout (0 if now locked).
-const registerFailedLoginAttempt = (key) => {
-  const entry = loginAttempts.get(key) || { count: 0, lockUntil: null };
-  entry.count += 1;
-  if (entry.count >= MAX_LOGIN_ATTEMPTS) {
-    entry.lockUntil = Date.now() + LOGIN_LOCKOUT_MS;
-  }
-  loginAttempts.set(key, entry);
-  return Math.max(0, MAX_LOGIN_ATTEMPTS - entry.count);
-};
-
-const clearLoginAttempts = (key) => {
-  loginAttempts.delete(key);
-};
-
-const formatLockoutMessage = (retryAfterMs) => {
-  const hours = Math.max(1, Math.ceil(retryAfterMs / (60 * 60 * 1000)));
-  return `Too many failed login attempts. Please try again after ${hours} hour${hours === 1 ? '' : 's'}.`;
 };
 
 // MongoDB connection
@@ -1139,44 +1080,14 @@ app.post('/api/auth/login', async (req, res) => {
       }
     }
 
-    // Rate limiting (3 failed attempts -> temporary lock) applies only to
-    // Researcher (student) logins, plus emails that don't resolve to any
-    // account — most public traffic on this form is researchers, not staff.
-    // Admin and Reviewer accounts are exempt and can retry without limit.
-    const isRateLimitedRole = !user || userType === 'student';
-    const rateLimitKey = getLoginRateLimitKey(req);
-
-    if (isRateLimitedRole) {
-      const lockStatus = getLoginLockStatus(rateLimitKey);
-      if (lockStatus.locked) {
-        console.log(`[AUTH] Login blocked — too many failed attempts from: ${rateLimitKey}`);
-        return res.status(429).json({ success: false, error: formatLockoutMessage(lockStatus.retryAfterMs), locked: true });
-      }
-    }
-
     if (!user) {
       console.log(`User not found: ${email}`);
-      const remaining = registerFailedLoginAttempt(rateLimitKey);
-      if (remaining === 0) {
-        return res.status(429).json({ success: false, error: formatLockoutMessage(LOGIN_LOCKOUT_MS), field: 'email', locked: true });
-      }
       return res.json({ success: false, error: 'Incorrect email', field: 'email' });
     }
 
     if (user.password !== password) {
       console.log(`Password mismatch for: ${email}`);
-      if (isRateLimitedRole) {
-        const remaining = registerFailedLoginAttempt(rateLimitKey);
-        if (remaining === 0) {
-          return res.status(429).json({ success: false, error: formatLockoutMessage(LOGIN_LOCKOUT_MS), field: 'password', locked: true });
-        }
-      }
       return res.json({ success: false, error: 'Incorrect password', field: 'password' });
-    }
-
-    // Successful credential check — clear any prior failed-attempt history.
-    if (isRateLimitedRole) {
-      clearLoginAttempts(rateLimitKey);
     }
 
     // Check if student account is disabled
