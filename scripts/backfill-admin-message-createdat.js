@@ -22,47 +22,47 @@ const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/ureb_system';
 const DRY_RUN = process.argv.includes('--dry-run');
 
 async function main() {
-  const clientOptions =
-    uri.startsWith('mongodb+srv://') || uri.includes('mongodb.net')
-      ? { tls: true, tlsAllowInvalidCertificates: true, tlsAllowInvalidHostnames: true }
-      : {};
+    const clientOptions =
+        uri.startsWith('mongodb+srv://') || uri.includes('mongodb.net')
+            ? { tls: true, tlsAllowInvalidCertificates: true, tlsAllowInvalidHostnames: true }
+            : {};
 
-  const client = new MongoClient(uri, clientOptions);
-  await client.connect();
-  const db = client.db('ureb_system');
-  const messages = db.collection('messages');
+    const client = new MongoClient(uri, clientOptions);
+    await client.connect();
+    const db = client.db('ureb_system');
+    const messages = db.collection('messages');
 
-  console.log(DRY_RUN ? 'Running in DRY RUN mode — no changes will be written.' : 'Running backfill — this WILL modify the database.');
+    console.log(DRY_RUN ? 'Running in DRY RUN mode — no changes will be written.' : 'Running backfill — this WILL modify the database.');
 
-  const filter = {
-    type: 'admin_to_student',
-    createdAt: { $exists: false },
-    sentAt: { $exists: true },
-  };
+    const filter = {
+        type: 'admin_to_student',
+        createdAt: { $exists: false },
+        sentAt: { $exists: true },
+    };
 
-  const affected = await messages.countDocuments(filter);
-  console.log(`\n"admin_to_student" messages missing createdAt: ${affected}`);
+    const affected = await messages.countDocuments(filter);
+    console.log(`\n"admin_to_student" messages missing createdAt: ${affected}`);
 
-  const samples = await messages.find(filter).limit(3).project({ recipientEmail: 1, message: 1, sentAt: 1 }).toArray();
-  if (samples.length > 0) {
-    console.log('  sample messages that will be backfilled:');
-    samples.forEach((s) => console.log(`    - [${s.sentAt?.toISOString?.() || s.sentAt}] -> ${s.recipientEmail}: ${(s.message || '').slice(0, 60)}`));
-  }
+    const samples = await messages.find(filter).limit(3).project({ recipientEmail: 1, message: 1, sentAt: 1 }).toArray();
+    if (samples.length > 0) {
+        console.log('  sample messages that will be backfilled:');
+        samples.forEach((s) => console.log(`    - [${s.sentAt?.toISOString?.() || s.sentAt}] -> ${s.recipientEmail}: ${(s.message || '').slice(0, 60)}`));
+    }
 
-  if (DRY_RUN) {
-    console.log('\n(dry run — no writes performed)');
+    if (DRY_RUN) {
+        console.log('\n(dry run — no writes performed)');
+        await client.close();
+        return;
+    }
+
+    const result = await messages.updateMany(filter, [{ $set: { createdAt: '$sentAt' } }]);
+    console.log(`\nmatched: ${result.matchedCount}, modified: ${result.modifiedCount}`);
+
     await client.close();
-    return;
-  }
-
-  const result = await messages.updateMany(filter, [{ $set: { createdAt: '$sentAt' } }]);
-  console.log(`\nmatched: ${result.matchedCount}, modified: ${result.modifiedCount}`);
-
-  await client.close();
-  console.log('Done.');
+    console.log('Done.');
 }
 
 main().catch((err) => {
-  console.error(err);
-  process.exit(1);
+    console.error(err);
+    process.exit(1);
 });

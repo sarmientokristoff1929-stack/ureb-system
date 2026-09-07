@@ -1,166 +1,166 @@
 .sap-section--simple {
-  margin-bottom: 1.5rem;
-  padding: 1.25rem 1.35rem;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    margin-bottom: 1.5rem;
+    padding: 1.25rem 1.35rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 .sap-title {
-  margin: 0 0 1rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #64748b;
+    margin: 0 0 1rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
 }
 
 .sap-simple-row {
-  display: grid;
-  grid-template-columns: auto 1fr 1fr;
-  gap: 1.25rem;
-  align-items: start;
+    display: grid;
+    grid-template-columns: auto 1fr 1fr;
+    gap: 1.25rem;
+    align-items: start;
 }
 
 @media (max-width: 720px) {
-  .sap-simple-row {
-    grid-template-columns: 1fr;
-    justify-items: center;
-  }
+    .sap-simple-row {
+        grid-template-columns: 1fr;
+        justify-items: center;
+    }
 }
 
 /* ── Chart only (donut + legend) ── */
 .sap-donut-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.25rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.25rem 0.5rem;
 }
 
 .sap-donut {
-  width: 200px;
-  height: 200px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .sap-donut-hole {
-  width: 128px;
-  height: 128px;
-  border-radius: 50%;
-  background: #fff;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  box-shadow: inset 0 0 0 1px #f1f5f9;
+    width: 128px;
+    height: 128px;
+    border-radius: 50%;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 0 0 1px #f1f5f9;
 }
 
 .sap-donut-hole strong {
-  font-size: 2.5rem;
-  font-weight: 800;
-  color: #0f172a;
-  line-height: 1;
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1;
 }
 
 .sap-donut-hole span {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-top: 0.15rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.15rem;
 }
 
 .sap-donut-labels {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    align-items: center;
 }
 
 .sap-tag {
-  font-size: 0.82rem;
-  font-weight: 600;
-  padding: 0.3rem 0.65rem;
-  border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.3rem 0.65rem;
+    border-radius: 6px;
 }
 
 .sap-tag--student {
-  background: #f0fdf4;
-  color: #166534;
+    background: #f0fdf4;
+    color: #166534;
 }
 
 .sap-tag--reviewer {
-  background: #f0f9ff;
-  color: #0369a1;
+    background: #f0f9ff;
+    color: #0369a1;
 }
 
 /* ── Stat columns (unchanged compact size) ── */
 .sap-compare-col {
-  padding: 0.85rem 1rem;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
 }
 
 .sap-compare-col--student {
-  background: #fafdfb;
-  border-color: #dcfce7;
+    background: #fafdfb;
+    border-color: #dcfce7;
 }
 
 .sap-compare-col--reviewer {
-  background: #f8fcff;
-  border-color: #e0f2fe;
+    background: #f8fcff;
+    border-color: #e0f2fe;
 }
 
 .sap-compare-col h4 {
-  margin: 0 0 0.65rem;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #0f172a;
+    margin: 0 0 0.65rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #0f172a;
 }
 
 .sap-compare-col--student h4 { color: #4a7c59; }
 .sap-compare-col--reviewer h4 { color: #0284c7; }
 
 .sap-stat-list {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .sap-stat-list div {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
 }
 
 .sap-stat-list dt {
-  margin: 0;
-  font-size: 0.78rem;
-  color: #64748b;
-  font-weight: 500;
+    margin: 0;
+    font-size: 0.78rem;
+    color: #64748b;
+    font-weight: 500;
 }
 
 .sap-stat-list dd {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #0f172a;
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
 }
 
 .sap-footnote {
-  margin: 1rem 0 0;
-  padding-top: 0.85rem;
-  border-top: 1px solid #f1f5f9;
-  font-size: 0.8rem;
-  color: #94a3b8;
-  text-align: center;
+    margin: 1rem 0 0;
+    padding-top: 0.85rem;
+    border-top: 1px solid #f1f5f9;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    text-align: center;
 }
