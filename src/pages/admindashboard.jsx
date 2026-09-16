@@ -1348,19 +1348,11 @@ const AdminDashboard = ({ onLogout }) => {
 
                 return <DashboardContent />;
 
-
-
         }
 
 
 
     };
-
-
-
-
-
-
 
     return (
 
@@ -1406,11 +1398,7 @@ const AdminDashboard = ({ onLogout }) => {
 
                     <div className="sidebar-logo">
 
-
-
                         <img src="/logoureb.png" alt="UREB Logo" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
-
-
 
                         <span>UREB Admin</span>
 

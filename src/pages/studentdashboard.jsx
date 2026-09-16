@@ -2497,16 +2497,10 @@ function AddFilesContent({ setSubmittedFiles, setShowSuccessModal, userInfo, stu
                     A reviewer will be assigned by the administrator after you submit your files.
                 </p>
 
-                <p style={{ color: '#b45309', backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '6px', padding: '10px 14px', marginTop: '1rem', marginBottom: '0.5rem', fontSize: '0.92rem' }}>
-                    ⚠️ We are currently fixing the researcher submission system. Please try again later.
-                </p>
-
                 <div className="form-actions">
                     <button
                         type="submit"
                         className="btn-primary"
-                        disabled={true}
-                        title="Submission is temporarily unavailable"
                     >
                         Submit Files
                     </button>
