@@ -35,7 +35,13 @@ export const authenticateUser = async (email, password, turnstileToken) => {
         return data;
     } catch (error) {
         console.error('Authentication error:', error);
-        return { success: false, error: 'Server error' };
+        const isNetworkError = error instanceof TypeError && error.message === 'Failed to fetch';
+        return {
+            success: false,
+            error: isNetworkError
+                ? 'Unable to reach the server. Please check your internet connection and try again.'
+                : 'An unexpected error occurred. Please try again.',
+        };
     }
 };
 

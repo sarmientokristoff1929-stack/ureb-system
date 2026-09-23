@@ -1054,28 +1054,33 @@ app.post('/api/auth/login', async (req, res) => {
         const students = db.collection(collections.students);
         const reviewers = db.collection(collections.reviewers);
 
-        // Check in users collection first (this includes admin users)
-        let user = await users.findOne({ email });
+        // Check in users collection first (this includes admin users).
+        // Use case-insensitive regex so accounts stored with different casing still match.
+        let user = await users.findOne({ email: emailRegexFilter(email) });
         let userType = 'user';
 
         if (user) {
             console.log(`Found user in users collection: ${JSON.stringify({ email: user.email, role: user.role, name: user.name })}`);
         }
 
-        // If not found in users, check students collection
+        // If not found in users, check students collection (findStudentByLoginEmail
+        // already does case-insensitive matching across email + gmail fields).
         if (!user) {
-            user = await findStudentByLoginEmail(students, email);
-            userType = 'student';
-            if (user) {
+            const studentRecord = await findStudentByLoginEmail(students, email);
+            if (studentRecord) {
+                user = studentRecord;
+                userType = 'student';
                 console.log(`Found user in students collection: ${JSON.stringify({ email: user.email, gmail: user.gmail })}`);
             }
         }
 
-        // If not found in users or students, check reviewers collection
+        // If not found in users or students, check reviewers collection.
+        // Use case-insensitive regex so reviewer accounts with mixed-case emails still match.
         if (!user) {
-            user = await reviewers.findOne({ email });
-            userType = 'reviewer';
-            if (user) {
+            const reviewerRecord = await reviewers.findOne({ email: emailRegexFilter(email) });
+            if (reviewerRecord) {
+                user = reviewerRecord;
+                userType = 'reviewer';
                 console.log(`Found user in reviewers collection: ${JSON.stringify({ email: user.email, role: user.role })}`);
             }
         }
@@ -1167,8 +1172,8 @@ app.post('/api/auth/login', async (req, res) => {
             user: userResponse
         });
     } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ success: false, error: 'Server error' });
+        console.error('Login error:', error?.message || error, error?.stack);
+        res.status(500).json({ success: false, error: 'An unexpected server error occurred. Please try again.' });
     }
 });
 
