@@ -104,8 +104,16 @@ const verifyTurnstileToken = async (token) => {
     }
 };
 
-// Turnstile verification temporarily disabled.
+// Rejects the request with 403 if the Turnstile token is missing/invalid.
+// Returns true (and has already sent the response) when the request was rejected,
+// so callers can `if (await rejectIfTurnstileInvalid(req, res)) return;`.
 const rejectIfTurnstileInvalid = async (req, res) => {
+    const outcome = await verifyTurnstileToken(req.body?.turnstileToken);
+    if (!outcome.success) {
+        console.log('[turnstile] verification failed:', outcome['error-codes']);
+        res.status(403).json({ success: false, error: 'Security verification failed. Please complete the challenge and try again.' });
+        return true;
+    }
     return false;
 };
 
