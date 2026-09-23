@@ -54,7 +54,12 @@ console.log('*** SERVER v2.0 - GENDER FIX ACTIVE  ***');
 console.log('******************************************');
 
 // Middleware & Security Hardening
-app.use(cors());
+app.use(cors({
+    origin: process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+        : ['http://localhost:5173', 'http://localhost:5001'],
+    credentials: true,
+}));
 
 // Global Security Response Headers
 app.use((req, res, next) => {
@@ -117,7 +122,7 @@ let gfsBucket;
 
 export const connectToDatabase = async () => {
     try {
-        if (!client) {
+        if (!client || !db) {
             // MongoDB connection options — tuned for Atlas Flex plan.
             // tlsAllowInvalidCertificates/Hostnames removed: Flex uses valid TLS certs
             // and those flags can cause handshake rejections on newer clusters.
@@ -128,6 +133,8 @@ export const connectToDatabase = async () => {
             const options = {
                 tls: true,
                 maxPoolSize: 5,
+                retryWrites: true,
+                retryReads: true,
                 serverSelectionTimeoutMS: 30000,
                 connectTimeoutMS: 30000,
                 socketTimeoutMS: 45000,
@@ -135,6 +142,15 @@ export const connectToDatabase = async () => {
             };
 
             client = new MongoClient(uri, options);
+
+            // Monitor topology events for connection health visibility
+            client.on('serverHeartbeatFailed', (event) => {
+                console.warn('⚠️ MongoDB heartbeat failed:', event.failure?.message || 'unknown');
+            });
+            client.on('topologyClosed', () => {
+                console.warn('⚠️ MongoDB topology closed — connection pool shut down');
+            });
+
             await client.connect();
             db = client.db('ureb_system');
             gfsBucket = new GridFSBucket(db, { bucketName: 'uploads' });
@@ -143,6 +159,11 @@ export const connectToDatabase = async () => {
         return db;
     } catch (error) {
         console.error('❌ Error connecting to MongoDB:', error);
+        // Reset so the next call will attempt a fresh connection
+        // instead of returning the broken client/db references
+        client = null;
+        db = null;
+        gfsBucket = null;
         throw error;
     }
 };
@@ -200,7 +221,29 @@ connectToDatabase().then(async (db) => {
     } catch (error) {
         console.error('Migration error:', error);
     }
-}).catch(console.error);
+}).catch((err) => {
+    console.error('❌ Failed to connect to MongoDB at startup:', err.message);
+    console.warn('⚠️ Server will attempt to reconnect on incoming API requests');
+});
+
+// Database availability middleware — ensures MongoDB is connected before
+// processing API requests. If the initial startup connection failed, this
+// will retry on each incoming request. Health/static endpoints are skipped.
+app.use('/api', (req, res, next) => {
+    // Endpoints that don't require a database connection
+    if (req.path === '/version' || req.path.startsWith('/templates/')) {
+        return next();
+    }
+    connectToDatabase()
+        .then(() => next())
+        .catch((err) => {
+            console.error('Database unavailable for', req.method, req.originalUrl, ':', err.message);
+            res.status(503).json({
+                success: false,
+                error: 'Database temporarily unavailable. Please try again shortly.',
+            });
+        });
+});
 
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -6208,3 +6251,22 @@ app.listen(PORT, HOST, () => {
     console.log(`🌐 Local access: http://localhost:${PORT}`);
     console.log(`🌐 Network access: http://0.0.0.0:${PORT}`);
 });
+
+// Graceful shutdown — close MongoDB connection pool when the process is
+// terminated (SIGTERM from Render, SIGINT from Ctrl+C) so connections are
+// released back to Atlas instead of lingering until they time out.
+const gracefulShutdown = async (signal) => {
+    console.log(`\n🛑 ${signal} received — shutting down gracefully…`);
+    try {
+        if (client) {
+            await client.close();
+            console.log('✅ MongoDB connection closed');
+        }
+    } catch (err) {
+        console.error('Error closing MongoDB connection:', err.message);
+    }
+    process.exit(0);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
