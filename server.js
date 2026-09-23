@@ -126,13 +126,18 @@ let gfsBucket;
 export const connectToDatabase = async () => {
     try {
         if (!client) {
-            // MongoDB connection with proper SSL configuration
+            // MongoDB connection options — tuned for Atlas Flex plan.
+            // tlsAllowInvalidCertificates/Hostnames removed: Flex uses valid TLS certs
+            // and those flags can cause handshake rejections on newer clusters.
+            // serverSelectionTimeoutMS raised to 30 s: Flex clusters may take longer
+            // to become available, especially on a cold Render dyno start.
+            // maxPoolSize lowered to 5: Flex has tighter connection limits than
+            // the previous shared-cluster tier.
             const options = {
                 tls: true,
-                tlsAllowInvalidCertificates: true,
-                tlsAllowInvalidHostnames: true,
-                maxPoolSize: 10,
-                serverSelectionTimeoutMS: 5000,
+                maxPoolSize: 5,
+                serverSelectionTimeoutMS: 30000,
+                connectTimeoutMS: 30000,
                 socketTimeoutMS: 45000,
                 family: 4 // Use IPv4, skip IPv6
             };
