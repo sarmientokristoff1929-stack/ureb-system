@@ -75,7 +75,6 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [registerLoading, setRegisterLoading] = useState(false);
     const [loginLoading, setLoginLoading] = useState(false);
-    const [retryStatus, setRetryStatus] = useState(null); // { attempt, maxAttempts, secondsLeft }
     const [gmailExists, setGmailExists] = useState(false);
     const [checkingGmail, setCheckingGmail] = useState(false);
     const debounceTimer = useRef(null);
@@ -332,18 +331,13 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
 
         setError('');
         setLoginErrorField(null);
-        setRetryStatus(null);
         setLoginLoading(true);
 
         try {
             // Single network call — carries the (single-use) Turnstile token. The
             // result is reused below both to decide role-based routing and, once
             // accepted, to commit the session, so we never re-verify the same token.
-            // onRetry fires on each cold-start retry so the UI can show a countdown.
-            const onRetry = (attempt, maxAttempts, secondsLeft) => {
-                setRetryStatus({ attempt, maxAttempts, secondsLeft });
-            };
-            const result = await onLogin(email, password, turnstileToken, onRetry);
+            const result = await onLogin(email, password, turnstileToken);
 
             if (result.success) {
                 // For students, check if account is disabled
@@ -390,7 +384,6 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
             resetTurnstile();
         } finally {
             setLoginLoading(false);
-            setRetryStatus(null);
         }
     };
 
@@ -880,31 +873,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
                                     </label>
                                 </div>
                                 <TurnstileWidget onToken={setTurnstileToken} resetKey={turnstileResetKey} />
-                                {retryStatus && (
-                                    <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '10px',
-                                        padding: '10px 14px',
-                                        borderRadius: '8px',
-                                        background: '#FFF8E1',
-                                        border: '1px solid #FFE082',
-                                        marginBottom: '4px',
-                                        fontSize: '13px',
-                                        color: '#795548',
-                                    }}>
-                                        <span style={{ fontSize: '18px' }}>⏳</span>
-                                        <span>
-                                            <strong>Server is waking up…</strong> retrying in{' '}
-                                            <strong>{retryStatus.secondsLeft}s</strong>
-                                            {' '}(attempt {retryStatus.attempt} of {retryStatus.maxAttempts})
-                                        </span>
-                                    </div>
-                                )}
                                 <button type="submit" className="login-btn-primary login-modal-submit" disabled={loginLoading || !turnstileToken}>
-                                    {retryStatus
-                                        ? `Reconnecting… (${retryStatus.secondsLeft}s)`
-                                        : loginLoading ? 'Signing in...' : 'Sign In'}
+                                    {loginLoading ? 'Signing in...' : 'Sign In'}
                                 </button>
                             </form>
                         )}
