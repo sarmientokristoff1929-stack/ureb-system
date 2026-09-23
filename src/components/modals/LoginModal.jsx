@@ -872,8 +872,8 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister, onCommitLogin }) => 
                                         <span>Remember me</span>
                                     </label>
                                 </div>
-                                <TurnstileWidget onToken={setTurnstileToken} resetKey={turnstileResetKey} />
-                                <button type="submit" className="login-btn-primary login-modal-submit" disabled={loginLoading || !turnstileToken}>
+                                {/* Turnstile disabled */}
+                                <button type="submit" className="login-btn-primary login-modal-submit" disabled={loginLoading}>
                                     {loginLoading ? 'Signing in...' : 'Sign In'}
                                 </button>
                             </form>
