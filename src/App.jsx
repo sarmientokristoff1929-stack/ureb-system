@@ -116,9 +116,9 @@ function App() {
     // consent step first (students) before the session is actually applied via
     // commitLogin below. This keeps the login endpoint called exactly once per
     // attempt, since a Turnstile token can only be verified successfully once.
-    const handleLogin = async (email, password, turnstileToken) => {
+    const handleLogin = async (email, password, turnstileToken, onRetry) => {
         try {
-            const result = await authenticateUser(email, password, turnstileToken);
+            const result = await authenticateUser(email, password, turnstileToken, onRetry);
             if (result.success) {
                 return { success: true, user: result.user };
             }

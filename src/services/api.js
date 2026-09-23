@@ -15,33 +15,66 @@ const getAuthHeaders = () => {
     }
 };
 
-// Authentication
-export const authenticateUser = async (email, password, turnstileToken) => {
-    try {
-        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+// Authentication — retries automatically on network failure so Render
+// free-tier cold starts (30-90 s spin-up) don't permanently block login.
+// `onRetry(attempt, maxAttempts, secondsLeft)` is called each retry tick
+// so the UI can display a live countdown ("Waking server up… 7s").
+export const authenticateUser = async (email, password, turnstileToken, onRetry) => {
+    const MAX_ATTEMPTS = 5;    // 1 initial + 4 retries
+    const RETRY_DELAY_MS = 10000; // 10 s between attempts
+
+    const attemptLogin = () =>
+        fetch(`${API_BASE_URL}/auth/login`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password, turnstileToken }),
         });
 
-        const data = await response.json();
-        if (data.success && data.user && data.user.profilePicture) {
-            if (data.user.profilePicture.startsWith('/api') && API_BASE_URL.startsWith('http')) {
-                data.user.profilePicture = `${API_BASE_URL.replace(/\/api$/, '')}${data.user.profilePicture}`;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+            const response = await attemptLogin();
+            const data = await response.json();
+
+            if (data.success && data.user && data.user.profilePicture) {
+                if (data.user.profilePicture.startsWith('/api') && API_BASE_URL.startsWith('http')) {
+                    data.user.profilePicture = `${API_BASE_URL.replace(/\/api$/, '')}${data.user.profilePicture}`;
+                }
             }
+            return data;
+        } catch (error) {
+            const isNetworkError = error instanceof TypeError &&
+                (error.message === 'Failed to fetch' || error.message.includes('fetch'));
+
+            console.warn(`[auth] attempt ${attempt}/${MAX_ATTEMPTS} failed:`, error?.message);
+
+            // Non-network errors (e.g. JSON parse failures) — don't retry
+            if (!isNetworkError) {
+                console.error('Authentication error:', error);
+                return { success: false, error: 'An unexpected error occurred. Please try again.' };
+            }
+
+            // Last attempt exhausted — give up
+            if (attempt === MAX_ATTEMPTS) {
+                return {
+                    success: false,
+                    error: 'Unable to reach the server after multiple attempts. Please check your connection or try again in a moment.',
+                };
+            }
+
+            // Wait RETRY_DELAY_MS with a per-second countdown via onRetry callback
+            await new Promise((resolve) => {
+                let secondsLeft = Math.ceil(RETRY_DELAY_MS / 1000);
+                if (onRetry) onRetry(attempt, MAX_ATTEMPTS - 1, secondsLeft);
+                const tick = setInterval(() => {
+                    secondsLeft -= 1;
+                    if (onRetry) onRetry(attempt, MAX_ATTEMPTS - 1, secondsLeft);
+                    if (secondsLeft <= 0) {
+                        clearInterval(tick);
+                        resolve();
+                    }
+                }, 1000);
+            });
         }
-        return data;
-    } catch (error) {
-        console.error('Authentication error:', error);
-        const isNetworkError = error instanceof TypeError && error.message === 'Failed to fetch';
-        return {
-            success: false,
-            error: isNetworkError
-                ? 'Unable to reach the server. Please check your internet connection and try again.'
-                : 'An unexpected error occurred. Please try again.',
-        };
     }
 };
 
