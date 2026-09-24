@@ -184,6 +184,7 @@ const StudentDashboard = ({ onLogout }) => {
     const [submittedFiles, setSubmittedFiles] = useState([]);
     const [userInfo, setUserInfo] = useState(null);
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+    const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
     useEffect(() => {
         const savedUser = sessionStorage.getItem('ureb_user');
@@ -232,12 +233,46 @@ const StudentDashboard = ({ onLogout }) => {
         return () => document.removeEventListener('keydown', blockShortcutKeys);
     }, []);
 
+    // Poll for unread admin messages so the sidebar badge stays current
+    useEffect(() => {
+        if (!userInfo?.email) return undefined;
+        let cancelled = false;
+
+        const fetchUnreadCount = async () => {
+            // Skip counting while the user is already viewing messages —
+            // MessageAdminContent auto-marks them as read on open/poll.
+            if (activeTab === 'message-admin') {
+                setUnreadMessageCount(0);
+                return;
+            }
+            try {
+                const data = await getStudentConversation(userInfo.email);
+                if (!cancelled) {
+                    const unread = Array.isArray(data)
+                        ? data.filter((m) => m.type === 'admin_to_student' && !m.read).length
+                        : 0;
+                    setUnreadMessageCount(unread);
+                }
+            } catch (err) {
+                console.error('Error fetching unread message count:', err);
+            }
+        };
+
+        fetchUnreadCount();
+        const interval = setInterval(fetchUnreadCount, 30000);
+
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    }, [userInfo?.email, activeTab]);
+
     const menuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
         { id: 'add-files', label: 'Add Files', icon: <FilePlusIcon /> },
         { id: 'resubmission', label: 'Resubmission', icon: <ResubmissionIcon /> },
         { id: 'file-templates', label: 'File Templates', icon: <FileTemplatesIcon /> },
-        { id: 'message-admin', label: 'Message', icon: <MessageIcon /> },
+        { id: 'message-admin', label: 'Message', icon: <MessageIcon />, badge: unreadMessageCount > 0 ? unreadMessageCount : null },
         { id: 'notifications', label: 'Notifications', icon: <BellIcon /> },
         { id: 'history', label: 'History', icon: <HistoryIcon /> },
         { id: 'profile', label: 'Profile', icon: <ProfileIcon /> },
@@ -2450,7 +2485,7 @@ function AddFilesContent({ setSubmittedFiles, setShowSuccessModal, userInfo, stu
                 <div className="file-upload-label">
                     <UploadIcon />
                     <p>{formData[fieldName] ? formData[fieldName].name : 'Click to upload file'}</p>
-                    <span>PDF, DOC, DOCX (MAX. 15MB)</span>
+                    <span>PDF, DOC, DOCX (MAX. 50MB)</span>
                 </div>
             </div>
         </div>
@@ -2679,7 +2714,7 @@ function ResubmissionContent({ userInfo, studentData, setSubmittedFiles, setShow
                     <div className="file-upload-label">
                         <UploadIcon />
                         <p>{formData[fieldName] ? formData[fieldName].name : 'Click to select replacement file'}</p>
-                        <span>PDF, DOC, DOCX (MAX. 15MB)</span>
+                        <span>PDF, DOC, DOCX (MAX. 50MB)</span>
                     </div>
                 </div>
             </div>
