@@ -2536,13 +2536,25 @@ function AddFilesContent({ setSubmittedFiles, setShowSuccessModal, userInfo, stu
                     <button
                         type="submit"
                         className="btn-primary"
+                        disabled={uploading}
                     >
-                        Submit Files
+                        {uploading ? (
+                            <span className="btn-loading-content">
+                                <span className="btn-spinner" aria-hidden="true"></span>
+                                <span>Submitting</span>
+                                <span className="loading-dots" aria-hidden="true">
+                                    <span>.</span><span>.</span><span>.</span>
+                                </span>
+                            </span>
+                        ) : (
+                            'Submit Files'
+                        )}
                     </button>
                     <button
                         type="button"
                         className="btn-secondary"
                         onClick={() => setFormData({ ...EMPTY_ADD_FILES_FORM })}
+                        disabled={uploading}
                     >
                         Clear
                     </button>
